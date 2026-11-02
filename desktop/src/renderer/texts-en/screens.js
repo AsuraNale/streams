@@ -1,4 +1,4 @@
-// English (docs/desktop.md Â§åå…­) for src/renderer/texts/screens.js: the same keys.
+// English (docs/desktop.md…­) for src/renderer/texts/screens.js: the same keys.
 
 export const SCREENS = Object.freeze({
   placeholder: 'This page is built from tomorrow on.',

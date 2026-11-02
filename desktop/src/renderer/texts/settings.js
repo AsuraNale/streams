@@ -5,7 +5,7 @@ export const SETTINGS = Object.freeze({
   title: '设置',
   subtitle: '对这台电脑上的流息都有效',
 
-  // the language of the app's own words (docs/desktop.md §十六)
+  // the language of the app's own words (docs/desktop.md��)
   language: '语言',
   languageHint: '流息自己写的字用哪种语言',
   languageGroup: '选择语言',
@@ -28,7 +28,7 @@ export const SETTINGS = Object.freeze({
   versionDev: '流息 {version} 开发版（Windows 版）',
   madeBy: '由 Starry Digital 开发',
 
-  // 检查版本 + 更新版本 (docs/desktop.md §十九). Sizes come as 「37.2 MB」, the date as the page's language writes a date,
+  // 检查版本 + 更新版本 (docs/desktop.md��). Sizes come as 「37.2 MB」, the date as the page's language writes a date,
   // {at} as WHEN (texts/common.js) writes a time
   update: Object.freeze({
     check: '检查更新',

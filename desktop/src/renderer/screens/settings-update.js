@@ -1,4 +1,4 @@
-// D21 「关于」: the version, 「检查更新」, and what the update says (work order 08; docs/desktop.md §十九; no draft draws it). Data:
+// D21 「关于」: the version, 「检查更新」, and what the update says (work order 08; docs/desktop.md��; no draft draws it). Data:
 // lib/use-update.js (getUpdateState + the `update` event); words: texts/settings.js SETTINGS.update. The notes come as plain
 // text from the main process and are shown as text (never as HTML). Hooks for the tests: [data-update] (the state),
 // [data-update-action="…"] around each button, [data-update-link] on the links, [data-update-notes], [data-update-progress].

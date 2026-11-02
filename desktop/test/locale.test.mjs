@@ -1,4 +1,4 @@
-// The language of the app's own words (src/main/locale.mjs; docs/desktop.md §十六), in plain Node: which tags count as
+// The language of the app's own words (src/main/locale.mjs; docs/desktop.md��), in plain Node: which tags count as
 // Chinese; `auto` against the system's languages (the maintainer's machine lists English and Chinese: Chinese wins); a setting that
 // names a language wins over the system; the state writes the setting, says when the page must load itself again, and the
 // field survives the other settings' writes; the diagnostics carry the language line.

@@ -46,7 +46,7 @@ const START_SCREEN = !app.isPackaged && /^[a-z][a-z0-9-]{0,40}$/.test(process.en
 const DEV_LANGUAGES = !app.isPackaged && typeof process.env.STREAMS_DEV_SYSTEM_LANGUAGES === 'string'
   ? process.env.STREAMS_DEV_SYSTEM_LANGUAGES.split(',').map(s => s.trim()).filter(Boolean)
   : null
-// the update (update-wiring.mjs; docs/desktop.md §十九): where a development run asks for the latest release — a stand-in
+// the update (update-wiring.mjs; docs/desktop.md��): where a development run asks for the latest release — a stand-in
 // for GitHub (`http://127.0.0.1:…`, its downloads too) or `off` (no request: the tests); unset, and in a packaged app, GitHub
 const DEV_UPDATE_URL = !app.isPackaged && /^(off|https?:\/\/[^\s/]+\/?)$/.test(process.env.STREAMS_DEV_UPDATE_URL ?? '') ? process.env.STREAMS_DEV_UPDATE_URL : null
 // development tests only: a development run may then download and update, the setup program recorded in this file, not started
@@ -138,7 +138,7 @@ function createWindow() {
 app.whenReady().then(() => {
   const csp = contentSecurityPolicy(scriptHash(importMapOf(readFileSync(join(RENDERER_DIR, 'index.html'), 'utf8'))))
   hardenSession(session.defaultSession, { allowDevtools: !app.isPackaged, onBlocked: blocked })
-  // the language of the app's own words (locale.mjs; docs/desktop.md §十六): decided here once — app.getLocale() is only valid
+  // the language of the app's own words (locale.mjs; docs/desktop.md��): decided here once — app.getLocale() is only valid
   // after ready on Windows — and again whenever the settings page changes the setting; the page and the notifier follow it
   const locale = createLocaleState({
     settingsFile: layout.settingsFile, readSettings, writeSettings, log,

@@ -3,7 +3,7 @@
  *
  *   app://ui/…          src/renderer/…           the page: index.html, app.js, kit/, screens/, texts/, texts-en/, styles/
  *                                                (texts/<name>.js is answered with texts-en/<name>.js while the app runs in
- *                                                English and that file exists: docs/desktop.md §十六)
+ *                                                English and that file exists: docs/desktop.md��)
  *   app://ui/shared/…   src/shared/…             modules shared with the main process (pure, no Node, no DOM)
  *   app://ui/vendor/…   three files of node_modules, by name (VENDOR); nothing else of node_modules
  *
@@ -103,7 +103,7 @@ export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, 
       file = segments.length === 2 && Object.hasOwn(vendor, segments[1]) ? vendor[segments[1]] : null
     } else {
       const [root, rest] = segments[0] === 'shared' ? [sharedDir, segments.slice(1)] : [rendererDir, segments]
-      // the page's words in the user's language (docs/desktop.md §十六): texts/<name>.js is answered with texts-en/<name>.js
+      // the page's words in the user's language (docs/desktop.md��): texts/<name>.js is answered with texts-en/<name>.js
       // while the app runs in English and that file exists; the zh file otherwise (the gallery's words have no en table)
       let found = null
       if (root === rendererDir && rest[0] === 'texts' && rest.length === 2 && locale() === 'en') found = await resolveInside(root, ['texts-en', rest[1]])

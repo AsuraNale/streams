@@ -1,4 +1,4 @@
-// English (docs/desktop.md Â§åå…­) for src/renderer/texts/settings.js: the same keys; served in its place in English.
+// English (docs/desktop.md…­) for src/renderer/texts/settings.js: the same keys; served in its place in English.
 // The one Chinese word an English page shows, the name of the Chinese language in the language chooser, is built from its
 // code points.
 

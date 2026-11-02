@@ -6,7 +6,7 @@
 //   npm start -- --library         the world's empty library folder taken as the open library (the sidebar shows its name)
 //   npm start -- --screen kit      open another screen first (here: the component gallery)
 //   npm start -- --lang en         the app in English (en · zh, or any language tag: stands in for the system's languages,
-//                                  STREAMS_DEV_SYSTEM_LANGUAGES; docs/desktop.md §十六); without it the real system decides
+//                                  STREAMS_DEV_SYSTEM_LANGUAGES; docs/desktop.md��); without it the real system decides
 //   npm start -- --root <dir>      another development folder (under the OS temp folder)
 //   … --prepare-only               make the folder ready, print it, and stop (no window; for the tests)
 //

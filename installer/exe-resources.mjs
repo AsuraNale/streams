@@ -191,8 +191,8 @@ export function setupVersionInfo(path) {
 
 /** The version info as Windows reads it (System.Diagnostics.FileVersionInfo). */
 export function versionInfo(path) {
-  const script = '$v = (Get-Item -LiteralPath $env:YZ_FILE).VersionInfo; @{ CompanyName = [string]$v.CompanyName; ProductName = [string]$v.ProductName; FileDescription = [string]$v.FileDescription; FileVersion = [string]$v.FileVersion; ProductVersion = [string]$v.ProductVersion; LegalCopyright = [string]$v.LegalCopyright; InternalName = [string]$v.InternalName; OriginalFilename = [string]$v.OriginalFilename; FileVersionRaw = [string]$v.FileVersionRaw; ProductVersionRaw = [string]$v.ProductVersionRaw } | ConvertTo-Json -Compress'
-  const r = spawnSync(POWERSHELL, ['-NoProfile', '-NonInteractive', '-Command', `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${script}`], { encoding: 'utf8', windowsHide: true, timeout: 60_000, env: { ...process.env, YZ_FILE: path } })
+  const script = '$v = (Get-Item -LiteralPath $env:ST_FILE).VersionInfo; @{ CompanyName = [string]$v.CompanyName; ProductName = [string]$v.ProductName; FileDescription = [string]$v.FileDescription; FileVersion = [string]$v.FileVersion; ProductVersion = [string]$v.ProductVersion; LegalCopyright = [string]$v.LegalCopyright; InternalName = [string]$v.InternalName; OriginalFilename = [string]$v.OriginalFilename; FileVersionRaw = [string]$v.FileVersionRaw; ProductVersionRaw = [string]$v.ProductVersionRaw } | ConvertTo-Json -Compress'
+  const r = spawnSync(POWERSHELL, ['-NoProfile', '-NonInteractive', '-Command', `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${script}`], { encoding: 'utf8', windowsHide: true, timeout: 60_000, env: { ...process.env, ST_FILE: path } })
   if (r.status !== 0) throw new Error(`version info of ${path}: ${r.stderr}`)
   return JSON.parse(r.stdout)
 }

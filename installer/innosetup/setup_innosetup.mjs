@@ -78,8 +78,8 @@ async function download(url, dest) {
 
 /** Windows' own view of the file's Authenticode signature: {status, subject}. */
 function authenticode(path) {
-  const script = `$s = Get-AuthenticodeSignature -LiteralPath $env:YZ_FILE; @{ status = [string]$s.Status; subject = [string]$s.SignerCertificate.Subject } | ConvertTo-Json -Compress`
-  const r = spawnSync(POWERSHELL, ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true, env: { ...process.env, YZ_FILE: path } })
+  const script = `$s = Get-AuthenticodeSignature -LiteralPath $env:ST_FILE; @{ status = [string]$s.Status; subject = [string]$s.SignerCertificate.Subject } | ConvertTo-Json -Compress`
+  const r = spawnSync(POWERSHELL, ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true, env: { ...process.env, ST_FILE: path } })
   if (r.status !== 0) throw new Stop(`Get-AuthenticodeSignature failed: ${r.stderr}`)
   return JSON.parse(r.stdout)
 }

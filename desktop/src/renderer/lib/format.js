@@ -1,5 +1,5 @@
 // Filling the text tables' placeholders, and dates as the page shows them. No words here: the templates
-// come from src/renderer/texts/ (zh) or src/renderer/texts-en/ (en, served in their place: docs/desktop.md Â§åå…­), so
+// come from src/renderer/texts/ (zh) or src/renderer/texts-en/ (en, served in their place: docs/desktop.md…­), so
 // the wording check sees every word the page writes.
 //
 //   {name}             a value, as text; an unknown {name} is left as it is

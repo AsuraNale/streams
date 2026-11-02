@@ -4,7 +4,7 @@
 // before: a fresh empty world under the OS temp folder (scripts/lib/world.mjs), the pinned Electron 44.0.0 started by
 // Playwright (playwright-core's Electron support: no browser download), the window hidden (STREAMS_WINDOW=hidden,
 // development only), then waiting for `waitFor`. The system's languages are pinned to Chinese
-// (STREAMS_DEV_SYSTEM_LANGUAGES, docs/desktop.md ¬ßÂçÅÂÖ≠) unless `env` says otherwise, so every test reads the Chinese
+// (STREAMS_DEV_SYSTEM_LANGUAGES, docs/desktop.mdÖ≠) unless `env` says otherwise, so every test reads the Chinese
 // tables; `settings` is written as the settings.json the world starts with (e.g. `{ language: 'en' }`); the update asks
 // GitHub nothing (STREAMS_DEV_UPDATE_URL off) unless the test points it at a stand-in through `env`.
 // after, in this order and each whatever the others do: close the app (killed if it does not exit; leftover helper

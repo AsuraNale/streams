@@ -1,4 +1,4 @@
-// The update's data (docs/desktop.md §十九): read once from the main process (bridge getUpdateState) and then whatever it sends
+// The update's data (docs/desktop.md��): read once from the main process (bridge getUpdateState) and then whatever it sends
 // on the `update` event — a check, the download's progress, the setup program starting, a turn starting or ending. Each
 // snapshot carries `seq`, which only grows: the newest one is kept whether it came as an event or as a call's answer (a quick
 // download's last event can arrive before the answer that started it).

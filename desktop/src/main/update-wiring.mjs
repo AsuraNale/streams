@@ -1,5 +1,5 @@
 /**
- * The update's part of the main process (docs/desktop.md §十九; work order 08), made in one place so that main.mjs only does
+ * The update's part of the main process (docs/desktop.md��; work order 08), made in one place so that main.mjs only does
  * three small things:
  *
  *   const update = wireUpdate({ … })                          after A1's services (it asks them whether a turn runs)

@@ -7,7 +7,7 @@
 .settings__name { font-weight: 700; }
 .settings__content { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .settings__models { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-/* the language chooser: three choices side by side (D21, docs/desktop.md §十六) */
+/* the language chooser: three choices side by side (D21, docs/desktop.md��) */
 .settings__models--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .settings__model {
   display: flex;
@@ -45,7 +45,7 @@
   font-variant-numeric: tabular-nums;
 }
 .settings__field--edit { background: var(--st-surface); }
-/* 「余额提醒线」 (docs/desktop.md §十七): the currency's symbol, then a short number field */
+/* a short field (a number, a path) beside its label */
 .settings__field--short { width: 140px; }
 .settings__currency { font-size: var(--st-fs-title); }
 .settings__connected { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: var(--st-fs-small); color: var(--st-done); font-weight: 700; }
@@ -57,7 +57,7 @@
 .settings__check input { width: 15px; height: 15px; margin: 2px 0 0; accent-color: var(--st-accent); }
 .settings__check-name { font-weight: 700; cursor: pointer; }
 .settings__diag { display: flex; align-items: center; gap: 12px; }
-/* 「关于」: the version, 「检查更新」 and the update (screens/settings-update.js, docs/desktop.md §十九) */
+/* 「关于」: the version, 「检查更新」 and the update (screens/settings-update.js, docs/desktop.md��) */
 .settings__about { display: flex; flex-direction: column; gap: 10px; }
 .settings__update-box {
   display: flex;

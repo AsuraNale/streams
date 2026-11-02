@@ -1,4 +1,4 @@
-// The English interface on the running app (docs/desktop.md §十六). Session A starts with `language: 'en'` in settings.json:
+// The English interface on the running app (docs/desktop.md��). Session A starts with `language: 'en'` in settings.json:
 // the sidebar's nine entries, the window title, <html lang> and the settings page come from the English tables; switching
 // to Chinese on the settings page reloads the page there in Chinese and writes the setting; switching to 跟随系统 on a
 // Chinese system (the tests pin it) changes nothing and does not reload. Session B: no setting, the system's languages
@@ -107,4 +107,15 @@ test('no setting and a system without Chinese: English, auto resolved to en (ses
 
 test('no page errors', () => {
   assert.deepEqual(s.errors, [])
+})
+
+// 2026-11-02 验方缺口：上面的中文断言拿字典自己当标准，字典改了测试照样绿。这里把方案 S2 的九个入口写死：
+// 改字典里任何一个词都必须红。（英文九词同样写死。）
+test('the nine entries of the sidebar are the words of the product spec, in both languages (literal, not the table)', () => {
+  assert.deepEqual(Object.values(SIDEBAR.entries), ['今日', '待看', '资料库', '图谱', '问库', '流水线', '来源与主题', '运行状态'])
+  assert.equal(SIDEBAR.settings, '设置')
+  assert.equal(SIDEBAR.noLibrary, '未打开库')
+  assert.deepEqual(Object.values(SIDEBAR_EN.entries), ['Today', 'Inbox', 'Library', 'Graph', 'Ask', 'Pipeline', 'Sources & Topics', 'Status'])
+  assert.equal(SIDEBAR_EN.settings, 'Settings')
+  assert.deepEqual(Object.keys(SIDEBAR.entries), Object.keys(SIDEBAR_EN.entries), 'both tables key the same entries')
 })

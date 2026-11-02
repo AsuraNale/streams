@@ -1,4 +1,4 @@
-// English (docs/desktop.md Â§åå…­) for src/main/texts/notify.js: the same keys. The toast's app name is the shortcut's
+// English (docs/desktop.md…­) for src/main/texts/notify.js: the same keys. The toast's app name is the shortcut's
 // (installer) or Electron's (development), not ours.
 
 export const NOTIFY = Object.freeze({

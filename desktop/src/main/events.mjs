@@ -16,7 +16,7 @@ export const EVENT_CHANNEL = 'streams:event'
 export const EVENT_TOPICS = Object.freeze({
   'settings-changed': 'a setting changed (the language, the library folder, a switch): the page re-reads the app state',
   'open-screen': 'the page goes to this screen: a click on a notification of the app, a second launch with an argument',
-  // the update (update-wiring.mjs, docs/desktop.md ¬ßÂçÅ‰πù)
+  // the update (update-wiring.mjs, docs/desktop.mdπù)
   'update': 'the update has something new: a check started or ended, the download moved on, ended or failed, the setup program starts (the payload is what getUpdateState gives)',
 })
 

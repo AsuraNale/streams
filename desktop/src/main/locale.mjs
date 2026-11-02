@@ -1,5 +1,5 @@
 /**
- * The language of the app's own words (docs/desktop.md §十六): the setting `language` in settings.json (`auto` ·
+ * The language of the app's own words (docs/desktop.md��): the setting `language` in settings.json (`auto` ·
  * `zh-CN` · `en`) and what it comes to on this machine. `auto` follows the system: Chinese when any of the user's
  * display languages is Chinese, English otherwise. Pure — no Electron here, the system's languages are given — so the
  * rules run in plain Node (test/locale.test.mjs). main.mjs makes one state at start; the app:// handler (which table

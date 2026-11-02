@@ -1,5 +1,5 @@
 /**
- * The app's own version (docs/desktop.md Â§åä¹): one source, installer/setup/release.json.
+ * The app's own version (docs/desktop.md¹): one source, installer/setup/release.json.
  *
  *   packaged      app.getVersion(): Electron reads it from resources/app/package.json, which installer/build-installer.mjs
  *                 writes from release.json's `version` (and checks); so the packaged app says what the setup program and

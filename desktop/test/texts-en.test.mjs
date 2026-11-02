@@ -1,4 +1,4 @@
-// The English text tables (src/renderer/texts-en/, src/main/texts-en/; docs/desktop.md §十六) against the Chinese ones they
+// The English text tables (src/renderer/texts-en/, src/main/texts-en/; docs/desktop.md��) against the Chinese ones they
 // stand in for, in plain Node: every module has its pair, every export its twin, every key its twin (strings, frozen objects,
 // arrays of the same length); no Chinese character except the one glyph built from code points; the same placeholders in
 // both languages (a plural token counts by its key) except where the forms differ by design; plain-language English — none

@@ -1,5 +1,5 @@
 /**
- * Check for a newer version, and update in place without uninstalling (docs/desktop.md Â§åä¹; work order 08, 2026-10-12).
+ * Check for a newer version, and update in place without uninstalling (docs/desktop.md¹; work order 08, 2026-10-12).
  *
  *   where      the public releases of AsuraNale/streams on GitHub: one anonymous GET of
  *              https://api.github.com/repos/AsuraNale/streams/releases/latest (60 an hour for an address; only when the

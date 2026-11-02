@@ -19,11 +19,11 @@ export const CHANNEL_PREFIX = 'streams:'
 export const BRIDGE_METHODS = Object.freeze({
   // the shell (app-services.mjs): what the page needs to draw itself, and the settings page
   getAppState: Object.freeze({ args: 0 }),
-  // the language of the app's own words (locale.mjs; docs/desktop.md ¬ßÂçÅÂÖ≠): the setting, not a locale
+  // the language of the app's own words (locale.mjs; docs/desktop.mdÖ≠): the setting, not a locale
   setLanguage: Object.freeze({ args: 1, check: ([v]) => LANGUAGE_SETTINGS.includes(v) }),
   setShowDeveloperInfo: Object.freeze({ args: 1, check: ([on]) => typeof on === 'boolean' }),
   copyDiagnostics: Object.freeze({ args: 0 }),
-  // the update (docs/desktop.md ¬ßÂçÅ‰πù, update-wiring.mjs): the state, a check now, the download and its cancel, the setup
+  // the update (docs/desktop.mdπù, update-wiring.mjs): the state, a check now, the download and its cancel, the setup
   // program started (the app then quits), the release's page in the user's browser ‚Äî no address or file name from the page
   getUpdateState: Object.freeze({ args: 0 }),
   checkForUpdate: Object.freeze({ args: 0 }),

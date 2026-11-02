@@ -102,7 +102,7 @@ test('N1 · a file whose name is Chinese (or has a space, full-width brackets) l
   }
 })
 
-test('the page\'s words in the user\'s language (docs/desktop.md §十六): in English texts/<name>.js is answered with texts-en/<name>.js when that exists, else the Chinese file; in Chinese and by default the Chinese file', async () => {
+test('the page\'s words in the user\'s language (docs/desktop.md��): in English texts/<name>.js is answered with texts-en/<name>.js when that exists, else the Chinese file; in Chinese and by default the Chinese file', async () => {
   const renderer = join(DESKTOP_DIR, 'src', 'renderer')
   const text = f => readFileSync(join(renderer, f), 'utf8')
   const en = handler(true, () => 'en')

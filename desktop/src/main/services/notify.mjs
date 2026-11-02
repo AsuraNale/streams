@@ -3,7 +3,7 @@
  * while no window of the app is in front — a pipeline round finished with new items to look at (plan C5), later — the
  * system says so; a click brings the window to the front and the page to the screen named (event `open-screen`).
  * A window that is in front needs no notification: the page shows it. The words follow the language the app runs in
- * (`locale`, asked when the notice is made; docs/desktop.md §十六): main/texts/notify.js and main/texts-en/notify.js.
+ * (`locale`, asked when the notice is made; docs/desktop.md��): main/texts/notify.js and main/texts-en/notify.js.
  *
  * Electron is given, so that this runs in plain Node under test: `Notification` (the class), `windows()` (the app's
  * windows), `bringToFront()`. In a test run of the app (hidden windows: no one at the machine) no notification is

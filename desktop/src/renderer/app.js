@@ -8,7 +8,7 @@ import { useLoad } from './lib/use-load.js'
 import { FIRST_SCREEN, SCREENS } from './screens/index.js'
 import { BRAND } from './texts/common.js'
 
-// the page's language and title come from the brand table (docs/desktop.md ¬ßÂçÅÂÖ≠): in English the main process serves
+// the page's language and title come from the brand table (docs/desktop.mdÖ≠): in English the main process serves
 // texts-en/common.js for this import, so <html lang> and the window title follow the words; index.html stays Chinese
 document.documentElement.lang = BRAND.htmlLang
 document.title = BRAND.name

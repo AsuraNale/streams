@@ -1,4 +1,4 @@
-// English (docs/desktop.md Â§åå…­) for src/renderer/texts/common.js: the same export names and keys, served in its place by
+// English (docs/desktop.md…­) for src/renderer/texts/common.js: the same export names and keys, served in its place by
 // app://ui/ while the app runs in English (test/texts-en.test.mjs keeps the two tables parallel). No Chinese character in
 // this folder. Plurals: '{n} item{n?|s}' (lib/format.js).
 

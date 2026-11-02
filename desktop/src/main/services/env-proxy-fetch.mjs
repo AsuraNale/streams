@@ -5,8 +5,7 @@
  * Loopback never goes through the proxy (NO_PROXY always has 127.0.0.1, localhost, ::1 added). Without a
  * proxy variable the request goes out directly. ALL_PROXY is not read (Node's proxy support does not know it).
  *
- *   const fetchImpl = envProxyFetch()      a fetch-shaped function: the balance block's one GET (services/balance.mjs,
- *                                          docs/desktop.md §十七) and the update check's (services/update.mjs, §十九):
+ *   const fetchImpl = envProxyFetch()      a fetch-shaped function, used by the update check (services/update.mjs):
  *   await fetchImpl(url, { method, headers, signal })  →  { status, text: async () => string }
  *
  *   const open = envProxyOpen()            a streamed GET for a download (services/update.mjs: the new version's setup
