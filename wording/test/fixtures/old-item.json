@@ -1,0 +1,9 @@
+{
+  "header": "Silver · pending",
+  "question": "judge 给了 0.8，要不要 promote 进 Gold？",
+  "detail": "这条在 ledger 里记着，是 Claude 打的分；keeper 等 Intake Gate 过了再写。one_line 还没生成。",
+  "options": [
+    { "label": "promote 进 Gold", "description": "写进 Gold，记到 judgments.json" },
+    { "label": "dismiss · pending", "description": "留在 pending.json 里" }
+  ]
+}

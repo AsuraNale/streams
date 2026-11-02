@@ -1,0 +1,15 @@
+// The component kit: import from here in screens.
+//   import { AppFrame, Main, TopBar, Button, … } from '../kit/index.js'
+// Every component and its props: docs/desktop.md §五; a live gallery in development: `npm start -- --screen kit`.
+export { AppFrame, Main, Panel } from './frame.js'
+export { AppSidebar, Sidebar, SidebarFooterButton, SidebarGroup, SidebarLibrary, SidebarNav, SidebarNote, SidebarSpacer } from './sidebar.js'
+export { TopBar } from './topbar.js'
+export { Button, LinkButton } from './button.js'
+export { PanelTabs } from './tabs.js'
+export { CardFrame } from './card.js'
+export { StageProgress, Steps, stepClass } from './progress.js'
+export { Notice, Tag } from './tag.js'
+export { ICON_NAMES, Icon } from './icons.js'
+export { Popover } from './popover.js'
+export { Menu } from './menu.js'
+export { Dialog } from './dialog.js'

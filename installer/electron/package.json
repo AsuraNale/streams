@@ -1,0 +1,14 @@
+{
+  "name": "@streams/electron-runtime-check",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Electron pinned for the app and the installer: installed and checked by setup_electron.mjs against manifest.json, never by plain npm. Not the app.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "electron": "44.0.0"
+  }
+}

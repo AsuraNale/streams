@@ -1,0 +1,19 @@
+{
+  "name": "@streams/wording",
+  "version": "1.0.0-dev.0",
+  "private": true,
+  "license": "MIT",
+  "description": "User-facing vocabulary for Streams: glossary (internal word → what the interface says), banned-term list, and the scanner the tests run over every interface string.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./glossary.json": "./glossary.json",
+    "./banned-terms.json": "./banned-terms.json"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

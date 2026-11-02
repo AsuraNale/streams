@@ -1,0 +1,96 @@
+/* A list entry's menu (a right click, the button at its end), its pop-up menu (kit/menu.js) and the dialog (kit/dialog.js)
+   it asks its questions in. Nothing uses it today; the sources and topics pages (plan C7) will. Colours only via tokens. */
+
+/* ---- the button at the end of a project: it shows when the pointer or the focus is on the project ------------------------ */
+.st-sidebar__item { position: relative; }
+.st-sidebar__more {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--st-radius);
+  background: var(--st-sidebar-button);
+  color: var(--st-sidebar-text);
+  opacity: 0;
+  cursor: pointer;
+}
+.st-sidebar__item:hover .st-sidebar__more,
+.st-sidebar__item:focus-within .st-sidebar__more,
+.st-sidebar__more[aria-expanded="true"] { opacity: 1; }
+.st-sidebar__more:hover { background: var(--st-sidebar-divider); }
+/* on the white card of the project that is open */
+.st-sidebar__project[aria-current] + .st-sidebar__more { background: var(--st-active-fill); color: var(--st-sidebar-selected-title); }
+.st-sidebar__project[aria-current] + .st-sidebar__more:hover { background: var(--st-divider); }
+
+/* ---- the pop-up menu ------------------------------------------------------------------------------------------------- */
+.st-menu__scrim { position: fixed; inset: 0; z-index: 40; }
+.st-menu {
+  position: fixed;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius);
+  background: var(--st-surface);
+  color: var(--st-text);
+  box-shadow: var(--st-shadow-menu);
+}
+.st-menu__item {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--st-radius-s);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.st-menu__item:hover,
+.st-menu__item:focus-visible { background: var(--st-active-fill); }
+.st-menu__item:focus-visible { outline: 2px solid var(--st-accent); outline-offset: -2px; }
+.st-menu__item--danger { color: var(--st-wait); }
+
+/* ---- the dialog ------------------------------------------------------------------------------------------------------- */
+.st-dialog__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--st-scrim);
+}
+.st-dialog {
+  width: min(460px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius);
+  background: var(--st-surface);
+  color: var(--st-text);
+  box-shadow: var(--st-shadow-menu);
+}
+.st-dialog__title { margin: 0; font-size: var(--st-fs-heading); font-weight: 700; }
+.st-dialog__body { display: flex; flex-direction: column; gap: 8px; }
+.st-dialog__text { overflow-wrap: anywhere; }
+.st-dialog__label { font-size: var(--st-fs-small); color: var(--st-text-2); }
+.st-dialog__input {
+  width: 100%;
+  height: var(--st-control-h);
+  padding: 0 10px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface);
+}
+.st-dialog__error { font-size: var(--st-fs-small); color: var(--st-wait); font-weight: 700; }
+.st-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; }

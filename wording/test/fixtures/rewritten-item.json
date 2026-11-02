@@ -1,0 +1,9 @@
+{
+  "header": "待看",
+  "question": "相关度 0.8，过了过关线。收藏进库吗？",
+  "detail": "这是什么：一篇讲本地优先笔记工具的综述，来自你盯着的那个博客。",
+  "options": [
+    { "label": "收藏", "description": "变成库里的一个 Markdown 文件" },
+    { "label": "放弃", "description": "不进库，也不再出现" }
+  ]
+}

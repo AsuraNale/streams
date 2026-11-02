@@ -1,0 +1,122 @@
+{
+  "about": "rcedit, the tool that sets Streams.exe's icon and version info at build time (the icon round, 2026-10-08). Written by `setup_rcedit.mjs lock`; `build` and `verify` stop when anything differs. Only bin/rcedit-x64.exe is used; it is not code-signed, so its SHA256 here is what pins it. npm also checks each tarball against its sha512 `integrity` in package-lock.json.",
+  "locked": {
+    "date": "2026-10-08",
+    "node": "v24.14.1",
+    "npm": "11.11.0",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "rcedit": {
+    "version": "5.0.2",
+    "license": "MIT",
+    "repository": "git+https://github.com/electron/node-rcedit.git",
+    "binary": {
+      "file": "bin/rcedit-x64.exe",
+      "sha256": "3e7801db1a5edbec91b49a24a094aad776cb4515488ea5a4ca2289c400eade2a",
+      "bytes": 1360384,
+      "reports": "Rcedit v2.0.0: Edit resources of exe."
+    },
+    "npm_deprecation": "npm marks every version of the rcedit package deprecated (\"Package no longer supported\"); the binary works and is pinned here"
+  },
+  "npm_packages": [
+    {
+      "name": "@malept/cross-spawn-promise",
+      "version": "1.1.1",
+      "license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/@malept/cross-spawn-promise/-/cross-spawn-promise-1.1.1.tgz",
+      "integrity": "sha512-RTBGWL5FWQcg9orDOCcp4LvItNzUPcyEU9bwaeJX0rJ1IQxzucC48Y0/sQLp/g6t99IQgAlGIaesJS+gTn7tVQ==",
+      "sha256": "093bbe11f38e772413437783edf163611146eeba00971173212717460586f3ed",
+      "bytes": 8042
+    },
+    {
+      "name": "cross-spawn",
+      "version": "7.0.6",
+      "license": "MIT",
+      "resolved": "https://registry.npmjs.org/cross-spawn/-/cross-spawn-7.0.6.tgz",
+      "integrity": "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==",
+      "sha256": "188c320cdc413adfec03098fda72af7a9b02152ba13d3a8f87f172d93ced38ea",
+      "bytes": 6255
+    },
+    {
+      "name": "cross-spawn-windows-exe",
+      "version": "1.2.0",
+      "license": "Apache-2.0",
+      "resolved": "https://registry.npmjs.org/cross-spawn-windows-exe/-/cross-spawn-windows-exe-1.2.0.tgz",
+      "integrity": "sha512-mkLtJJcYbDCxEG7Js6eUnUNndWjyUZwJ3H7bErmmtOYU/Zb99DyUkpamuIZE0b3bhmJyZ7D90uS6f+CGxRRjOw==",
+      "sha256": "02f92c641c7dbd8df305d65ee01afc5f06cca1f29d40bfe75c373da1310db7b8",
+      "bytes": 11585
+    },
+    {
+      "name": "is-docker",
+      "version": "2.2.1",
+      "license": "MIT",
+      "resolved": "https://registry.npmjs.org/is-docker/-/is-docker-2.2.1.tgz",
+      "integrity": "sha512-F+i2BKsFrH66iaUFc0woD8sLy8getkwTwtOBjvs56Cx4CgJDeKQeqfz8wAYiSb8JOprWhHH5p77PbmYCvvUuXQ==",
+      "sha256": "4816d000f42fb8bbe0eba6ba9a233174e1c8b806e1863ae4121e9bc536eb41ac",
+      "bytes": 1689
+    },
+    {
+      "name": "is-wsl",
+      "version": "2.2.0",
+      "license": "MIT",
+      "resolved": "https://registry.npmjs.org/is-wsl/-/is-wsl-2.2.0.tgz",
+      "integrity": "sha512-fKzAra0rGJUUBwGBgNkHZuToZcn+TtXHpeCgmkMJMMYx1sQDYaCSyjJBSCa2nH1DGm7s3n1oBnohoVTBaN7Lww==",
+      "sha256": "8c79cc7a7f393fbdc802a52f9c2cfea9e2d5630584c570e5c10028c252657438",
+      "bytes": 2011
+    },
+    {
+      "name": "isexe",
+      "version": "2.0.0",
+      "license": "ISC",
+      "resolved": "https://registry.npmjs.org/isexe/-/isexe-2.0.0.tgz",
+      "integrity": "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==",
+      "sha256": "47cfe872e088e28c53b736fef305324b57cc1cfc9f72a9b0f769f92731cb8359",
+      "bytes": 3756
+    },
+    {
+      "name": "path-key",
+      "version": "3.1.1",
+      "license": "MIT",
+      "resolved": "https://registry.npmjs.org/path-key/-/path-key-3.1.1.tgz",
+      "integrity": "sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==",
+      "sha256": "4b8999acb914830edcd3c5b8fec632b32c6bc759ac3edc86336f5a9e08ba7b92",
+      "bytes": 2258
+    },
+    {
+      "name": "rcedit",
+      "version": "5.0.2",
+      "license": "MIT",
+      "resolved": "https://registry.npmjs.org/rcedit/-/rcedit-5.0.2.tgz",
+      "integrity": "sha512-dgysxaeXZ4snLpPjn8aVtHvZDCx+aRcvZbaWBgl1poU6OPustMvOkj9a9ZqASQ6i5Y5szJ13LSvglEOwrmgUxA==",
+      "sha256": "39e3949ea1f187005043fc13acc31eb23887119ed1e4ff8cdb2d202c4a31ed73",
+      "bytes": 787220
+    },
+    {
+      "name": "shebang-command",
+      "version": "2.0.0",
+      "license": "MIT",
+      "resolved": "https://registry.npmjs.org/shebang-command/-/shebang-command-2.0.0.tgz",
+      "integrity": "sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==",
+      "sha256": "9acba5bd18a51e9cdf5898380e4df63f803e1844def64ae1a46f88cff86d556e",
+      "bytes": 1506
+    },
+    {
+      "name": "shebang-regex",
+      "version": "3.0.0",
+      "license": "MIT",
+      "resolved": "https://registry.npmjs.org/shebang-regex/-/shebang-regex-3.0.0.tgz",
+      "integrity": "sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==",
+      "sha256": "fedbabaa6db26c6be0183f82777dfa852d59a62f8885de93bd32ebc28758958f",
+      "bytes": 1503
+    },
+    {
+      "name": "which",
+      "version": "2.0.2",
+      "license": "ISC",
+      "resolved": "https://registry.npmjs.org/which/-/which-2.0.2.tgz",
+      "integrity": "sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==",
+      "sha256": "a13adf5fddeb769655edce551e81fbb11904b9c9be76d95e41da8c4c499d4edc",
+      "bytes": 4496
+    }
+  ]
+}

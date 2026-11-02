@@ -1,0 +1,343 @@
+/* The component kit (src/renderer/kit/). Measurements from the shell this kit came from; colours only via tokens. */
+
+/* ---- frame: 232px sidebar · main · (404px panel), 12px gutters ---------------------------------- */
+.st-frame {
+  display: grid;
+  grid-template-columns: var(--st-col-sidebar) minmax(0, 1fr);
+  height: 100vh;
+  background: var(--st-page);
+  overflow: hidden;
+}
+.st-frame--panel { grid-template-columns: var(--st-col-sidebar) minmax(0, 1fr) var(--st-col-panel); }
+
+.st-main,
+.st-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: var(--st-gutter);
+  background: var(--st-surface);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius);
+}
+.st-frame--panel > .st-main { margin-right: 0; }
+.st-panel { overflow: hidden; }
+.st-main__body,
+.st-panel__body { flex-grow: 1; min-height: 0; overflow: auto; }
+
+/* ---- sidebar --------------------------------------------------------------------------------------- */
+.st-sidebar {
+  background: var(--st-sidebar);
+  color: var(--st-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.st-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 14px;
+  border-bottom: 1px solid var(--st-sidebar-divider);
+  margin-bottom: 8px;
+}
+.st-sidebar__mark {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--st-radius);
+  background: var(--st-surface);
+  color: var(--st-sidebar);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+.st-sidebar__name { font-weight: 700; font-size: var(--st-fs-title); letter-spacing: 1px; }
+.st-sidebar__tagline { margin-left: auto; font-size: var(--st-fs-tiny); color: var(--st-sidebar-text-2); }
+
+.st-sidebar__nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  margin-bottom: 6px;
+  border-radius: var(--st-radius);
+  color: var(--st-sidebar-text);
+  text-decoration: none;
+}
+.st-sidebar__new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--st-control-h);
+  padding: 0 10px;
+  border: 1px solid var(--st-sidebar-button-border);
+  border-radius: var(--st-radius);
+  background: var(--st-sidebar-button);
+  color: var(--st-sidebar-text);
+  cursor: pointer;
+}
+/* the library line under the brand: the folder's name, or 「未打开库」 (kit/sidebar.js SidebarLibrary) */
+.st-sidebar__library {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  margin-bottom: 8px;
+  border-radius: var(--st-radius);
+  background: var(--st-sidebar-button);
+  color: var(--st-sidebar-text);
+  font-size: var(--st-fs-small);
+}
+.st-sidebar__library[data-library='none'] { color: var(--st-sidebar-text-2); }
+.st-sidebar__library-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-sidebar__group {
+  font-size: var(--st-fs-tiny);
+  color: var(--st-sidebar-text-2);
+  letter-spacing: 1px;
+  padding: 14px 8px 4px;
+}
+.st-sidebar__project {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--st-radius);
+  color: var(--st-sidebar-text);
+  text-decoration: none;
+}
+/* a long name without a break point wraps inside the 232px column (it must never widen it) */
+.st-sidebar__project-title { line-height: 1.45; overflow-wrap: anywhere; }
+.st-sidebar__project-sub span { min-width: 0; overflow-wrap: anywhere; }
+.st-sidebar__project-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--st-fs-tiny);
+  margin-top: 2px;
+  color: var(--st-sidebar-text-2);
+}
+.st-sidebar__badge {
+  flex-shrink: 0;
+  color: var(--st-wait);
+  background: var(--st-wait-bg);
+  border-radius: var(--st-radius-xs);
+  padding: 0 5px;
+  font-weight: 700;
+}
+.st-sidebar__spacer { flex-grow: 1; }
+.st-sidebar__footer-button {
+  height: var(--st-control-h);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--st-radius);
+  background: transparent;
+  color: var(--st-sidebar-text-2);
+  text-align: left;
+  cursor: pointer;
+}
+.st-sidebar__note {
+  padding: 10px 8px 4px;
+  border-top: 1px solid var(--st-sidebar-divider);
+  font-size: var(--st-fs-tiny);
+  line-height: 1.6;
+  color: var(--st-sidebar-text-2);
+}
+/* the current place: a white card */
+.st-sidebar__nav[aria-current],
+.st-sidebar__new[aria-current],
+.st-sidebar__project[aria-current],
+.st-sidebar__footer-button[aria-current] {
+  background: var(--st-surface);
+  color: var(--st-sidebar-selected-title);
+  font-weight: 700;
+}
+.st-sidebar__new[aria-current] { border-color: var(--st-surface); }
+.st-sidebar__project[aria-current] { font-weight: 400; }
+.st-sidebar__project[aria-current] .st-sidebar__project-title { font-weight: 700; }
+.st-sidebar__project[aria-current] .st-sidebar__project-sub { color: var(--st-sidebar-selected-sub); }
+.st-sidebar__project[aria-current] .st-sidebar__badge { background: transparent; padding: 0; }
+.st-sidebar :focus-visible { outline-color: var(--st-surface); }
+
+/* ---- top bar --------------------------------------------------------------------------------------- */
+.st-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--st-border);
+  background: var(--st-surface-2);
+}
+.st-topbar__text { flex-grow: 1; min-width: 0; overflow-wrap: anywhere; }
+.st-topbar__title { margin: 0; font-size: var(--st-fs-title); font-weight: 700; }
+.st-topbar__subtitle { font-size: var(--st-fs-small); color: var(--st-text-2); }
+
+/* ---- buttons ---------------------------------------------------------------------------------------- */
+.st-button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--st-control-h);
+  padding: 0 14px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface);
+  color: var(--st-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.st-button:hover { background: var(--st-surface-2); }
+.st-button--primary {
+  padding: 0 16px;
+  border: 0;
+  background: var(--st-accent);
+  color: var(--st-surface);
+  font-weight: 700;
+}
+.st-button--primary:hover { background: var(--st-accent-hover); }
+.st-button--wide { padding: 0 24px; }
+.st-button:disabled { opacity: 0.5; cursor: default; }
+
+/* a plain text button that looks like a link */
+.st-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--st-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.st-link-button:hover { color: var(--st-accent-hover); }
+
+/* ---- panel tabs ------------------------------------------------------------------------------------- */
+.st-tabs { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; border-bottom: 1px solid var(--st-border); }
+.st-tabs__tab {
+  height: var(--st-control-h);
+  border: 0;
+  background: var(--st-surface-2);
+  color: var(--st-text-2);
+  cursor: pointer;
+}
+.st-tabs__tab[aria-current] {
+  border-bottom: 2px solid var(--st-accent);
+  background: var(--st-surface);
+  color: var(--st-text);
+  font-weight: 700;
+}
+
+/* ---- card frame (cards with a head line) ----------------------------------------------------- */
+.st-cardframe {
+  border: 1px solid var(--st-border);
+  border-top: 4px solid var(--st-wait);
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface);
+}
+.st-cardframe--answered { border-top-color: var(--st-line-todo); }
+.st-cardframe--plain { border-top-width: 1px; border-top-color: var(--st-border); }
+.st-cardframe__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--st-divider);
+  background: var(--st-card-head);
+}
+.st-cardframe__label { font-size: var(--st-fs-small); font-weight: 700; color: var(--st-text-2); }
+.st-cardframe__status { display: inline-flex; align-items: center; gap: 5px; font-size: var(--st-fs-small); font-weight: 700; color: var(--st-wait); }
+.st-cardframe--answered .st-cardframe__status { color: var(--st-done); }
+.st-cardframe__body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+/* ---- steps: the small squares (and the bars of the progress panel) ------------------------------------ */
+.st-steps { display: flex; gap: var(--st-step-gap); align-items: center; }
+.st-step { display: block; width: var(--st-step); height: var(--st-step); background: var(--st-step-todo); }
+.st-step--bar { width: auto; }
+.st-step--done { background: var(--st-accent); }
+.st-step--done-past { background: var(--st-step-done-past); }
+.st-step--active { border: 2px dashed var(--st-accent); background: var(--st-active-fill); }
+.st-step--awaiting { border: 2px solid var(--st-wait); background: var(--st-wait-bg); }
+.st-step--todo { background: var(--st-step-todo); }
+
+/* one row per stage: name over its squares */
+.st-stagerow { display: flex; gap: 22px; font-size: var(--st-fs-tiny); line-height: 1.3; }
+.st-stagerow__stage { display: flex; flex-direction: column; gap: 4px; }
+.st-stagerow__name { color: var(--st-text-3); }
+.st-stagerow__name--current { color: var(--st-text); font-weight: 700; }
+
+/* ---- tags --------------------------------------------------------------------------------------------- */
+.st-tag {
+  flex-shrink: 0;
+  font-size: var(--st-fs-small);
+  font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: var(--st-radius-s);
+  padding: 1px 8px;
+}
+.st-tag--wait { color: var(--st-wait); border-color: var(--st-wait-border); background: var(--st-wait-bg); }
+.st-tag--done { color: var(--st-done); border-color: var(--st-done-border); background: var(--st-done-bg); }
+.st-tag--recommend {
+  font-size: var(--st-fs-tiny);
+  font-weight: 400;
+  line-height: 18px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--st-radius-xs);
+  background: var(--st-accent);
+  color: var(--st-surface);
+}
+
+/* ---- notices ------------------------------------------------------------------------------------------- */
+.st-notice { padding: 8px 10px; border: 1px solid; border-radius: var(--st-radius-s); }
+.st-notice--wait { border-color: var(--st-wait-border); background: var(--st-wait-bg); }
+.st-notice--plain { border-color: var(--st-divider); background: var(--st-surface-2); color: var(--st-text-2); font-size: var(--st-fs-small); }
+
+/* ---- icons --------------------------------------------------------------------------------------------- */
+.st-icon { flex-shrink: 0; }
+
+/* ---- the steps of a step-by-step sidebar (a first-run wizard, when there is one) ---------------------------------------- */
+.st-sidebar__step { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: var(--st-radius); color: var(--st-sidebar-text); }
+.st-sidebar__step-mark {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--st-fs-small);
+}
+.st-sidebar__step-name { line-height: 1.45; }
+.st-sidebar__step-sub { font-size: var(--st-fs-tiny); color: var(--st-sidebar-text-2); margin-top: 2px; }
+.st-sidebar__step--current { background: var(--st-surface); color: var(--st-sidebar-selected-title); }
+.st-sidebar__step--current .st-sidebar__step-mark { background: var(--st-accent); color: var(--st-surface); font-weight: 700; }
+.st-sidebar__step--current .st-sidebar__step-name { font-weight: 700; }
+.st-sidebar__step--current .st-sidebar__step-sub { color: var(--st-sidebar-selected-sub); }
+.st-sidebar__step--todo .st-sidebar__step-mark { border: 1.5px solid var(--st-sidebar-text-2); color: var(--st-sidebar-text-2); }
+.st-sidebar__step--done .st-sidebar__step-mark { background: var(--st-sidebar-text-2); color: var(--st-sidebar); }
+
+/* ---- the five fetch states of a source (src/shared/fetch-states.mjs; the sources page, plan C7) ---------------- */
+.st-fetch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--st-fs-small);
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: var(--st-radius-s);
+}
+.st-fetch::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.st-fetch--ok { color: var(--st-fetch-ok); background: var(--st-fetch-ok-bg); }
+.st-fetch--empty { color: var(--st-fetch-empty); background: var(--st-fetch-empty-bg); }
+.st-fetch--gap { color: var(--st-fetch-gap); background: var(--st-fetch-gap-bg); }
+.st-fetch--failed { color: var(--st-fetch-failed); background: var(--st-fetch-failed-bg); }
+.st-fetch--blocked { color: var(--st-fetch-blocked); background: var(--st-fetch-blocked-bg); }

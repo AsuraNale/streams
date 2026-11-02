@@ -1,0 +1,9 @@
+/* All of the page's styles, in order: tokens, base and text styles, the kit, then one file per screen.
+   A new screen adds its own file under screens/ and one @import line here (docs/desktop.md §五).
+   (The gallery's screens/kit.css is not here: screens/kit.js links it, in development only.) */
+@import url('./tokens.css');
+@import url('./base.css');
+@import url('./kit.css');
+@import url('./menu.css');
+@import url('./screens/placeholder.css');
+@import url('./screens/settings.css');

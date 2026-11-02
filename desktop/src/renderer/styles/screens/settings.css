@@ -1,0 +1,87 @@
+/* 设置 (screens/settings.js): the parts of the settings page and the 「关于」 box with the update */
+[data-screen='settings'] .st-topbar { padding-left: 24px; padding-right: 24px; }
+.settings__body { padding: 4px 24px 20px; }
+.settings__list { max-width: 900px; display: flex; flex-direction: column; }
+.settings__part { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--st-divider); }
+.settings__part:last-child { border-bottom: 0; }
+.settings__name { font-weight: 700; }
+.settings__content { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.settings__models { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+/* the language chooser: three choices side by side (D21, docs/desktop.md §十六) */
+.settings__models--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.settings__model {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 15px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius);
+  background: var(--st-surface);
+  cursor: pointer;
+}
+.settings__model[data-checked='true'] { padding: 12px 14px; border: 2px solid var(--st-accent); }
+.settings__model input { margin: 3px 0 0; accent-color: var(--st-accent); }
+.settings__model-text { display: flex; flex-direction: column; gap: 2px; }
+.settings__model-name { display: flex; align-items: center; gap: 8px; }
+.settings__default {
+  font-size: var(--st-fs-tiny);
+  line-height: 16px;
+  padding: 0 6px;
+  border: 1px solid var(--st-accent);
+  border-radius: var(--st-radius-xs);
+  color: var(--st-accent);
+}
+.settings__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.settings__field {
+  box-sizing: border-box;
+  width: 340px;
+  height: var(--st-control-h);
+  padding: 0 10px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface-2);
+  font: inherit;
+  color: var(--st-text);
+  font-variant-numeric: tabular-nums;
+}
+.settings__field--edit { background: var(--st-surface); }
+/* 「余额提醒线」 (docs/desktop.md §十七): the currency's symbol, then a short number field */
+.settings__field--short { width: 140px; }
+.settings__currency { font-size: var(--st-fs-title); }
+.settings__connected { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-size: var(--st-fs-small); color: var(--st-done); font-weight: 700; }
+.settings__help { margin-left: 6px; }
+.settings__link { margin-left: 6px; font-size: var(--st-fs-small); }
+.settings__error { font-size: var(--st-fs-small); color: var(--st-wait); font-weight: 700; }
+.settings__advanced { display: flex; flex-direction: column; gap: 14px; }
+.settings__check { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; }
+.settings__check input { width: 15px; height: 15px; margin: 2px 0 0; accent-color: var(--st-accent); }
+.settings__check-name { font-weight: 700; cursor: pointer; }
+.settings__diag { display: flex; align-items: center; gap: 12px; }
+/* 「关于」: the version, 「检查更新」 and the update (screens/settings-update.js, docs/desktop.md §十九) */
+.settings__about { display: flex; flex-direction: column; gap: 10px; }
+.settings__update-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 640px;
+  padding: 12px 14px;
+  border: 1px solid var(--st-divider);
+  border-radius: var(--st-radius);
+  background: var(--st-surface-2);
+}
+.settings__update-box--ready { border-color: var(--st-accent); background: var(--st-surface); }
+.settings__update-title { font-weight: 700; }
+.settings__update-notes { display: flex; flex-direction: column; gap: 2px; font-size: var(--st-fs-small); color: var(--st-text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.settings__update-link { margin-left: 0; }
+.settings__update-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.settings__update-bar { height: 6px; border-radius: 3px; background: var(--st-step-todo); overflow: hidden; }
+.settings__update-fill { display: block; height: 100%; background: var(--st-accent); }
+.settings__update-wait {
+  padding: 8px 10px;
+  border: 1px solid var(--st-wait-border);
+  border-radius: var(--st-radius-s);
+  background: var(--st-wait-bg);
+  color: var(--st-wait);
+  font-size: var(--st-fs-small);
+  font-weight: 700;
+}

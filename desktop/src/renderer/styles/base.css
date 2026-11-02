@@ -1,0 +1,41 @@
+/* Base and text styles. */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; height: 100%; }
+
+body {
+  background: var(--st-page);
+  color: var(--st-text);
+  font-family: var(--st-font);
+  font-size: var(--st-fs-body);
+  line-height: var(--st-lh);
+  overflow: hidden;
+}
+
+#root { height: 100%; }
+
+h1, h2, h3, h4, p, figure, blockquote { margin: 0; }
+
+button, input, textarea, select { font: inherit; color: inherit; }
+
+a { color: var(--st-accent); }
+a:hover { color: var(--st-accent-hover); }
+
+:focus-visible { outline: 2px solid var(--st-accent); outline-offset: 2px; }
+
+/* slim scrollbars, : a light grey thumb, no track */
+* { scrollbar-width: thin; scrollbar-color: var(--st-control-border) transparent; }
+
+/* text styles (docs/desktop.md §五) */
+.st-t-heading { font-size: var(--st-fs-heading); font-weight: 700; }
+.st-t-title { font-size: var(--st-fs-title); font-weight: 700; }
+.st-t-body { font-size: var(--st-fs-body); }
+.st-t-small { font-size: var(--st-fs-small); }
+.st-t-tiny { font-size: var(--st-fs-tiny); }
+.st-t-strong { font-weight: 700; }
+.st-t-ink { color: var(--st-text); }
+.st-t-sub { color: var(--st-text-2); }
+.st-t-muted { color: var(--st-text-3); }
+.st-t-wait { color: var(--st-wait); }
+.st-t-done { color: var(--st-done); }
+.st-t-num { font-variant-numeric: tabular-nums; }

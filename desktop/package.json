@@ -1,0 +1,29 @@
+{
+  "name": "@streams/desktop",
+  "productName": "Streams",
+  "version": "1.0.0-dev.0",
+  "private": true,
+  "description": "Streams desktop shell (Electron 44.0.0): main process, preload bridge, renderer frame and component kit. See ../docs/desktop.md.",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/main/main.mjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node scripts/start.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "shots": "node scripts/screenshot.mjs",
+    "mutants": "node scripts/mutation-check.mjs",
+    "csp": "node scripts/csp.mjs",
+    "icon": "node scripts/build-icon.mjs",
+    "icon:check": "node scripts/build-icon.mjs --check"
+  },
+  "dependencies": {
+    "htm": "3.1.1",
+    "preact": "10.29.8"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  }
+}

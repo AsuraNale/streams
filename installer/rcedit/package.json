@@ -1,0 +1,14 @@
+{
+  "name": "@streams/rcedit-tool",
+  "version": "0.0.0",
+  "private": true,
+  "description": "rcedit pinned for the installer (W7, icon round): the tool that gives Streams.exe its icon and version info. Not the app. Install with setup_rcedit.mjs, not plain npm.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "rcedit": "5.0.2"
+  }
+}

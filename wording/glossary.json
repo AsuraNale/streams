@@ -1,0 +1,440 @@
+{
+  "schema": "streams.glossary/1",
+  "version": "1.0.0-dev.0",
+  "updated": "2026-11-02",
+  "about": "用户可见用词的单一来源：内部词 → 对用户的说法（产品方案 §1.7 的对照表）。内部文件、脚本、规格里的原词保留不动；只换对用户说的话。扫描器（banned-terms.json）从这里取建议；界面字典（desktop/src/renderer/texts）照这里的词写。机制沿用外壳来源的词表（致谢见 docs/wording.md）；内容是流息的。",
+  "source": {
+    "entries": "流息产品方案 §1.7 对照表（2026-11-02）",
+    "principles": "同上 §1.7 与验收 V7"
+  },
+  "columns": {
+    "zh": "对用户说（中文）",
+    "en": "对用户说（英文，Streams）",
+    "gloss": "第一次提到时可以带上的一句解释"
+  },
+  "actions": {
+    "rename": "对用户换成 zh / en",
+    "prefer": "原词可以留，建议用 zh / en",
+    "keep": "用户本来就懂，照用（可能有限制，见 note）",
+    "hide": "不该出现在用户面前；需要时换说法或干脆不说"
+  },
+  "groups": {
+    "A": "库里的三级",
+    "B": "打分与过关",
+    "C": "收藏与放弃",
+    "D": "抓取状态",
+    "E": "内部文件、检查与环境",
+    "F": "品牌"
+  },
+  "decisions": [
+    {
+      "date": "2026-11-02",
+      "by": "维护者（方案 §1.7、V7）",
+      "what": "Bronze / Silver / Gold 对用户叫：抓到的 / 待看 / 已收藏；judge / relevance / threshold 叫：打分 / 相关度 / 过关线；promote / dismiss 叫：收藏 / 放弃；五种抓取状态叫：正常 / 没新内容 / 地址有问题 / 暂时失败 / 被拒绝；one_line 叫「这是什么」；keeper、Intake Gate、Preflight、selftest、pending.json、judgments.json、ledger 不出现"
+    },
+    {
+      "date": "2026-11-02",
+      "by": "维护者（V7）",
+      "what": "品牌词 Claude / Anthropic / OpenAI / ChatGPT 只出现在「连接你电脑上的 Claude Code」「连接你电脑上的 Codex」这类措辞、型号表和许可证页"
+    }
+  ],
+  "principles": [
+    "不出现英文内部词、文件名和带下划线的字段名：Silver、pending.json、one_line 这类。",
+    "库里的东西只有一套名字：抓到的、待看、已收藏；一条过没过关说「相关度」和「过关线」。",
+    "流水线的动作说成它对用户的意思：收藏、放弃；不说 promote、dismiss、judge。",
+    "一个来源出了什么事只说五种之一：正常、没新内容、地址有问题、暂时失败、被拒绝。",
+    "品牌只在说「连接你电脑上的 …」、型号表和许可证页时出现。"
+  ],
+  "fetch_states_about": "id 是 desktop/src/shared/fetch-states.mjs 的五个状态键（由测试核对）；zh / en 是界面上的词（desktop/src/renderer/texts/common.js FETCH_STATES 与 texts-en 同名表照此）。",
+  "fetch_states": [
+    {
+      "id": "ok",
+      "zh": "正常",
+      "en": "OK"
+    },
+    {
+      "id": "empty",
+      "zh": "没新内容",
+      "en": "Nothing new"
+    },
+    {
+      "id": "gap",
+      "zh": "地址有问题",
+      "en": "Address problem"
+    },
+    {
+      "id": "failed",
+      "zh": "暂时失败",
+      "en": "Failed for now"
+    },
+    {
+      "id": "blocked",
+      "zh": "被拒绝",
+      "en": "Blocked by the site"
+    }
+  ],
+  "entries": [
+    {
+      "id": "tiers",
+      "group": "A",
+      "row": "Bronze / Silver / Gold",
+      "treatment": "改",
+      "terms": [
+        {
+          "internal": [
+            "Bronze",
+            "青铜"
+          ],
+          "action": "rename",
+          "zh": "抓到的",
+          "en": "Fetched",
+          "gloss": "抓回来、还没打分的"
+        },
+        {
+          "internal": [
+            "Silver",
+            "白银"
+          ],
+          "action": "rename",
+          "zh": "待看",
+          "en": "Inbox",
+          "gloss": "过了关、等你看的"
+        },
+        {
+          "internal": [
+            "Gold",
+            "黄金"
+          ],
+          "action": "rename",
+          "zh": "已收藏",
+          "en": "Kept",
+          "gloss": "你点过收藏、进了库的"
+        }
+      ],
+      "note": "三级是库的内部结构（Medallion 架构的说法）；用户只看到待看和已收藏，抓到的只在运行状态里以数字出现。"
+    },
+    {
+      "id": "medallion",
+      "group": "A",
+      "row": "Medallion",
+      "treatment": "藏",
+      "terms": [
+        {
+          "internal": [
+            "Medallion",
+            "medallion architecture"
+          ],
+          "action": "hide",
+          "zh": null,
+          "en": null,
+          "note": "架构的名字，用户不需要知道"
+        }
+      ]
+    },
+    {
+      "id": "judge",
+      "group": "B",
+      "row": "judge",
+      "treatment": "改",
+      "terms": [
+        {
+          "internal": [
+            "judge",
+            "judgment",
+            "判定"
+          ],
+          "action": "rename",
+          "zh": "打分",
+          "en": "Scoring",
+          "gloss": "模型按你定的主题给每条打相关度"
+        }
+      ]
+    },
+    {
+      "id": "relevance",
+      "group": "B",
+      "row": "relevance",
+      "treatment": "改",
+      "terms": [
+        {
+          "internal": [
+            "relevance",
+            "relevance score"
+          ],
+          "action": "rename",
+          "zh": "相关度",
+          "en": "Relevance",
+          "gloss": "0 到 1，和你关心的主题有多沾边"
+        }
+      ],
+      "note": "英文界面照用 relevance：它本来就是英文里的日常词。"
+    },
+    {
+      "id": "threshold",
+      "group": "B",
+      "row": "threshold",
+      "treatment": "改",
+      "terms": [
+        {
+          "internal": [
+            "threshold"
+          ],
+          "action": "rename",
+          "zh": "过关线",
+          "en": "Pass line",
+          "gloss": "相关度到了这个数才进待看"
+        }
+      ]
+    },
+    {
+      "id": "promote",
+      "group": "C",
+      "row": "promote",
+      "treatment": "改",
+      "terms": [
+        {
+          "internal": [
+            "promote",
+            "promotion",
+            "升级"
+          ],
+          "action": "rename",
+          "zh": "收藏",
+          "en": "Keep",
+          "gloss": "变成库里的一个 Markdown 文件"
+        }
+      ]
+    },
+    {
+      "id": "dismiss",
+      "group": "C",
+      "row": "dismiss",
+      "treatment": "改",
+      "terms": [
+        {
+          "internal": [
+            "dismiss",
+            "dismissed"
+          ],
+          "action": "rename",
+          "zh": "放弃",
+          "en": "Let go",
+          "gloss": "不进库，也不再出现"
+        }
+      ]
+    },
+    {
+      "id": "fetch-states",
+      "group": "D",
+      "row": "fetch status ok / empty / gap / failed / blocked",
+      "treatment": "改",
+      "terms": [
+        {
+          "internal": [
+            "ok"
+          ],
+          "action": "rename",
+          "zh": "正常",
+          "en": "OK"
+        },
+        {
+          "internal": [
+            "empty"
+          ],
+          "action": "rename",
+          "zh": "没新内容",
+          "en": "Nothing new"
+        },
+        {
+          "internal": [
+            "gap"
+          ],
+          "action": "rename",
+          "zh": "地址有问题",
+          "en": "Address problem"
+        },
+        {
+          "internal": [
+            "failed"
+          ],
+          "action": "rename",
+          "zh": "暂时失败",
+          "en": "Failed for now"
+        },
+        {
+          "internal": [
+            "blocked"
+          ],
+          "action": "rename",
+          "zh": "被拒绝",
+          "en": "Blocked by the site"
+        }
+      ],
+      "note": "五种之外不再发明状态。"
+    },
+    {
+      "id": "one-line",
+      "group": "C",
+      "row": "one_line",
+      "treatment": "改",
+      "terms": [
+        {
+          "internal": [
+            "one_line",
+            "one-liner"
+          ],
+          "action": "rename",
+          "zh": "这是什么",
+          "en": "What this is",
+          "gloss": "模型写的一句话说明"
+        }
+      ]
+    },
+    {
+      "id": "keeper",
+      "group": "E",
+      "row": "keeper",
+      "treatment": "藏",
+      "terms": [
+        {
+          "internal": [
+            "keeper"
+          ],
+          "action": "hide",
+          "zh": null,
+          "en": null,
+          "note": "入库那一步的内部名；对用户只说「收藏」"
+        }
+      ]
+    },
+    {
+      "id": "gate",
+      "group": "E",
+      "row": "gate / Intake Gate",
+      "treatment": "藏",
+      "terms": [
+        {
+          "internal": [
+            "gate",
+            "Intake Gate",
+            "关卡",
+            "闸门"
+          ],
+          "action": "hide",
+          "zh": null,
+          "en": null,
+          "note": "过没过关说「相关度」「过关线」，不说关卡本身"
+        }
+      ]
+    },
+    {
+      "id": "pending",
+      "group": "E",
+      "row": "pending",
+      "treatment": "藏",
+      "terms": [
+        {
+          "internal": [
+            "pending"
+          ],
+          "action": "hide",
+          "zh": null,
+          "en": null,
+          "note": "等你看的叫「待看」"
+        }
+      ]
+    },
+    {
+      "id": "ledger",
+      "group": "E",
+      "row": "ledger",
+      "treatment": "藏",
+      "terms": [
+        {
+          "internal": [
+            "ledger",
+            "账本"
+          ],
+          "action": "hide",
+          "zh": null,
+          "en": null,
+          "note": "内部记录；运行状态页只说「上一轮」「下一轮」"
+        }
+      ]
+    },
+    {
+      "id": "hidden-files",
+      "group": "E",
+      "row": "pending.json / judgments.json",
+      "treatment": "藏",
+      "terms": [
+        {
+          "internal": [
+            "pending.json",
+            "judgments.json"
+          ],
+          "action": "hide",
+          "zh": null,
+          "en": null,
+          "note": "文件名不对用户说"
+        }
+      ]
+    },
+    {
+      "id": "hidden-checks",
+      "group": "E",
+      "row": "Preflight / selftest",
+      "treatment": "藏",
+      "terms": [
+        {
+          "internal": [
+            "Preflight",
+            "selftest"
+          ],
+          "action": "hide",
+          "zh": null,
+          "en": null,
+          "note": "开机自检的内部名；出了问题只说出了什么问题"
+        }
+      ]
+    },
+    {
+      "id": "environment",
+      "group": "E",
+      "row": "127.0.0.1 / 本机地址",
+      "treatment": "藏",
+      "terms": [
+        {
+          "internal": [
+            "127.0.0.1",
+            "localhost"
+          ],
+          "action": "hide",
+          "zh": null,
+          "en": null,
+          "note": "不给本机链接：在应用里直接打开"
+        }
+      ]
+    },
+    {
+      "id": "brands",
+      "group": "F",
+      "row": "Claude / Anthropic / OpenAI / ChatGPT",
+      "treatment": "留（限定）",
+      "terms": [
+        {
+          "internal": [
+            "Claude",
+            "Anthropic",
+            "OpenAI",
+            "ChatGPT"
+          ],
+          "action": "keep",
+          "zh": null,
+          "en": null,
+          "note": "只出现在「连接你电脑上的 Claude Code」「连接你电脑上的 Codex」这类措辞、型号表和许可证页（V7）"
+        }
+      ]
+    }
+  ]
+}

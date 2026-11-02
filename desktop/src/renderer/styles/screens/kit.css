@@ -1,0 +1,10 @@
+/* The kit gallery (screens/kit.js), development only. */
+.kit-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 18px; }
+.kit-block { display: flex; flex-direction: column; gap: 8px; }
+.kit-block__title { margin: 0; font-size: var(--st-fs-small); font-weight: 400; color: var(--st-text-2); letter-spacing: 1px; }
+.kit-block__row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.kit-stack { display: flex; flex-direction: column; gap: 6px; }
+.kit-cards { width: 100%; max-width: 820px; gap: 12px; }
+.kit-step { display: inline-flex; align-items: center; gap: 6px; }
+.kit-icon { display: inline-flex; padding: 4px; color: var(--st-text-2); }
+.kit-panel { padding: 12px; display: flex; flex-direction: column; }

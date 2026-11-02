@@ -1,0 +1,65 @@
+// English (docs/desktop.md §十六) for src/renderer/texts/settings.js: the same keys; served in its place in English.
+// The one Chinese word an English page shows, the name of the Chinese language in the language chooser, is built from its
+// code points.
+
+export const SETTINGS = Object.freeze({
+  title: 'Settings',
+  subtitle: 'Applies to Streams on this computer',
+
+  language: 'Language',
+  languageHint: "The language of Streams' own words",
+  languageGroup: 'Choose a language',
+  // 中文, the name of the Chinese language, from its code points
+  languages: Object.freeze({ auto: 'Follow the system', 'zh-CN': String.fromCodePoint(0x4E2D, 0x6587), en: 'English' }),
+  languageNow: ' (now: {name})',
+  languageNote: "Changes only Streams' own words; the files in your library and what a model writes are not affected.",
+  languageReload: 'The page reloads when you switch.',
+
+  advanced: 'Advanced',
+  advancedHint: 'For troubleshooting; you can ignore it',
+  devInfo: 'Show developer info',
+  devInfoText: 'When on, the pages show some extra details for troubleshooting. Off by default.',
+  copyDiagnostics: 'Copy diagnostics',
+  diagnosticsText: 'If something goes wrong and you need our help, copy this and send it to us. It holds the raw error log and file locations, never your key.',
+  copied: 'Copied to the clipboard.',
+
+  about: 'About',
+  version: 'Streams {version} (Windows)',
+  versionDev: 'Streams {version} development build (Windows)',
+  madeBy: 'Developed by Starry Digital',
+
+  update: Object.freeze({
+    check: 'Check for updates',
+    checking: 'Checking…',
+    upToDate: 'You have the latest version · checked just now',
+    upToDateAt: 'You have the latest version · checked {at}',
+    available: 'A new version is out: {version}',
+    released: 'Released {date}',
+    fullNotes: 'Read the full notes ↗',
+    download: 'Download and update',
+    size: 'The installer is about {size}',
+    devCannot: 'A development build does not update itself. Download the installer from the release page.',
+    manual: 'Version {version} is out, but this one cannot be verified. Please download it from the release page yourself.',
+    manualUnknown: 'There is a new version on the release page that cannot be verified. Please download it from there yourself.',
+    openPage: 'Open the release page ↗',
+    checkFailed: 'Could not check for updates: the update server could not be reached, perhaps because of the network.',
+    checkTooOften: 'Could not check for updates: checked too often. Try again in a while.',
+    checkOdd: 'Could not check for updates: the update server gave an answer that does not make sense. Try again in a while.',
+    retry: 'Try again',
+    downloading: 'Downloaded {got} of {total}',
+    progressLabel: 'Download progress',
+    cancel: 'Cancel',
+    downloadFailed: 'The download stopped, perhaps because of the network.',
+    redownload: 'Download again',
+    verifyFailed: 'The downloaded file is not the one that was released, so it was deleted and nothing was installed.',
+    readyTitle: 'Version {version} is downloaded.',
+    readyText: 'Streams will close, install it and open again by itself. Your library and settings stay as they are.',
+    start: 'Start the update',
+    later: 'Later',
+    turnRunning: 'The pipeline is running. Update once this round is done.',
+    deferred: 'Version {version} is downloaded; you can update at any time.',
+    now: 'Update now',
+    launching: 'Starting the installer… Streams will close in a moment.',
+    launchFailed: 'The installer did not start.',
+  }),
+})

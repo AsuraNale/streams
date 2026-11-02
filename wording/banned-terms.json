@@ -1,0 +1,265 @@
+{
+  "schema": "streams.banned-terms/1",
+  "version": "1.0.0-dev.0",
+  "updated": "2026-11-02",
+  "about": "界面禁词（验收 V7）的机器扫描用：硬名单里任何一条在界面字典、模板文字或模型写给用户的一段话里命中，就算不通过（desktop/test/wording.test.mjs 扫每一个字典值；流水线把模型写的「这是什么」一句话扫过才显示）。软名单只给人工抽查，不进机器判定（scanner 只在 advise:true 时把它列为提醒，不影响 ok）。格式与机制沿用外壳来源的扫描器（致谢见 docs/wording.md）；词表内容是流息的（产品方案 §1.7 对照表、验收 V7）。",
+  "source": "流息产品方案 §1.7（内部词 → 对用户说）与验收标准 V7（硬名单：Bronze · Silver · Gold · judge · keeper · gate · Medallion · pending · ledger；品牌词只许出现在「连接你电脑上的 …」、型号表与许可证页）。",
+  "scan_scope": {
+    "scanned": "界面字典（desktop/src/renderer/texts、texts-en、src/main/texts、texts-en）的每个值；模板的可见文字；模型写给用户的「这是什么」一句话（header / question / detail / options[].label / options[].description）",
+    "not_scanned": [
+      "条目本身的标题、正文与出处（它们是别人写的，不是我们对用户说的话）",
+      "《》里的标题",
+      "网址（本机地址 127.0.0.1 / localhost / file: 除外，它们单独报 env:local-link）",
+      "「」“”\"\"『』里、以及 markdown 引用块（行首为 >）里与用户原话（userText）逐字相符的内容",
+      "型号表与许可证页：它们不经扫描器（品牌词在那里是对的）"
+    ],
+    "note": "引号、引用块本身都不算豁免。界面字典一个也不跳过。"
+  },
+  "quote_cues": {
+    "about": "只在宽松模式（scanText 且 quoteCues:true，给自由文字用）里生效：引号前 12 个字以内（同一行），或引用块前一行的末尾 / 引用块第一行的开头出现这些词，就把引号或引用块里的内容当作用户原话、不扫。界面字典（scanStrings）和条目卡（scanCard / scanPayload）不接受宽松模式。",
+    "window": 12,
+    "words": [
+      "原话",
+      "原文",
+      "你说",
+      "你提到",
+      "你写",
+      "你问",
+      "你的说法",
+      "你用的词"
+    ],
+    "not_cues": [
+      "原文件",
+      "原文档"
+    ],
+    "not_cues_about": "含有提示词、但说的是别的东西的词。"
+  },
+  "boundaries": {
+    "ascii-word": "前后不能紧挨 ASCII 字母、数字或下划线（相当于 \\b，但不受中文字符影响）",
+    "none": "按子串匹配"
+  },
+  "forms_about": "组上写 plurals:true 的，纯字母的英文词也认复数 -s / -es（gates、ledgers）；不规则的写在该词的 forms 里。英文词里的空格认任意空白。",
+  "titles_about": "《》里的标题照旧不扫：真实文献标题里常有 Gold、Gate、Keeper、Anthropic 这类字。只有标了 in_titles 的词在《》里也算——我们自己的文件名（pending.json、judgments.json）不会出现在真实文献的标题里。",
+  "except_about": "except = 复合词例外（字面，命中的词在这个复合词里就不算）；except_re = 允许的用法例外（正则，匹配到的一段盖住命中的词就不算），每条带 example：这句不加例外会被标、加了不会（测试逐条核对）。两种例外都在归一后的文字上判断。品牌词的例外就是 V7 允许的那几句。",
+  "normalize": {
+    "about": "扫描前先把写法变体归一（src/normalize.mjs）：逐字 NFKC（全角转半角）、去掉零宽字符 / 软连字符 / BOM / 方向控制符 / 异体选择符、看起来空白的填充符当空格、去掉两个汉字之间的空白、再按下表把繁体字转成简体。命中位置仍报原文里的位置。",
+    "traditional_about": "只收硬 / 软名单与例外里用到的字。键是只在繁体里用的字，不会改动简体文字。",
+    "traditional": {
+      "連": "连",
+      "電": "电",
+      "腦": "脑",
+      "銀": "银",
+      "銅": "铜",
+      "帳": "账",
+      "賬": "账",
+      "關": "关",
+      "門": "门",
+      "閘": "闸",
+      "錄": "录",
+      "記": "记"
+    }
+  },
+  "hard": [
+    {
+      "id": "tier-names",
+      "label": "分级名",
+      "origin": "V7",
+      "boundary": "ascii-word",
+      "flags": "i",
+      "plurals": true,
+      "note": "库里三级的内部名（Medallion 架构的说法）。对用户说：抓到的 / 待看 / 已收藏（glossary.json tiers）。",
+      "terms": [
+        {
+          "t": "Bronze",
+          "see": "tiers"
+        },
+        {
+          "t": "Silver",
+          "see": "tiers"
+        },
+        {
+          "t": "Gold",
+          "see": "tiers"
+        },
+        {
+          "t": "Medallion",
+          "see": "medallion"
+        }
+      ]
+    },
+    {
+      "id": "pipeline-words",
+      "label": "流水线内部词",
+      "origin": "V7",
+      "boundary": "ascii-word",
+      "flags": "i",
+      "plurals": true,
+      "terms": [
+        {
+          "t": "judge",
+          "see": "judge",
+          "forms": [
+            "judged",
+            "judging",
+            "judgment",
+            "judgments",
+            "judgement",
+            "judgements"
+          ]
+        },
+        {
+          "t": "keeper",
+          "see": "keeper"
+        },
+        {
+          "t": "gate",
+          "see": "gate",
+          "forms": [
+            "gating",
+            "gated",
+            "gatekeeper",
+            "gatekeepers"
+          ]
+        },
+        {
+          "t": "pending",
+          "see": "pending"
+        },
+        {
+          "t": "ledger",
+          "see": "ledger"
+        }
+      ]
+    },
+    {
+      "id": "brand-names",
+      "label": "品牌词",
+      "origin": "V7",
+      "boundary": "ascii-word",
+      "flags": "i",
+      "plurals": false,
+      "note": "只许出现在「连接你电脑上的 Claude Code / Codex」这类措辞里（except_re）；型号表与许可证页不经扫描器。型号名（Claude Opus、Sonnet、Haiku、Fable、GPT-）以后放型号表里时再加例外。",
+      "terms": [
+        {
+          "t": "Claude",
+          "see": "brands",
+          "except_re": [
+            {
+              "re": "连接你电脑上的\\s*Claude\\s*Code",
+              "example": "连接你电脑上的 Claude Code",
+              "note": "V7 允许的措辞（中文）"
+            },
+            {
+              "re": "Connect\\s+the\\s+Claude\\s+Code\\s+on\\s+this\\s+computer",
+              "example": "Connect the Claude Code on this computer",
+              "note": "V7 允许的措辞（英文）"
+            }
+          ]
+        },
+        {
+          "t": "Anthropic",
+          "see": "brands"
+        },
+        {
+          "t": "OpenAI",
+          "see": "brands"
+        },
+        {
+          "t": "ChatGPT",
+          "see": "brands"
+        }
+      ]
+    },
+    {
+      "id": "internal-files",
+      "label": "内部文件与检查名",
+      "origin": "方案 1.7",
+      "boundary": "ascii-word",
+      "flags": "i",
+      "in_titles": true,
+      "note": "方案 1.7 列为「不出现」的名字：它们是文件名和检查名，用户不该见到。",
+      "terms": [
+        {
+          "t": "pending.json",
+          "see": "hidden-files",
+          "boundary": "none"
+        },
+        {
+          "t": "judgments.json",
+          "see": "hidden-files",
+          "boundary": "none"
+        },
+        {
+          "t": "Intake Gate",
+          "see": "gate"
+        },
+        {
+          "t": "Preflight",
+          "see": "hidden-checks"
+        },
+        {
+          "t": "selftest",
+          "see": "hidden-checks",
+          "forms": [
+            "self-test",
+            "self test"
+          ]
+        },
+        {
+          "re": "[a-z][a-z0-9]*(?:_[a-z0-9]+)+",
+          "see": null,
+          "flags": "",
+          "suggest": "不写字段名、状态名这类带下划线的内部标识（one_line 对用户叫「这是什么」）",
+          "example": "one_line"
+        }
+      ]
+    },
+    {
+      "id": "env-files",
+      "label": "环境 / 文件",
+      "origin": "V7",
+      "boundary": "ascii-word",
+      "flags": "",
+      "terms": [
+        {
+          "t": "127.0.0.1",
+          "see": "environment",
+          "boundary": "none",
+          "in_titles": true
+        }
+      ]
+    }
+  ],
+  "soft": [
+    {
+      "id": "tier-zh",
+      "re": "青铜|白银",
+      "see": "tiers",
+      "note": "三级的中文直译；对用户说「抓到的 / 待看 / 已收藏」"
+    },
+    {
+      "id": "gold-zh",
+      "t": "黄金",
+      "see": "tiers",
+      "note": "「黄金周」「黄金时段」是日常词，所以只提醒；说库里的那一级时改「已收藏」"
+    },
+    {
+      "id": "ledger-zh",
+      "t": "账本",
+      "see": "ledger",
+      "note": "内部的记录文件；对用户不提"
+    },
+    {
+      "id": "gate-zh",
+      "re": "关卡|闸门",
+      "see": "gate",
+      "note": "README 里有「关卡」；界面上说「过关线」「过关的」就够，不单说关卡"
+    },
+    {
+      "id": "score-word",
+      "t": "判定",
+      "see": "judge",
+      "note": "对用户说「打分」「相关度」"
+    }
+  ]
+}

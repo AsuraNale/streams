@@ -1,0 +1,103 @@
+/* Design tokens of 流息 Streams — the names follow the shell's kit (docs/tokens.md is the list: name · value ·
+   where it is used); the values are the product plan's palette (方案/src/head.html: bg, surface, sunk, sunk2, ink,
+   muted, faint, rule, river, green, amber, red, violet, shadow). Use these names; do not repeat a colour in a
+   component or screen file (test/kit.test.mjs). Changing the look = changing the values here, nothing else. */
+:root {
+  /* the identity colour: the sidebar and the accent (river, the plan's primary) */
+  --st-sidebar: #1F6E8C;             /* river */
+  --st-accent: #1F6E8C;              /* river */
+  --st-accent-hover: #1A5E77;        /* river, one step darker (derived) */
+  --st-on-accent-2: #E1EEF4;         /* river-soft: light words on the accent */
+
+  /* text */
+  --st-text: #16222B;                /* ink */
+  --st-text-2: #56646F;              /* muted */
+  --st-text-3: #8794A0;              /* faint */
+  --st-text-dark-2: #56646F;         /* muted */
+  --st-line-todo: #8794A0;           /* faint */
+
+  /* lines and surfaces */
+  --st-page: #F2F5F7;                /* bg */
+  --st-surface: #FFFFFF;             /* surface */
+  --st-surface-2: #E9EEF2;           /* sunk */
+  --st-card-head: #E9EEF2;           /* sunk */
+  --st-table-head: #DFE6EB;          /* sunk2 */
+  --st-row-head: #E9EEF2;            /* sunk */
+  --st-border: #D5DEE4;              /* rule */
+  --st-control-border: #D5DEE4;      /* rule */
+  --st-divider: #D5DEE4;             /* rule */
+  --st-divider-soft: #DFE6EB;        /* sunk2 */
+
+  /* sidebar (on river): white words, river-soft for the second line; the lighter lines and buttons are white at an
+     opacity, so they follow whatever --st-sidebar becomes */
+  --st-sidebar-text: #FFFFFF;        /* river-ink */
+  --st-sidebar-text-2: #E1EEF4;      /* river-soft */
+  --st-sidebar-divider: rgba(255, 255, 255, 0.22);
+  --st-sidebar-button: rgba(255, 255, 255, 0.12);
+  --st-sidebar-button-border: rgba(255, 255, 255, 0.35);
+  --st-sidebar-selected-title: #1F6E8C;   /* river, on the white card of the current entry */
+  --st-sidebar-selected-sub: #56646F;     /* muted */
+
+  /* states: waiting for the user (amber), done / kept (green), something wrong (red) */
+  --st-wait: #9A6412;                /* amber */
+  --st-wait-bg: #FBF0DA;             /* amber-soft */
+  --st-wait-border: #E7CC95;         /* amber-rule */
+  --st-done: #237A5B;                /* green */
+  --st-done-bg: #DDF1E8;             /* green-soft */
+  --st-done-border: #237A5B;         /* green */
+  --st-danger: #B23E36;              /* red */
+  --st-danger-bg: #F8E2DF;           /* red-soft */
+  --st-active-fill: #E1EEF4;         /* river-soft */
+  --st-step-todo: #DFE6EB;           /* sunk2 */
+  --st-step-done-past: #8794A0;      /* faint */
+  /* the second accent (violet): marks on the graph and the ask page, never a state */
+  --st-accent-alt: #5B4FA8;          /* violet */
+  --st-accent-alt-soft: #E8E5F6;     /* violet-soft */
+
+  /* the five fetch states of a source (plan 1.7: 正常 · 没新内容 · 地址有问题 · 暂时失败 · 被拒绝) */
+  --st-fetch-ok: #237A5B;            /* green */
+  --st-fetch-ok-bg: #DDF1E8;         /* green-soft */
+  --st-fetch-empty: #56646F;         /* muted */
+  --st-fetch-empty-bg: #E9EEF2;      /* sunk */
+  --st-fetch-gap: #9A6412;           /* amber */
+  --st-fetch-gap-bg: #FBF0DA;        /* amber-soft */
+  --st-fetch-failed: #9A6412;        /* amber */
+  --st-fetch-failed-bg: #FBF0DA;     /* amber-soft */
+  --st-fetch-blocked: #B23E36;       /* red */
+  --st-fetch-blocked-bg: #F8E2DF;    /* red-soft */
+
+  /* charts: river and four lighter steps of it (derived), the rest from the palette */
+  --st-chart-against: #B23E36;       /* red */
+  --st-chart-background: #DFE6EB;    /* sunk2 */
+  --st-chart-gap: #8794A0;           /* faint */
+  --st-chart-1: #1F6E8C;
+  --st-chart-2: #4A8AA3;
+  --st-chart-3: #78A7BA;
+  --st-chart-4: #A6C4D1;
+  --st-chart-5: #D3E1E8;
+
+  /* the dim behind a dialog and the shadow of a menu (ink at an opacity; the plan's shadow) */
+  --st-scrim: rgba(22, 34, 43, 0.38);
+  --st-shadow-menu: 0 1px 2px rgba(22, 34, 43, 0.06), 0 8px 24px rgba(22, 34, 43, 0.07);
+
+  /* type (the maintainer 11-02: the font stays the shell's) */
+  --st-font: 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans SC', sans-serif;
+  --st-font-mono: 'Cascadia Mono', Consolas, ui-monospace, monospace;
+  --st-fs-body: 13px;
+  --st-fs-small: 12px;
+  --st-fs-tiny: 11px;
+  --st-fs-title: 15px;
+  --st-fs-heading: 16px;
+  --st-lh: 1.55;
+
+  /* shape */
+  --st-radius: 4px;
+  --st-radius-s: 3px;
+  --st-radius-xs: 2px;
+  --st-control-h: 40px;
+  --st-gutter: 12px;
+  --st-col-sidebar: 232px;
+  --st-col-panel: 404px;
+  --st-step: 8px;
+  --st-step-gap: 3px;
+}
