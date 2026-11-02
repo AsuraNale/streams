@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/you/dev/yunzhi-desktop/**)",
+      "Bash(git --version)",
+      "Read(//c/Users/you/.claude/skills/personal-wiki-toolkit/**)",
+      "Read(//c/Users/you/Downloads/**)"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+__pycache__/
+*.pyc
+.work/
+dist/
+*.log
+# installer/: downloaded and unpacked binaries stay out of git; installer/*/manifest.json records them
+installer/downloads/
+installer/build/
+# screenshots taken by scripts land here
+docs/shots/tmp/

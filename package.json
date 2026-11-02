@@ -1,0 +1,15 @@
+{
+  "name": "streams",
+  "version": "1.0.0-dev.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "流息 Streams · 本地资料库软件。核心在 core/，外壳在 desktop/，安装包在 installer/，用词在 wording/。",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test:acceptance": "node tests/acceptance/run.mjs",
+    "test:core": "npm --prefix core test",
+    "test:wording": "npm --prefix wording test",
+    "test:desktop": "npm --prefix desktop test"
+  }
+}
