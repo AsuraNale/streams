@@ -102,3 +102,24 @@ test('sentinel: a call in another month must not count toward this month', () =>
   assert.notEqual(readUsage(dir, { month: '2026-11' }).calls, 1);
   assert.equal(readUsage(dir, { month: '2026-11' }).calls, 0);
 });
+
+// 交付审核 2026-11-02 第 1 轮退回: a failure that sent no request reported usage.calls 0 on the result but
+// usage.jsonl still recorded 1. The ledger of calls must follow the result: 0 stays 0.
+import { createConnector } from '../src/connect/connector.mjs';
+
+test('wrap: a failure that sent no request (not installed) is recorded with calls 0, and readUsage counts 0', async () => {
+  const dir = caseDir('usage-no-request-zero');
+  const counter = createUsageCounter(dir);
+  const c = counter.wrap(createConnector({ kind: 'claude-code', model: 'claude-sonnet-5-5', command: 'definitely-not-a-real-cmd-xyz' }, {}), 'gate');
+  const r = await c.complete({ prompt: 'p', format: 'json' });
+  assert.equal(r.ok, false);
+  assert.equal(r.usage.calls, 0, 'the result itself says no call was made');
+  const lines = readFileSync(usagePath(dir), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(lines.length, 1, 'the failure is still recorded (not silent)');
+  assert.equal(lines[0].calls, 0);
+  assert.equal(lines[0].ok, false);
+  assert.equal(readUsage(dir).calls, 0);
+  // sentinel: an entry without calls still defaults to 1 (a plain record() caller must not be undercounted)
+  counter.record({ kind: 'api', purpose: 'gate' });
+  assert.equal(readUsage(dir).calls, 1);
+});

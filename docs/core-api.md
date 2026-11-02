@@ -25,7 +25,8 @@
 | 函数 | 作用 | 返回 |
 |---|---|---|
 | `fetchSource(source, ctx)` | 试抓一个来源，不写盘（S5「试抓」、加来源前的预览） | `{status: ok\|empty\|gap\|failed\|blocked, http?, message, retryAfterSeconds?, items[]}` |
-| `fetchRound(libraryDir, {ctx})` | 一轮抓取：每个来源独立、写 `fetch_log.jsonl`、新条目经账本登记（第一层去重）、标题近似标 `maybe_duplicate_of` | `{round, perSource[], newItems[], maybeDuplicates[]}` |
+| `fetchRound(libraryDir, {ctx})` | 一轮抓取：每个来源独立、写 `fetch_log.jsonl`、新条目经账本登记（第一层去重）、标题近似标 `maybe_duplicate_of`。抓到了但全是见过的 → 记 `empty`（count 记解析数、new 记 0）；账本写不进 → 记 `failed`，绝不记 empty；解析出块但 0 条可用 → `gap` | `{round, perSource[], newItems[], maybeDuplicates[]}` |
+| `makeContext(opts)` | 一轮共用的上下文（fetchImpl、超时、时钟、sleep、arXiv 上次请求时间）。循环调 `fetchSource` 要先 `makeContext()` 一次再传同一个 ctx，否则 arXiv 间隔不共享 | ctx |
 | `addManual(libraryDir, {url, title?, topic?})` | 手动投入一个链接 | `{added, url}`；抛 `bad-url` |
 | `lastRoundStatus(libraryDir)` | 每个来源最近一轮状态与连续轮数（运行状态页 S11） | `{[name]: {status, consecutive, lastOkAt}}` |
 | `sourceHealth(status)` | 首页横幅用的健康级别 | `{level: quiet\|warning\|blocked, lines[]}` |
@@ -37,7 +38,7 @@
 | 函数 | 作用 | 返回 |
 |---|---|---|
 | `createConnector(connection, deps)` | `connection = {kind: claude-code\|codex\|api, model, verifyModel?, api?}`；`deps.getKey(keyRef)` 由桌面的 safeStorage 提供 | 连接器对象 |
-| `connector.detect()` | 只读检测（装没装、登没登录、有没有 key） | `{installed, loggedIn, version?, code?}` |
+| `connector.detect()` | 只读检测（装没装、登没登录、有没有 key）。Codex 查找顺序：`connection.command` > PATH > 桌面版自带路径（`%LOCALAPPDATA%\OpenAI\Codex\bin\*\codex.exe`、`~/.codex/.sandbox-bin`），多个取版本最高 | `{installed, loggedIn, version?, source?: command\|path\|desktop-app, path?, code?}` |
 | `connector.probe()` | 一次最小真调用（S1「试了一次：可用」、S11「现在试一次」、每轮第 0 步自检） | `{ok, latencyMs, code?, detail?}` |
 | `connector.complete({system?, prompt, format:'json', model?: 'main'\|'verify'})` | 单轮、无工具、拿回 JSON 与用量 | `{ok, json, text, usage, model}` / `{ok:false, code, detail}` |
 | `completeJson(connector, req, {retries:1})` | 坏格式重试一次，再坏 `bad-format`（V5） | 同上，`attempts` |

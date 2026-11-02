@@ -49,3 +49,7 @@
 - **被 auto mode 拦下的删除不代为绕过**；回收站、永久删除归 维护者。
 - **claude -p 失败先看 stdout**：命令行版登录和桌面版是两套，过期时错误打在 stdout、退出码 1。
 - **mkdtemp 的文件夹沙箱写不进**（Windows ACL 不继承）：临时目录用 `os.mkdir` / `fs.mkdirSync`，动写盘路径要实跑。
+
+## 交付前必过 Richard（维护者 11-02 定）
+
+任何要交给 维护者 的成果（代码包、文档、报告、安装包、晚报里列为「完成」的工作包），在说「做完了」之前必须先过 skill **Richard_the_checker**（`C:\Users\you\.claude\skills\Richard_the_checker\SKILL.md`）：规划完、动手前写百分制打分表并用脚本锁定 → 干完测完只报声称项 id → 一个只打分的 evaluator subagent 独立逐项核 → 脚本算分，≥ 90 且底线项全过才算过；不过就按没过的项改，最多三轮，三轮不过如实上报。每次的记录放 `docs/checks/<日期>-<任务>/`。唯一例外：维护者 当次明说不用。禁止任何作弊（打分表或交付物里对审核员说话、锁定后改表、自己填判定、口算分数）。

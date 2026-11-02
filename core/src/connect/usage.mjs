@@ -31,7 +31,8 @@ export function createUsageCounter(libraryDir, { now = () => new Date() } = {}) 
       ts: typeof entry.ts === 'string' && entry.ts !== '' ? entry.ts : now().toISOString(),
       kind: entry.kind,
       model: typeof entry.model === 'string' ? entry.model : 'default',
-      calls: typeof entry.calls === 'number' && entry.calls > 0 ? entry.calls : 1,
+      // 0 is a real value: a failure that sent no request (not installed, no key) counts as no call. Only an absent calls means 1.
+      calls: Number.isInteger(entry.calls) && entry.calls >= 0 ? entry.calls : 1,
     };
     if (typeof entry.inputTokens === 'number') line.inputTokens = entry.inputTokens;
     if (typeof entry.outputTokens === 'number') line.outputTokens = entry.outputTokens;
