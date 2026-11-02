@@ -103,6 +103,8 @@ function apply(states, ev) {
     states.set(ev.url, {
       url: ev.url, source: ev.source, title: ev.title, date: ev.date,
       firstSeen: ts, stage: 'seen', scores: {}, unscored: {}, lastTs: ts,
+      // second-layer dedup hint written by the fetch round; absent on most events
+      ...(typeof ev.maybe_duplicate_of === 'string' && ev.maybe_duplicate_of !== '' ? { maybeDuplicateOf: ev.maybe_duplicate_of } : {}),
     });
     return;
   }

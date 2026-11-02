@@ -1,6 +1,6 @@
 # @streams/core
 
-流息 Streams 的核心层：纯 Node（≥ 24，ESM），无界面，零第三方依赖（`dependencies` 与 `devDependencies` 都为空）。今天（W1）只有「库」这一块：文件头解析与校验、索引重建、账本重放、待规范清单、建库、唯一的写 notes/ 入口。
+流息 Streams 的核心层：纯 Node（≥ 24，ESM），无界面，零第三方依赖（`dependencies` 与 `devDependencies` 都为空）。W1 是「库」这一块：文件头解析与校验、索引重建、账本重放、待规范清单、建库、唯一的写 notes/ 入口。W2 是「抓取」：RSS / Atom、arXiv、Hacker News 三个抓取器、五态、礼貌规则、两层去重、手动投入、抓取日志与来源健康（见末尾「抓取」一节）。
 
 ## 跑测试
 
@@ -52,7 +52,7 @@ node bin/streams-core.mjs replay  <libraryDir>   # 重放账本，输出每个 u
 ├─ notes/*.md          真相；文件名 = id
 └─ _pipeline/
    ├─ ledger.jsonl     只追加
-   ├─ fetch_log.jsonl  （今天只建空文件）
+   ├─ fetch_log.jsonl  只追加，每来源每轮一行（见「抓取」）
    └─ inbox/ cache/ logs/
 ```
 
@@ -121,3 +121,216 @@ node bin/streams-core.mjs replay  <libraryDir>   # 重放账本，输出每个 u
 2. 有文件头、且问题**只有** `missing:source` / `missing:date`：原头照抄，只补缺的那一两项。
 
 其他问题（缺 title、id 不符、日期坏、头解析不了）只给 codes/messages，不拟头。拟出来的头只是返回值，不写盘。
+
+## 连接（W3，`src/connect/`）
+
+三种连接对核心是同一个接口：给一段提示词和一个输出格式，拿回一个 JSON 和一个用量数。流水线和问库只认这个接口，连接器换了一行不改。
+
+```js
+import { createConnector, completeJson, fakeConnector, createUsageCounter, readUsage } from './src/connect/index.mjs';
+
+const c = createConnector(
+  { kind: 'claude-code' | 'codex' | 'api', model?, verifyModel?, command?, api?: { vendor, baseUrl?, keyRef } },
+  { spawnImpl?, fetchImpl?, getKey?(keyRef), tmpRoot?, timeoutMs?, env?, platform? },
+);
+await c.detect();   // { installed, loggedIn: true|false|null, version?, code?, detail? }   只读：--version / auth status / login status；API 连接 = 有没有 key
+await c.probe();    // { ok, latencyMs, code?, detail?, usage }                               一次最小调用，提示固定：只回 {"ok":true}
+await c.complete({ system?, prompt, format: 'json', model?: 'main' | 'verify' | '具体 id' });
+//   -> { ok: true, json, text, usage: { calls: 1, inputTokens?, outputTokens?, costUsd? }, model }
+//   -> { ok: false, code, detail, text?, usage: { calls: 1 }, model }
+c.models();         // 型号表；c.resolveModel(slot) -> 型号 id
+```
+
+- `verifyModel` 不填 = 同主模型；`model` 不填：Claude Code / Codex 不传 `--model`（用工具自己的默认），API 用该厂商表里的 recommended。
+- key 只经 `deps.getKey(keyRef)` 在请求那一刻取（桌面层的 safeStorage 提供）；核心不存、不打印；`connection.api.key` 直接拒绝（`bad-connection`）；错误 detail 里出现的 key 会被 `scrub` 成 `<key>`（有测试：服务器把 key 回显进 401 / 400 的 body 也抓得住）。
+- `completeJson(connector, req, { retries: 1, onRetry })`：坏格式时把固定提醒（`RETRY_SUFFIX`）接在提示词后再试一次；第二次还坏 → `{ ok:false, code:'bad-format', attempts: 2 }`，`usage.calls` 累计；别的失败（登录、网络）不重试。
+- `fakeConnector({ mode })`：`fixed` / `bad-format-once` / `bad-format-always` / `login-expired` / `counting`（读 `connector.calls`）/ `slow`（`delayMs`）。
+- `createUsageCounter(libraryDir).record(...)` / `.wrap(connector, purpose)` 往 `_pipeline/usage.jsonl` 追加 `{ts, kind, model, calls, inputTokens?, outputTokens?, costUsd?, purpose, ok?, code?}`；wrap 后的 `complete()` 记在 `purpose` 下，`probe()` 记在 `'probe'` 下；`readUsage(libraryDir, { month: 'YYYY-MM' })`（按 ts 的 UTC 月份，默认当月）→ `{ calls, inputTokens, outputTokens, costUsd, byKind, byPurpose, byModel, skipped }`。
+- **`usage.calls` 只数真的发出去的调用**：找不到可执行文件、spawn ENOENT、没存 key、custom 厂商没填型号（本地直接报 `bad-model`）这些没发请求的失败 `usage.calls` 是 0；超时、登录过期、坏格式这些到了工具或服务器的失败是 1。
+- Windows 上 `findExecutable` 只认 PATHEXT 里的扩展名（按 PATHEXT 顺序），无扩展名的 `codex` 文件（npm 的 sh 垫片）不算，旁边的 `codex.cmd` 才算。
+
+### 错误码（内部码，界面文案归 desktop）
+
+| 码 | 什么时候 |
+|---|---|
+| `not-installed` | 可执行文件哪里都找不到（command / PATH / 桌面版位置），或 spawn ENOENT，或 `--version` 非 0 |
+| `not-logged-in` | Claude Code `auth status` 的 `loggedIn:false`；Codex `login status` 非 0 或输出含 "not logged in"；调用输出含 "Failed to authenticate"（无 expired 字样）|
+| `login-expired` | Claude Code 输出 `OAuth session expired and could not be refreshed`（本机 2026-11-02 实录，见下）|
+| `bad-key` | API 401 / 403；连接没存 key |
+| `bad-model` | API 404；400 且报错提到 model；CLI 输出 "model … not found / unrecognized" |
+| `rate-limited` | API 429；CLI 输出 rate limit / usage limit / 429 |
+| `network` | API 5xx 或 fetch 抛错；CLI 输出 ECONNREFUSED / ENOTFOUND / fetch failed |
+| `timeout` | 超过 `timeoutMs`（默认 120 s；检测 15 s），子进程被 kill |
+| `bad-format` | 回答不是 JSON（含 max_tokens 截断）；`text` 带原文 |
+| `refused` | Anthropic `stop_reason: refusal` / OpenAI 式 `finish_reason: content_filter` / CLI 输出 refused |
+| `unknown` | 以上都对不上；`detail` 带退出码与前 300 字 |
+
+### 三种连接实际发出去的东西
+
+**Claude Code**（本机 2.1.287，参数名全部来自 `claude --help`）。提示词走 stdin，不进 argv；cwd 是 `os.tmpdir()/streams-connect/<随机>/cwd`，`mkdirSync` 新建、用完整个 `<随机>` 删掉：
+
+```
+claude -p --output-format json --safe-mode --restricted --tools "" --strict-mcp-config
+       --disable-slash-commands --no-session-persistence --permission-prompts none
+       [--model <id>] [--system-prompt <text>]
+```
+
+- `--safe-mode`：CLAUDE.md、skills、plugins、hooks、MCP、自定义命令全关，登录与型号选择照常（不用 `--bare`：它只认 ANTHROPIC_API_KEY，会把 OAuth 登录拦掉）。
+- `--restricted`：去掉 Bash 等执行类工具，并忽略 user / project / local 设置文件；`--tools ""` 再把全部内置工具去掉。
+- 解析 stdout 的 result 信封：`result` 是回答文本，`is_error` 真则按 `result` 文案映射错误码，`usage.input_tokens + cache_creation_input_tokens + cache_read_input_tokens` → `inputTokens`，`usage.output_tokens` → `outputTokens`，`total_cost_usd` → `costUsd`，`modelUsage` 的第一个键 → `model`。
+- 本机未登录时的实录（退出码 1，stderr 空，错误打在 stdout）：`{"type":"result","subtype":"success","is_error":true,"terminal_reason":"api_error","result":"Failed to authenticate: OAuth session expired and could not be refreshed", "usage":{…全 0}, "modelUsage":{}, …}`。
+- 检测：`claude --version` → `2.1.287 (Claude Code)`；`claude auth status --json` → `{"loggedIn":false,"authMethod":"none","apiProvider":"firstParty",…}`（未登录时退出码 1）。
+
+**Codex**（本机 codex-cli 0.160.1 / 0.166.0-alpha.5.1，参数名来自 `codex exec --help`；整条 argv 加 `--help` 实跑 clap 解析退出码 0）。提示词走 stdin（`-`），system 拼在提示词前；`-o` 文件放在 cwd 旁边不放里面：
+
+```
+codex exec --json --sandbox read-only --skip-git-repo-check --ephemeral
+           --ignore-user-config --ignore-rules --color never -C <cwd> -o <root>/last-message.txt [-m <id>] -
+```
+
+- `--ask-for-approval` 是顶层 `codex` 的参数，`codex exec` 不认（实证：`codex exec --ask-for-approval never --help` → `error: unexpected argument '--ask-for-approval' found`），所以不传；`--sandbox read-only` 已经让模型的命令写不了盘。`test/connect-codex.test.mjs` 里有一条对真 `codex exec --help` 核每个长参数名存在、`--ask-for-approval` 不存在的测试，找不到 codex 时 skip（不算绿）。
+- **可执行文件查找顺序**（维护者 11-02 定）：`connection.command` 显式指定（`source: 'command'`）> PATH 上的 `codex`（`'path'`）> 桌面版自带的 `%LOCALAPPDATA%\OpenAI\Codex\bin\<任意子目录>\codex.exe` 与 `%USERPROFILE%\.codex\.sandbox-bin\codex.exe`（`'desktop-app'`）。多个候选各跑一次 `--version`（只读），取版本号最高的（`0.166.0-alpha.5.1` > `0.160.1`；同号正式版胜预发布；再同则按上面顺序先到先得）；跑不起来的候选跳过。`detect()` 返回里带 `source` 与 `path`；`complete()` 记住上次的选择，`detect()` 刷新。
+- 回答 = `-o` 文件内容；没有就取 JSONL 里最后一条 `item.completed` 且 `item.type === 'agent_message'` 的 `text`；`turn.completed` 的 `usage.input_tokens + cached_input_tokens` / `output_tokens` 计入用量；`error` / `turn.failed` 的 message 映射错误码。**事件形状来自文档记忆，未经本机真调用核对**（规矩：Codex 只跑 `--version`、`login status`、带 `--help` 的解析）。
+- 检测：`codex --version`；`codex login status` → 本机 `Logged in using ChatGPT`（退出码 0）。未登录的文案没见过，按「非 0 或含 not logged in」处理。
+
+**API key**（无 SDK，`fetch`，单轮无工具，`timeoutMs` 用 AbortController）：
+
+```
+anthropic   POST {baseUrl}/v1/messages
+            x-api-key: <key>   anthropic-version: 2023-06-01   content-type: application/json
+            { "model", "max_tokens": 16000, "system"?, "messages": [{ "role": "user", "content": prompt }] }
+            回答 content[].text 拼接；usage.input_tokens(+cache_*) / output_tokens
+
+其余厂商  POST {baseUrl}/chat/completions
+            authorization: Bearer <key>   content-type: application/json
+            { "model", "messages": [{ "role": "system" }?, { "role": "user" }] }      （不传 max_tokens：各家参数名不一）
+            回答 choices[0].message.content；usage.prompt_tokens / completion_tokens
+```
+
+### 型号表（`src/connect/models.mjs`）
+
+| 连接 | 表 | 来源 |
+|---|---|---|
+| claude-code | `claude-fable-5-1`（recommended）, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`；不填 = 不传 `--model` | 产品方案给定 |
+| codex | `gpt-6.1-sol`（recommended）, `gpt-6-astra`, `gpt-6.1-terra`, `gpt-6-sol`, `gpt-6-luna`, `gpt-5.6-sol` | 本机 `~/.codex/models_cache.json`（Codex 0.166.0 于 2026-11-02 拉取）里 `visibility: list` 的 slug，按其 priority 排序 |
+| api · anthropic | `claude-opus-5-5`（recommended）, `claude-sonnet-5-5`, `claude-haiku-5-5`, `claude-fable-5-1` | `https://api.anthropic.com`；型号 id 来自 claude-api 参考表（2026-10） |
+| api · openai | `gpt-6.1-sol`（recommended）, `gpt-6-luna` | `https://api.openai.com/v1`；id 照 Codex 缓存里 `supported_in_api: true` 的 slug，**未核**（`unverified: true`） |
+| api · deepseek | `deepseek-chat` | `https://api.deepseek.com/v1`；未核 |
+| api · moonshot | `kimi-k2-0905-preview` | `https://api.moonshot.cn/v1`；未核 |
+| api · zhipu | `glm-4.6` | `https://open.bigmodel.cn/api/paas/v4`；未核 |
+| api · gemini | `gemini-2.5-flash` | `https://generativelanguage.googleapis.com/v1beta/openai`；未核 |
+| api · custom | 空表，手填 `baseUrl` 与型号 | — |
+
+`unverified: true` 的条目界面可以照样显示，但 PM 发版前要核一遍 id。任何型号都允许手填（`resolveModel` 不查表）。
+
+### 测试怎么不联网、不调真工具
+
+- 子进程连接器：`deps.spawnImpl` 注入 `test/support/fake-spawn.mjs`（假 ChildProcess，可指定 stdout / stderr / 退出码 / 延迟 / ENOENT），另有 `test/support/fake-cli.mjs` 用 `process.execPath` 真起一个子进程，回报它看到的 cwd、目录内容与 argv（证明空目录与隔离参数真的到了子进程）。
+- API 连接器：`test/support/fake-api.mjs` 起本地 `node:http`，按型号名演各种 HTTP 结局（401 / 404 / 429 / 500 / 慢 / 散文 / 围栏 / 拒答 / 把 key 回显进报错）。
+- 每个 `connect-*.test.mjs` 都有 `sentinel:` 用例；argv 隔离断言有反向用例（去掉任一参数就红）；key 泄漏断言有反向用例（故意拼进 key 的结果会被抓）。
+
+## 抓取（W2）
+
+`src/fetch/`。只写两个文件：`_pipeline/fetch_log.jsonl`（本模块）和 `_pipeline/ledger.jsonl`（经 `recordSeen` / `appendEvent`）。永远不碰 notes/（V2 的守卫测试覆盖 `src/` 全部文件）。测试不联网：`test/support/fake-server.mjs` 用 `node:http` 在 127.0.0.1 起假服务器，所有基址（feed url、`ctx.arxivBase`、`ctx.hnBase`）都指向它。
+
+### 五态判定
+
+内部码存 fetch_log；界面文案不在核心层。`hint` 是给界面的动作码。
+
+| 状态 | 含义 | 触发 | hint |
+|---|---|---|---|
+| `ok` | 正常 | 解析成功且本轮有 ≥ 1 条**新**条目 | `none` |
+| `empty` | 没新内容 | HTTP 2xx、解析成功，但新条目为 0（包括「抓到 10 条、全都见过」） | `none` |
+| `gap` | 地址有问题 | 404 / 410 / 其他 4xx（403、407、451、408、429 除外）/ 3xx 没跟上 / 正文不是 XML / 不是 feed / **根认得、item/entry 块 ≥ 1 但可用 0 条**（message `parsed N, 0 usable`，含截断的 feed）/ HN 返回 400 或非 JSON / 未知 kind / URL 不是 http(s) / 缺 url 或 query | `fix-address-or-remove` |
+| `failed` | 暂时失败 | 429 / 408 / 5xx / 超时 / DNS / 连接被拒 / 连接重置 / 读 source 对象或抓取器自己抛了异常 / **新条目写不进账本**（message `ledger write failed after N new item(s): …`，绝不记 empty） | `retry-next-round` |
+| `blocked` | 被拒绝 | 403 / 451 / 407，或连接层的代理拒绝（`Tunnel connection failed`、`host_not_allowed`、`proxy authentication`、`forbidden by proxy`、`blocked by policy`、WinError 10013、`connect EACCES`） | `blocked-remove-source` |
+| `paused` | （不是五态）来源 `paused: true`，本轮跳过，不发请求 | — | `none` |
+
+- **「没新内容」和「没抓到」永远分开**：任何非 2xx、任何异常都不会落到 `empty`。
+- 分类在两层都做（`classifyHttp` 看状态码，`classifyError` 看异常链 `err.cause`），同一个代理拒绝不会因为 http / https 落到不同状态。
+- `-5` 这类不是秒数也不是 HTTP-date 的 `Retry-After` 忽略；HTTP-date 换算成相对秒数，过去的时间记 0。
+- **407 的特殊之处**：WHATWG fetch 规定 407 响应变成一个裸的 network error（`TypeError: fetch failed`，cause 没有 message 也没有 code），状态码到不了我们手上。`classifyError` 把这个唯一的形状判为 `blocked`，fetch_log 行没有 `http` 字段。
+- 普通的 `EACCES: permission denied`（不带 `connect`）仍是 `failed`，不过度匹配。
+
+与工具包 `fetch_rss.py` 的差别：451 → `blocked`（原版落 `gap`）；3xx 没跟上 → `gap`（原版 urllib 自动跟随，不会出现）；HN 用 `search` 端点而非 `search_by_date`；`max_results` 默认两种都是 10（原版 arXiv 5 / HN 10）；摘要截 500 码位（原版 300）。
+
+### 礼貌规则
+
+- User-Agent 固定 `Streams/1.0 (+https://github.com/AsuraNale/streams)`，每个请求都带，被拒不换。
+- 一次调用只发一个请求；429 / 503 的 `Retry-After` 记进 fetch_log（`retry_after_seconds`），本轮不重试。
+- arXiv 两次请求间隔 ≥ 3 秒：`ctx.lastArxivAt` 在同一轮的 ctx 上共享，`fetchArxiv` 先 `await ctx.sleep(剩余毫秒)` 再请求，请求结束后更新 `lastArxivAt`；上一次 429 了也照样等。`ctx.now` / `ctx.sleep` 可注入，测试里不真等。
+- 403 / 451 / 407 = 停，不绕。
+- **循环调用 `fetchSource`（试抓多个来源）要自己 `makeContext()` 一次，再把同一个 ctx 传给每次调用**；每次传新对象（或 `undefined`）arXiv 的 `lastArxivAt` 不共享，间隔就不成立。`fetchRound` 内部已经这么做。
+
+### 来源配置（`streams.json` 的 `sources[]`）
+
+```
+{ "name": "letta-blog", "kind": "rss",   "url": "https://…/feed.xml", "topic": "agent 记忆", "paused": false, "max_results": 10 }
+{ "name": "arxiv-mem",  "kind": "arxiv", "query": "agent memory", "topic": "agent 记忆" }
+{ "name": "hn-mem",     "kind": "hn",    "query": "agent memory", "min_points": 50 }
+```
+
+- `kind` 只认 `rss` / `arxiv` / `hn`，其他 → `gap`。`name` 缺了用 url / query 顶替。
+- arXiv：裸短语自动变成 `all:"短语"`（整句匹配）；带字段前缀（`ti:` `abs:` `cat:` …）或 `AND` / `OR` 的高级查询原样送出。`sortBy=submittedDate&sortOrder=descending`。
+- HN：Algolia `search?query=…&tags=story&hitsPerPage=max(4×max_results, 20)`，**不发 `numericFilters`**，`points >= min_points`（默认 50）在客户端过滤；没有 url 的故事用 `news.ycombinator.com/item?id=`。
+- `interval_seconds` 核心层今天不读（排期归桌面层）。
+
+### 条目
+
+`{ url, title, date, summary, source, kind, topic? }`。`date` 是来源写的日历日（RFC 822 / ISO 都转成 `YYYY-MM-DD`，不做时区换算；不存在的日期如 `2026-02-30` 当没写），缺了用抓取日（本地日历日）。`summary` 去标签、解实体、压空白、截 500 码位。没有 title 或没有 link 的条目直接丢（`parseFeed` 同时报 `blocks` = 看到的 item/entry 开头数，截断没闭合的也算；来源层用它判 `parsed N, 0 usable` → gap）。RSS 的 link 缺时用 `guid`：`isPermaLink` 不是 `false`，或 guid 文本本身是 http(s) URL；Atom 取 `rel="alternate"`（或没 rel）的 link，否则第一个有 href 的 link，否则 `<id>`。
+
+feed 读取器不是 XML parser，已处理的边角：根带命名空间前缀（`<atom:feed><atom:entry>`）先整篇剥前缀；entry / item 里内嵌的 `<source>…</source>` 先剥掉再读（它的 title / link 是出处的，不是条目的——否则聚合源所有条目 url 相同，被第一层去重折成一条）；属性值里带 `>`（引号内）不会截断标签。**已知限制**：CDATA 正文里出现 `<item` / `<entry` 会多算一个块；除 `<source>` 外的同名嵌套元素不懂；`stripHtml` 的去标签不认引号（`<a title="a>b">` 会留下 `b">`，只影响摘要文本）。
+
+### 一轮（`fetchRound`）
+
+```
+fetchRound(libraryDir, { config?, ctx? })
+  -> { round: { id, startedAt }, perSource: [{ name, kind, status, hint, count, newCount, message, http?, retryAfterSeconds? }],
+       newItems: [条目 + maybeDuplicateOf?], maybeDuplicates: [{ url, of }] }
+```
+
+- 来源顺序执行，各自 try/catch；一个坏了不影响别的。`streams.json` 缺失 / 坏了才抛（`config-missing` / `config-invalid-json` / `config-invalid-shape`）。
+- **第一层去重**：url 已在账本（任何阶段，包括 `dismissed` / `kept`）或本轮已登记 → 跳过，不写。
+- **第二层去重**：`normalizeTitle`（NFKC 全角转半角、小写、只留字母数字）后与账本里已有条目或本轮更早条目相同 → 仍登记，但 seen 事件带 `maybe_duplicate_of: <那个 url>`；`replayLedger` 把它带进 state 的 `maybeDuplicateOf`。不丢、不自动合并，裁决归后面的关卡 / 用户。
+- 账本只在新条目时写：`appendEvent` 一条 seen，`ts` 取 `ctx.now()`（与该来源的 fetch_log 行同一个 ts），带去重提示时多一个 `maybe_duplicate_of`。第一层去重靠轮开始时 `replayLedger` 得到的 url 集合 + 本轮已登记集合。
+- 账本写不进（只读、磁盘满）：该来源停在那一条，记 `failed`，message 带账本错误，`new` 是已成功写入的条数；后面的来源照常跑。
+- 读 `sources[]` 里某个对象本身就抛（getter、Proxy）：那个来源记 `failed`，轮不中断。
+
+### fetch_log 一行
+
+```
+{"ts","round","source","kind","status","hint","http"?,"count","new","message","retry_after_seconds"?}
+```
+
+键序固定如上；`count` = 这次解析到的条目数（没抓到就是 0），`new` = 其中账本里没有的。`appendFetchLog` 拒绝 status 不在六个值里、`count` / `new` 不是非负整数的行。
+
+**幂等判断（V4 的抓取一半）**：同一内容连跑两轮，第二轮 `ledger.jsonl` 字节不变，fetch_log 每来源多一行，status 为 `empty`，`count` 仍是解析数、`new` 为 0。规则：抓取器返回 `ok` 且 `new == 0` → 记 `empty`，message 为「N item(s), all already seen」。只有 `ok` 会被这样改写；`gap` / `failed` / `blocked` 原样记。
+
+### 运行状态与健康
+
+- `readFetchLog(dir)` → `{ entries, skipped }`，坏行跳过并记行号。
+- `lastRoundStatus(dir)` → `{ [来源]: { status, hint, consecutive, lastTs, lastOkAt, kind, message, http?, retryAfterSeconds? } }`。`consecutive` = 末尾连续同状态的轮数；`lastOkAt` = 最近一次 `ok` 或 `empty` 的 ts（都是成功抓到），没有则 null。
+- `sourceHealth(lastRoundStatus)` → `{ level: 'quiet' | 'warning' | 'blocked', counts, lines }`。`blocked` 单独成级，行里动作是 `blocked-remove-source`，不和 `failed` 同句；`failed` / `gap` 各自一行 → `warning`；全 `ok` / `empty` → `quiet`；没记录 → `['no-fetch-yet']`。行格式 `<state> <n>/<total> <name,name> hint=<code>`，`paused` 不计入 total。
+
+### 手动投入
+
+`addManual(dir, { url, title?, topic?, date? })` → `{ added, url, maybeDuplicateOf? }`。只认 http(s)，其他抛 `bad-url` 不写；账本 seen 事件 `source: 'manual'`，`date` 缺了用今天；重复 url 由账本去重 `added: false`；标题与已有条目规范化后相同时带 `maybe_duplicate_of`。
+
+### 模块
+
+| 文件 | 导出 |
+|---|---|
+| `src/fetch/states.mjs` | `FETCH_STATES`, `LOG_STATES`, `HINTS`, `hintOf`, `classifyHttp`, `classifyError`, `parseRetryAfter` |
+| `src/fetch/http.mjs` | `getText`, `checkUrl`, `USER_AGENT` |
+| `src/fetch/feed.mjs` | `parseFeed`, `detectRoot`, `elementText`, `atomLink`, `parseAttrs` |
+| `src/fetch/html.mjs` | `stripHtml`, `decodeEntities`, `truncateText`, `normalizeTitle` |
+| `src/fetch/dates.mjs` | `toIsoDate`, `localIsoDate`, `isRealDate` |
+| `src/fetch/context.mjs` | `makeContext`, `isContext`, `ARXIV_BASE`, `HN_BASE`, `ARXIV_MIN_GAP_MS` |
+| `src/fetch/sources/{rss,arxiv,hn}.mjs` | `fetchRss`, `fetchArxiv`（`arxivSearchQuery`, `waitForArxivSlot`）, `fetchHn`（`minPoints`） |
+| `src/fetch/source.mjs` | `fetchSource`, `SOURCE_KINDS`, `sourceName` — 纯函数式，不写盘，给「试抓」用 |
+| `src/fetch/round.mjs` | `fetchRound` |
+| `src/fetch/manual.mjs` | `addManual`, `MANUAL_SOURCE` |
+| `src/fetch/log.mjs` | `appendFetchLog`, `readFetchLog`, `lastRoundStatus`, `FETCH_LOG_FILE` |
+| `src/fetch/health.mjs` | `sourceHealth` |
+
+W2 还没接进 `src/index.mjs`（另一位建方在动它）。

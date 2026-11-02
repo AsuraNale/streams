@@ -10,3 +10,7 @@ export { listPending } from './library/pending.mjs';
 export { writeNoteFile, WRITE_NOTE_BY } from './library/write-note.mjs';
 export { createLibrary, DEFAULT_NODE_IDS } from './library/create.mjs';
 export { scanLibrary, listNoteFiles, NOTES_DIR } from './library/scan.mjs';
+
+// W2 fetch layer and W3 connection layer (wired 2026-11-02 evening).
+export * from './fetch/index.mjs';
+export * from './connect/index.mjs';

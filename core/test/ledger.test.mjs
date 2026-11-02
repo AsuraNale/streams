@@ -229,6 +229,30 @@ test('appendEvent: a ledger whose last line lost its newline gets a fresh line, 
   assert.equal(replayLedger(glued).skipped.length, 1, 'a glued line is skipped as not-json');
 });
 
+// W2 抓取第二层去重：seen 事件可带 maybe_duplicate_of；重放要带进 state（maybeDuplicateOf），没有它时不多出键。
+test('replay: seen.maybe_duplicate_of surfaces as maybeDuplicateOf; absent, empty or non-string adds no key', () => {
+  const dir = makeLibrary('ledger-maybe-dup');
+  appendEvent(dir, { ts: '2026-11-01T00:00:00.000Z', ev: 'seen', url: 'https://u/1', source: 'feed-a', title: 'Alpha story', date: '2026-10-01' });
+  appendEvent(dir, { ts: '2026-11-02T00:00:00.000Z', ev: 'seen', url: 'https://mirror/1', source: 'feed-a', title: 'Alpha  STORY', date: '2026-10-02', maybe_duplicate_of: 'https://u/1' });
+  appendEvent(dir, { ts: '2026-11-02T00:00:00.000Z', ev: 'seen', url: 'https://u/2', source: 'feed-a', title: 'Beta', maybe_duplicate_of: '' });
+  appendEvent(dir, { ts: '2026-11-02T00:00:00.000Z', ev: 'seen', url: 'https://u/3', source: 'feed-a', title: 'Gamma', maybe_duplicate_of: 7 });
+  const { states, skipped } = replayLedger(dir);
+  assert.deepEqual(skipped, []);
+  assert.equal(states.get('https://mirror/1').maybeDuplicateOf, 'https://u/1');
+  assert.equal(states.get('https://mirror/1').stage, 'seen', 'a hint is not a verdict: the item is still an ordinary seen item');
+  assert.equal('maybeDuplicateOf' in states.get('https://u/1'), false);
+  assert.equal('maybeDuplicateOf' in states.get('https://u/2'), false);
+  assert.equal('maybeDuplicateOf' in states.get('https://u/3'), false);
+  // a later seen with a hint for an already-known url changes nothing (first seen wins)
+  appendEvent(dir, { ts: '2026-11-03T00:00:00.000Z', ev: 'seen', url: 'https://u/1', source: 'x', title: 'Alpha story', maybe_duplicate_of: 'https://mirror/1' });
+  assert.equal('maybeDuplicateOf' in replayLedger(dir).states.get('https://u/1'), false);
+  // the hint survives later events (scored / inbox), since it lives on the state, not the stage
+  appendEvent(dir, { ts: '2026-11-03T00:00:00.000Z', ev: 'inbox', url: 'https://mirror/1' });
+  const s = replayLedger(dir).states.get('https://mirror/1');
+  assert.equal(s.stage, 'inbox');
+  assert.equal(s.maybeDuplicateOf, 'https://u/1');
+});
+
 test('appendEvent: a ledger that already ends with a newline gets no blank line inserted', () => {
   const dir = makeLibrary('ledger-trailing-newline-ok');
   appendEvent(dir, { ev: 'seen', url: 'https://a/1', source: 's', title: 'A', date: '2026-10-31' });
