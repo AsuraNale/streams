@@ -176,7 +176,7 @@
 
 `editNote(libraryDir, id, {title?, topics?, body?})`：只改这四样（`[[链接]]` 在正文里）。来源、日期、collected、kept、status、scores 原样保留，传了别的键 → `bad-edit`。合并后过 spec v0 校验（`topics` 非空、每个主题在 streams.json 里只算警告）；写盘走 **`writeNoteFile(…, {by: 'edit'})`**：只在 notes/ 里已有同 id 的合规范文件时才覆盖（先写临时文件再 rename），没有 → `not-found`，原文件不合规范 → `not-editable`。写完 `rebuildIndex`。返回 `{id, file, entry}`。
 
-> **V2 的读法（待 维护者 定，11-03 先按这个建）**：V2 写「只有一处写 notes/ 的函数，且只被收藏动作和导入写头调用」。S7 编辑要改已在 notes/ 里的文件，所以 `writeNoteFile` 的 `by` 加第三个值 `'edit'`：仍是唯一写 notes/ 的函数；`edit` 只能改已存在的合规范文件、不能新建，所以「没有任何条目不经用户点收藏进入 notes/」这条不受影响。变异测试照旧：去掉 `by` 守卫必须变红；另加一条：`by:'edit'` 新建文件必须被拒。
+> **V2 的读法（维护者 11-03 定：「允许，照这样建」）**：V2 写「只有一处写 notes/ 的函数，且只被收藏动作和导入写头调用」。S7 编辑要改已在 notes/ 里的文件，所以 `writeNoteFile` 的 `by` 加第三个值 `'edit'`：仍是唯一写 notes/ 的函数；`edit` 只能改已存在的合规范文件、不能新建，所以「没有任何条目不经用户点收藏进入 notes/」这条不受影响。变异测试照旧：去掉 `by` 守卫必须变红；另加一条：`by:'edit'` 新建文件必须被拒。
 
 ### 5.3 搜索（`src/library/search.mjs`，S6 搜索框）
 

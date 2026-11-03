@@ -36,7 +36,7 @@
 
 - 本仓 `C:\Users\you\dev\streams`，git，MIT。结构：`core/`（纯 Node，无界面，有自己的测试）、`desktop/`、`installer/`、`wording/`、`docs/`。
 - **不 push**：没有 维护者 当天的明确授权不 push 任何仓库。公开仓 `AsuraNale/streams` 周日建。提交身份只用 `AsuraNale <AsuraNale@users.noreply.github.com>`。
-- 写 `notes/` 的函数只能有一处，只被「收藏」和「导入写头」调用（V2，变异测试证明）。
+- 写 `notes/` 的函数只能有一处（`core/src/library/write-note.mjs` 的 `writeNoteFile`），只被「收藏」「导入写头」调用，以及 维护者 11-03 定的「编辑一条」（`by: 'edit'`：只能改已存在且合规范的文件，不能新建）（V2，变异测试证明）。
 - 界面禁词：Bronze / Silver / Gold / judge / keeper / gate / Medallion / pending / ledger；品牌词只出现在「连接你电脑上的 …」、型号表和许可证页（V7）。
 
 ## 教训摘录（来自 assistant 的 memory，动手前记住）
