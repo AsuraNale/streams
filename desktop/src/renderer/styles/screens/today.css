@@ -1,0 +1,57 @@
+/* 今日 (screens/today.js): the banner, the problem card (S13), the four numbers, the last round / the running one, the recent. */
+[data-screen='today'] .st-topbar { padding-left: 24px; padding-right: 24px; }
+.today-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 16px; max-width: 980px; }
+.today-error { display: flex; align-items: center; gap: 10px; color: var(--st-danger); font-weight: 700; }
+
+/* the source banner: one notice per state that needs a look */
+.today-banner { display: flex; flex-direction: column; gap: 8px; }
+.today-banner__line { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* S13: what broke, what is not lost, how to fix it */
+.today-problem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--st-danger);
+  border-left-width: 4px;
+  border-radius: var(--st-radius);
+  background: var(--st-danger-bg);
+}
+.today-problem__text { color: var(--st-danger); }
+.today-problem__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* the four numbers */
+.today-numbers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.today-num {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius);
+  background: var(--st-surface-2);
+}
+.today-num__value { font-size: 28px; font-weight: 700; line-height: 1.2; }
+.today-num[data-num='inbox'] { border-color: var(--st-wait-border); background: var(--st-wait-bg); }
+.today-num[data-num='inbox'] .today-num__value { color: var(--st-wait); }
+.today-num[data-num='kept'] .today-num__value { color: var(--st-done); }
+
+/* the last round */
+.today-round { display: flex; flex-direction: column; gap: 6px; }
+.today-round__title { margin: 0; }
+.today-round__lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.today-round__lines li { padding-left: 14px; border-left: 2px solid var(--st-divider); }
+
+/* the round running now */
+.today-progress { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--st-accent); border-radius: var(--st-radius); background: var(--st-surface); }
+.today-progress__bar { height: 6px; border-radius: 3px; background: var(--st-step-todo); overflow: hidden; }
+.today-progress__fill { display: block; height: 100%; background: var(--st-accent); }
+.today-progress__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* the three most recently kept */
+.today-recent { display: flex; flex-direction: column; gap: 6px; }
+.today-recent__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.today-recent__item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid var(--st-divider-soft); }
+.today-recent__item:last-child { border-bottom: 0; }
+.today-recent__title { font-weight: 700; overflow-wrap: anywhere; }

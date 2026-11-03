@@ -1,19 +1,16 @@
 /**
  * The shell's own services and their bridge handlers: the app state the page draws itself from, the settings page
- * (language, the developer switch, the diagnostics), the secret store the connections will keep their keys in. main.mjs
- * only creates this and spreads `handlers` into registerBridge — so later wiring (the library, the pipeline, the
- * connections: plan C1–C9) sits next to it without touching this file.
- *
- * Development and tests only (a packaged app ignores it):
- *   STREAMS_DEV_LIBRARY   a library folder taken as opened at start (the page shows its name instead of 「未打开库」)
+ * (language, the developer switch, the diagnostics). The library, the connections and the pipeline are their own
+ * services (services/library.mjs, services/connections.mjs, services/pipeline.mjs); main.mjs creates all four and
+ * spreads their `handlers` into registerBridge. This one reads the library service for the app state and the
+ * connections service and the secret store for the diagnostics.
  * @module desktop/main/app-services
  */
 
-import { app, clipboard, safeStorage } from 'electron'
+import { clipboard } from 'electron'
 import { writeFileSync } from 'node:fs'
-import { basename, isAbsolute, join } from 'node:path'
+import { basename, join } from 'node:path'
 import { diagnosticsText } from './diagnostics.mjs'
-import { createSecretStore } from './secrets.mjs'
 import { readSettings, writeSettings } from './settings.mjs'
 
 /**
@@ -26,22 +23,20 @@ import { readSettings, writeSettings } from './settings.mjs'
  * @param {{current: () => {setting: string, resolved: string}, set: (v: string) => object}} o.locale - the language of the
  *   app's own words (locale.mjs)
  * @param {{version: string, dev: boolean}} o.version - the app's own version (version.mjs)
+ * @param {{current: () => {path: string, name: string}|null}} o.library - services/library.mjs
+ * @param {{diagnosticLines: () => string[]}} o.connections - services/connections.mjs
+ * @param {{list: () => string[], get: (name: string) => string|null}} o.secrets - secrets.mjs
  */
-export function createAppServices({ layout, emit, log, hidden = false, locale, version }) {
-  const dev = !app.isPackaged
-  const devEnv = dev ? process.env : {}
+export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets }) {
   const settings = () => readSettings(layout.settingsFile)
-  const secrets = createSecretStore({ dir: layout.secretsDir, safeStorage })
-  // the library the app has open: the development variable when given, else the setting (null until one is opened)
-  const devLibrary = typeof devEnv.STREAMS_DEV_LIBRARY === 'string' && isAbsolute(devEnv.STREAMS_DEV_LIBRARY) ? devEnv.STREAMS_DEV_LIBRARY : null
-  const libraryPath = () => devLibrary ?? settings().libraryPath
 
   const appState = () => {
     const s = settings()
-    const library = libraryPath()
     return {
       // the library: its folder name is what the sidebar shows; null is 「未打开库」
-      library: library ? { path: library, name: basename(library) } : null,
+      library: library.current(),
+      // the libraries opened before (settings 「库 · 其他」; openRecentLibrary takes only one of these): path and folder name
+      recentLibraries: s.recentLibraries.map(path => ({ path, name: basename(path) })),
       showDeveloperInfo: s.showDeveloperInfo,
       // the language of the app's own words: the setting and what it comes to (locale.mjs)
       language: locale.current(),
@@ -74,7 +69,8 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       }
       const text = diagnosticsText({
         versions: { app: `${version.version}${version.dev ? ' (development)' : ''}`, electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node, os: `${process.platform} ${process.getSystemVersion()}` },
-        layout, settings: settings(), keysHeld: names, secrets: held, locale: locale.current(),
+        layout, settings: { ...settings(), libraryPath: library.current()?.path ?? null }, keysHeld: names, secrets: held, locale: locale.current(),
+        connections: connections.diagnosticLines(),
       })
       // a test run (hidden window) must not overwrite the clipboard of the person at the machine: the text goes to a file
       if (hidden) writeFileSync(join(layout.logsDir, 'clipboard.txt'), text)
@@ -83,5 +79,5 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
     },
   }
 
-  return { handlers, settings, libraryPath, secrets }
+  return { handlers, settings }
 }

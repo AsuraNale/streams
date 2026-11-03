@@ -7,7 +7,7 @@
  * @module desktop/main/main
  */
 
-import { app, BrowserWindow, Menu, Notification, protocol, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, Notification, dialog, protocol, safeStorage, session, shell } from 'electron'
 import { readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,6 +23,15 @@ import {
 import { createEmitter } from './events.mjs'
 import { createAppServices } from './app-services.mjs'
 import { readSettings, writeSettings } from './settings.mjs'
+import { createSecretStore } from './secrets.mjs'
+import { createLibraryService } from './services/library.mjs'
+import { DEV_CONNECTION_MODES, createConnectionsService } from './services/connections.mjs'
+import { createPipelineService } from './services/pipeline.mjs'
+import { createBrowseService } from './services/browse.mjs'
+import { createSourcesService } from './services/sources.mjs'
+import { createAskService } from './services/ask.mjs'
+import { createStatusService } from './services/status.mjs'
+import { createUsageCounter } from './core.mjs'
 import { createNotifier } from './services/notify.mjs'
 import { wireUpdate } from './update-wiring.mjs'
 import { appVersion } from './version.mjs'
@@ -46,13 +55,18 @@ const START_SCREEN = !app.isPackaged && /^[a-z][a-z0-9-]{0,40}$/.test(process.en
 const DEV_LANGUAGES = !app.isPackaged && typeof process.env.STREAMS_DEV_SYSTEM_LANGUAGES === 'string'
   ? process.env.STREAMS_DEV_SYSTEM_LANGUAGES.split(',').map(s => s.trim()).filter(Boolean)
   : null
-// the update (update-wiring.mjs; docs/desktop.md��): where a development run asks for the latest release — a stand-in
+// the update (update-wiring.mjs; docs/desktop.md§四): where a development run asks for the latest release — a stand-in
 // for GitHub (`http://127.0.0.1:…`, its downloads too) or `off` (no request: the tests); unset, and in a packaged app, GitHub
 const DEV_UPDATE_URL = !app.isPackaged && /^(off|https?:\/\/[^\s/]+\/?)$/.test(process.env.STREAMS_DEV_UPDATE_URL ?? '') ? process.env.STREAMS_DEV_UPDATE_URL : null
 // development tests only: a development run may then download and update, the setup program recorded in this file, not started
 const DEV_UPDATE_SETUP_RECORD = !app.isPackaged && typeof process.env.STREAMS_DEV_UPDATE_SETUP_RECORD === 'string' && isAbsolute(process.env.STREAMS_DEV_UPDATE_SETUP_RECORD)
   ? process.env.STREAMS_DEV_UPDATE_SETUP_RECORD
   : null
+// the library and the connections (services/*.mjs; docs/desktop.md §4.1), development and tests only: a library taken as
+// opened at start; a folder given instead of the choose-folder dialog; every connection replaced by the core's fake
+const DEV_LIBRARY = !app.isPackaged && typeof process.env.STREAMS_DEV_LIBRARY === 'string' && isAbsolute(process.env.STREAMS_DEV_LIBRARY) ? process.env.STREAMS_DEV_LIBRARY : null
+const DEV_CHOOSE_FOLDER = !app.isPackaged && typeof process.env.STREAMS_DEV_CHOOSE_FOLDER === 'string' && isAbsolute(process.env.STREAMS_DEV_CHOOSE_FOLDER) ? process.env.STREAMS_DEV_CHOOSE_FOLDER : null
+const DEV_CONNECTION = !app.isPackaged && DEV_CONNECTION_MODES.includes(process.env.STREAMS_DEV_CONNECTION) ? process.env.STREAMS_DEV_CONNECTION : null
 // the app's own version (version.mjs): release.json's — packaged through resources/app/package.json, in development read from it
 const VERSION = appVersion({ isPackaged: app.isPackaged, getVersion: () => app.getVersion() })
 
@@ -138,7 +152,7 @@ function createWindow() {
 app.whenReady().then(() => {
   const csp = contentSecurityPolicy(scriptHash(importMapOf(readFileSync(join(RENDERER_DIR, 'index.html'), 'utf8'))))
   hardenSession(session.defaultSession, { allowDevtools: !app.isPackaged, onBlocked: blocked })
-  // the language of the app's own words (locale.mjs; docs/desktop.md��): decided here once — app.getLocale() is only valid
+  // the language of the app's own words (locale.mjs; docs/desktop.md§六): decided here once — app.getLocale() is only valid
   // after ready on Windows — and again whenever the settings page changes the setting; the page and the notifier follow it
   const locale = createLocaleState({
     settingsFile: layout.settingsFile, readSettings, writeSettings, log,
@@ -147,8 +161,23 @@ app.whenReady().then(() => {
   const uiHandler = createAppProtocolHandler({ rendererDir: RENDERER_DIR, sharedDir: SHARED_DIR, vendor: vendorFiles(), csp, dev: !app.isPackaged, locale: () => locale.current().resolved })
   protocol.handle(APP_SCHEME, request => uiHandler(request))
 
-  // the shell's services (app-services.mjs): the app state, the settings page, the secret store
-  const services = createAppServices({ layout, emit, log, hidden: HIDDEN, locale, version: VERSION })
+  // the secret store (secrets.mjs), the library (services/library.mjs), the connections (services/connections.mjs), the
+  // pipeline (services/pipeline.mjs), then the shell's own services (app-services.mjs): the app state, the settings page
+  const secrets = createSecretStore({ dir: layout.secretsDir, safeStorage })
+  const currentLocale = () => locale.current()
+  const library = createLibraryService({ settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, dialog, shell, locale: currentLocale, devLibrary: DEV_LIBRARY, devChooseFolder: DEV_CHOOSE_FOLDER })
+  const connections = createConnectionsService({
+    settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION,
+    // a probe made from the page counts in the open library's usage (core createUsageCounter), under `probe`
+    usageWrap: c => { const d = library.dir(); return d ? createUsageCounter(d).wrap(c, 'probe') : c },
+  })
+  const pipeline = createPipelineService({ library, connections, emit, log, hidden: HIDDEN, shell, locale: currentLocale })
+  // interface B (docs/desktop.md §4.2): reading and editing, the sources and topics, asking the library, the run status
+  const browse = createBrowseService({ library, emit, log, hidden: HIDDEN, shell })
+  const sources = createSourcesService({ library, emit, log })
+  const ask = createAskService({ library, connections, log })
+  const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell })
+  const services = createAppServices({ layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets })
   // Windows notifications (services/notify.mjs): made here, used by later wiring (the pipeline's rounds, plan C5)
   const notifier = createNotifier({
     Notification, windows: () => [...appWindows], bringToFront, emit, log,
@@ -157,7 +186,7 @@ app.whenReady().then(() => {
   })
   // the update (update-wiring.mjs): a check only when the user asks; the setup program replaces the install in place
   const update = wireUpdate({
-    emit, layout, log, hidden: HIDDEN, packaged: app.isPackaged, version: VERSION, turnRunning: () => false,
+    emit, layout, log, hidden: HIDDEN, packaged: app.isPackaged, version: VERSION, turnRunning: () => pipeline.isRunning(),
     quit: () => app.quit(), shell, devUpdateURL: DEV_UPDATE_URL, devSetupRecord: DEV_UPDATE_SETUP_RECORD,
   })
   // last time's leftovers in <appData>/updates/ (the setup program that ran, a download cut short)
@@ -173,6 +202,13 @@ app.whenReady().then(() => {
     handlers: {
       ...services.handlers,
       ...update.handlers,
+      ...library.handlers,
+      ...connections.handlers,
+      ...pipeline.handlers,
+      ...browse.handlers,
+      ...sources.handlers,
+      ...ask.handlers,
+      ...status.handlers,
     },
   })
 

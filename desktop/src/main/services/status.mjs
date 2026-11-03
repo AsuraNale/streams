@@ -1,0 +1,58 @@
+/**
+ * The run status, the graph and the verdicts (plan S11 / S9 / S15; docs/desktop.md §四, §4.2): the core's `statusView`
+ * with the connections as `getConnections` gives them, the run-log folder in Explorer, the graph under a filter, one item's
+ * verification record. A url the page sends must be one the ledger knows.
+ *
+ * The core's W5 functions are reached by name through `coreCaller` (bridge-methods.mjs): a stand-in core in the tests,
+ * `internal` for a function not there yet. Pure Node apart from what is injected (`shell`): test/services-status.test.mjs.
+ * @module desktop/main/services/status
+ */
+
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { BridgeError, coreCaller } from '../bridge-methods.mjs'
+import * as realCore from '../core.mjs'
+
+/**
+ * @param {object} o
+ * @param {{require: () => string}} o.library - services/library.mjs
+ * @param {{handlers: {getConnections: () => Promise<object>}}} o.connections - services/connections.mjs
+ * @param {(line: string) => void} o.log
+ * @param {boolean} [o.hidden] - a test run: nothing is opened outside the app
+ * @param {{openPath: (path: string) => Promise<string>}} o.shell
+ * @param {Record<string, unknown>} [o.core] - the core's exports (tests: a stand-in for what is not there yet)
+ * @param {() => Date} [o.now]
+ */
+export function createStatusService({ library, connections, log, hidden = false, shell, core = realCore, now = () => new Date() }) {
+  const call = coreCaller(core)
+
+  const handlers = {
+    async getStatus() {
+      const dir = library.require()
+      return { ...call('statusView', dir, { now }), connections: await connections.handlers.getConnections() }
+    },
+    async openLogsFolder() {
+      const dir = library.require()
+      const logs = join(dir, '_pipeline', 'logs')
+      if (hidden) { log(`not opened in a test run: ${logs}`); return null }
+      if (!existsSync(logs)) { log(`status: no run-log folder ${logs}`); throw new BridgeError('open_failed') }
+      const problem = await shell.openPath(logs)
+      if (problem) { log(`status: openPath ${logs}: ${problem}`); throw new BridgeError('open_failed') }
+      return null
+    },
+    getGraph(filter) {
+      const dir = library.require()
+      const f = filter ?? {}
+      const opts = { now }
+      for (const k of ['days', 'status', 'topics', 'links']) if (f[k] !== undefined) opts[k] = f[k]
+      return call('graph', dir, opts)
+    },
+    getVerdicts(url) {
+      const dir = library.require()
+      if (!call('replayLedger', dir).states.has(url)) throw new BridgeError('bad_arguments', 'not in the ledger')
+      return call('verdictsFor', dir, url)
+    },
+  }
+
+  return { handlers }
+}

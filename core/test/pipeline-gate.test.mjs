@@ -172,3 +172,31 @@ test('sentinel: a gate whose connector returns the score under a different key t
   assert.equal(r.counts.gate1.unscored, 1);
   assert.equal(ledgerLines(dir).find((e) => e.ev === 'unscored').reason, 'rule:json-keys');
 });
+
+test('previewNode with a draft: the unsaved requirement is what the model sees; streams.json and the record stay as they were; a bad draft is refused', async (t) => {
+  const srv = await startFakeServer();
+  t.after(() => srv.close());
+  const dir = libraryWithFeed('gate-preview-draft', feedRoute(srv, serveItems(srv, 1)));
+  const conn = scriptedConnector({ score: 0.42 });
+  await runRound(dir, { connector: conn, cap: 0, ctx: ctx() });
+  const url = [...replayLedger(dir).states.keys()][0];
+  const { pipelineConfig } = await import('../src/pipeline/config.mjs');
+  const saved = pipelineConfig(dir).nodes.find((n) => n.id === 'relevance');
+  const marker = '公司产品的营销文章，没有技术细节的打 0.3 以下。';
+  const before = hashTree(dir, { skip: /^_pipeline\/cache\// });
+  const first = conn.calls.length;
+  const r = await previewNode(dir, { connector: conn, nodeId: 'relevance', url, draft: { ...saved, requirement: `${saved.requirement}\n${marker}` }, ctx: ctx() });
+  assert.equal(r.ok, true);
+  assert.ok(conn.calls[first].prompt.includes(marker), 'the draft requirement went to the model');
+  assert.deepEqual(hashTree(dir, { skip: /^_pipeline\/cache\// }), before, 'streams.json, ledger, inbox, verdicts untouched');
+  // reverse: without the draft the saved requirement is used
+  const n = conn.calls.length;
+  await previewNode(dir, { connector: conn, nodeId: 'relevance', url, ctx: ctx() });
+  assert.ok(!conn.calls[n].prompt.includes(marker));
+  // a draft that would not save is refused the same way, and calls nothing
+  const m = conn.calls.length;
+  assert.equal((await previewNode(dir, { connector: conn, nodeId: 'relevance', url, draft: { ...saved, threshold: 1.5 } })).code, 'bad-config');
+  assert.equal((await previewNode(dir, { connector: conn, nodeId: 'relevance', url, draft: { ...saved, output: { relevance: 'score' } } })).code, 'locked-node');
+  assert.equal((await previewNode(dir, { connector: conn, nodeId: 'relevance', url, draft: { ...saved, id: 'substance' } })).code, 'bad-node');
+  assert.equal(conn.calls.length, m, 'no model call for a refused draft');
+});

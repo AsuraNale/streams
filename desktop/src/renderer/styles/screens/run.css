@@ -1,0 +1,18 @@
+/* 跑一轮 (screens/run-dialog.js): the rows of the estimate inside the kit's dialog, the inline limit editor. */
+.run-dialog { display: flex; flex-direction: column; gap: 10px; }
+.run-rows { margin: 0; display: flex; flex-direction: column; }
+.run-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--st-divider-soft); }
+.run-row:last-child { border-bottom: 0; }
+.run-row dt { color: var(--st-text-2); font-size: var(--st-fs-small); }
+.run-row dd { margin: 0; font-variant-numeric: tabular-nums; }
+.run-cap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.run-field {
+  width: 120px;
+  height: var(--st-control-h);
+  padding: 0 10px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface);
+  font-variant-numeric: tabular-nums;
+}
+.run-error { font-size: var(--st-fs-small); color: var(--st-danger); font-weight: 700; }

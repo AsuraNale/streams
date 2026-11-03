@@ -45,7 +45,7 @@ node bin/streams-core.mjs keep <libraryDir> <url>   ·   dismiss <libraryDir> <u
 | `src/library/index.mjs` | `rebuildIndex`, `readIndex`, `formatIndexLine`, `INDEX_KEYS` | 写 `index.jsonl` / `index.meta.json`，不碰 notes/ |
 | `src/library/ledger.mjs` | `appendEvent`, `replayLedger`, `recordSeen`, `isSeen` | `_pipeline/ledger.jsonl`，只追加（`appendFileSync`） |
 | `src/library/pending.mjs` | `listPending(libraryDir)` | 待规范清单 + `proposedHeader`（只是返回值，不写盘） |
-| `src/library/write-note.mjs` | `writeNoteFile(libraryDir,{id,header,body},{by})` | **唯一**写 notes/ 的地方（V2）。`by` 只收 `'keep'` / `'import-header'`；`wx` 独占创建，已存在抛 `id-conflict`；写前先过校验，不合规范抛 `invalid-note` |
+| `src/library/write-note.mjs` | `writeNoteFile(libraryDir,{id,header,body},{by})` | **唯一**写 notes/ 的地方（V2）。`by` 只收 `'keep'` / `'import-header'` / `'edit'`；前两个 `wx` 独占创建，已存在抛 `id-conflict`；`edit` 只覆盖已存在且合规范的文件（临时文件 `<id>.md.<pid>.tmp` 再 rename），没有抛 `not-found`、不合规范抛 `not-editable`；写前先过校验，不合规范抛 `invalid-note` |
 | `src/library/create.mjs` | `createLibrary(libraryDir,{name})` | 建 `notes/`、`_pipeline/{inbox,cache,logs}`、空 `ledger.jsonl` / `fetch_log.jsonl`、最小 `streams.json`（关卡默认 relevance / substance / freshness）；非空目录抛 `exists` |
 | `bin/streams-core.mjs` | — | 最小命令行 |
 
@@ -354,3 +354,20 @@ fetchRound(libraryDir, { config?, ctx? })
 - 假连接器：`src/connect/fakes.mjs`（固定 / 坏格式 / 登录过期 / 计数）与 `src/pipeline/fake.mjs`（按提示词形状应答的脚本连接器，`--connection fake`）。
 
 本机实跑（11-03）：一条一项的库，Claude Code 与 Codex 各跑一轮，关卡①各 1 次真调用、`quote` 逐字命中、账本 `scored` 写入。
+
+## 资料库、编辑、搜索、图谱、问库、来源与主题、运行状态（W5）
+
+签名与返回形状在 `docs/core-api.md` 第五节（5.1–5.7）。要点：
+
+| 文件 | 导出 | 作用 |
+|---|---|---|
+| `src/library/browse.mjs` | `libraryCounts`, `listLibrary`, `readNote`, `notePath`, `noteBodyOf` | 四个分页（已收藏 / 我写的 / 抓到的 / 待规范）。抓到的 = 账本里没到 kept / dismissed 的全部，`stoppedAt` 由流水线的 `nextStep` 算：低于某关 → 关卡 id，`unscored`（同 cfg 不再调用），`queued`（还要跑，含连接断的），`inbox`。只读 |
+| `src/library/edit.mjs` | `editNote(libraryDir, id, {title?, topics?, body?})` | 只改这三样，别的键 `bad-edit`；其余文件头字段与键序原样；写盘只经 `writeNoteFile(…,{by:'edit'})`，本文件没有写调用；写完 `rebuildIndex` |
+| `src/library/search.mjs` | `search`, `rankEntries`, `textTokens`, `queryTokens`, `scoreEntry`, `snippetOf` | 搜索框与问库候选共用的打分：英文按词（NFKC、小写、去标点），中文相邻二字；标题 ×3、主题 ×2、摘要 / 正文 ×1，数出现次数；同分按 date 倒序再按 id。比较一律按码点，不用 locale |
+| `src/graph/graph.mjs` | `graph(libraryDir, {days, status, topics, links, now})` | 三行固定布局（主题 / 来源 / 条目），按条数倒序再按名字；条目落在第一个主题的列下、按 date 倒序。连线只连两端都画出来的节点。同一输入 `JSON.stringify` 逐字节相同 |
+| `src/ask/ask.mjs` · `prompts.mjs` · `demand.mjs` | `ask`, `demands`, `addDemand`, `answerFeedback` | 问库：候选 = kept / authored 前 9 条（正文每条 1500 字、共 9000 字）；0 条不调模型；一次主模型生成 → `verifyLoop`（规则：`json_keys`、`ids_in_set`、「notInLibrary 为 false 时每句有出处」；判定：每句对得上它引的那条，核验槽打包一次）；两轮后越界编号与没出处的句子删掉并计数。`_pipeline/demand.jsonl` 每问一行，`verdicts.jsonl` 的 node 是 `ask`、url 是 `ask:<sha1(问题) 前 12 位>`；连接错误返回 `{ok:false, code}` 且什么都不写 |
+| `src/library/sources.mjs` | `sourcesView`, `guessSource`, `addSource`, `updateSource`, `removeSource`, `setSourcePaused`, `addTopic`, `updateTopic`, `removeTopic` | 只写 `streams.json`：读 → 改 `sources` / `topics` → 临时文件 → rename，其余键与键序不动，2 空格缩进 + 末尾换行。删主题时引用它的来源 topic 置空，已收藏条目不改 |
+| `src/pipeline/status.mjs` | `statusView(libraryDir, {now})` | 运行状态页：最近一轮、这一轮进待看的条数（账本 inbox 事件按 round 数）、上次拍板时间、本月用量、每个已配置来源的最近状态与健康级别；全部从 jsonl 现算 |
+| `src/verify/verdicts.mjs` | `verdictsFor(libraryDir, url)` | 一条的全部核验记录按 node + round 分组，标出「说做了其实没做」 |
+
+`ids_in_set` 读顶层字段，所以问库核验时在模型输出上加两个派生字段（`cites_all` 全部出处编号、`answer_problems` 答案问题数）给规则项读；这两个字段不给模型看（退回时的「上一次输出」去掉它们），也不进返回值。

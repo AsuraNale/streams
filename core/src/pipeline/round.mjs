@@ -27,20 +27,21 @@ import { fetchRound } from '../fetch/round.mjs';
 import { makeContext } from '../fetch/context.mjs';
 import { localIsoDate } from '../fetch/dates.mjs';
 import { createUsageCounter } from '../connect/usage.mjs';
-import { pipelineFrom, gateNodes, summaryNode, cfgOf } from './config.mjs';
+import { pipelineFrom, gateNodes, summaryNode, cfgOf, checkPipeline } from './config.mjs';
 import { buildQueue, nextStep } from './queue.mjs';
 import { fetchBody, readCachedBody, cleanCache } from './cache.mjs';
 import { relatedEntries } from './related.mjs';
 import { runGate, gapConnector } from './score.mjs';
 import { runSummary } from './summarize.mjs';
 import { appendRoundRecord, appendRoundLogMd } from './rounds-log.mjs';
+import { writeInboxItem } from './inbox.mjs';
 import { constantScoreWarning } from './numbers.mjs';
 
 function detail(e) {
   return String(e?.message ?? e).slice(0, 300);
 }
 
-export async function selfCheck(libraryDir, { connector } = {}) {
+export async function selfCheck(libraryDir, { connector, scoreless = false } = {}) {
   const problems = [];
   const warnings = [];
   const out = { ok: false, problems, warnings };
@@ -70,6 +71,19 @@ export async function selfCheck(libraryDir, { connector } = {}) {
     for (const p of scan.pending) warnings.push(`note-not-conforming ${p.file}: ${p.codes.join(',')}`);
   } catch (e) {
     problems.push({ code: 'index', detail: `${e.code ?? 'error'}: ${detail(e)}` });
+    return out;
+  }
+  // a round without a connection (the user skipped it: product spec S1 「没有连接也能抓，只是不打分，全部进待看」) asks
+  // for it explicitly; a connector that is merely missing is still a failure, so nothing lands in the inbox by accident
+  if (scoreless) {
+    try {
+      rebuildIndex(libraryDir);
+    } catch (e) {
+      problems.push({ code: 'index', detail: `${e.code ?? 'error'}: ${detail(e)}` });
+      return out;
+    }
+    out.ok = true;
+    out.scoreless = true;
     return out;
   }
   if (!connector || typeof connector.probe !== 'function') {
@@ -129,9 +143,9 @@ async function materialFor({ libraryDir, cfg, node, state, ctx, summaries }) {
   return { item, body: null, materials: 'summary-only', bodyReason: b.reason };
 }
 
-export async function runRound(libraryDir, { connector, cap, ctx, signal, onProgress, now } = {}) {
+export async function runRound(libraryDir, { connector, scoreless = false, cap, ctx, signal, onProgress, now } = {}) {
   const c = makeContext(ctx ?? (typeof now === 'function' ? { now } : {}));
-  const check = await selfCheck(libraryDir, { connector });
+  const check = await selfCheck(libraryDir, { connector, scoreless });
   if (!check.ok) return { ok: false, started: false, problems: check.problems, warnings: check.warnings };
 
   const config = readConfig(libraryDir).config;
@@ -168,8 +182,28 @@ export async function runRound(libraryDir, { connector, cap, ctx, signal, onProg
     problems.push({ code: 'connection', connectionCode: r.code, detail: r.detail ?? r.code, node, url });
   };
 
+  // no connection: every item still waiting at the first gate goes to the inbox as it is (no score, no summary;
+  // the card carries the feed's own excerpt and scoreless:true). No model call; the gates and the summary are skipped.
   const gateList = gateNodes(cfg);
-  outer: for (let gi = 0; gi < gateList.length; gi++) {
+  if (check.scoreless) {
+    const first = gateList[0];
+    const waiting = first ? buildQueue(libraryDir, cfg).byNode[first.id] ?? [] : [];
+    for (const state of waiting) {
+      if (signal?.aborted) { stoppedAt = 'aborted'; break; }
+      const ts = c.now().toISOString();
+      const card = {
+        url: state.url, title: state.title ?? '', source: state.source ?? '', date: state.date ?? '',
+        scores: {}, summary: { what: '', points: [], quote: '' }, excerpt: summaries.get(state.url) ?? state.summary ?? '',
+        verification: { passed: false, rounds: 0, failed: [] }, scoreless: true, round: round.id,
+      };
+      if (state.maybeDuplicateOf) card.maybeDuplicateOf = state.maybeDuplicateOf;
+      writeInboxItem(libraryDir, card);
+      appendEvent(libraryDir, { ts, ev: 'inbox', url: state.url, round: round.id, verified: false, scoreless: true });
+      counts.inbox += 1;
+      progress('inbox', null, state.url);
+    }
+  }
+  outer: for (let gi = 0; gi < (check.scoreless ? 0 : gateList.length); gi++) {
     const node = gateList[gi];
     const queue = buildQueue(libraryDir, cfg).byNode[node.id] ?? [];
     for (const state of queue) {
@@ -196,7 +230,7 @@ export async function runRound(libraryDir, { connector, cap, ctx, signal, onProg
   }
 
   const summary = summaryNode(cfg);
-  if (summary && stoppedAt === undefined) {
+  if (summary && stoppedAt === undefined && !check.scoreless) {
     const queue = buildQueue(libraryDir, cfg).summary;
     for (const state of queue) {
       if (stopNow()) break;
@@ -236,6 +270,7 @@ export async function runRound(libraryDir, { connector, cap, ctx, signal, onProg
   const finishedAt = c.now().toISOString();
   const record = {
     id: round.id, startedAt: round.startedAt, finishedAt, counts, gates, calls,
+    ...(check.scoreless ? { scoreless: true } : {}),
     ...(stoppedAt ? { stoppedAt } : {}),
     problems, warnings,
     fetch: fetch.perSource.map((p) => ({ name: p.name, status: p.status, count: p.count, newCount: p.newCount })),
@@ -244,14 +279,26 @@ export async function runRound(libraryDir, { connector, cap, ctx, signal, onProg
   appendRoundRecord(libraryDir, record);
   appendRoundLogMd(libraryDir, record, { day: localIsoDate(c.now()) });
   cleanCache(libraryDir, { days: cfg.cacheDays, now: c.now });
-  return { ok: true, started: true, round: { id: round.id, startedAt: round.startedAt, finishedAt }, counts, gates, calls, ...(stoppedAt ? { stoppedAt } : {}), problems, warnings };
+  return { ok: true, started: true, round: { id: round.id, startedAt: round.startedAt, finishedAt }, counts, gates, calls, ...(check.scoreless ? { scoreless: true } : {}), ...(stoppedAt ? { stoppedAt } : {}), problems, warnings };
 }
 
-export async function previewNode(libraryDir, { connector, nodeId, url, item, ctx } = {}) {
+// `draft` (optional): the node as the user is editing it, not saved yet (product spec C3: change the requirement,
+// 「试一条看结果」, then save). It is checked exactly as savePipelineConfig would check it — a locked field changed or a
+// threshold out of range is refused with that code — and used for this one call only; nothing is written.
+export async function previewNode(libraryDir, { connector, nodeId, url, item, ctx, draft } = {}) {
   const r = readConfig(libraryDir);
   if (!r.ok) return { ok: false, code: `config:${r.error.code}` };
   const c = makeContext(ctx);
-  const cfg = pipelineFrom(r.config);
+  let cfg = pipelineFrom(r.config);
+  if (draft !== undefined && draft !== null) {
+    if (typeof draft !== 'object' || draft.id !== nodeId) return { ok: false, code: 'bad-node' };
+    try {
+      const checked = checkPipeline({ ...cfg, nodes: cfg.nodes.map((n) => (n.id === nodeId ? draft : n)) }, { current: cfg });
+      cfg = pipelineFrom({ ...r.config, pipeline: checked });
+    } catch (e) {
+      return { ok: false, code: e?.code ?? 'bad-config', detail: String(e?.message ?? e).slice(0, 200) };
+    }
+  }
   const node = cfg.nodes.find((n) => n.id === nodeId);
   if (!node || (node.kind !== 'gate' && node.kind !== 'summary')) return { ok: false, code: 'bad-node' };
   let state = null;

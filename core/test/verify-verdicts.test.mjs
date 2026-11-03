@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { appendVerdict, readVerdicts, recentVerdictFailures, verdictsPath, VERDICTS_FILE } from '../src/verify/verdicts.mjs';
+import { appendVerdict, readVerdicts, recentVerdictFailures, verdictsFor, verdictsPath, VERDICTS_FILE } from '../src/verify/verdicts.mjs';
 import { caseDir } from './support/tmp.mjs';
 
 const ITEMS = [
@@ -108,4 +108,36 @@ test('recentVerdictFailures: only that node, only failures, newest first, capped
   assert.deepEqual(recentVerdictFailures(dir, 'summary', 0), []);
   assert.deepEqual(recentVerdictFailures(caseDir('verdicts-recent-empty'), 'summary'), []);
   assert.notDeepEqual(all.map((v) => v.ts), [...all.map((v) => v.ts)].sort(), 'sentinel: the order is not ascending');
+});
+
+test('verdictsFor: one url only, grouped by node + round in write order, claimed-but-failed marked', () => {
+  const dir = caseDir('verdicts-for');
+  const t1 = '2026-11-03T10:00:00.000Z';
+  const t2 = '2026-11-03T10:05:00.000Z';
+  appendVerdict(dir, { node: 'relevance', url: 'https://u/1', round: 1, items: [{ id: 'json-keys', kind: 'rule', passed: false, evidence: 'missing keys: quote' }], ts: t1 });
+  appendVerdict(dir, { node: 'relevance', url: 'https://u/1', round: 2, items: [{ id: 'json-keys', kind: 'rule', passed: true, evidence: 'all keys present' }], ts: t1 });
+  appendVerdict(dir, { node: 'relevance', url: 'https://u/other', round: 1, items: [{ id: 'json-keys', kind: 'rule', passed: false, evidence: 'x' }], ts: t1 });
+  appendVerdict(dir, { node: 'summary', url: 'https://u/1', round: 1, items: ITEMS, ts: t2 });
+  appendVerdict(dir, { node: 'summary', url: 'https://u/1', round: 2, items: [{ id: 'numbers-in-source', kind: 'judge', passed: false, evidence: '仍然升级了', claimed: true }], ts: t2 });
+  const g = verdictsFor(dir, 'https://u/1');
+  assert.deepEqual(g.map((x) => [x.node, x.round, x.items.length]), [['relevance', 1, 1], ['relevance', 2, 1], ['summary', 1, 2], ['summary', 2, 1]]);
+  assert.deepEqual(g[2].items, [
+    { item: 'what-nonempty', kind: 'rule', passed: true, evidence: 'what is non-empty', claimed: true, claimedNotDone: false },
+    { item: 'numbers-in-source', kind: 'judge', passed: false, evidence: '5000 是目标', claimed: false, claimedNotDone: false },
+  ]);
+  assert.deepEqual(g[2].claimsNotFound, [], 'failed but not claimed: forgotten, not "said done"');
+  assert.deepEqual(g[3].claimsNotFound, ['numbers-in-source']);
+  assert.equal(g[3].items[0].claimedNotDone, true);
+  assert.equal(g[0].ts, t1);
+  assert.deepEqual(verdictsFor(dir, 'https://u/none'), []);
+  assert.deepEqual(verdictsFor(caseDir('verdicts-for-empty'), 'https://u/1'), []);
+});
+
+test('verdictsFor: a later re-run of the same node and round is its own group (ts differs)', () => {
+  const dir = caseDir('verdicts-for-rerun');
+  appendVerdict(dir, { node: 'relevance', url: 'https://u/1', round: 1, items: [{ id: 'a', passed: false }], ts: '2026-11-01T00:00:00.000Z' });
+  appendVerdict(dir, { node: 'relevance', url: 'https://u/1', round: 1, items: [{ id: 'a', passed: true }], ts: '2026-11-02T00:00:00.000Z' });
+  const g = verdictsFor(dir, 'https://u/1');
+  assert.equal(g.length, 2);
+  assert.deepEqual(g.map((x) => x.items[0].passed), [false, true]);
 });

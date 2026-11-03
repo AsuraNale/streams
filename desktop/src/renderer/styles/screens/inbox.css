@@ -1,0 +1,50 @@
+/* 待看 (screens/inbox.js): the cards, the current one marked, the dismiss dialog's field, the panel of recent reasons.
+   Also the badge after 待看 in the sidebar (kit/sidebar.js SidebarNav): it belongs to this screen. */
+.st-sidebar__nav-text { flex-grow: 1; min-width: 0; }
+.st-sidebar__nav .st-sidebar__badge { font-size: var(--st-fs-tiny); line-height: 18px; }
+.st-sidebar__nav[aria-current] .st-sidebar__badge { background: var(--st-wait-bg); }
+
+[data-screen='inbox'] .st-topbar { padding-left: 24px; padding-right: 24px; }
+.inbox-keys { white-space: nowrap; }
+.inbox-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 12px; }
+.inbox-error { display: flex; align-items: center; gap: 10px; color: var(--st-danger); font-weight: 700; }
+.inbox-empty { padding: 24px 0; }
+
+.inbox-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--st-border);
+  border-left: 4px solid var(--st-border);
+  border-radius: var(--st-radius);
+  background: var(--st-surface);
+  outline: none;
+}
+.inbox-card--current { border-color: var(--st-accent); border-left-color: var(--st-accent); background: var(--st-active-fill); }
+.inbox-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.inbox-card__title { color: var(--st-text); text-decoration: none; overflow-wrap: anywhere; }
+.inbox-card__title:hover { color: var(--st-accent); text-decoration: underline; }
+.inbox-card__tags { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.inbox-card__unverified { font-size: var(--st-fs-small); font-weight: 700; color: var(--st-danger); border: 1px solid var(--st-danger); border-radius: var(--st-radius-s); padding: 1px 8px; background: var(--st-danger-bg); }
+.inbox-card__what { overflow-wrap: anywhere; }
+.inbox-card__points { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
+.inbox-card__scores { display: flex; flex-direction: column; gap: 2px; }
+.inbox-score { display: flex; align-items: baseline; gap: 2px; flex-wrap: wrap; }
+.inbox-card__actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+
+.inbox-reason {
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 10px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface);
+  resize: vertical;
+}
+
+.inbox-panel { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.inbox-panel__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.inbox-panel__line { padding: 6px 0; border-bottom: 1px solid var(--st-divider-soft); font-size: var(--st-fs-small); overflow-wrap: anywhere; }
+.inbox-panel__line:last-child { border-bottom: 0; }
+.inbox-panel__ask { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding-top: 6px; border-top: 1px solid var(--st-divider); }

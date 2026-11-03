@@ -2,23 +2,94 @@
  * The user's settings, in <appData>/settings.json — the protected folder:
  *   language            the language of the app's own words (locale.mjs): auto (default: follow the system) · zh-CN · en
  *   libraryPath         the library folder the app has open (an absolute path), or null until one is opened (「未打开库」)
+ *   recentLibraries     the library folders opened before, most recent first, absolute paths, at most RECENT_MAX
+ *                       (the settings page's 「库 · 其他」; openRecentLibrary accepts only one of these)
+ *   connections         which way the model is reached (plan C2): `active` (claude-code · codex · api · null), and for
+ *                       each kind its model slots (`model`, `verifyModel`: an id, or null = that connection's default;
+ *                       verify null = same as the main model); `api` also has `vendor` (core VENDOR_IDS) and `baseUrl`
+ *                       (only `custom` uses it, else null). The key itself is never here: secrets.mjs (safeStorage).
  *   showDeveloperInfo   the advanced switch of the settings page (default off)
- * Read whole and checked field by field (a field that is not what it should be is its default); written whole,
- * through a temporary file and a rename, so a crash never leaves half a file.
- * The connections (which model, which key) are not here: they come with the connection screens (plan C2) and keep
- * their keys in secrets.mjs, never in this file.
+ * Read whole and checked field by field (a field that is not what it should be is its default; inside `connections`
+ * each field on its own); written whole, through a temporary file and a rename, so a crash never leaves half a file.
  * @module desktop/main/settings
  */
 
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { DEFAULT_LANGUAGE, LANGUAGE_SETTINGS } from './locale.mjs'
+import { VENDOR_IDS } from './core.mjs'
 
 export const SETTINGS_SCHEMA = 'streams.settings/1'
+export const CONNECTION_KINDS = Object.freeze(['claude-code', 'codex', 'api'])
+export const RECENT_MAX = 8
+export const DEFAULT_VENDOR = 'anthropic'
+
+const own = (o, k) => (o !== null && typeof o === 'object' && Object.hasOwn(o, k) ? o[k] : undefined)
+const isObject = o => o !== null && typeof o === 'object' && !Array.isArray(o)
+const HTTP_URL = /^https?:\/\/\S+$/i
+
+/** The connection settings with every field at its default. */
+export function defaultConnections() {
+  return {
+    active: null,
+    'claude-code': { model: null, verifyModel: null },
+    codex: { model: null, verifyModel: null },
+    api: { vendor: DEFAULT_VENDOR, baseUrl: null, model: null, verifyModel: null },
+  }
+}
 
 const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false })
 
-const own = (o, k) => (o !== null && typeof o === 'object' && Object.hasOwn(o, k) ? o[k] : undefined)
+/** A model slot: a non-empty string id, or null (the default). Anything else is null. */
+function modelOf(v) {
+  return typeof v === 'string' && v.trim() !== '' ? v.trim() : null
+}
+
+/**
+ * The connection settings, each field checked on its own: a bad field is its default, the good ones stay.
+ * @param {unknown} raw
+ */
+export function normalizeConnections(raw) {
+  const d = defaultConnections()
+  if (!isObject(raw)) return d
+  const active = own(raw, 'active')
+  const out = { active: CONNECTION_KINDS.includes(active) ? active : null }
+  for (const kind of ['claude-code', 'codex']) {
+    const c = own(raw, kind)
+    out[kind] = { model: modelOf(own(c, 'model')), verifyModel: modelOf(own(c, 'verifyModel')) }
+  }
+  const api = own(raw, 'api')
+  const vendor = own(api, 'vendor')
+  const baseUrl = own(api, 'baseUrl')
+  out.api = {
+    vendor: VENDOR_IDS.includes(vendor) ? vendor : d.api.vendor,
+    baseUrl: typeof baseUrl === 'string' && HTTP_URL.test(baseUrl.trim()) ? baseUrl.trim() : null,
+    model: modelOf(own(api, 'model')),
+    verifyModel: modelOf(own(api, 'verifyModel')),
+  }
+  return out
+}
+
+/** The recent list: absolute paths only, no repeats (letter case does not count on Windows), at most RECENT_MAX. */
+export function normalizeRecent(raw) {
+  if (!Array.isArray(raw)) return []
+  const out = []
+  const seen = new Set()
+  for (const p of raw) {
+    if (typeof p !== 'string' || !isAbsolute(p)) continue
+    const key = process.platform === 'win32' ? p.toLowerCase() : p
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(p)
+    if (out.length === RECENT_MAX) break
+  }
+  return out
+}
+
+/** `path` put first in the recent list (moved there when already in it), the list cut to RECENT_MAX. */
+export function withRecent(list, path) {
+  return normalizeRecent([path, ...normalizeRecent(list)])
+}
 
 /** The settings in `file`, each field checked; a missing or broken file gives the defaults. */
 export function readSettings(file) {
@@ -29,14 +100,31 @@ export function readSettings(file) {
   return {
     language: LANGUAGE_SETTINGS.includes(language) ? language : DEFAULTS.language,
     libraryPath: typeof library === 'string' && isAbsolute(library) ? library : DEFAULTS.libraryPath,
+    recentLibraries: normalizeRecent(own(data, 'recentLibraries')),
+    connections: normalizeConnections(own(data, 'connections')),
     showDeveloperInfo: own(data, 'showDeveloperInfo') === true,
   }
+}
+
+/** Is `raw` exactly a connections object that normalizes to itself (so a write stores what was asked, no silent repair)? */
+function checkConnections(raw) {
+  if (!isObject(raw)) return false
+  const norm = normalizeConnections(raw)
+  for (const kind of CONNECTION_KINDS) {
+    const c = own(raw, kind)
+    if (!isObject(c)) return false
+    for (const [k, v] of Object.entries(norm[kind])) if (own(c, k) !== v) return false
+    for (const k of Object.keys(c)) if (!Object.hasOwn(norm[kind], k)) return false
+  }
+  if (own(raw, 'active') !== norm.active) return false
+  for (const k of Object.keys(raw)) if (!Object.hasOwn(norm, k)) return false
+  return true
 }
 
 /**
  * Change some settings and write them all.
  * @param {string} file
- * @param {{language?: string, libraryPath?: string|null, showDeveloperInfo?: boolean}} patch
+ * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean}} patch
  * @returns {object} the settings now
  */
 export function writeSettings(file, patch) {
@@ -48,6 +136,15 @@ export function writeSettings(file, patch) {
   if (Object.hasOwn(patch, 'libraryPath')) {
     if (patch.libraryPath !== null && (typeof patch.libraryPath !== 'string' || !isAbsolute(patch.libraryPath))) throw new TypeError('libraryPath must be an absolute path, or null')
     next.libraryPath = patch.libraryPath
+  }
+  if (Object.hasOwn(patch, 'recentLibraries')) {
+    const list = patch.recentLibraries
+    if (!Array.isArray(list) || list.some(p => typeof p !== 'string' || !isAbsolute(p))) throw new TypeError('recentLibraries must be a list of absolute paths')
+    next.recentLibraries = normalizeRecent(list)
+  }
+  if (Object.hasOwn(patch, 'connections')) {
+    if (!checkConnections(patch.connections)) throw new TypeError('connections must be a complete, valid connections object')
+    next.connections = normalizeConnections(patch.connections)
   }
   if (Object.hasOwn(patch, 'showDeveloperInfo')) next.showDeveloperInfo = patch.showDeveloperInfo === true
   const tmp = `${file}.${process.pid}.tmp`

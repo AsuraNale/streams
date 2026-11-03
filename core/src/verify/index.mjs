@@ -11,4 +11,4 @@ export { checkRule, countWords, parseRule, RULE_OPS } from './rules.mjs';
 export { lockChecklist, gateBaseline, summaryBaseline, BANNED_WORDS, CHECK_KINDS, MAX_CHECKLIST_ITEMS, MIN_DESC_CHARS } from './checklist.mjs';
 export { judgeItems, buildJudgePrompt, JUDGE_PROMPT } from './judge.mjs';
 export { verifyOnce, verifyLoop } from './verify.mjs';
-export { appendVerdict, readVerdicts, recentVerdictFailures, verdictsPath, VERDICTS_FILE } from './verdicts.mjs';
+export { appendVerdict, readVerdicts, recentVerdictFailures, verdictsFor, verdictsPath, VERDICTS_FILE } from './verdicts.mjs';

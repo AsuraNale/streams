@@ -1,0 +1,120 @@
+// 来源与主题 (screens/sources.js, mockup S5): the sources with their state and what to do about it, the dialogs to add a
+// source (try before adding), to put one link into 待看, to change an address, to remove; the topics with their keywords.
+// The five states' words: texts/common.js FETCH_STATES; what to do: FETCH_HINTS; the kinds: SOURCE_KINDS. Source names,
+// addresses, search words and topic names are the library's data.
+
+export const SOURCES = Object.freeze({
+  title: '{sources} 个来源 · {topics} 个主题',
+  titlePlain: '来源与主题',
+  loadFailed: '没能读出来源与主题。',
+  addLink: '贴一个链接进待看',
+  addSource: '加来源',
+  sourcesHeading: '来源',
+  none: '还没有来源。点「加来源」贴一个地址或检索词。',
+  failed: '没有成功，可以再试一次。',
+
+  row: Object.freeze({
+    address: '{kind} · {address}',
+    minPoints: '{kind} · {address} · ≥ {n} 分',
+    count: '{state} · {n} 条',
+    streak: '{state} · HTTP {http} · 连续 {n} 轮',
+    streakNoHttp: '{state} · 连续 {n} 轮',
+    lastOk: '上次抓成功：{date}',
+    topic: '主题：{topic}',
+    noTopic: '没标主题',
+    try: '试抓',
+    trying: '正在试抓……',
+    pause: '暂停',
+    resume: '恢复',
+    editAddress: '改地址',
+    editQuery: '改检索词',
+    remove: '删除',
+  }),
+
+  // a try (trySource): not written anywhere
+  tried: Object.freeze({
+    ok: '试抓：{state} · {n} 条',
+    latest: '最新一条：「{title}」（{date}）',
+    latestNoDate: '最新一条：「{title}」',
+    message: '试抓：{state} · {message}',
+    http: 'HTTP {http}',
+  }),
+
+  addDialog: Object.freeze({
+    title: '加来源',
+    inputLabel: '贴地址或检索词',
+    inputPlaceholder: 'https://… 或者几个关键词',
+    guess: '识别',
+    guessFailed: '没能识别，换个写法试试。',
+    kindLabel: '种类',
+    urlLabel: '地址',
+    queryLabel: '检索词',
+    nameLabel: '名字',
+    nameHint: '小写字母、数字和横线，最多 40 个字符',
+    topicLabel: '默认主题',
+    noTopic: '不标主题',
+    try: '试抓',
+    trying: '正在试抓……',
+    tryFirst: '先试抓一次，看得到东西再加。',
+    cannotAdd: '这个地址现在抓不到，先改好再加。',
+    confirm: '加入',
+    cancel: '取消',
+    note: '也可以加：arXiv 检索词、Hacker News 关键词。第一版只支持这三类，都是免费公开的来源。',
+    badSource: '没能加入：名字要是小写字母、数字和横线，不能和已有的重名，地址或检索词不能空。',
+  }),
+
+  linkDialog: Object.freeze({
+    title: '贴一个链接进待看',
+    urlLabel: '链接',
+    urlPlaceholder: 'https://…',
+    titleLabel: '标题（可以不填）',
+    confirm: '放进待看',
+    cancel: '取消',
+    added: '已放进待看，下一轮会给它打分。',
+    seen: '这个链接已经见过，没有再放一次。',
+    bad: '这不是一个 http 或 https 链接。',
+    done: '好',
+  }),
+
+  editDialog: Object.freeze({
+    title: '改 {name}',
+    urlLabel: '地址',
+    queryLabel: '检索词',
+    confirm: '保存',
+    cancel: '取消',
+    bad: '没能保存：地址或检索词不能空。',
+  }),
+
+  removeDialog: Object.freeze({
+    title: '删掉来源 {name}？',
+    text: '以后不再抓它。抓到过的记录都留着，已收藏的条目不变。',
+    confirm: '删除',
+    cancel: '取消',
+  }),
+
+  topics: Object.freeze({
+    heading: '主题',
+    name: '主题',
+    keywords: '关键词（固定锚，软件不会自己改）',
+    kept: '已收藏',
+    sources: '来源',
+    none: '还没有主题。',
+    editKeywords: '改关键词',
+    keywordsLabel: '{name} 的关键词',
+    keywordsHint: '用逗号或顿号隔开',
+    save: '保存',
+    cancel: '取消',
+    remove: '删除',
+    addName: '新主题的名字',
+    addKeywords: '关键词，用逗号或顿号隔开',
+    add: '加主题',
+    bad: '没能保存：主题名不能空，也不能和已有的重名。',
+  }),
+
+  removeTopicDialog: Object.freeze({
+    title: '删掉主题 {name}？',
+    text: '用它的来源会变成没标主题；已收藏的条目不改，它们的这个主题会显示为库里没有的主题。',
+    confirm: '删除',
+    cancel: '取消',
+  }),
+})

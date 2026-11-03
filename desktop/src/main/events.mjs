@@ -16,8 +16,13 @@ export const EVENT_CHANNEL = 'streams:event'
 export const EVENT_TOPICS = Object.freeze({
   'settings-changed': 'a setting changed (the language, the library folder, a switch): the page re-reads the app state',
   'open-screen': 'the page goes to this screen: a click on a notification of the app, a second launch with an argument',
-  // the update (update-wiring.mjs, docs/desktop.mdπù)
+  // the update (update-wiring.mjs, docs/desktop.md¬ßÂõõ)
   'update': 'the update has something new: a check started or ended, the download moved on, ended or failed, the setup program starts (the payload is what getUpdateState gives)',
+  // the library, the connections and the pipeline (services/*.mjs; docs/desktop.md ¬ß4.1)
+  'library-changed': 'a library was opened or made, or its index was rebuilt (after a keep): the payload is { path, name } or null',
+  'connections-changed': 'the connection settings changed (the active one, a model slot, a key stored or removed): null',
+  'round-progress': 'a round of the pipeline moved: { roundId, phase, counts, calls, cap, done, result?, problems? }; the last one has done: true',
+  'inbox-changed': 'the inbox changed (a round wrote into it, a keep, a dismiss): { count }',
 })
 
 /**

@@ -14,3 +14,4 @@ export { homeNumbers, constantScoreWarning, MIN_CONSTANT_RUN } from './numbers.m
 export { roundLog, listRounds, readRounds, renderRoundMd, ROUNDS_FILE, LOGS_DIR } from './rounds-log.mjs';
 export { relatedEntries, titleTokens } from './related.mjs';
 export { scriptedConnector } from './fake.mjs';
+export { statusView } from './status.mjs';

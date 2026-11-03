@@ -1,4 +1,4 @@
-// The English interface on the running app (docs/desktop.md��). Session A starts with `language: 'en'` in settings.json:
+// The English interface on the running app (docs/desktop.md��). Session A starts with `language: 'en'` in settings.json:
 // the sidebar's nine entries, the window title, <html lang> and the settings page come from the English tables; switching
 // to Chinese on the settings page reloads the page there in Chinese and writes the setting; switching to 跟随系统 on a
 // Chinese system (the tests pin it) changes nothing and does not reload. Session B: no setting, the system's languages
@@ -30,7 +30,9 @@ test('the first screen and the sidebar in English; <html lang> and the window ti
   assert.notEqual(SCREENS_EN.titles.today, SCREENS.titles.today, 'control: the two titles differ')
   assert.deepEqual(await navWords(s.page), Object.values(SIDEBAR_EN.entries))
   assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar__footer-button').textContent), SIDEBAR_EN.settings)
-  assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar__library-name').textContent), SIDEBAR_EN.noLibrary)
+  // a test world opens its empty library (test/support/app.mjs): the folder's name, not the English 「未打开库」
+  assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar__library-name').textContent), 'library')
+  assert.notEqual(SIDEBAR_EN.noLibrary, 'library', 'control: the two words differ')
   assert.equal(await s.page.evaluate(() => [document.documentElement.lang, document.title].join()), 'en,Streams')
   assert.equal(await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle()), 'Streams')
   const state = await s.page.evaluate(() => window.streams.getAppState())

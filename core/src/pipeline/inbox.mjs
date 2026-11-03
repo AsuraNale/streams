@@ -77,6 +77,7 @@ export function listInbox(libraryDir, { now = () => new Date() } = {}) {
     };
     if (s.maybeDuplicateOf) card.maybeDuplicateOf = s.maybeDuplicateOf;
     if (item.materials) card.materials = item.materials;
+    if (item.scoreless === true) { card.scoreless = true; card.excerpt = typeof item.excerpt === 'string' ? item.excerpt : ''; }
     cards.push(card);
   }
   const score = (c, k) => (typeof c.scores[k]?.score === 'number' ? c.scores[k].score : -1);

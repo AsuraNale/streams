@@ -5,6 +5,7 @@
 //   each item -> { ts, node, url, item, kind, passed, evidence, round, claimed }
 // readVerdicts(libraryDir)                       -> [line, ...]   (malformed lines skipped)
 // recentVerdictFailures(libraryDir, nodeId, n)   -> [{ ts, url, item, evidence, round }] newest first
+// verdictsFor(libraryDir, url)                   -> one url's lines grouped by node + round (see below)
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
@@ -92,4 +93,30 @@ export function recentVerdictFailures(libraryDir, nodeId, n = 10) {
     })
     .slice(0, limit)
     .map(({ v }) => ({ ts: v.ts, url: v.url, item: v.item, evidence: v.evidence, round: v.round }));
+}
+
+// verdictsFor(libraryDir, url) -> [{ node, round, ts, items:[{ item, kind, passed, evidence, claimed, claimedNotDone }], claimsNotFound }]
+// Every verification line of one url (S15), grouped by node + round (+ ts, so a later re-run of the same
+// node is its own group), groups in the order they were first written. claimedNotDone / claimsNotFound =
+// the producing model said it did the item, and the item did not pass ("说做了其实没做").
+export function verdictsFor(libraryDir, url) {
+  const groups = [];
+  const byKey = new Map();
+  for (const v of readVerdicts(libraryDir)) {
+    if (v.url !== url) continue;
+    const round = typeof v.round === 'number' ? v.round : null;
+    const ts = typeof v.ts === 'string' ? v.ts : null;
+    const key = JSON.stringify([v.node, round, ts]);
+    let g = byKey.get(key);
+    if (!g) {
+      g = { node: v.node, round, ts, items: [], claimsNotFound: [] };
+      byKey.set(key, g);
+      groups.push(g);
+    }
+    const passed = v.passed === true;
+    const claimed = v.claimed === true;
+    g.items.push({ item: v.item, kind: v.kind === 'judge' ? 'judge' : 'rule', passed, evidence: typeof v.evidence === 'string' ? v.evidence : '', claimed, claimedNotDone: claimed && !passed });
+    if (claimed && !passed) g.claimsNotFound.push(v.item);
+  }
+  return groups;
 }

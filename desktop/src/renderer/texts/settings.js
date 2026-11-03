@@ -1,11 +1,76 @@
-// 设置 (screens/settings.js): the language, the developer switch, the diagnostics, 「关于」 with the update. The connections
-// (plan C2: 连接你电脑上的 Claude Code / Codex, an API key) come with their own screen later, not here yet.
+// 设置 (screens/settings.js, mockup S14): four parts — the connections (plan C2), the run (cap, the schedule, the pass
+// lines), the library (C3), and the software part (the language, the developer switch, the diagnostics, 「关于」 with
+// the update). The connection names and the login loop: texts/common.js CONNECTIONS.
 
 export const SETTINGS = Object.freeze({
   title: '设置',
   subtitle: '对这台电脑上的流息都有效',
 
-  // the language of the app's own words (docs/desktop.md��)
+  // 连接方式
+  connections: '连接方式',
+  connectionsHint: '打分用哪一条、用什么型号',
+  connectionsFailed: '没能读出连接的状态。',
+  conn: Object.freeze({
+    use: '打分用这一条',
+    model: '主模型',
+    modelHint: '打分、摘要、问库',
+    verify: '核验模型',
+    verifyHint: '默认同主模型；同一连接里可选便宜的档',
+    setup: '设置…',
+    probe: '现在试一次',
+    apiHint: '任一厂商 · 存在系统凭据保护里',
+    which: '打分用哪一个：你选的那条；没选时按上面的顺序，第一个可用的。',
+  }),
+  apiDialog: Object.freeze({
+    title: '输入 API key',
+    vendor: '厂商',
+    baseUrl: '接口地址',
+    baseUrlPlaceholder: '以 https:// 开头',
+    key: 'key',
+    keyPlaceholder: '粘贴 key，只往这台电脑的系统凭据保护里存一次',
+    hasKey: '已有 key（末四位 {hint}）。再保存会换成新的。',
+    save: '保存',
+    remove: '删除',
+    cancel: '取消',
+    saved: '已保存。',
+    removed: '已删除。',
+    failed: '没能保存。',
+  }),
+
+  // 运行
+  run: '运行',
+  runHint: '定时、每轮上限、默认过关线',
+  runFailed: '没能读出运行的设置。',
+  schedule: '定时',
+  scheduleNone: '还没启用（托盘做好后）',
+  cap: '每轮上限',
+  capUnit: '次模型调用',
+  capSave: '保存',
+  capSaved: '已保存。',
+  capBad: '上限要是一个正整数。',
+  thresholds: '默认过关线',
+  thresholdsValue: '相关度 {relevance} · 实质 {substance}',
+  thresholdsHint: '要改的话去流水线页',
+
+  // 库
+  library: '库',
+  libraryHint: '当前的库、其他库、索引',
+  current: '当前',
+  noLibrary: '还没打开库',
+  others: '其他',
+  othersNone: '没有别的库。',
+  otherLine: '{name}（{path}）',
+  newLibrary: '新建库',
+  openFolder: '打开已有文件夹',
+  rebuild: '重建索引',
+  rebuilding: '正在重建……',
+  rebuilt: '索引 {count} 条 · 待规范 {tidy} 条',
+  rebuildFailed: '没能重建索引。',
+  folderOther: '这个文件夹里有别的东西，换一个。',
+  folderNotEmptyForNew: '新建库要一个空文件夹。',
+  openFailed: '没能打开这个文件夹。',
+
+  // the language of the app's own words (docs/desktop.md §六)
   language: '语言',
   languageHint: '流息自己写的字用哪种语言',
   languageGroup: '选择语言',
@@ -28,7 +93,7 @@ export const SETTINGS = Object.freeze({
   versionDev: '流息 {version} 开发版（Windows 版）',
   madeBy: '由 Starry Digital 开发',
 
-  // 检查版本 + 更新版本 (docs/desktop.md��). Sizes come as 「37.2 MB」, the date as the page's language writes a date,
+  // 检查版本 + 更新版本 (docs/desktop.md §四). Sizes come as 「37.2 MB」, the date as the page's language writes a date,
   // {at} as WHEN (texts/common.js) writes a time
   update: Object.freeze({
     check: '检查更新',

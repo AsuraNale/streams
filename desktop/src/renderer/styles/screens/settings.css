@@ -1,4 +1,4 @@
-/* 设置 (screens/settings.js): the parts of the settings page and the 「关于」 box with the update */
+/* 设置 (screens/settings.js): the parts of the settings page — the connections, the run, the library — and the 「关于」 box with the update */
 [data-screen='settings'] .st-topbar { padding-left: 24px; padding-right: 24px; }
 .settings__body { padding: 4px 24px 20px; }
 .settings__list { max-width: 900px; display: flex; flex-direction: column; }
@@ -7,7 +7,7 @@
 .settings__name { font-weight: 700; }
 .settings__content { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .settings__models { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-/* the language chooser: three choices side by side (D21, docs/desktop.md��) */
+/* the language chooser: three choices side by side (docs/desktop.md §六) */
 .settings__models--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .settings__model {
   display: flex;
@@ -57,7 +57,38 @@
 .settings__check input { width: 15px; height: 15px; margin: 2px 0 0; accent-color: var(--st-accent); }
 .settings__check-name { font-weight: 700; cursor: pointer; }
 .settings__diag { display: flex; align-items: center; gap: 12px; }
-/* 「关于」: the version, 「检查更新」 and the update (screens/settings-update.js, docs/desktop.md��) */
+
+/* 连接方式: one row per kind, the radio 「打分用这一条」, the two model slots, the login loop, 「现在试一次」 */
+.settings__conns { display: flex; flex-direction: column; gap: 10px; }
+.settings__conn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius);
+  background: var(--st-surface);
+}
+.settings__conn--active { padding: 11px 13px; border: 2px solid var(--st-accent); }
+.settings__conn-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.settings__conn-use { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.settings__conn-use input { margin: 0; accent-color: var(--st-accent); }
+.settings__slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.settings__slot { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.settings__select {
+  height: var(--st-control-h);
+  padding: 0 8px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface);
+}
+
+/* 运行 and 库: label · value pairs */
+.settings__kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.settings__path { display: flex; align-items: baseline; gap: 2px; flex-wrap: wrap; min-width: 0; }
+.settings__recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+/* 「关于」: the version, 「检查更新」 and the update (screens/settings-update.js, docs/desktop.md §四) */
 .settings__about { display: flex; flex-direction: column; gap: 10px; }
 .settings__update-box {
   display: flex;

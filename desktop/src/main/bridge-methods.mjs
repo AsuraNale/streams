@@ -15,15 +15,49 @@ import { LANGUAGE_SETTINGS } from './locale.mjs'
 
 export const CHANNEL_PREFIX = 'streams:'
 
+const KINDS = ['claude-code', 'codex', 'api']
+const isString = v => typeof v === 'string'
+const nonEmpty = v => typeof v === 'string' && v.trim() !== ''
+const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v)
+const stringOrNull = v => v === null || typeof v === 'string'
+
+// interface B (docs/desktop.md §4.2): the views, the bounds of what the page may send
+const LIBRARY_VIEWS = ['kept', 'authored', 'caught', 'pending']
+const SEARCH_VIEWS = ['kept', 'authored', 'all']
+const GRAPH_STATUSES = ['kept', 'all']
+const shortString = max => v => typeof v === 'string' && v.length <= max
+const nonEmptyShort = max => v => nonEmpty(v) && v.length <= max
+const name100 = nonEmptyShort(100)
+const id200 = nonEmptyShort(200)
+const url2000 = nonEmptyShort(2000)
+const httpUrl = v => url2000(v) && /^https?:\/\/\S+$/i.test(v.trim())
+const strings = (v, { items = 50, max = 100 } = {}) => Array.isArray(v) && v.length <= items && v.every(x => typeof x === 'string' && x.length <= max)
+const days = v => v === null || (Number.isInteger(v) && v > 0 && v <= 36500)
+const onlyKeys = (o, keys) => Object.keys(o).every(k => keys.includes(k))
+/** A plain object the page built (JSON-sized): no functions, no cycles, at most `max` characters once written out. */
+const smallObject = (v, max = 20_000) => {
+  if (!isObject(v)) return false
+  try { const text = JSON.stringify(v); return typeof text === 'string' && text.length <= max } catch { return false }
+}
+const optional = (o, key, check) => o[key] === undefined || check(o[key])
+/** { topics?, days? } — the filter of getLibrary; null is the same as {} */
+const libraryFilter = f => f === null || (isObject(f) && onlyKeys(f, ['topics', 'days']) && optional(f, 'topics', strings) && optional(f, 'days', days))
+const searchFilter = f => f === null || (isObject(f) && onlyKeys(f, ['view', 'topics', 'days']) && optional(f, 'view', v => SEARCH_VIEWS.includes(v)) && optional(f, 'topics', strings) && optional(f, 'days', days))
+const graphFilter = f => f === null || (isObject(f) && onlyKeys(f, ['days', 'status', 'topics', 'links']) && optional(f, 'days', days) && optional(f, 'status', v => GRAPH_STATUSES.includes(v)) && optional(f, 'topics', strings) && optional(f, 'links', v => typeof v === 'boolean'))
+/** { title?, topics?, body? }, at least one of them */
+const noteChanges = c => isObject(c) && Object.keys(c).length > 0 && onlyKeys(c, ['title', 'topics', 'body'])
+  && optional(c, 'title', nonEmptyShort(300)) && optional(c, 'topics', v => strings(v, { items: 20, max: 100 }) && v.every(nonEmpty)) && optional(c, 'body', shortString(1_000_000))
+const question = v => typeof v === 'string' && v.trim().length >= 1 && v.trim().length <= 500
+
 /** name → how many arguments it takes, and a check for them. */
 export const BRIDGE_METHODS = Object.freeze({
   // the shell (app-services.mjs): what the page needs to draw itself, and the settings page
   getAppState: Object.freeze({ args: 0 }),
-  // the language of the app's own words (locale.mjs; docs/desktop.md��): the setting, not a locale
+  // the language of the app's own words (locale.mjs; docs/desktop.md§六): the setting, not a locale
   setLanguage: Object.freeze({ args: 1, check: ([v]) => LANGUAGE_SETTINGS.includes(v) }),
   setShowDeveloperInfo: Object.freeze({ args: 1, check: ([on]) => typeof on === 'boolean' }),
   copyDiagnostics: Object.freeze({ args: 0 }),
-  // the update (docs/desktop.md��, update-wiring.mjs): the state, a check now, the download and its cancel, the setup
+  // the update (docs/desktop.md§四, update-wiring.mjs): the state, a check now, the download and its cancel, the setup
   // program started (the app then quits), the release's page in the user's browser — no address or file name from the page
   getUpdateState: Object.freeze({ args: 0 }),
   checkForUpdate: Object.freeze({ args: 0 }),
@@ -31,6 +65,71 @@ export const BRIDGE_METHODS = Object.freeze({
   cancelUpdateDownload: Object.freeze({ args: 0 }),
   installUpdate: Object.freeze({ args: 0 }),
   openReleasePage: Object.freeze({ args: 0 }),
+  // the library (services/library.mjs): the folder comes from the dialog and stays in the main process; the page sends
+  // a name, or a path that must already be in the recent list
+  chooseLibraryFolder: Object.freeze({ args: 0 }),
+  useChosenFolder: Object.freeze({ args: 1, check: ([name]) => isString(name) }),
+  openRecentLibrary: Object.freeze({ args: 1, check: ([path]) => nonEmpty(path) }),
+  rebuildIndex: Object.freeze({ args: 0 }),
+  revealLibrary: Object.freeze({ args: 0 }),
+  // the connections (services/connections.mjs): a kind, model ids, a vendor; the key goes in once and never comes back
+  getConnections: Object.freeze({ args: 0 }),
+  detectConnections: Object.freeze({ args: 0 }),
+  probeConnection: Object.freeze({ args: 1, check: ([kind]) => KINDS.includes(kind) }),
+  openLogin: Object.freeze({ args: 1, check: ([kind]) => kind === 'claude-code' || kind === 'codex' }),
+  setActiveConnection: Object.freeze({ args: 1, check: ([kind]) => kind === null || KINDS.includes(kind) }),
+  setConnectionModels: Object.freeze({ args: 2, check: ([kind, models]) => KINDS.includes(kind) && isObject(models) && stringOrNull(models.model) && stringOrNull(models.verifyModel) }),
+  setApiVendor: Object.freeze({ args: 2, check: ([vendor, baseUrl]) => nonEmpty(vendor) && stringOrNull(baseUrl) }),
+  setApiKey: Object.freeze({ args: 2, check: ([vendor, key]) => nonEmpty(vendor) && nonEmpty(key) }),
+  removeApiKey: Object.freeze({ args: 1, check: ([vendor]) => nonEmpty(vendor) }),
+  // the pipeline (services/pipeline.mjs): the first run's pack, the numbers, one round, the inbox and its decisions
+  applyStarterPack: Object.freeze({ args: 2, check: ([packId, edits]) => nonEmpty(packId) && (edits === null || edits === undefined || isObject(edits)) }),
+  getStarterPacks: Object.freeze({ args: 0 }),
+  getHome: Object.freeze({ args: 0 }),
+  estimateRound: Object.freeze({ args: 0 }),
+  setRoundCap: Object.freeze({ args: 1, check: ([cap]) => Number.isInteger(cap) && cap > 0 }),
+  startRound: Object.freeze({ args: 0 }),
+  cancelRound: Object.freeze({ args: 0 }),
+  getRoundState: Object.freeze({ args: 0 }),
+  getInbox: Object.freeze({ args: 0 }),
+  keepItem: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
+  dismissItem: Object.freeze({ args: 2, check: ([url, reason]) => nonEmpty(url) && nonEmpty(reason) }),
+  laterItem: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
+  openItemUrl: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
+  getPipelineSettings: Object.freeze({ args: 0 }),
+  // interface B (docs/desktop.md §4.2). The library and reading (services/browse.mjs): an id must be in the index
+  getLibrary: Object.freeze({ args: 2, check: ([view, filter]) => LIBRARY_VIEWS.includes(view) && libraryFilter(filter) }),
+  searchLibrary: Object.freeze({ args: 2, check: ([q, filter]) => shortString(200)(q) && searchFilter(filter) }),
+  readNote: Object.freeze({ args: 1, check: ([id]) => id200(id) }),
+  editNote: Object.freeze({ args: 2, check: ([id, changes]) => id200(id) && noteChanges(changes) }),
+  openInObsidian: Object.freeze({ args: 1, check: ([id]) => id200(id) }),
+  // the sources and the topics (services/sources.mjs): the shapes are the core's to judge; a name must be in streams.json
+  getSources: Object.freeze({ args: 0 }),
+  guessSource: Object.freeze({ args: 1, check: ([input]) => nonEmptyShort(2000)(input) }),
+  trySource: Object.freeze({ args: 1, check: ([source]) => smallObject(source, 10_000) }),
+  addSource: Object.freeze({ args: 1, check: ([source]) => smallObject(source, 10_000) }),
+  updateSource: Object.freeze({ args: 2, check: ([name, patch]) => name100(name) && smallObject(patch, 10_000) }),
+  removeSource: Object.freeze({ args: 1, check: ([name]) => name100(name) }),
+  setSourcePaused: Object.freeze({ args: 2, check: ([name, paused]) => name100(name) && typeof paused === 'boolean' }),
+  addManualLink: Object.freeze({ args: 2, check: ([url, title]) => httpUrl(url) && shortString(300)(title) }),
+  addTopic: Object.freeze({ args: 1, check: ([topic]) => smallObject(topic, 10_000) && name100(topic.name) }),
+  updateTopic: Object.freeze({ args: 2, check: ([name, patch]) => name100(name) && smallObject(patch, 10_000) }),
+  removeTopic: Object.freeze({ args: 1, check: ([name]) => name100(name) }),
+  // the pipeline's nodes (services/pipeline.mjs): the whole configuration back; a url to try must be in the ledger
+  getPipeline: Object.freeze({ args: 0 }),
+  savePipeline: Object.freeze({ args: 1, check: ([cfg]) => smallObject(cfg, 200_000) }),
+  // draft: the node being edited, not saved yet (null = the saved one); its id must be nodeId
+  previewNode: Object.freeze({ args: 3, check: ([nodeId, url, draft]) => name100(nodeId) && url2000(url) && (draft === null || (draft !== null && typeof draft === 'object' && !Array.isArray(draft) && draft.id === nodeId)) }),
+  // the run status, the graph, the verdicts (services/status.mjs)
+  getStatus: Object.freeze({ args: 0 }),
+  openLogsFolder: Object.freeze({ args: 0 }),
+  getGraph: Object.freeze({ args: 1, check: ([filter]) => graphFilter(filter) }),
+  getVerdicts: Object.freeze({ args: 1, check: ([url]) => url2000(url) }),
+  // asking the library (services/ask.mjs): one question at a time
+  askLibrary: Object.freeze({ args: 1, check: ([q]) => question(q) }),
+  getDemands: Object.freeze({ args: 0 }),
+  addDemand: Object.freeze({ args: 2, check: ([topic, q]) => name100(topic) && shortString(500)(q) }),
+  answerFeedback: Object.freeze({ args: 2, check: ([q, note]) => nonEmptyShort(500)(q) && nonEmptyShort(2000)(note) }),
 })
 
 export const ERROR_CODES = Object.freeze([
@@ -38,6 +137,7 @@ export const ERROR_CODES = Object.freeze([
   'bad_arguments', // wrong number or kind of arguments
   'no_library', // no library folder opened yet
   'open_failed', // the system could not open the folder or the address
+  'no_connection', // a method that calls a model (askLibrary, previewNode) with no connection chosen
   'internal', // anything else; the details go to the app's log, not to the page
 ])
 
@@ -45,6 +145,39 @@ export class BridgeError extends Error {
   constructor(code, message = code) {
     super(message)
     this.code = ERROR_CODES.includes(code) ? code : 'internal'
+  }
+}
+
+/**
+ * The core's error codes (StreamsError.code) that mean "what the page sent does not fit": they become bad_arguments.
+ * Every other code, and an error without one, becomes internal (the details only in the app's log).
+ */
+export const CORE_BAD_ARGUMENT_CODES = Object.freeze([
+  'bad-argument', 'bad-edit', 'invalid-note', 'not-editable', 'bad-source', 'bad-topic', 'bad-input', 'bad-url',
+  'bad-feedback', 'bad-question', 'bad-view', 'locked-node', 'bad-config', 'not-found',
+])
+
+/** A core error as the bridge's: shape errors (and every `duplicate-*`) → bad_arguments, the rest → internal. */
+export function bridgeErrorOf(err) {
+  if (err instanceof BridgeError) return err
+  const code = typeof err?.code === 'string' ? err.code : null
+  const bad = code !== null && (CORE_BAD_ARGUMENT_CODES.includes(code) || code.startsWith('duplicate-'))
+  return new BridgeError(bad ? 'bad_arguments' : 'internal', `core ${code ?? 'error'}: ${String(err?.stack ?? err)}`)
+}
+
+/**
+ * Calls into the core by name, its errors mapped by bridgeErrorOf (a promise's rejection too). A function the core
+ * does not have (yet) is `internal`, said in the log by name.
+ * @param {Record<string, unknown>} core - the core's exports (main/core.mjs), or a stand-in in the tests
+ * @returns {(name: string, ...args: unknown[]) => unknown}
+ */
+export function coreCaller(core) {
+  return (name, ...args) => {
+    const fn = core[name]
+    if (typeof fn !== 'function') throw new BridgeError('internal', `the core has no function ${name}`)
+    let r
+    try { r = fn(...args) } catch (err) { throw bridgeErrorOf(err) }
+    return r !== null && typeof r?.then === 'function' ? r.then(v => v, err => { throw bridgeErrorOf(err) }) : r
   }
 }
 

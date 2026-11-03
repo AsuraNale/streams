@@ -22,7 +22,7 @@ test('emit (main): a listed topic only, to the app\'s own pages that are still o
   assert.deepEqual(sent, [['app://ui/index.html', 'streams:event', { topic: 'settings-changed', payload: null }]])
   assert.throws(() => emit('made-up-topic', {}), /no event topic/)
   assert.throws(() => emit('toString'), /no event topic/)
-  assert.deepEqual(Object.keys(EVENT_TOPICS).sort(), ['open-screen', 'settings-changed', 'update'])
+  assert.deepEqual(Object.keys(EVENT_TOPICS).sort(), ['connections-changed', 'inbox-changed', 'library-changed', 'open-screen', 'round-progress', 'settings-changed', 'update'])
 })
 
 test('onEvent (page): only a listed topic and a function; the payload alone arrives; the returned function unsubscribes', async () => {

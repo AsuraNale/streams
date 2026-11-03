@@ -29,12 +29,80 @@ const METHODS = [
   'cancelUpdateDownload',
   'installUpdate',
   'openReleasePage',
+  // the library
+  'chooseLibraryFolder',
+  'useChosenFolder',
+  'openRecentLibrary',
+  'rebuildIndex',
+  'revealLibrary',
+  // the connections
+  'getConnections',
+  'detectConnections',
+  'probeConnection',
+  'openLogin',
+  'setActiveConnection',
+  'setConnectionModels',
+  'setApiVendor',
+  'setApiKey',
+  'removeApiKey',
+  // the pipeline
+  'applyStarterPack',
+  'getStarterPacks',
+  'getHome',
+  'estimateRound',
+  'setRoundCap',
+  'startRound',
+  'cancelRound',
+  'getRoundState',
+  'getInbox',
+  'keepItem',
+  'dismissItem',
+  'laterItem',
+  'openItemUrl',
+  'getPipelineSettings',
+  // interface B: the library and reading
+  'getLibrary',
+  'searchLibrary',
+  'readNote',
+  'editNote',
+  'openInObsidian',
+  // interface B: the sources and the topics
+  'getSources',
+  'guessSource',
+  'trySource',
+  'addSource',
+  'updateSource',
+  'removeSource',
+  'setSourcePaused',
+  'addManualLink',
+  'addTopic',
+  'updateTopic',
+  'removeTopic',
+  // interface B: the nodes of the pipeline
+  'getPipeline',
+  'savePipeline',
+  'previewNode',
+  // interface B: the run status, the graph, the verdicts
+  'getStatus',
+  'openLogsFolder',
+  'getGraph',
+  'getVerdicts',
+  // interface B: asking the library
+  'askLibrary',
+  'getDemands',
+  'addDemand',
+  'answerFeedback',
 ]
 const EVENT_TOPICS = [
   'settings-changed',
   'open-screen',
   // the update: a check, the download, the setup program
   'update',
+  // the library, the connections, the pipeline
+  'library-changed',
+  'connections-changed',
+  'round-progress',
+  'inbox-changed',
 ]
 const EVENT_CHANNEL = 'streams:event'
 

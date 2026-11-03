@@ -1,0 +1,46 @@
+/* 图谱 (screens/graph.js): the filters, the SVG's nodes and lines, the box of the item clicked. */
+[data-screen='graph'] .st-topbar { padding-left: 24px; padding-right: 24px; }
+.gr-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.gr-filters__pair { display: inline-flex; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-s); overflow: hidden; }
+.gr-toggle { padding: 5px 10px; border: 0; border-right: 1px solid var(--st-control-border); background: var(--st-surface); color: var(--st-text-2); font-size: var(--st-fs-small); cursor: pointer; }
+.gr-toggle:last-child { border-right: 0; }
+.gr-toggle[aria-pressed='true'] { background: var(--st-active-fill); color: var(--st-accent); font-weight: 700; }
+.gr-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs-small); cursor: pointer; }
+.gr-check input { margin: 0; accent-color: var(--st-accent-alt); }
+.gr-body { position: relative; padding: 12px 20px 20px; display: flex; flex-direction: column; gap: 8px; }
+.gr-error { display: flex; align-items: center; gap: 10px; color: var(--st-danger); font-weight: 700; }
+.gr-canvas { overflow: auto; border: 1px solid var(--st-divider-soft); border-radius: var(--st-radius); background: var(--st-page); }
+.gr-svg { display: block; }
+.gr-row-label { fill: var(--st-text-3); font-size: var(--st-fs-small); font-weight: 700; }
+.gr-edge { stroke: var(--st-divider); stroke-width: 1.2; fill: none; }
+.gr-edge--topic { stroke: var(--st-chart-3); }
+.gr-edge--source { stroke: var(--st-chart-4); }
+.gr-edge--link { stroke: var(--st-accent-alt); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.gr-node circle { stroke-width: 1.5; }
+.gr-node--topic circle { fill: var(--st-accent); stroke: var(--st-accent-hover); }
+.gr-node--unknown circle { fill: var(--st-surface); stroke: var(--st-wait); stroke-dasharray: 3 2; }
+.gr-node--source circle { fill: var(--st-chart-4); stroke: var(--st-chart-2); }
+.gr-node--item circle { fill: var(--st-surface); stroke: var(--st-accent-alt); }
+.gr-node--item { cursor: pointer; }
+.gr-node--item:hover circle, .gr-node--selected circle { fill: var(--st-accent-alt-soft); stroke-width: 2.5; }
+.gr-node:focus-visible { outline: none; }
+.gr-node:focus-visible circle { stroke: var(--st-accent); stroke-width: 3; }
+.gr-label { fill: var(--st-text); font-size: var(--st-fs-tiny); }
+.gr-node--topic .gr-label { font-weight: 700; }
+.gr-detail {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius);
+  background: var(--st-surface);
+  box-shadow: var(--st-shadow-menu);
+}
+.gr-detail__title { overflow-wrap: anywhere; }
+.gr-detail__actions { display: flex; gap: 8px; margin-top: 4px; }
+.gr-legend { max-width: 900px; }

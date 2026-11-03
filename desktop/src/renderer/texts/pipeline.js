@@ -1,0 +1,101 @@
+// 流水线 (screens/pipeline.js, mockup S4): the strip of steps, the settings of one model step (the requirement, the output
+// form, the pass line, the material, the tools, the checklist), 「试一条看结果」, and the right panel (the last round per
+// step, the recent reasons for letting go, the recent reasons a check did not pass). The scores' names: NODE_NAMES.
+
+export const PIPELINE = Object.freeze({
+  title: '流水线',
+  subtitle: '每条资料走这条线',
+  loadFailed: '没能读出流水线的设置。',
+  save: '保存',
+  saving: '正在保存……',
+  saved: '已保存。下一轮按新的设置打分；设置变了的那一步会给旧条目重新打分。',
+  reset: '恢复默认',
+  resetUnavailable: '这一版还拿不到默认设置。',
+  resetDialog: Object.freeze({
+    title: '恢复默认？',
+    text: '每个模型关卡的要求、过关线和材料范围回到默认，你自己加的核对项会删掉。底线项不变。',
+    confirm: '恢复默认',
+    cancel: '取消',
+  }),
+  saveFailed: '没能保存：固定节点、输出格式和底线项不能动，过关线要在 0 到 1 之间。',
+  unsaved: '有改动还没保存。',
+
+  // the strip
+  stripLabel: '流水线的每一步',
+  kinds: Object.freeze({ fixed: '固定', script: '脚本', gate: '模型关卡', summary: '模型' }),
+  names: Object.freeze({ fetch: '抓取', dedup: '去重', summary: '摘要', decide: '你拍板', store: '入库' }),
+  marks: Object.freeze(['①', '②', '③', '④', '⑤']),
+  gateName: '关卡{mark} {name}',
+  gateLine: '过关线 {threshold} · {material}',
+  materials: Object.freeze({ meta: '只看标题、来源、摘要', body: '读正文' }),
+  about: Object.freeze({
+    fetch: '每个来源记状态：正常 / 没新内容 / 地址有问题 / 暂时失败 / 被拒绝；每条带来源和日期',
+    dedup: '同一链接；同一标题的转载',
+    summary: '「这是什么」一句 + 三行要点',
+    decide: '待看收件箱：收藏 / 放弃 / 稍后',
+    store: '写成 .md，带来源、日期、分数',
+  }),
+  legend: '固定节点，不能删、不能改 · 模型关卡，可改要求和过关线 · 脚本节点',
+  locked: '这是固定节点，不能删、不能改。',
+
+  // the settings of one model step
+  editor: Object.freeze({
+    requirement: '给模型的要求（可改）',
+    output: '输出格式（固定，脚本解析）',
+    threshold: '过关线',
+    thresholdHint: '0 到 1 之间；低于这个分数的留在「抓到的」里，不进待看',
+    thresholdBad: '过关线要是 0 到 1 之间的数，这一次没有保存。',
+    material: '材料',
+    tools: '模型能用的工具',
+    toolsValue: '没有',
+    toolsHint: '打分关卡固定不给工具；网页内容只是材料，不是指令',
+    checklist: '这一步的输出要过的核对单',
+    baseline: '底线',
+    baselineHint: '底线项删不掉；可以加你自己的项',
+    kinds: Object.freeze({ rule: '规则', judge: '判定' }),
+    removeCheck: '删掉这一项',
+    addCheck: '加一项',
+    checkPlaceholder: '一句话写清要核对什么，至少 6 个字',
+    checkShort: '至少写 6 个字，太短的项核对时会被剔掉。',
+  }),
+
+  // 「试一条看结果」: one item through this step, nothing written to the record, the inbox or the checks
+  preview: Object.freeze({
+    title: '试一条看结果',
+    pick: '从最近抓到的里选一条',
+    none: '还没有抓到的条目可以试。',
+    go: '试一条',
+    trying: '正在试……',
+    dirty: '试的是你正在改、还没保存的版本；满意了再点「保存」。',
+    score: '{name} {score}',
+    reason: '理由：{reason}',
+    what: '这是什么：{what}',
+    passed: '核对：全过',
+    failed: '核对：{n} 项没过',
+    failedItem: '{item}：{evidence}',
+    calls: '调用 {n} 次 · 没有写进任何记录',
+    error: '这次没试成：{reason}',
+    other: '这次没试成，可以再试一次。',
+  }),
+
+  // the right panel
+  panel: Object.freeze({
+    round: '上一轮各节点的数量',
+    roundNone: '还没跑过一轮。',
+    fetch: '{n} 个来源：{lines}',
+    fetchLine: '{n} {state}',
+    dedup: '{fetched} → {new}',
+    gate: '{passed} 过关 · {failed} 没过',
+    gateUnscored: '{passed} 过关 · {failed} 没过 · {unscored} 没打成分',
+    summary: '{n} 条',
+    summaryRejected: '{n} 条 · {k} 条没通过核验',
+    decide: '{n} 条进待看',
+    caughtNote: '没过的留在「抓到的」里，随时能捞回',
+    reasons: '你最近的放弃理由',
+    reasonsHint: '供你改要求时参考',
+    reasonsNone: '还没有放弃过。',
+    failures: '最近没通过核验的原因',
+    failuresNone: '最近没有没通过的。',
+    failureLine: '{item}：{evidence}',
+  }),
+})

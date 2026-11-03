@@ -5,6 +5,7 @@
 //     `current` is the screen id the user is on (screens/index.js).
 import { html } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
+import { fmt } from '../lib/format.js'
 import { BRAND, SIDEBAR } from '../texts/common.js'
 import { Icon } from './icons.js'
 
@@ -28,9 +29,12 @@ export function Sidebar({ label, children }) {
   </aside>`
 }
 
-export function SidebarNav({ id, icon, isCurrent, onClick, children }) {
+/** `badge`: a number shown at the end of the entry (the items waiting in 待看); nothing for null or 0. */
+export function SidebarNav({ id, icon, isCurrent, badge, badgeLabel, onClick, children }) {
+  const n = typeof badge === 'number' && badge > 0 ? badge : null
   return html`<a href="#" class="st-sidebar__nav" data-nav=${id} aria-current=${current(isCurrent)} onClick=${prevent(onClick)}>
-    ${icon ? html`<${Icon} name=${icon} />` : null}${children}
+    ${icon ? html`<${Icon} name=${icon} />` : null}<span class="st-sidebar__nav-text">${children}</span>
+    ${n !== null ? html`<span class="st-sidebar__badge" data-badge=${id} aria-label=${badgeLabel}>${n}</span>` : null}
   </a>`
 }
 
@@ -58,13 +62,15 @@ export function SidebarNote({ children }) {
   return html`<div class="st-sidebar__note">${children}</div>`
 }
 
-/** The usual sidebar: reads the app state (the library) from the app context. */
+/** The usual sidebar: reads the app state (the library) and the inbox count (the badge after 待看) from the app context. */
 export function AppSidebar({ current: where = 'today' }) {
-  const { appState, navigate } = useApp()
+  const { appState, navigate, inboxCount } = useApp()
   const library = appState.data?.library ?? null
   return html`<${Sidebar}>
     <${SidebarLibrary} name=${library?.name ?? null} />
-    ${NAV_ENTRIES.map(([id, icon]) => html`<${SidebarNav} key=${id} id=${id} icon=${icon} isCurrent=${where === id} onClick=${() => navigate(id)}>${SIDEBAR.entries[id]}<//>`)}
+    ${NAV_ENTRIES.map(([id, icon]) => html`<${SidebarNav} key=${id} id=${id} icon=${icon} isCurrent=${where === id}
+      badge=${id === 'inbox' ? inboxCount ?? null : null} badgeLabel=${id === 'inbox' ? fmt(SIDEBAR.inboxBadge, { n: inboxCount }) : undefined}
+      onClick=${() => navigate(id)}>${SIDEBAR.entries[id]}<//>`)}
     <${SidebarSpacer} />
     <${SidebarFooterButton} isCurrent=${where === 'settings'} onClick=${() => navigate('settings')}>${SIDEBAR.settings}<//>
   <//>`

@@ -65,7 +65,9 @@ function scoresFor(state) {
 
 function bodyFor(item, language) {
   const summary = item?.summary ?? {};
-  const lines = [`${WHAT_LABEL[language] ?? WHAT_LABEL['zh-CN']}${summary.what ?? ''}`];
+  // an item kept from a round without a connection has no model sentence: the feed's own excerpt stands in
+  const what = summary.what || (item?.scoreless ? item.excerpt ?? '' : '');
+  const lines = [`${WHAT_LABEL[language] ?? WHAT_LABEL['zh-CN']}${what}`];
   for (const p of Array.isArray(summary.points) ? summary.points : []) lines.push(`- ${p}`);
   return lines.join('\n') + '\n';
 }

@@ -21,9 +21,11 @@ const KEY_LIKE = /sk-[A-Za-z0-9_-]{8,}/g
  * @param {string[]} [o.keysHeld] - the names of the secrets stored (key-<provider>), never their values
  * @param {string[]} o.secrets - every secret value the app holds now (taken out of the text)
  * @param {{setting: string, resolved: string}|null} [o.locale] - the language setting and what it came to (locale.mjs)
+ * @param {string[]} [o.connections] - the connections' state, one line each (services/connections.mjs diagnosticLines:
+ *   which one is active, what detection found; never a key or its hint)
  * @returns {string}
  */
-export function diagnosticsText({ versions, layout, settings, keysHeld = [], secrets = [], locale = null }) {
+export function diagnosticsText({ versions, layout, settings, keysHeld = [], secrets = [], locale = null, connections = [] }) {
   let log = ''
   try {
     const lines = readFileSync(join(layout.logsDir, 'main.log'), 'utf8').split('\n')
@@ -39,6 +41,8 @@ export function diagnosticsText({ versions, layout, settings, keysHeld = [], sec
     `library: ${settings.libraryPath ?? '(none open)'}`,
     `developer info: ${settings.showDeveloperInfo ? 'on' : 'off'} · keys stored: ${keysHeld.length ? keysHeld.join(', ') : 'none'}`,
     `language: ${locale?.setting ?? settings.language ?? 'auto'} (${locale?.resolved ?? 'zh-CN'})`,
+    `recent libraries: ${Array.isArray(settings.recentLibraries) && settings.recentLibraries.length ? settings.recentLibraries.join(' · ') : 'none'}`,
+    ...connections,
     '',
     `--- the last ${LOG_LINES} lines of logs/main.log`,
     log,
