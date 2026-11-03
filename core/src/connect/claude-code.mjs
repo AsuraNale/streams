@@ -18,7 +18,7 @@
 //   {"type":"result","subtype":"success","is_error":true,"terminal_reason":"api_error",
 //    "result":"Failed to authenticate: OAuth session expired and could not be refreshed", ...}
 // -> read stdout first, then stderr; `is_error` + the result text decide the code.
-import { resolveCommand, runInEmptyDir, runQuick, spawnFailure, finishText, probeFrom, versionOf } from './command.mjs';
+import { resolveCommand, runInEmptyDir, runQuick, spawnFailure, finishText, probeFrom, versionOf, openLoginWith } from './command.mjs';
 import { resolveModel, modelsFor } from './models.mjs';
 import { failure, clip, checkRequest } from './types.mjs';
 
@@ -35,6 +35,10 @@ export const CLAUDE_FIXED_ARGS = [
   '--no-session-persistence',
   '--permission-prompts', 'none',
 ];
+
+// The CLI's own sign-in (`claude auth login --help`, 2.1.287, 2026-11-02): defaults to the Claude
+// subscription; no flag is added (--console, --email, --sso are the user's choice, not ours).
+export const CLAUDE_LOGIN_ARGS = ['auth', 'login'];
 
 export function claudeArgv({ model, system } = {}) {
   const argv = [...CLAUDE_FIXED_ARGS];
@@ -156,5 +160,11 @@ export function createClaudeCodeConnector(connection, deps = {}) {
     return finishText({ text: parsed.text, usage: parsed.usage, model: parsed.model ?? model ?? 'default' });
   }
 
-  return { kind, detect, probe: probeFrom(complete), complete, models: () => modelsFor(kind), connection };
+  async function openLogin({ title } = {}) {
+    const cmd = resolveCommand(connection, CLAUDE_COMMAND, deps);
+    if (!cmd) return { ok: false, code: 'not-installed', detail: 'claude not found on PATH' };
+    return openLoginWith(cmd, CLAUDE_LOGIN_ARGS, { title, deps });
+  }
+
+  return { kind, detect, probe: probeFrom(complete), complete, openLogin, models: () => modelsFor(kind), connection };
 }

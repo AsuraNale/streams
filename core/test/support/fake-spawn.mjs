@@ -29,10 +29,12 @@ export function fakeSpawn(script) {
       setImmediate(() => child.emit('close', null, 'SIGTERM'));
       return true;
     };
+    child.unref = () => { call.unref = true; };
     if (error) {
       setImmediate(() => child.emit('error', error));
       return child;
     }
+    setImmediate(() => child.emit('spawn'));
     timer = setTimeout(() => {
       if (stdout) child.stdout.write(stdout);
       if (stderr) child.stderr.write(stderr);

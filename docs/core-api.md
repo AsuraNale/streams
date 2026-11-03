@@ -20,7 +20,7 @@
 | `writeNoteFile(libraryDir, {id, header, body}, {by})` | **唯一写 notes/ 的函数**；`by` 只收 `'keep'` / `'import-header'`（V2） | 抛 `bad-by` / `id-conflict` / `invalid-note` |
 | `appendEvent(libraryDir, ev)` / `replayLedger(libraryDir)` / `recordSeen(libraryDir, item)` / `isSeen(libraryDir, url)` | 账本只追加；重放得到每个 url 的当前状态 | |
 
-## 二、抓取（`src/fetch/`）· W2 · 建
+## 二、抓取（`src/fetch/`）· W2 · 有
 
 | 函数 | 作用 | 返回 |
 |---|---|---|
@@ -33,20 +33,23 @@
 
 五态内部码 → 界面词：ok 正常 · empty 没新内容 · gap 地址有问题 · failed 暂时失败 · blocked 被拒绝（翻译在 desktop 字典，核心只给码）。
 
-## 三、连接（`src/connect/`）· W3 · 建
+## 三、连接（`src/connect/`）· W3 · 有
 
 | 函数 | 作用 | 返回 |
 |---|---|---|
 | `createConnector(connection, deps)` | `connection = {kind: claude-code\|codex\|api, model, verifyModel?, api?}`；`deps.getKey(keyRef)` 由桌面的 safeStorage 提供 | 连接器对象 |
 | `connector.detect()` | 只读检测（装没装、登没登录、有没有 key）。Codex 查找顺序：`connection.command` > PATH > 桌面版自带路径（`%LOCALAPPDATA%\OpenAI\Codex\bin\*\codex.exe`、`~/.codex/.sandbox-bin`），多个取版本最高 | `{installed, loggedIn, version?, source?: command\|path\|desktop-app, path?, code?}` |
 | `connector.probe()` | 一次最小真调用（S1「试了一次：可用」、S11「现在试一次」、每轮第 0 步自检） | `{ok, latencyMs, code?, detail?}` |
+| `connector.openLogin({title?})` | **打开 CLI 自己的登录**（维护者 11-02 定，方案 4.6 增补）：在一个独立的可见终端窗口里启动未经修改的 CLI 的登录子命令——Claude Code 是 `claude auth login`，Codex 是 `codex login`（用 detect 选中的那个二进制，桌面版路径也行）。Windows 上经 `cmd.exe /c start "<title>" …` 开窗，`title` 由桌面层给（默认 `Streams`）。子进程 stdio 三路全 `ignore`、detached、起完就放手：**流息不经手、不读取、不保存任何凭据或令牌**，登录在 CLI 自己的窗口里完成、凭据留在 CLI 自己的地方。**登录完成后由调用方重新 `detect()`** 看 `loggedIn`（界面：窗口起来后轮询 detect，或给「我登录好了」按钮）。API 连接没有登录这回事 → `not-applicable`。界面按钮位置：S1 首次连接、S11 运行状态的连接卡、S13 设置的连接页，随周三界面 A 落地；按钮文案不含品牌词（V7），放在「连接你电脑上的 …」卡片里 | `{ok:true, pid, command:[file, ...args]}` / `{ok:false, code: not-installed \| not-applicable \| unknown, detail}` |
 | `connector.complete({system?, prompt, format:'json', model?: 'main'\|'verify'})` | 单轮、无工具、拿回 JSON 与用量 | `{ok, json, text, usage, model}` / `{ok:false, code, detail}` |
 | `completeJson(connector, req, {retries:1})` | 坏格式重试一次，再坏 `bad-format`（V5） | 同上，`attempts` |
 | `connector.models()` / `resolveModel(connection, slot)` | 型号表；核验槽默认同主模型 | |
 | `fakeConnector({mode})` | 假连接器：fixed / bad-format-once / bad-format-always / login-expired / counting / slow | |
 | `readUsage(libraryDir, {month})` | 本月调用次数与 token | |
 
-错误码：`not-installed` · `not-logged-in` · `login-expired` · `bad-key` · `bad-model` · `rate-limited` · `network` · `timeout` · `bad-format` · `refused` · `unknown`。
+错误码：`not-installed` · `not-logged-in` · `login-expired` · `bad-key` · `bad-model` · `rate-limited` · `network` · `timeout` · `bad-format` · `refused` · `unknown` · `not-applicable`（只有 `openLogin` 用：API 连接没有登录）。
+
+底层：`launchDetached({file, args, title, platform, spawnImpl, env})`（`src/connect/process.mjs`）—— 起一个独立窗口的进程并放手；`launchPlan` 给出 win32 的 `start` 命令行。本机实跑过一次（2026-11-02）：经 `start` 起 node 写标记文件，11 ms 返回，子进程在新窗口里拿到 TTY，含空格 / 引号 / 括号的参数原样到达。
 
 ## 四、流水线与核验（`src/pipeline/`、`src/verify/`）· W4 · 定（11-04）
 

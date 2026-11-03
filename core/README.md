@@ -135,6 +135,8 @@ const c = createConnector(
 );
 await c.detect();   // { installed, loggedIn: true|false|null, version?, code?, detail? }   只读：--version / auth status / login status；API 连接 = 有没有 key
 await c.probe();    // { ok, latencyMs, code?, detail?, usage }                               一次最小调用，提示固定：只回 {"ok":true}
+await c.openLogin({ title? }); // { ok: true, pid, command } | { ok: false, code: 'not-installed' | 'not-applicable' | 'unknown', detail }
+//   在独立的可见终端窗口里起 CLI 自己的登录（claude auth login / codex login），stdio 全 ignore、起完放手；流息不经手凭据；登录完再 detect()。API 连接 → not-applicable
 await c.complete({ system?, prompt, format: 'json', model?: 'main' | 'verify' | '具体 id' });
 //   -> { ok: true, json, text, usage: { calls: 1, inputTokens?, outputTokens?, costUsd? }, model }
 //   -> { ok: false, code, detail, text?, usage: { calls: 1 }, model }

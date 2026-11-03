@@ -57,6 +57,7 @@ export function fakeConnector({ mode = 'fixed', json = { ok: true }, delayMs = 0
     detect,
     probe,
     complete,
+    openLogin: async () => ({ ok: true, pid: 0, command: ['fake', 'login'] }),
     models: () => [{ id: model, label: model, recommended: true }],
     resolveModel: (slot) => resolveModel(connection, slot),
     reset: () => { calls.length = 0; },

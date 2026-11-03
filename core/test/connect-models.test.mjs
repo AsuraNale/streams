@@ -73,7 +73,7 @@ test('resolveModel: refuses unknown kinds and empty slots', () => {
 
 test('vocabulary is the spec list', () => {
   assert.deepEqual(CONNECTION_KINDS, ['claude-code', 'codex', 'api']);
-  assert.deepEqual(ERROR_CODES, ['not-installed', 'not-logged-in', 'login-expired', 'bad-key', 'bad-model', 'rate-limited', 'network', 'timeout', 'bad-format', 'refused', 'unknown']);
+  assert.deepEqual(ERROR_CODES, ['not-installed', 'not-logged-in', 'login-expired', 'bad-key', 'bad-model', 'rate-limited', 'network', 'timeout', 'bad-format', 'refused', 'unknown', 'not-applicable']);
   assert.deepEqual(MODEL_SLOTS, ['main', 'verify']);
 });
 

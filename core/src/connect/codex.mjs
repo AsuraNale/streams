@@ -30,7 +30,7 @@
 // not observed; anything with a non-zero exit or matching /not logged in/ counts as not-logged-in.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { resolveCommand, runInEmptyDir, runQuick, spawnFailure, finishText, probeFrom, versionOf } from './command.mjs';
+import { resolveCommand, runInEmptyDir, runQuick, spawnFailure, finishText, probeFrom, versionOf, openLoginWith } from './command.mjs';
 import { findExecutable, isFile } from './which.mjs';
 import { resolveModel, modelsFor } from './models.mjs';
 import { failure, clip, checkRequest } from './types.mjs';
@@ -38,6 +38,9 @@ import { failure, clip, checkRequest } from './types.mjs';
 export const CODEX_COMMAND = 'codex';
 export const CODEX_LAST_MESSAGE_FILE = 'last-message.txt';
 export const CODEX_SOURCES = ['command', 'path', 'desktop-app'];
+// The CLI's own sign-in (`codex login --help`, 0.166.0, 2026-11-02): the browser flow. Never
+// --with-api-key / --with-access-token (those would put a credential through us) nor --device-auth.
+export const CODEX_LOGIN_ARGS = ['login'];
 
 export const CODEX_FIXED_ARGS = [
   'exec',
@@ -224,5 +227,11 @@ export function createCodexConnector(connection, deps = {}) {
     return finishText({ text, usage: ev.usage, model: model ?? 'default' });
   }
 
-  return { kind, detect, probe: probeFrom(complete), complete, models: () => modelsFor(kind), connection };
+  async function openLogin({ title } = {}) {
+    const c = await choose();
+    if (!c.cmd) return { ok: false, code: 'not-installed', detail: 'codex not found (command, PATH, desktop app)' };
+    return openLoginWith(c.cmd, CODEX_LOGIN_ARGS, { title, deps });
+  }
+
+  return { kind, detect, probe: probeFrom(complete), complete, openLogin, models: () => modelsFor(kind), connection };
 }

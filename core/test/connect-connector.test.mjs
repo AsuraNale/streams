@@ -23,7 +23,7 @@ test('createConnector dispatches on kind and attaches resolveModel / models', ()
   assert.equal(api.kind, 'api');
   assert.equal(api.resolveModel(), 'deepseek-chat');
   assert.deepEqual(api.models().map((m) => m.id), ['deepseek-chat']);
-  for (const c of [cc, cx, api]) for (const fn of ['detect', 'probe', 'complete', 'models', 'resolveModel']) assert.equal(typeof c[fn], 'function', fn);
+  for (const c of [cc, cx, api]) for (const fn of ['detect', 'probe', 'complete', 'openLogin', 'models', 'resolveModel']) assert.equal(typeof c[fn], 'function', fn);
 });
 
 test('checkConnection refuses bad shapes, and a key stored on the connection', () => {

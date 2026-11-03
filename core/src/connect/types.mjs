@@ -20,6 +20,7 @@ export const ERROR_CODES = [
   'bad-format',
   'refused',
   'unknown',
+  'not-applicable', // the operation has no meaning for this kind (an API connection has no login to open)
 ];
 
 export const MODEL_SLOTS = ['main', 'verify'];

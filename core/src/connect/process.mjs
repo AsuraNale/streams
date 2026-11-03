@@ -29,6 +29,53 @@ export function spawnPlan(file, args, platform = process.platform) {
   return { file, args, windowsVerbatimArguments: false };
 }
 
+// Start a program in its own visible console window and let go of it:
+//   launchDetached({ file, args, title, platform, spawnImpl, env }) -> { ok: true, pid, plan } | { ok: false, spawnError }
+// Used for the CLIs' own sign-in (`claude auth login`, `codex login`). The window is the CLI's:
+// Streams pipes nothing in or out (stdio all 'ignore'), does not wait for it, never sees what it prints.
+//   win32:     cmd.exe /d /s /c "start "<title>" <file> <args…>"   (start opens the new window; cmd exits at once)
+//   elsewhere: the file itself, detached (for a shell that already has a terminal; the product is Windows-only)
+export const LAUNCH_STDIO = Object.freeze(['ignore', 'ignore', 'ignore']);
+
+export function launchPlan(file, args, { title = 'Streams', platform = process.platform } = {}) {
+  if (platform === 'win32') {
+    const line = ['start', escapeForCmd(title), ...[file, ...args].map(escapeForCmd)].join(' ');
+    return { file: process.env.comspec || 'cmd.exe', args: ['/d', '/s', '/c', `"${line}"`], windowsVerbatimArguments: true };
+  }
+  return { file, args, windowsVerbatimArguments: false };
+}
+
+export function launchDetached({ file, args = [], title, platform = process.platform, spawnImpl = nodeSpawn, env }) {
+  return new Promise((resolve) => {
+    const plan = launchPlan(file, args, { title, platform });
+    let child;
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+    try {
+      child = spawnImpl(plan.file, plan.args, {
+        env: env ?? process.env,
+        stdio: [...LAUNCH_STDIO],
+        detached: true,
+        windowsHide: false,
+        windowsVerbatimArguments: plan.windowsVerbatimArguments,
+      });
+    } catch (e) {
+      finish({ ok: false, spawnError: e });
+      return;
+    }
+    const started = () => finish({ ok: true, pid: child.pid, plan });
+    child.once('error', (e) => finish({ ok: false, spawnError: e }));
+    child.once('spawn', started);
+    child.once('close', started); // a very quick exit still means it started
+    setTimeout(started, 500).unref?.(); // a spawnImpl that emits neither event
+    child.unref?.();
+  });
+}
+
 export function runProcess({ file, args = [], cwd, input, timeoutMs = DEFAULT_PROCESS_TIMEOUT_MS, env, spawnImpl = nodeSpawn, platform = process.platform }) {
   return new Promise((resolve) => {
     const plan = spawnPlan(file, args, platform);

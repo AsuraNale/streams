@@ -6,7 +6,7 @@
 //                       [process.execPath, 'fake-cli.mjs'] -> run that program with these leading args
 //                       (how tests drive a real subprocess without a real CLI)
 import { findExecutable } from './which.mjs';
-import { runProcess } from './process.mjs';
+import { runProcess, launchDetached } from './process.mjs';
 import { withWorkdir } from './workdir.mjs';
 import { failure, scrub, clip, DETECT_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, PROBE_PROMPT } from './types.mjs';
 import { extractJson } from './json-output.mjs';
@@ -56,6 +56,20 @@ export async function runQuick({ cmd, args, deps }) {
     spawnImpl: deps.spawnImpl,
     platform: deps.platform,
   });
+}
+
+// Open the CLI's own sign-in in a window of its own (spec 4.6 amendment, 2026-11-02). Streams only
+// starts the unmodified CLI with its documented login subcommand; the CLI does the rest in its window
+// and keeps its credentials where it always does. The caller re-runs detect() afterwards.
+//   -> { ok: true, pid, command: [file, ...args] } | { ok: false, code: 'not-installed' | 'unknown', detail }
+export async function openLoginWith(cmd, loginArgs, { title, deps = {} } = {}) {
+  const args = [...cmd.prefixArgs, ...loginArgs];
+  const r = await launchDetached({ file: cmd.file, args, title, platform: deps.platform, spawnImpl: deps.spawnImpl, env: deps.env });
+  if (!r.ok) {
+    const code = r.spawnError && r.spawnError.code === 'ENOENT' ? 'not-installed' : 'unknown';
+    return { ok: false, code, detail: clip(`${(r.spawnError && r.spawnError.code) || 'spawn'}: ${r.spawnError ? r.spawnError.message : 'could not start'}`) };
+  }
+  return { ok: true, pid: r.pid, command: [cmd.file, ...args] };
 }
 
 export function spawnFailure(r) {

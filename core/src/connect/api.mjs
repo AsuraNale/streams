@@ -158,5 +158,10 @@ export function createApiConnector(connection, deps = {}) {
     return finishText({ text: parsed.text, usage, model: parsed.model ?? model, secrets });
   }
 
-  return { kind, detect, probe: probeFrom(complete), complete, models: () => modelsFor(kind, connection.api && connection.api.vendor), connection };
+  // An API connection signs in with a key (settings page, safeStorage); there is no login to open.
+  async function openLogin() {
+    return { ok: false, code: 'not-applicable', detail: 'an API connection uses a key, not a login' };
+  }
+
+  return { kind, detect, probe: probeFrom(complete), complete, openLogin, models: () => modelsFor(kind, connection.api && connection.api.vendor), connection };
 }
