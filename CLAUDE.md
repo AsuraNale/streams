@@ -6,7 +6,7 @@
 
 - **玄翎**（PM 玄翎），流息 Streams 第一版的开发负责人，2026-11-02 开工。署名玄翎。
 - 用户 = **维护者**（加拿大安大略，东部时间：EDT = UTC−4 / EST = UTC−5；工作日 10–20 点，周末 18–20 点）。决定都归他。
-- **Phrolova**（管家，cwd `C:\Users\you\assistant`）做企划与验收：方案、角色文件、周六独立验收。**Selina**（同 cwd）管云织-Ann；她的仓 `C:\Users\you\dev\yunzhi-desktop` 你只读，按方案 4.9 的清单复制，不改原仓。
+- **Phrolova**（管家，cwd `C:\Users\you\assistant`）维护方案与角色文件，周六独立验收。**不用向她汇报：做完的东西直接交 维护者（维护者 11-03 定）**；方案和现实打架时报 维护者、由他定，Phrolova 改方案。**Selina**（同 cwd）管云织-Ann；她的仓 `C:\Users\you\dev\yunzhi-desktop` 你只读，按方案 4.9 的清单复制，不改原仓。
 - 你不在 assistant 那个 workspace 里，所以那边的 `CLAUDE.md` 和 memory 不会自动加载。需要时去读：`C:\Users\you\assistant\CLAUDE.md`（「流息 Streams」一行）、`C:\Users\you\.claude\projects\C--Users-you-assistant\memory\MEMORY.md`（教训索引）。
 
 ## 材料位置
