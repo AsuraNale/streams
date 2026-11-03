@@ -107,7 +107,70 @@ frame-ancestors 'none'
 | `cancelUpdateDownload()` | 无 | 同上；停下下载、删掉下了一半的文件 | 设置页下载中的「取消」 |
 | `installUpdate()` | 无 | `{ ok: true }` 安装程序已启动、应用随即退出；或 `{ ok: false, reason }` | 设置页「开始更新」 |
 | `openReleasePage()` | 无 | `null`；在用户的浏览器里打开这一版的发布页（测试时只记日志） | 设置页「打开发布页」 |
+| `chooseLibraryFolder()` | 无 | 主进程开系统的选文件夹对话框（测试与开发：`STREAMS_DEV_CHOOSE_FOLDER=<绝对路径>` 代替对话框）；`{ path, name, state: 'empty' \| 'library' \| 'other' } \| null`（取消是 null）。主进程记住这次选择，页面不回传路径 | S1 第 1 步、设置「新建库」「打开已有文件夹」 |
+| `useChosenFolder(name)` | 库名字符串（空串 = 用文件夹名） | 对上一次 `chooseLibraryFolder` 的选择：`empty` → `createLibrary` 建库；`library`（已有 `streams.json`）→ 打开；`other` → `open_failed`。写 `settings.libraryPath`、进 `recentLibraries`；发 `library-changed` | S1 第 1 步、设置「库」 |
+| `openRecentLibrary(path)` | 必须是 `recentLibraries` 里的一条，否则 `bad_arguments` | 同上的打开 | 设置「库 · 其他」 |
+| `rebuildIndex()` | 无 | `{ count, pending: [{file, codes}] }`；`no_library` | 设置「重建索引」 |
+| `revealLibrary()` | 无 | `null`；在资源管理器里显示库文件夹（测试只记日志） | S1 第 1 步「这个文件夹你随时可以打开」 |
+| `getConnections()` | 无 | 见 §4.1「连接」；不含任何 key，API 只给 `keyHint` | S1 第 2 步、设置「连接方式」、S13 |
+| `detectConnections()` | 无 | 重新检测三种连接（只读：`--version` / `auth status` / `login status` / 有没有 key），返回同 `getConnections` | S1「重新检测」、「我登录好了，再试一次」 |
+| `probeConnection(kind)` | `'claude-code' \| 'codex' \| 'api'` | **一次真调用**；`{ ok, latencyMs, model, code?, detail? }`，同时记进 `getConnections().probes[kind]` | S1「试了一次：可用」、设置「现在试一次」 |
+| `openLogin(kind)` | `'claude-code' \| 'codex'` | 起 CLI 自己的登录窗口（核心 `connector.openLogin`，窗口标题 = 品牌名）；`{ ok: true, pid } \| { ok: false, code }`；`api` → `bad_arguments` | S1 / S13 / S14 的「去登录」 |
+| `setActiveConnection(kind)` | 三种之一或 `null` | `{ active }`；写设置；发 `connections-changed` | S1 第 2 步选定、设置 |
+| `setConnectionModels(kind, models)` | `models = { model: string \| null, verifyModel: string \| null }`（null = 该连接的默认；核验 null = 同主模型） | `{ kind, model, verifyModel }` | 设置「主模型 / 核验模型」 |
+| `setApiVendor(vendor, baseUrl)` | `vendor` 在核心 `VENDOR_IDS` 里；`baseUrl` 只有 `custom` 用，否则传 `null` | `{ vendor, baseUrl }` | 设置「输入 API key」对话框 |
+| `setApiKey(vendor, key)` | key 字符串；**只往主进程走一次**，存 `secrets/key-<vendor>.bin`（safeStorage），从不返回 | `{ vendor, keyHint }`；safeStorage 不可用 → `internal` | 同上 |
+| `removeApiKey(vendor)` | | `{ vendor, keyHint: null }` | 同上 |
+| `applyStarterPack(packId, edits)` | `packId` 在核心 `STARTER_PACKS` 里或 `'blank'`；`edits = { removeSources: [name…], addRss: [{ name, url }] }` | 写 `streams.json` 的 `topics` / `sources`，并对每个来源试抓一次（不写盘）：`{ topics: [name…], sources: [{ name, kind, url, status, hint, count, message }] }` | S1 第 3 步 |
+| `getStarterPacks()` | 无 | 核心 `STARTER_PACKS` 的 `[{ id, name, topics, sources: [{name, kind, url}] }]`（名字按界面语言） | S1 第 3 步 |
+| `getHome()` | 无 | 见 §4.1「今日」 | S2 |
+| `estimateRound()` | 无 | 核心 `estimateRound` + `{ connection: { kind, model, verifyModel } }` | S12 |
+| `setRoundCap(cap)` | 正整数 | `{ cap }`；写 `streams.json` 的 `pipeline.cap` | S12「改上限」、设置「每轮上限」 |
+| `startRound()` | 无 | `{ started: true, roundId } \| { started: false, problems }`（自检失败：S13）；一轮在跑时 `bad_arguments`。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }` | S12「开始」、S13「重试打分」 |
+| `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 「今日」进度条旁 |
+| `getRoundState()` | 无 | `{ running, roundId, progress, last: runRound 的返回 \| null, lastProblems }` | S2 |
+| `getInbox()` | 无 | `{ items: 核心 listInbox(), recentDismissReasons: [{ts, reason, title}] }` | S3 |
+| `keepItem(url)` | url 必须在 inbox 里 | `{ id, file }`；发 `inbox-changed`、`library-changed`（索引重建了） | S3「收藏」 |
+| `dismissItem(url, reason)` | 理由非空，否则 `bad_arguments` | `{ url }`；发 `inbox-changed` | S3「放弃」 |
+| `laterItem(url)` | | `{ url }`；不写盘 | S3「稍后」 |
+| `openItemUrl(url)` | 必须是 inbox 里或索引里某条的 `source`，否则 `bad_arguments` | `null`；`shell.openExternal`（测试只记日志） | S3「打开原文」 |
+| `getPipelineSettings()` | 无 | `{ cap, thresholds: { relevance, substance }, schedule: null }`（定时 11-06 接上，先 null） | 设置「运行」 |
 <!-- bridge:end -->
+
+### 4.1 §四补：数据形状（11-03 定稿，界面 A 的建方按此做）
+
+**连接** `getConnections()`：
+```json
+{ "active": "claude-code" | "codex" | "api" | null,
+  "kinds": {
+    "claude-code": { "installed": true, "loggedIn": true, "version": "2.1.287", "code": null, "model": null, "verifyModel": null, "models": [{ "id", "label", "recommended" }] },
+    "codex":       { "installed": true, "loggedIn": false, "version": "0.166.0", "source": "desktop-app", "code": "not-logged-in", "model": null, "verifyModel": null, "models": [...] },
+    "api":         { "installed": true, "loggedIn": false, "hasKey": false, "keyHint": null, "vendor": "anthropic", "baseUrl": null, "vendors": [{ "id", "label" }], "model": null, "verifyModel": null, "models": [...] }
+  },
+  "probes": { "claude-code": { "ok": true, "latencyMs": 2800, "model": "…", "at": "ISO" } | null, "codex": null, "api": null },
+  "recommended": "claude-code" | "codex" | "api" | null }
+```
+`recommended`：第一个 `loggedIn`（api = `hasKey`）的，按 claude-code → codex → api。`api.installed` 永远 true。模型表与厂商表来自核心（`modelsFor`、`VENDORS`），界面不写型号名、厂商名（V7：品牌词只在型号表里）。
+
+**今日** `getHome()`：
+```json
+{ "library": { "path", "name", "count" },
+  "numbers": 核心 homeNumbers(),            // caught · inbox · inboxOldestDays · kept · dismissed · lastRound · sources{level, lines}
+  "lastRound": 核心 roundLog 的一行 | null,
+  "roundState": getRoundState(),
+  "recentKept": [{ "id", "title", "source_name", "date", "kept" }],   // 索引里 status kept 按 kept 日期倒序 3 条
+  "connection": { "kind", "model" } | null,
+  "nextRun": null,                            // 定时 11-06
+  "problem": { "code": "connection" | "not-writable" | "index", "connectionCode": "login-expired" | …, "kind": "claude-code", "caughtKept": 34 } | null }   // 上一次 startRound 的自检失败 → S13
+```
+
+**事件**（下表加四个）：`library-changed`（payload `{ path, name } | null`）、`connections-changed`（`null`）、`round-progress`（`{ roundId, phase: 'self-check' | 'fetch' | 'gate:<id>' | 'summary' | 'done', counts, calls, cap, done: boolean, result?, problems? }`）、`inbox-changed`（`{ count }`）。
+
+**开发与测试的钩子**（打包后的应用不认）：`STREAMS_DEV_CHOOSE_FOLDER=<绝对路径>`（代替选文件夹对话框）、`STREAMS_DEV_CONNECTION=fake | login-expired | bad-format-once`（三种连接全部换成核心的假连接器 / 脚本连接器，`detect` 回「已装已登录」，probe 与一轮都走它；`login-expired` 让自检失败，演 S13）、`STREAMS_DEV_LIBRARY`（已有）。
+
+**首次设置**（S1，`screens/first-run.js`）：没打开库时 `app.js` 显示它（代替侧栏九入口），四步在自己的侧栏里：库放哪 → 连接方式 → 主题与来源 → 试跑一轮；每步的「谁定的」（用户选的 / 接受默认 / 跳过）记进 `streams.json` 的 `setup`（核心不读它）。连接步可跳过。做完 → `today`。
+
+**界面 A 的六屏**：`first-run`（S1 四步）· `today`（S2 + S13 的出错卡片）· `inbox`（S3，键盘 J/K 上下、C 收藏、D 放弃、L 稍后；放弃对话框理由必填，右栏最近的放弃理由）· `run`（S12，`today` 上的对话框，不是独立屏）· `settings`（S14：连接方式 / 运行 / 库 / 软件四块；软件块 = 已有的语言 / 高级 / 关于）。按钮「去登录」出现在 S1 第 2 步、S13 卡片、S14 连接方式，副句「会打开一个终端窗口，由它自己完成登录；流息不经手任何凭据」，回路控件「我登录好了，再试一次」= `detectConnections`。
 
 **回答一律是信封**，不抛异常：`{ ok: true, data }` 或 `{ ok: false, error: { code } }`。`code` 只有 `bridge-methods.mjs ERROR_CODES` 里的几个：`refused`（不是本应用页面的主框架发来的）、`bad_arguments`、`no_library`、`open_failed`、`internal`。细节只进 `logs\main.log`，不给页面。
 
@@ -123,6 +186,10 @@ frame-ancestors 'none'
 | `settings-changed` | `null` | 设置变了（语言、库、开关） | `app.js`：重读应用状态 |
 | `open-screen` | `{ screen }` | 页面该去某一屏：点了应用的 Windows 通知（`services/notify.mjs`） | `app.js` |
 | `update` | `getUpdateState()` 的同一份数据 | 更新有了新东西：开始检查、检查完、下载进度、下完 / 失败 / 校验不过、开始启动安装 | 设置页「关于」（`lib/use-update.js`） |
+| `library-changed` | `{ path, name } \| null` | 打开 / 新建了库，或索引重建了（收藏之后） | `app.js`：重读应用状态；今日 |
+| `connections-changed` | `null` | 连接的设置变了（选定、模型槽、key 存了或删了） | 设置、S1 |
+| `round-progress` | `{ roundId, phase, counts, calls, cap, done, result?, problems? }` | 一轮的每个阶段开始、每条打完分、跑完或停下 | 今日、S12 |
+| `inbox-changed` | `{ count }` | 待看变了（一轮写入、收藏、放弃） | 侧栏角标、待看、今日 |
 <!-- events:end -->
 
 **加一个主题**：`src/main/events.mjs` 的 `EVENT_TOPICS` 加一项、`src/preload/preload.cjs` 的 `EVENT_TOPICS` 加同名、上表加一行；少一处 `npm test` 就红。
