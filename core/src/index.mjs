@@ -14,3 +14,7 @@ export { scanLibrary, listNoteFiles, NOTES_DIR } from './library/scan.mjs';
 // W2 fetch layer and W3 connection layer (wired 2026-11-02 evening).
 export * from './fetch/index.mjs';
 export * from './connect/index.mjs';
+
+// W4 pipeline engine and verification layer (wired 2026-11-03).
+export * from './pipeline/index.mjs';
+export * from './verify/index.mjs';

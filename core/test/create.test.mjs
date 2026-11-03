@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { createLibrary, DEFAULT_NODE_IDS } from '../src/library/create.mjs';
 import { readConfig, nodeIds, topicNames } from '../src/library/config.mjs';
 import { caseDir } from './support/tmp.mjs';
+import { DEFAULT_PIPELINE } from '../src/pipeline/config.mjs';
+import { DEFAULT_REQUIREMENTS } from '../src/pipeline/prompts.mjs';
 
 test('createLibrary lays out the documented tree with a minimal streams.json', () => {
   const dir = caseDir('create-ok');
@@ -22,8 +24,16 @@ test('createLibrary lays out the documented tree with a minimal streams.json', (
   assert.equal(existsSync(join(dir, 'index.jsonl')), false, 'index is built later, not at creation');
   const cfg = readConfig(dir);
   assert.equal(cfg.ok, true);
-  assert.deepEqual(cfg.config, { name: '我的库', topics: [], sources: [], pipeline: { nodes: [{ id: 'relevance' }, { id: 'substance' }, { id: 'freshness' }] } });
-  assert.deepEqual(nodeIds(cfg.config), DEFAULT_NODE_IDS);
+  // W4: the default pipeline (core-api 4.0) is written at creation, Chinese requirement texts by default
+  assert.deepEqual(cfg.config, { name: '我的库', topics: [], sources: [], pipeline: DEFAULT_PIPELINE('zh-CN') });
+  assert.deepEqual(cfg.config.pipeline.nodes.map((n) => [n.id, n.kind]), [['fetch', 'fixed'], ['dedup', 'script'], ['relevance', 'gate'], ['substance', 'gate'], ['summary', 'summary'], ['decide', 'fixed'], ['store', 'fixed']]);
+  for (const id of DEFAULT_NODE_IDS) assert.ok(nodeIds(cfg.config).includes(id), `score key ${id} is known to the validator`);
+  assert.equal(cfg.config.pipeline.nodes[2].requirement, DEFAULT_REQUIREMENTS['zh-CN'].relevance);
+  // language: 'en' writes the English requirement texts; an unknown language is refused
+  const en = caseDir('create-en');
+  createLibrary(en, { name: 'lib', language: 'en' });
+  assert.equal(readConfig(en).config.pipeline.nodes[2].requirement, DEFAULT_REQUIREMENTS.en.relevance);
+  assert.throws(() => createLibrary(caseDir('create-badlang'), { name: 'lib', language: 'fr' }), (e) => e.code === 'bad-argument');
   assert.deepEqual(topicNames(cfg.config), []);
   assert.ok(readFileSync(join(dir, 'streams.json'), 'utf8').endsWith('\n'));
 });

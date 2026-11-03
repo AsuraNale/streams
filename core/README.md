@@ -20,7 +20,14 @@ npm test            # = node --test "test/*.test.mjs"
 node bin/streams-core.mjs rebuild <libraryDir>   # 重建 index.jsonl + index.meta.json，列出被拒的文件
 node bin/streams-core.mjs pending <libraryDir>   # 待规范清单（含拟定文件头）
 node bin/streams-core.mjs replay  <libraryDir>   # 重放账本，输出每个 url 的当前状态
+node bin/streams-core.mjs fetch   <libraryDir>   # 抓一轮（只抓取登记，不打分）；try-source <dir> <name> 试抓不写盘；status <dir> 来源状态
+node bin/streams-core.mjs self-check <libraryDir> --connection <claude-code|codex|api|fake>      # 第 0 步自检
+node bin/streams-core.mjs run        <libraryDir> --connection <…> [--model id] [--cap n]        # 完整一轮：抓取→关卡①→正文→关卡②→摘要→待看
+node bin/streams-core.mjs estimate | inbox | rounds <libraryDir>                                   # 跑前预估 / 待看 / 运行记录
+node bin/streams-core.mjs keep <libraryDir> <url>   ·   dismiss <libraryDir> <url> <reason>
 ```
+
+`api` 的 key 只从环境变量 `STREAMS_API_KEY` 读（命令行开发用；桌面版走 safeStorage）。
 
 输出 JSON 到 stdout；出错时 stderr 是 `{"error":{"code","message"}}`，退出码 1；用法错误退出码 2。
 
@@ -335,4 +342,15 @@ fetchRound(libraryDir, { config?, ctx? })
 | `src/fetch/log.mjs` | `appendFetchLog`, `readFetchLog`, `lastRoundStatus`, `FETCH_LOG_FILE` |
 | `src/fetch/health.mjs` | `sourceHealth` |
 
-W2 还没接进 `src/index.mjs`（另一位建方在动它）。
+## 流水线与核验（W4，`src/pipeline/`、`src/verify/`）
+
+签名、返回形状、错误码与实做取舍全部在 `docs/core-api.md` 第四节（4.0 配置 · 4.1 账本事件与队列 · 4.2 引擎函数 · 4.3 核验层 · 4.4 提示词 · 4.4b 差别 · 4.5 CLI）。要点：
+
+- 一轮 = `selfCheck`（库可写、索引可读、连接试调；任一失败本轮不开始、什么都不写）→ `fetchRound` → 队列从账本状态重建 → 关卡①（材料：标题、来源、日期、摘要）→ 取正文入 `_pipeline/cache/` → 关卡② → 摘要（经核验循环）→ 写 `_pipeline/inbox/<sha1>.json` + 账本 `inbox` → `_pipeline/rounds.jsonl` 一行 + `_pipeline/logs/YYYY-MM-DD.md`。
+- 每次模型调用计 1（关卡、摘要、判定都算）；`calls ≥ cap` → 当前条目后停（`stoppedAt:'cap'`）；`signal.aborted` → `'aborted'`；连接错误 → `'connection'`。剩余条目保持原状态，下一轮接着跑；同一 url 同一关卡同一 cfg 永不第二次调用。
+- 关卡输出先过全规则核对单（JSON 键齐、分数 0–1、枚举在表内、理由 ≤120 字、`quote` 逐字在材料里）；没过带「你的输出不符合格式」重试一次；还没过 → 账本 `unscored`，条目留在「抓到的」，永不静默丢弃。
+- 摘要走 `verifyLoop`：规则项先、判定项打包成一次独立调用（核验槽）；退回只带没过的项；两轮不过仍进待看并标 `verification.passed:false`。每项每轮一行 `_pipeline/verdicts.jsonl`。
+- 拍板：`keep` 是全仓唯一调 `writeNoteFile(…,{by:'keep'})` 的地方；`dismiss` 理由必填且终态永不回流；`later` 零写盘。
+- 假连接器：`src/connect/fakes.mjs`（固定 / 坏格式 / 登录过期 / 计数）与 `src/pipeline/fake.mjs`（按提示词形状应答的脚本连接器，`--connection fake`）。
+
+本机实跑（11-03）：一条一项的库，Claude Code 与 Codex 各跑一轮，关卡①各 1 次真调用、`quote` 逐字命中、账本 `scored` 写入。

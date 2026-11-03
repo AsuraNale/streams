@@ -58,6 +58,14 @@ export function topicNames(config) {
   return (config?.topics ?? []).map((t) => t.name);
 }
 
+// The keys a note's `scores` may use: every node id, plus every enum output field of a gate
+// (gate 2's freshness is recorded as its own scored event and its own scores key, core-api 4.1).
 export function nodeIds(config) {
-  return (config?.pipeline?.nodes ?? []).map((n) => n.id);
+  const out = [];
+  for (const n of config?.pipeline?.nodes ?? []) {
+    out.push(n.id);
+    const output = n && typeof n.output === 'object' && n.output !== null ? n.output : {};
+    for (const [k, v] of Object.entries(output)) if (typeof v === 'string' && v.startsWith('enum:') && !out.includes(k)) out.push(k);
+  }
+  return out;
 }

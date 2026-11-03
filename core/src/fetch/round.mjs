@@ -104,7 +104,8 @@ export async function fetchRound(libraryDir, { config, ctx } = {}) {
       const key = normalizeTitle(item.title);
       const dupOf = key !== '' && known.titles.has(key) && known.titles.get(key) !== item.url ? known.titles.get(key) : undefined;
       try {
-        appendEvent(libraryDir, { ts, ev: 'seen', url: item.url, source: item.source, title: item.title, date: item.date, maybe_duplicate_of: dupOf });
+        // the item's own summary rides along: gate 1 reads it as material when no body is fetched (W4)
+        appendEvent(libraryDir, { ts, ev: 'seen', url: item.url, source: item.source, title: item.title, date: item.date, summary: item.summary || undefined, maybe_duplicate_of: dupOf });
       } catch (e) {
         ledgerError = e;
         break; // the rest of this source's items stay unregistered; next round fetches them again

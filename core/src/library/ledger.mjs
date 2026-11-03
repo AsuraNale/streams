@@ -105,6 +105,8 @@ function apply(states, ev) {
       firstSeen: ts, stage: 'seen', scores: {}, unscored: {}, lastTs: ts,
       // second-layer dedup hint written by the fetch round; absent on most events
       ...(typeof ev.maybe_duplicate_of === 'string' && ev.maybe_duplicate_of !== '' ? { maybeDuplicateOf: ev.maybe_duplicate_of } : {}),
+      // the item's own summary when the seen event carries one (gate 1 material when no body is fetched)
+      ...(typeof ev.summary === 'string' && ev.summary !== '' ? { summary: ev.summary } : {}),
     });
     return;
   }
@@ -116,11 +118,15 @@ function apply(states, ev) {
   switch (ev.ev) {
     case 'scored':
       s.scores[ev.node] = typeof ev.score === 'number' ? { score: ev.score, reason: ev.reason } : { value: ev.value, reason: ev.reason };
+      if (typeof ev.quote === 'string') s.scores[ev.node].quote = ev.quote;
+      if (typeof ev.materials === 'string') s.scores[ev.node].materials = ev.materials;
       delete s.unscored[ev.node];
+      rememberCfg(s, ev);
       break;
     case 'unscored':
       s.unscored[ev.node] = ev.reason;
       delete s.scores[ev.node];
+      rememberCfg(s, ev);
       break;
     case 'inbox':
       s.stage = 'inbox';
@@ -135,6 +141,14 @@ function apply(states, ev) {
       break;
   }
   s.lastTs = ts;
+}
+
+// Pipeline events carry the gate configuration hash (core-api 4.0 "cfg"); the queue compares it
+// with the current one. Kept per node only when an event carries it, so W1-shaped events are unchanged.
+function rememberCfg(s, ev) {
+  if (typeof ev.cfg !== 'string' || ev.cfg === '') return;
+  if (!s.cfg) s.cfg = {};
+  s.cfg[ev.node] = ev.cfg;
 }
 
 export function isSeen(libraryDir, url) {
