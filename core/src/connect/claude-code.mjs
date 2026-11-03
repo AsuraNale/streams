@@ -18,6 +18,11 @@
 //   {"type":"result","subtype":"success","is_error":true,"terminal_reason":"api_error",
 //    "result":"Failed to authenticate: OAuth session expired and could not be refreshed", ...}
 // -> read stdout first, then stderr; `is_error` + the result text decide the code.
+//
+// Real success seen on this machine (signed in via claude.ai, 2026-11-03, exit 0, stderr empty): the same
+// envelope with is_error:false, stop_reason 'end_turn', terminal_reason 'completed', result '{"ok":true}',
+// usage.{input_tokens, cache_creation_input_tokens, cache_read_input_tokens, output_tokens}, total_cost_usd,
+// modelUsage keyed by the model id. Kept verbatim in test/support/real-claude-success.json.
 import { resolveCommand, runInEmptyDir, runQuick, spawnFailure, finishText, probeFrom, versionOf, openLoginWith } from './command.mjs';
 import { resolveModel, modelsFor } from './models.mjs';
 import { failure, clip, checkRequest } from './types.mjs';
