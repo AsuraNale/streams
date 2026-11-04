@@ -247,6 +247,27 @@
 
 `verdictsFor(libraryDir, url)`（`src/verify/verdicts.mjs`，S15）：这一条的全部核验记录，按 node、round 分组：`[{node, round, items:[{item, kind, passed, evidence, claimed}]}]`，并标出「说做了其实没做」（claimed 且没过）。
 
+## 5.9 导入已有文件夹（A3 / S8）· W6 · 建（11-04 定稿）
+
+方案 A3：「只建索引，不搬文件、不改名。缺文件头的列到『待规范』，软件拟好文件头给你看，你点了才写入；你自己写的正文一个字不动。」
+
+- **条目文件夹可配**：`streams.json` 加可选键 `notesDir`（相对库文件夹的路径；默认 `"notes"`；导入的库写 `"."` = 库文件夹本身）。`notesDir(libraryDir)`（`library/scan.mjs`）读它；不合法（绝对路径、含 `..`、指到库外）→ `config:invalid-shape`。所有读写条目的地方（scan、write-note、browse、edit、create、keep）都经这一个函数，不再直接拼 `notes`。
+- **只读第一层**：v1.0 只扫 `notesDir` 这一层的 `.md`；子文件夹不读（`scanLibrary` 多返回 `skippedDirs: [相对路径…]`，待规范清单与界面如实说明「子文件夹里的文件这一版不读」，进 v1.1）。`_pipeline/`、以 `.` 开头的文件夹（`.obsidian`）不算。
+- `importFolder(dir, {name, language?})`（`library/create.mjs`）：`dir` 里已有 `.md`、没有 `streams.json` 时，在旁边写 `streams.json`（`notesDir: "."`、默认 pipeline）、`_pipeline/{inbox,cache,logs}`、空账本与 fetch_log，**不碰任何已有文件**（前后对已有文件做哈希必须相同），再 `rebuildIndex`。已有 `streams.json` → `exists`；一个 `.md` 都没有 → `nothing-to-import`。返回 `{libraryDir, notes: n, pending: n, skippedDirs}`。
+- `applyProposedHeader(libraryDir, file, {header?})`（`library/pending.mjs`）：`file` 必须在 `listPending` 里；`header` 省略 = 用 `proposedHeader`，给了 = 用户改过的（与拟好的合并：用户给的键优先）。写盘走 **`writeNoteFile(…, {by:'import-header'})`**。返回 `{id, file, entry}`；`rebuildIndex`。拟不出文件头的（问题不只缺 source / date）→ `not-proposable`；文件名不能当 id（`isNoteId` 不过）→ `bad-file-name`（「不改名」：请用户自己改名）。
+- **`by:'import-header'` 的语义**（V2，取代原来的「只新建」）：只能改 `notesDir` 里**已存在且不合规范**的同名文件；新内容 = 序列化后的完整文件头 + **原文件的正文逐字节不变**（正文 = 原文件去掉旧 frontmatter 之后的部分，没有 frontmatter 时就是全文；不加换行、不改编码）；写完必须合规范；先写临时文件再 rename。文件不存在 → `not-found`；原文件已合规范 → `already-conforming`。`keep` 仍只新建、`edit` 仍只改合规范的。
+- `listPending` 的每条多 `bodyHash`（正文 sha256，界面与测试核「正文没动」用）与 `nameOk`。
+
+## 5.10 定时与补跑（A2）· 桌面主进程做，核心只给纯函数
+
+`schedule = { enabled: boolean, time: 'HH:MM' }`（存 `settings.json`，默认 `{enabled: true, time: '08:30'}`）。核心 `src/pipeline/schedule.mjs`：
+
+| 函数 | 作用 |
+|---|---|
+| `nextRunAt(schedule, now)` | 下一个定时时刻（本地时间）；`enabled:false` → `null` |
+| `lastDueAt(schedule, now)` | 最近一个已经过去的定时时刻（今天的已过就是今天，否则昨天的）；`enabled:false` → `null` |
+| `missedRun(schedule, {lastRoundAt, now})` | 补跑判定：`lastDueAt` 存在且（`lastRoundAt` 为空或早于它）→ `true`。只补一轮，不堆积（错过三天也只补一次） |
+
 ## 六、桌面桥（desktop 主进程 → 页面）
 
 页面唯一入口 `window.streams`；主进程把上面每个函数包成桥方法（名字同核心函数，加 `library:` / `fetch:` / `connect:` / `pipeline:` / `ask:` 前缀），事件：`round-progress`、`inbox-changed`、`status-changed`、`settings-changed`、`update`。桥方法表写在 `docs/desktop.md`。

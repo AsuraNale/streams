@@ -265,6 +265,32 @@ frame-ancestors 'none'
 
 **加一个主题**：`src/main/events.mjs` 的 `EVENT_TOPICS` 加一项、`src/preload/preload.cjs` 的 `EVENT_TOPICS` 加同名、上表加一行；少一处 `npm test` 就红。
 
+### 4.3 §四补：托盘、定时、补跑、导入（11-04 定稿）
+
+**托盘与定时（A2）**：
+- 应用启动后在系统托盘放一个图标（`assets/icon` 的那个），提示文字「流息 · n 条待看」（随 `inbox-changed` 更新），菜单：「打开流息」「现在跑一轮」「退出」（字放 `src/main/texts/app.js` 与 `texts-en/app.js`）。
+- **关窗口不退出**：`schedule.enabled` 为真时，点窗口的关闭按钮是把窗口藏起来、留在托盘；只有托盘菜单的「退出」或 `schedule.enabled` 为假时才真正退出（方案「想关就关软件」）。测试世界（hidden）里照这个规则走，但不建真托盘图标，改记日志（`tray: …`）。
+- **定时**：主进程按核心 `nextRunAt` 设一个定时器；到点时若打开着库、没有一轮在跑，就 `startRound()`；系统从睡眠醒来（`powerMonitor` 的 `resume`）时重算。
+- **补跑**：启动时（库打开之后）与醒来时，核心 `missedRun(schedule, {lastRoundAt: rounds.jsonl 最后一行的 startedAt, now})` 为真就跑**一轮**，不堆积。
+- **一轮跑完的提示**：`services/notify.mjs` 发一条「这一轮进来 n 条待看」（n = 这一轮写进待看的条数，0 条不发），点了打开待看。
+- 开发与测试钩子：`STREAMS_DEV_NOW=<ISO 时间>` 代替「现在」（定时与补跑测试用）。
+
+| 桥方法（加进 §四表） | 参数 | 返回 | 谁用 |
+|---|---|---|---|
+| `getSchedule()` | 无 | `{ enabled, time, nextRunAt: ISO \| null, lastRoundAt: ISO \| null, missed: boolean }` | 设置「运行」、今日顶栏「下次运行」 |
+| `setSchedule(schedule)` | `{ enabled: boolean, time: 'HH:MM' }`（00:00–23:59） | 同上；写 `settings.json`；发 `settings-changed` | 设置「运行」、首次设置最后一步 |
+| `applyHeader(file, header)` | `file` 在待规范里；`header` 是对象或 `null`（用拟好的） | 核心 `applyProposedHeader` 的返回；`not-proposable` / `bad-file-name` / `already-conforming` → `bad_arguments`；发 `library-changed` | S8 |
+| `applyAllHeaders()` | 无 | `{ written: [file…], skipped: [{file, code}] }`：对每个拟得出文件头的待规范文件按拟的写入 | S8「全部按拟的写入」 |
+
+`getHome().nextRun` 从 `null` 改成 `getSchedule().nextRunAt`。`chooseLibraryFolder` 的 `state` 多一个值 `importable`（没有 `streams.json`、第一层有 `.md`）；`useChosenFolder` 对它调核心 `importFolder`，然后打开。
+
+**界面**：
+- 设置「运行」块：定时开关 + 时刻（`input type=time`）+ 「错过了：下次打开补跑一轮，不会堆积」+ 「关窗口时：收进托盘（定时开着时）」。
+- 首次设置第 4 步跑完后多一屏「定时」（方案 A1 走一遍的最后一步）：默认每天 08:30、软件在托盘时运行、错过了下次打开补跑一轮；「完成」= `setSchedule` 接受默认（记「接受默认」）。
+- 今日顶栏「下次运行 明天 08:30」（`nextRunAt`；关着时「定时没开」）。
+- 资料库「待规范」分页（S8）：每个文件一张卡：问题（缺文件头 / 缺 source 和 date / …）、「流息拟的文件头（可改）」textarea（YAML，预填 `proposedHeader`）、「写入这一个」「跳过」；顶上「全部按拟的写入」；说明「这些文件已经在你的文件夹里，流息没有动它们。给它们加上文件头后才会进库。正文一个字不改。」；拟不出的、文件名不能当 id 的如实说明怎么办；`skippedDirs` 非空时说明子文件夹这一版不读。
+- 待看：J / K 移动时把**键盘焦点**也移到当前卡片（`card.focus()`），读屏跟得上（Richard 11-03 的观察）。
+
 ## 五、界面写法
 
 **选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。
