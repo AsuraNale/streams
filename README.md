@@ -20,6 +20,15 @@
 | `docs/` | 开发说明。 |
 | `tests/acceptance/` | 发版验收 V1–V12。 |
 
+## 下载与安装
+
+第一版只做 Windows。公开仓 `AsuraNale/streams` 发布后，从它的 Releases 页面下载安装包（`Streams-<版本号>-setup.exe`）。
+
+- 每个版本的安装包的 sha256 写在那个版本的发布说明里。下载后可以自己核对，例如在 PowerShell 里：`Get-FileHash .\Streams-1.0.0-setup.exe -Algorithm SHA256`，算出来的值应当和发布说明里的一致。
+- 第一版的安装包**未签名**（没有代码签名证书）。所以运行它时，Windows 会弹出 SmartScreen 提示「Windows 已保护你的电脑」：点「更多信息」，再点「仍要运行」，就会开始安装。
+
+**Download and install.** Windows only for now. Once the public repository `AsuraNale/streams` is up, download the installer from its Releases page. The SHA-256 of each installer is in that release's notes. The first release's installer is **not code-signed**, so Windows SmartScreen shows "Windows protected your PC": click "More info", then "Run anyway".
+
 ## 开发
 
 需要 Node ≥ 24。各目录有自己的 `package.json`；核心无第三方依赖。

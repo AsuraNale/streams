@@ -7,7 +7,7 @@
  * @module desktop/main/app-services
  */
 
-import { clipboard } from 'electron'
+import { clipboard, shell } from 'electron'
 import { writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { diagnosticsText } from './diagnostics.mjs'
@@ -27,6 +27,9 @@ import { readSettings, writeSettings } from './settings.mjs'
  * @param {{diagnosticLines: () => string[]}} o.connections - services/connections.mjs
  * @param {{list: () => string[], get: (name: string) => string|null}} o.secrets - secrets.mjs
  */
+/** The maker's site (README and the about part: 「由 Starry Digital 开发」, 维护者 11-02). */
+export const MAKER_URL = 'https://starrydigital.ca'
+
 export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets }) {
   const settings = () => readSettings(layout.settingsFile)
 
@@ -58,6 +61,12 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       const r = { showDeveloperInfo: writeSettings(layout.settingsFile, { showDeveloperInfo: on }).showDeveloperInfo }
       emit('settings-changed', null)
       return r
+    },
+    /** 「由 Starry Digital 开发」 in the about part: the maker's site in the user's browser (a test run only writes the log). */
+    async openMakerPage() {
+      if (hidden) { log(`not opened in a test run: ${MAKER_URL}`); return null }
+      await shell.openExternal(MAKER_URL)
+      return null
     },
     copyDiagnostics() {
       const held = []

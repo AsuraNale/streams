@@ -22,6 +22,7 @@ const METHODS = [
   'setLanguage',
   'setShowDeveloperInfo',
   'copyDiagnostics',
+  'openMakerPage',
   // the update (docs/desktop.md section 19)
   'getUpdateState',
   'checkForUpdate',

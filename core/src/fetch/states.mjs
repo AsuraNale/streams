@@ -103,6 +103,10 @@ export function classifyError(err) {
   const text = [...messages, ...codes].join(' | ').toLowerCase();
   const summary = describe(chain);
   if (BLOCK_SIGNATURES.some((sig) => text.includes(sig))) return { state: 'blocked', message: `refused below HTTP: ${summary}` };
+  // Node's own proxy support (NODE_USE_ENV_PROXY / an EnvHttpProxyAgent) reports a refused CONNECT as an AbortError
+  // "Proxy response (403) !== 200 when HTTP Tunneling" — it must not fall into the timeout branch below. Only a 403 / 407
+  // is a refusal; a 5xx from the proxy is the proxy failing for now, so it stays `failed`. (Found by acceptance V3, 11-03.)
+  if (/proxy response \((403|407)\) !== 200 when http tunnel/.test(text)) return { state: 'blocked', message: `refused by the proxy: ${summary}` };
   // WHATWG fetch turns a 407 Proxy Authentication Required into a bare network error: TypeError
   // "fetch failed" whose cause is an Error with no message and no code. Nothing else undici throws
   // looks like that (connection errors all carry a code), so this shape is read as a refusal.

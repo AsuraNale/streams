@@ -16,7 +16,7 @@ import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, Button, Dialog, Main, TopBar } from '../kit/index.js'
+import { AppFrame, AppSidebar, Button, Dialog, LinkButton, Main, TopBar } from '../kit/index.js'
 import { CONNECTIONS, SEP } from '../texts/common.js'
 import { SETTINGS as T } from '../texts/settings.js'
 import { AboutUpdate } from './settings-update.js'
@@ -350,7 +350,7 @@ export function SettingsScreen() {
           <//>
           <${Part} id="about" name=${T.about}>
             ${data ? html`<${AboutUpdate} version=${data.version} devBuild=${data.devBuild} />` : null}
-            <div class="st-t-small st-t-muted">${T.madeBy}</div>
+            <div class="st-t-small st-t-muted" data-part="made-by"><${LinkButton} onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}<//></div>
           <//>
         </div>
       </div>

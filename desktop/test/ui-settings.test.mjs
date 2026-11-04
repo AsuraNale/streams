@@ -96,6 +96,16 @@ test('库: 新建库 on the folder the hook gives → the sidebar and the librar
   await s.page.waitForFunction(p => document.querySelector('[data-part="library"] [data-library-path]')?.dataset.libraryPath === p, another, POLL)
 })
 
+test('关于: 「由 Starry Digital 开发」 is a link that opens https://starrydigital.ca through the bridge (a test run only writes the log)', async () => {
+  const log = () => readFileSync(join(s.world.appData, 'logs', 'main.log'), 'utf8')
+  const want = 'not opened in a test run: https://starrydigital.ca'
+  assert.ok(!log().includes(want), 'control: nothing opened before the click')
+  await s.page.click('[data-part="made-by"] button')
+  const end = Date.now() + 20_000
+  while (Date.now() < end && !log().includes(want)) await new Promise(r => setTimeout(r, 100))
+  assert.ok(log().includes(want), 'the maker page was asked for')
+})
+
 test('no page errors', () => {
   assert.deepEqual(s.errors, [])
 })

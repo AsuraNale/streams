@@ -109,3 +109,21 @@ test('classifyError: refusals below HTTP are blocked, timeouts and network error
   loop.cause = loop;
   assert.equal(classifyError(loop).state, 'failed');
 });
+
+test('classifyError: Node\'s own proxy refusal (AbortError "Proxy response (403|407) !== 200 when HTTP Tunneling") is blocked; a proxy 5xx stays failed', () => {
+  const nodeProxy = (status) => {
+    const inner = new Error(`Proxy response (${status}) !== 200 when HTTP Tunneling`);
+    inner.name = 'AbortError';
+    inner.code = 'UND_ERR_ABORTED';
+    const outer = new TypeError('fetch failed');
+    outer.cause = inner;
+    return outer;
+  };
+  assert.equal(classifyError(nodeProxy(403)).state, 'blocked');
+  assert.equal(classifyError(nodeProxy(407)).state, 'blocked');
+  // reverse: the proxy failing for now is not a refusal, and a plain abort is still a timeout
+  assert.equal(classifyError(nodeProxy(502)).state, 'failed');
+  const abort = new Error('This operation was aborted');
+  abort.name = 'AbortError';
+  assert.equal(classifyError(abort).state, 'failed');
+});
