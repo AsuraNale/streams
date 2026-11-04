@@ -5,8 +5,8 @@
 export const TODAY = Object.freeze({
   title: '今日',
   nextRun: Object.freeze({
-    none: '下次运行：还没设定时',
-    at: '下次运行：{when}',
+    none: '定时没开',
+    at: '下次运行 {when}',
   }),
   connection: '连接：{name} · {model}',
   connectionDefault: '连接：{name} · 默认模型',

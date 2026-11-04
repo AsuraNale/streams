@@ -7,7 +7,7 @@
  * @module desktop/main/main
  */
 
-import { app, BrowserWindow, Menu, Notification, dialog, protocol, safeStorage, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, Notification, Tray, dialog, powerMonitor, protocol, safeStorage, session, shell } from 'electron'
 import { readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,6 +38,9 @@ import { appVersion } from './version.mjs'
 import { endHelpers } from './quit.mjs'
 import { APP_USER_MODEL_ID, TOAST_ACTIVATOR_CLSID } from './app-id.mjs'
 import { iconPath } from './icon.mjs'
+import { createScheduleService } from './services/schedule.mjs'
+import { createTray } from './tray.mjs'
+import { listInbox } from './core.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const RENDERER_DIR = join(DESKTOP_DIR, 'src', 'renderer')
@@ -67,6 +70,11 @@ const DEV_UPDATE_SETUP_RECORD = !app.isPackaged && typeof process.env.STREAMS_DE
 const DEV_LIBRARY = !app.isPackaged && typeof process.env.STREAMS_DEV_LIBRARY === 'string' && isAbsolute(process.env.STREAMS_DEV_LIBRARY) ? process.env.STREAMS_DEV_LIBRARY : null
 const DEV_CHOOSE_FOLDER = !app.isPackaged && typeof process.env.STREAMS_DEV_CHOOSE_FOLDER === 'string' && isAbsolute(process.env.STREAMS_DEV_CHOOSE_FOLDER) ? process.env.STREAMS_DEV_CHOOSE_FOLDER : null
 const DEV_CONNECTION = !app.isPackaged && DEV_CONNECTION_MODES.includes(process.env.STREAMS_DEV_CONNECTION) ? process.env.STREAMS_DEV_CONNECTION : null
+// the timed round (services/schedule.mjs; docs/desktop.md §4.3), development and tests only: 「now」 is this ISO time when the
+// app starts and runs on from there (the schedule, the catch-up and the rounds read this clock); a packaged app reads the real one
+const DEV_NOW = !app.isPackaged && typeof process.env.STREAMS_DEV_NOW === 'string' && !Number.isNaN(Date.parse(process.env.STREAMS_DEV_NOW)) ? Date.parse(process.env.STREAMS_DEV_NOW) : null
+const STARTED_AT = Date.now()
+const clock = DEV_NOW === null ? () => new Date() : () => new Date(DEV_NOW + (Date.now() - STARTED_AT))
 // the app's own version (version.mjs): release.json's — packaged through resources/app/package.json, in development read from it
 const VERSION = appVersion({ isPackaged: app.isPackaged, getVersion: () => app.getVersion() })
 
@@ -117,7 +125,22 @@ app.on('web-contents-created', (_event, contents) => guardContents(contents, { o
 
 // the app's own windows: where events go (events.mjs)
 const appWindows = new Set()
-const emit = createEmitter(() => [...appWindows], log)
+const emitToPages = createEmitter(() => [...appWindows], log)
+// the main process's own listeners of the same events (the tray's hint follows `inbox-changed`)
+const emitListeners = []
+const emit = (topic, payload = null) => {
+  const sent = emitToPages(topic, payload)
+  for (const listener of emitListeners) {
+    try { listener(topic, payload) } catch (err) { log(`event ${topic}: a listener failed: ${String(err?.stack ?? err)}`) }
+  }
+  return sent
+}
+
+// closing the window (docs/desktop.md §4.3): with the schedule on, the close button hides it into the tray; the tray's
+// 「退出」, an update and every other quit really end the app (before-quit comes first)
+let quitting = false
+let closeToTray = () => false
+app.on('before-quit', () => { quitting = true })
 
 /** The app's window to the front (restored when minimised): a second launch, a click on a notification. false: no window. */
 function bringToFront() {
@@ -144,6 +167,12 @@ function createWindow() {
   })
   appWindows.add(win)
   win.on('closed', () => appWindows.delete(win))
+  win.on('close', event => {
+    if (quitting || !closeToTray()) return
+    event.preventDefault()
+    win.hide()
+    log('window: closed into the tray (the schedule is on)')
+  })
   if (!HIDDEN) win.once('ready-to-show', () => win.show())
   win.loadURL(START_SCREEN ? `${APP_ENTRY}#${START_SCREEN}` : APP_ENTRY)
   return win
@@ -171,19 +200,42 @@ app.whenReady().then(() => {
     // a probe made from the page counts in the open library's usage (core createUsageCounter), under `probe`
     usageWrap: c => { const d = library.dir(); return d ? createUsageCounter(d).wrap(c, 'probe') : c },
   })
-  const pipeline = createPipelineService({ library, connections, emit, log, hidden: HIDDEN, shell, locale: currentLocale })
+  // the schedule (services/schedule.mjs) is made below; the pipeline reads it through these two (getHome's nextRun, the notification)
+  let scheduler = null
+  const pipeline = createPipelineService({
+    library, connections, emit, log, hidden: HIDDEN, shell, locale: currentLocale, now: clock,
+    schedule: () => scheduler?.view() ?? null, onRoundDone: done => scheduler?.roundDone(done),
+  })
   // interface B (docs/desktop.md §4.2): reading and editing, the sources and topics, asking the library, the run status
   const browse = createBrowseService({ library, emit, log, hidden: HIDDEN, shell })
   const sources = createSourcesService({ library, emit, log })
   const ask = createAskService({ library, connections, log })
-  const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell })
+  const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell, schedule: () => scheduler?.view() ?? null })
   const services = createAppServices({ layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets })
   // Windows notifications (services/notify.mjs): made here, used by later wiring (the pipeline's rounds, plan C5)
   const notifier = createNotifier({
     Notification, windows: () => [...appWindows], bringToFront, emit, log,
     logFile: HIDDEN ? join(layout.logsDir, 'notifications.jsonl') : null,
-    locale: () => locale.current().resolved,
+    locale: () => locale.current().resolved, clock,
   })
+  // the timed round and the tray (docs/desktop.md §4.3): the timer, the catch-up, the close button into the tray
+  scheduler = createScheduleService({ settingsFile: layout.settingsFile, library, pipeline, notifier, emit, log, now: clock })
+  closeToTray = () => scheduler.enabled()
+  const inboxNow = () => { const d = library.dir(); if (!d) return 0; try { return listInbox(d).length } catch { return 0 } }
+  const tray = createTray({
+    Tray, Menu, icon: ICON, hidden: HIDDEN, log, locale: () => locale.current().resolved,
+    onOpen: () => { if (!bringToFront()) createWindow() },
+    onRunNow: () => { void scheduler.startOne('the tray menu') },
+    onQuit: () => { quitting = true; app.quit() },
+  })
+  tray.setCount(inboxNow())
+  emitListeners.push((topic, payload) => {
+    if (topic === 'inbox-changed') tray.setCount(Number.isInteger(payload?.count) ? payload.count : inboxNow())
+    else if (topic === 'library-changed') tray.setCount(inboxNow())
+    else if (topic === 'settings-changed') tray.refresh()
+  })
+  powerMonitor.on('resume', () => { void scheduler.resumed() })
+  app.on('will-quit', () => { scheduler.stop(); tray.destroy() })
   // the update (update-wiring.mjs): a check only when the user asks; the setup program replaces the install in place
   const update = wireUpdate({
     emit, layout, log, hidden: HIDDEN, packaged: app.isPackaged, version: VERSION, turnRunning: () => pipeline.isRunning(),
@@ -209,11 +261,13 @@ app.whenReady().then(() => {
       ...sources.handlers,
       ...ask.handlers,
       ...status.handlers,
+      ...scheduler.handlers,
     },
   })
 
   createWindow()
-  void notifier
+  // the catch-up at start: the library (if one is open) is open by now
+  void scheduler.start()
 
   // a second launch (the single-instance lock above): this app's window comes to the front instead
   app.on('second-instance', () => {

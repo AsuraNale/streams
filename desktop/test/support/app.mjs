@@ -24,9 +24,13 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 export { closeApp }
 
-/** The environment the app starts with in a test world. */
+/**
+ * The environment the app starts with in a test world. The settings file is written every time: the schedule is off
+ * unless the test's `settings` turn it on (with it on, a world whose library never ran a round would start one at launch —
+ * the catch-up, docs/desktop.md §4.3 — and the close button would hide the window into the tray).
+ */
 export function testEnv(run, { env = {}, settings = null } = {}) {
-  if (settings) writeFileSync(join(run.appData, 'settings.json'), `${JSON.stringify({ schema: 'streams.settings/1', ...settings })}\n`)
+  writeFileSync(join(run.appData, 'settings.json'), `${JSON.stringify({ schema: 'streams.settings/1', schedule: { enabled: false, time: '08:30' }, ...(settings ?? {}) })}\n`)
   return appEnv({
     appData: run.appData,
     localData: run.localData,

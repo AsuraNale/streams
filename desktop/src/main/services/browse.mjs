@@ -4,13 +4,18 @@
  * in the index before anything is read or written; a path is never taken from the page — the core's `notePath` gives it.
  * Shapes are the core's (docs/core-api.md §5.1–5.3); `getLibrary` adds the counts.
  *
+ * 待规范 (plan A3, mockup S8; docs/desktop.md §4.3): `applyHeader(file, header)` writes one header onto a file the core lists
+ * as needing one (the core's applyProposedHeader, which writes through writeNoteFile by:'import-header': the body stays
+ * byte for byte); `applyAllHeaders()` does it with the proposed header for every file that has one. The page names a file
+ * by its name only, and the name must be in the core's list before the core is asked to write.
+ *
  * The core's functions are reached by name through `coreCaller` (bridge-methods.mjs), so a stand-in core can be given in
  * the tests and a function the core does not have yet is `internal`, not a failed import. Pure Node apart from what is
  * injected (`shell`): test/services-browse.test.mjs.
  * @module desktop/main/services/browse
  */
 
-import { isAbsolute, join, relative } from 'node:path'
+import { dirname, isAbsolute, relative, resolve } from 'node:path'
 import { BridgeError, coreCaller } from '../bridge-methods.mjs'
 import * as realCore from '../core.mjs'
 
@@ -47,6 +52,14 @@ export function createBrowseService({ library, emit, log, hidden = false, shell,
     return dir
   }
 
+  /** The open library and a file the core lists as needing a header, or bad_arguments. */
+  const pendingFile = file => {
+    const dir = library.require()
+    const row = call('listPending', dir).find(p => p.file === file)
+    if (!row) throw new BridgeError('bad_arguments', `not a file that needs a header: ${file}`)
+    return { dir, row }
+  }
+
   const handlers = {
     getLibrary(view, filter) {
       const dir = library.require()
@@ -70,7 +83,9 @@ export function createBrowseService({ library, emit, log, hidden = false, shell,
     async openInObsidian(id) {
       const dir = known(id)
       const path = call('notePath', dir, id)
-      if (typeof path !== 'string' || !isAbsolute(path) || !inside(join(dir, 'notes'), path)) throw new BridgeError('internal', `notePath gave a path outside notes/: ${String(path)}`)
+      // the note folder is notes/ or, for an imported folder, the library folder itself (core notesDir)
+      const folder = call('notesDir', dir)
+      if (typeof path !== 'string' || !isAbsolute(path) || !inside(dir, path) || !/\.md$/i.test(path) || resolve(dirname(path)) !== resolve(folder)) throw new BridgeError('internal', `notePath gave a path that is not a note of the note folder: ${String(path)}`)
       if (hidden) { log(`not opened in a test run: obsidian ${path}`); return null }
       try {
         await shell.openExternal(`obsidian://open?path=${encodeURIComponent(path)}`)
@@ -81,6 +96,36 @@ export function createBrowseService({ library, emit, log, hidden = false, shell,
       const problem = await shell.openPath(path)
       if (problem) { log(`browse: openPath ${path}: ${problem}`); throw new BridgeError('open_failed') }
       return null
+    },
+    applyHeader(file, header) {
+      const { dir } = pendingFile(file)
+      const r = call('applyProposedHeader', dir, file, { header: header ?? undefined })
+      log(`browse: header written onto ${file} (${header ? 'changed by the user' : 'as proposed'})`)
+      emit('library-changed', library.current())
+      return { id: r.id, file: r.file, entry: r.entry }
+    },
+    applyAllHeaders() {
+      const dir = library.require()
+      const rows = call('listPending', dir)
+      const apply = core.applyProposedHeader
+      if (typeof apply !== 'function') throw new BridgeError('internal', 'the core has no function applyProposedHeader')
+      const written = []
+      const skipped = []
+      for (const row of rows) {
+        if (!row.nameOk) { skipped.push({ file: row.file, code: 'bad-file-name' }); continue }
+        if (!row.proposedHeader) { skipped.push({ file: row.file, code: 'not-proposable' }); continue }
+        // one file the core will not take does not stop the others: its code goes into `skipped`
+        try {
+          apply(dir, row.file, {})
+          written.push(row.file)
+        } catch (err) {
+          log(`browse: header not written onto ${row.file}: ${String(err?.code ?? '')} ${String(err?.message ?? err)}`)
+          skipped.push({ file: row.file, code: typeof err?.code === 'string' ? err.code : 'internal' })
+        }
+      }
+      log(`browse: headers written onto ${written.length} files, ${skipped.length} skipped`)
+      if (written.length) emit('library-changed', library.current())
+      return { written, skipped }
     },
   }
 

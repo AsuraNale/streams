@@ -1,22 +1,28 @@
-// THE ONLY PLACE THAT WRITES INTO notes/ (acceptance V2).
+// THE ONLY PLACE THAT WRITES INTO THE NOTE FOLDER (acceptance V2). The folder is notesDir(libraryDir) (scan.mjs):
+// notes/ by default, the library folder itself for an imported folder (core-api 5.9).
 //
 // writeNoteFile(libraryDir, { id, header, body }, { by }) -> { file, path }
-//   by: 'keep'          the user kept an inbox item                       create only
-//       'import-header' a header was written onto an imported file        create only
-//       'edit'          the user edited a note that is already in notes/  replace only (core-api 5.2)
+//   by: 'keep'          the user kept an inbox item                                   create only
+//       'import-header' the user had a header written onto a file already there     non-conforming existing file only
+//       'edit'          the user edited a note that is already in the note folder    conforming existing file only (core-api 5.2)
 //   Anything else throws code 'bad-by'.
-//   keep / import-header: an existing notes/<id>.md throws 'id-conflict' and is never overwritten.
-//   edit: replaces notes/<id>.md only when it exists AND conforms to spec v0; a missing file throws
-//         'not-found' (edit can never create a note), a non-conforming one throws 'not-editable'.
-//         The new text goes to notes/<id>.md.<pid>.tmp first (not ending in .md, so a scan never
-//         reads it as a note) and is then renamed over the old file.
-//   The header is validated against spec v0 before writing; a non-conforming header throws 'invalid-note'.
+//   keep: an existing <id>.md throws 'id-conflict' and is never overwritten.
+//   import-header (core-api 5.9): <id>.md must exist ('not-found' otherwise: import-header never creates a note) and must
+//         NOT conform to spec v0 ('already-conforming' otherwise, the file left as it is). `body` is not taken
+//         ('bad-argument'): the new file is the serialized header + the old file's body byte for byte (the old file minus
+//         its closed front matter, or the whole file when there is none; a UTF-8 byte-order mark stays in front). Nothing
+//         is added, no line break, no re-encoding.
+//   edit: replaces <id>.md only when it exists AND conforms to spec v0; a missing file throws 'not-found'
+//         (edit can never create a note), a non-conforming one throws 'not-editable'.
+//   import-header and edit write <id>.md.<pid>.tmp first (not ending in .md, so a scan never reads it as a note) and
+//   then rename it over the old file.
+//   The new text is validated against spec v0 before writing; a non-conforming one throws 'invalid-note'.
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
-import { serializeFrontmatter, isPlainObject } from './frontmatter.mjs';
+import { serializeFrontmatter, isPlainObject, splitNoteBytes } from './frontmatter.mjs';
 import { validateNote } from './validate.mjs';
-import { NOTES_DIR } from './scan.mjs';
+import { notesDir } from './scan.mjs';
 
 export const WRITE_NOTE_BY = ['keep', 'import-header', 'edit'];
 const ID_RE = /^[A-Za-z0-9㐀-䶿一-鿿][A-Za-z0-9㐀-䶿一-鿿._ -]*$/;
@@ -34,38 +40,62 @@ export function writeNoteFile(libraryDir, { id, header, body } = {}, { by } = {}
   if (body !== undefined && typeof body !== 'string') throw new StreamsError('bad-argument', 'body must be a string');
 
   const file = `${id}.md`;
-  const text = serializeFrontmatter({ ...header, id }) + normalizeBody(body ?? '');
-  const check = validateNote({ fileName: file, text, config: null });
-  if (!check.ok) {
-    throw new StreamsError('invalid-note', `refusing to write ${file}: ${check.problems.map((p) => p.code).join(', ')}`, { problems: check.problems });
+  const path = join(notesDir(libraryDir), file);
+  if (by === 'import-header') {
+    if (body !== undefined) throw new StreamsError('bad-argument', 'import-header keeps the file\'s own body: no body is taken');
+    return writeHeaderOnto(path, file, { ...header, id });
   }
-  const path = join(libraryDir, NOTES_DIR, file);
+  const text = serializeFrontmatter({ ...header, id }) + normalizeBody(body ?? '');
+  refuseUnlessConforming(file, text);
   if (by === 'edit') return replaceExisting(path, file, text);
   try {
     writeFileSync(path, text, { encoding: 'utf8', flag: 'wx' }); // wx = create only, never overwrite
   } catch (e) {
-    if (e.code === 'EEXIST') throw new StreamsError('id-conflict', `${file} already exists in notes/`);
+    if (e.code === 'EEXIST') throw new StreamsError('id-conflict', `${file} already exists in the note folder`);
     throw e;
   }
   return { file, path };
 }
 
+function refuseUnlessConforming(file, text) {
+  const check = validateNote({ fileName: file, text, config: null });
+  if (!check.ok) {
+    throw new StreamsError('invalid-note', `refusing to write ${file}: ${check.problems.map((p) => p.code).join(', ')}`, { problems: check.problems });
+  }
+}
+
 function replaceExisting(path, file, text) {
-  if (!existsSync(path)) throw new StreamsError('not-found', `${file} is not in notes/: edit never creates a note`);
+  if (!existsSync(path)) throw new StreamsError('not-found', `${file} is not in the note folder: edit never creates a note`);
   const current = validateNote({ fileName: file, text: readFileSync(path, 'utf8'), config: null });
   if (!current.ok) {
     throw new StreamsError('not-editable', `${file} does not conform to spec v0 (${current.problems.map((p) => p.code).join(', ')}); it is not edited`, { problems: current.problems });
   }
+  replaceThroughTmp(path, text);
+  return { file, path };
+}
+
+function writeHeaderOnto(path, file, header) {
+  if (!existsSync(path)) throw new StreamsError('not-found', `${file} is not in the note folder: import-header never creates a note`);
+  const old = readFileSync(path);
+  const current = validateNote({ fileName: file, text: old.toString('utf8'), config: null });
+  if (current.ok) throw new StreamsError('already-conforming', `${file} already conforms to spec v0; import-header leaves it as it is`);
+  const { bom, body } = splitNoteBytes(old);
+  const bytes = Buffer.concat([bom, Buffer.from(serializeFrontmatter(header), 'utf8'), body]);
+  refuseUnlessConforming(file, bytes.toString('utf8'));
+  replaceThroughTmp(path, bytes);
+  return { file, path };
+}
+
+function replaceThroughTmp(path, data) {
   const tmp = `${path}.${process.pid}.tmp`;
-  rmSync(tmp, { force: true }); // a leftover from an interrupted edit by a process with the same pid
-  writeFileSync(tmp, text, { encoding: 'utf8', flag: 'wx' });
+  rmSync(tmp, { force: true }); // a leftover from an interrupted write by a process with the same pid
+  writeFileSync(tmp, data, typeof data === 'string' ? { encoding: 'utf8', flag: 'wx' } : { flag: 'wx' });
   try {
     renameSync(tmp, path);
   } catch (e) {
     rmSync(tmp, { force: true });
     throw e;
   }
-  return { file, path };
 }
 
 function normalizeBody(body) {

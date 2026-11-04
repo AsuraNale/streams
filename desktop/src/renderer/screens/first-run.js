@@ -1,5 +1,6 @@
-// 首次设置 (mockup S1; docs/desktop.md §4.1「首次设置」): what app.js shows while no library is open. Four steps in a sidebar
-// of its own (the kit's Sidebar parts): where the library goes → the connection → topics and sources → a first round.
+// 首次设置 (mockup S1; docs/desktop.md §4.1「首次设置」): what app.js shows while no library is open. Five steps in a sidebar
+// of its own (the kit's Sidebar parts): where the library goes → the connection → topics and sources → a first round →
+// the schedule (§4.3: getSchedule / setSchedule, 完成 accepts it as shown).
 // Every step talks to the main process through the bridge only (chooseLibraryFolder / useChosenFolder, getConnections /
 // detectConnections / setActiveConnection / probeConnection / openLogin, getStarterPacks / applyStarterPack, estimateRound /
 // startRound + the round-progress event). Words: texts/first-run.js and texts/common.js CONNECTIONS. The connection card's
@@ -19,7 +20,7 @@ import { CONNECTIONS, ERRORS, FETCH_STATES, NODE_NAMES, ROUND_PHASES } from '../
 import { FIRST_RUN as T } from '../texts/first-run.js'
 import { ApiKeyDialog, LoginLoop, ProbeLine, connectionState, detectWords, needsLogin, probeView } from './settings.js'
 
-const STEPS = ['folder', 'connection', 'pack', 'trial']
+const STEPS = ['folder', 'connection', 'pack', 'trial', 'schedule']
 const KINDS = ['claude-code', 'codex', 'api']
 
 function doneLine(id, record) {
@@ -69,8 +70,9 @@ function FolderStep({ onNext, onState }) {
       onNext({ path: chosen.path, name: chosen.name, state: chosen.state })
     } catch (err) { setError(err?.code === 'open_failed' ? T.folder.other : T.folder.failed) } finally { setBusy(false) }
   }
-  const ok = Boolean(chosen && (chosen.state === 'empty' || chosen.state === 'library'))
-  const note = chosen ? (Object.hasOwn(T.folder, chosen.state) ? T.folder[chosen.state] : T.folder.other) : null
+  // importable: a folder of the user's own .md files, opened as a library on 「下一步」 (docs/desktop.md §4.3)
+  const ok = Boolean(chosen && (chosen.state === 'empty' || chosen.state === 'library' || chosen.state === 'importable'))
+  const note = chosen ? (Object.hasOwn(T.folder, chosen.state) ? fmt(T.folder[chosen.state], { n: chosen.mdCount ?? '' }) : T.folder.other) : null
   return html`<div class="fr-step">
     <h2 class="st-t-heading">${T.folder.heading}</h2>
     <p class="st-t-sub">${T.folder.lead}</p>
@@ -263,7 +265,7 @@ function problemWords(problems) {
 }
 
 /** Step 4: the estimate (estimateRound), 「开始」 (startRound), the round's progress, the counts when it is done. */
-function TrialStep({ onBack, onFinish, onState, connected }) {
+function TrialStep({ onBack, onNext, onState, connected }) {
   const est = useLoad(() => call('estimateRound'), [])
   useEffect(() => onState(est.status), [est.status])
   const [run, setRun] = useState(null)
@@ -312,9 +314,45 @@ function TrialStep({ onBack, onFinish, onState, connected }) {
       ${!run ? html`<${Act} name="back" disabled=${busy} onClick=${onBack}>${T.back}<//>` : null}
       <span class="fr-actions__spacer"></span>
       ${result
-        ? html`<${Act} name="go-today" onClick=${() => onFinish('today')}>${T.trial.goToday}<//>
-               <${Act} name="go-inbox" variant="primary" onClick=${() => onFinish('inbox')}>${T.trial.goInbox}<//>`
+        ? html`<${Act} name="next" variant="primary" onClick=${onNext}>${T.next}<//>`
         : html`<${Act} name="start" variant="primary" disabled=${busy || Boolean(run) || !d} onClick=${start}>${T.trial.start}<//>`}
+    </div>
+  </div>`
+}
+
+/** Step 5 (plan A1 「设好明天，关窗口」): the schedule as it is (getSchedule: every day at 08:30, on); 完成 = setSchedule with it. */
+function ScheduleStep({ onFinish, onState }) {
+  const sched = useLoad(() => call('getSchedule'), [])
+  useEffect(() => onState(sched.status), [sched.status])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const d = sched.data
+  const finish = async screen => {
+    setBusy(true)
+    setError(null)
+    try {
+      await call('setSchedule', { enabled: true, time: d.time })
+      onFinish(screen)
+    } catch { setError(T.schedule.failed) } finally { setBusy(false) }
+  }
+  return html`<div class="fr-step">
+    <h2 class="st-t-heading">${T.schedule.heading}</h2>
+    <p class="st-t-sub">${T.schedule.lead}</p>
+    ${d ? html`<section class="fr-card fr-card--selected fr-schedule" data-part="schedule" data-time=${d.time} aria-label=${T.schedule.card}>
+      <div class="fr-card__head"><span class="st-t-title">${T.schedule.card}</span></div>
+      <div class="st-t-strong" data-every>${fmt(T.schedule.every, { time: d.time })}</div>
+      <div class="st-t-small st-t-sub">${T.schedule.where}</div>
+    </section>
+    <ul class="fr-estimate" data-part="schedule-rules">
+      <li>${T.schedule.missed}</li>
+      <li>${T.schedule.close}</li>
+    </ul>
+    <p class="st-t-small st-t-muted fr-note">${T.schedule.later}</p>` : sched.status === 'error' ? html`<div class="fr-error">${ERRORS.failed}</div>` : null}
+    ${error ? html`<div class="fr-error" role="alert">${error}</div>` : null}
+    <div class="fr-actions">
+      <span class="fr-actions__spacer"></span>
+      <${Act} name="go-today" disabled=${busy || !d} onClick=${() => finish('today')}>${T.schedule.finishToday}<//>
+      <${Act} name="go-inbox" variant="primary" disabled=${busy || !d} onClick=${() => finish('inbox')}>${T.schedule.finishInbox}<//>
     </div>
   </div>`
 }
@@ -334,7 +372,8 @@ export function FirstRunScreen({ onDone }) {
         ${id === 'folder' ? html`<${FolderStep} onState=${setState} onNext=${folder => go({ folder }, 1)} />` : null}
         ${id === 'connection' ? html`<${ConnectionStep} onState=${setState} onNext=${kind => go({ connection: kind }, 2)} onSkip=${() => go({ connection: 'skipped' }, 2)} onBack=${() => go({}, 0)} />` : null}
         ${id === 'pack' ? html`<${PackStep} onState=${setState} onNext=${pack => go({ pack }, 3)} onBack=${() => go({}, 1)} />` : null}
-        ${id === 'trial' ? html`<${TrialStep} onState=${setState} connected=${Boolean(record.connection && record.connection !== 'skipped')} onBack=${() => go({}, 2)} onFinish=${finish} />` : null}
+        ${id === 'trial' ? html`<${TrialStep} onState=${setState} connected=${Boolean(record.connection && record.connection !== 'skipped')} onBack=${() => go({}, 2)} onNext=${() => go({ trial: 'done' }, 4)} />` : null}
+        ${id === 'schedule' ? html`<${ScheduleStep} onState=${setState} onFinish=${finish} />` : null}
       </div>
     <//>
   <//>`

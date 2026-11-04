@@ -6,13 +6,14 @@
 // they land; the last test runs the real ones and is skipped until core/src/library/browse.mjs exports them.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as realCore from '../src/main/core.mjs'
 import { createLibraryService } from '../src/main/services/library.mjs'
 import { createBrowseService, inside } from '../src/main/services/browse.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { testWorld } from './support/services.mjs'
-import { seedLibrary } from './support/seed.mjs'
+import { seedImportFolder, seedLibrary } from './support/seed.mjs'
 
 const W5 = ['libraryCounts', 'listLibrary', 'readNote', 'notePath', 'editNote', 'search'].every(n => typeof realCore[n] === 'function')
 const worlds = []
@@ -172,4 +173,70 @@ test('the real core W5: counts and lists, search, one note, an edit, the path', 
   assert.deepEqual(w.events.slice(n).map(e => e.topic), ['library-changed'])
   assert.throws(() => h.editNote(seed.kept.id, { source: 'https://x' }), err => err.code === 'bad_arguments')
   assert.equal(await h.openInObsidian(seed.kept.id), null)
+})
+
+// ---- 待规范 (docs/desktop.md §4.3, S8): applyHeader / applyAllHeaders on an imported folder, the real core ----
+
+/** An imported folder (seedImportFolder + the core's importFolder) opened as the library. */
+function importedWorld() {
+  const w = testWorld('st-browse-import-')
+  worlds.push(w)
+  const dir = join(w.root, 'vault')
+  const seeded = seedImportFolder(dir)
+  realCore.importFolder(dir, { name: 'vault' })
+  const library = createLibraryService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, dialog: w.dialog, shell: w.shell, locale: () => w.locale, devLibrary: dir })
+  return { w, dir, seeded, library, h: createBrowseService({ library, emit: w.emit, log: w.log, hidden: true, shell: w.shell }).handlers }
+}
+const bodyOf = (dir, file) => realCore.bodyHashOf(readFileSync(join(dir, file)))
+
+test('applyHeader: only a file the core lists as needing a header; written with the proposal or the page\'s changes, the body unchanged; library-changed', async () => {
+  const { w, dir, h } = importedWorld()
+  const pending = h.getLibrary('pending', null)
+  assert.deepEqual(pending.skippedDirs, ['旧笔记'], 'the sub folders not read come with the pending view')
+  const row = pending.items.find(i => i.file === '记忆方案选型.md')
+  assert.equal(row.bodyHash, bodyOf(dir, row.file))
+  // refused before the core is asked to write: a conforming file, a file not there, a path
+  const before = readFileSync(join(dir, '已经合规范.md'))
+  for (const file of ['已经合规范.md', 'nope.md', '旧笔记/2024.md', '../outside.md']) {
+    assert.throws(() => h.applyHeader(file, null), err => err.code === 'bad_arguments', file)
+  }
+  assert.ok(readFileSync(join(dir, '已经合规范.md')).equals(before))
+  // the core's refusals are bad_arguments, the file untouched
+  const badName = readFileSync(join(dir, '会议记录(草稿).md'))
+  assert.throws(() => h.applyHeader('会议记录(草稿).md', null), err => err.code === 'bad_arguments')
+  assert.throws(() => h.applyHeader('坏了的文件头.md', null), err => err.code === 'bad_arguments')
+  assert.throws(() => h.applyHeader('untitled.md', { topics: [] }), err => err.code === 'bad_arguments')
+  assert.ok(readFileSync(join(dir, '会议记录(草稿).md')).equals(badName))
+  assert.equal(w.eventsOf('library-changed').length, 0, 'nothing written, nothing sent')
+  // the proposal as it is
+  const r = h.applyHeader('记忆方案选型.md', null)
+  assert.equal(r.id, '记忆方案选型')
+  assert.equal(r.entry.status, 'authored')
+  assert.equal(bodyOf(dir, '记忆方案选型.md'), row.bodyHash, 'the body is byte for byte the old file')
+  assert.equal(w.eventsOf('library-changed').length, 1)
+  // the page's changes win
+  const r2 = h.applyHeader('2025-读书笔记.md', { title: '页面上改过的', topics: ['阅读', '笔记'] })
+  assert.equal(r2.entry.title, '页面上改过的')
+  assert.deepEqual(realCore.parseFrontmatter(readFileSync(join(dir, '2025-读书笔记.md'), 'utf8')).meta.topics, ['阅读', '笔记'])
+  assert.deepEqual(h.getLibrary('pending', null).items.map(i => i.file).sort(), ['untitled.md', '会议记录(草稿).md', '坏了的文件头.md'].sort())
+  // an imported note opens in Obsidian from the folder itself
+  assert.equal(await h.openInObsidian('记忆方案选型'), null)
+  assert.ok(w.lines.some(l => l === `not opened in a test run: obsidian ${join(dir, '记忆方案选型.md')}`), w.lines.join('\n'))
+})
+
+test('applyAllHeaders: every file with a proposal and a usable name is written; the others are skipped with the reason; bodies unchanged', () => {
+  const { w, dir, seeded, h } = importedWorld()
+  const hashes = Object.fromEntries(seeded.proposable.map(f => [f, bodyOf(dir, f)]))
+  const untouched = Object.fromEntries([...seeded.badName, ...seeded.notProposable, ...seeded.conforming].map(f => [f, readFileSync(join(dir, f))]))
+  const r = h.applyAllHeaders()
+  assert.deepEqual(r.written.slice().sort(), seeded.proposable.slice().sort())
+  assert.deepEqual(r.skipped.slice().sort((a, b) => (a.file < b.file ? -1 : 1)), [{ file: '会议记录(草稿).md', code: 'bad-file-name' }, { file: '坏了的文件头.md', code: 'not-proposable' }])
+  for (const [f, hash] of Object.entries(hashes)) assert.equal(bodyOf(dir, f), hash, f)
+  for (const [f, bytes] of Object.entries(untouched)) assert.ok(readFileSync(join(dir, f)).equals(bytes), f)
+  assert.deepEqual(realCore.readIndex(dir).map(e => e.id).sort(), ['2025-读书笔记', 'untitled', '已经合规范', '记忆方案选型'].sort())
+  assert.equal(w.eventsOf('library-changed').length, 1)
+  // again: nothing left to write, nothing sent
+  const again = h.applyAllHeaders()
+  assert.deepEqual(again.written, [])
+  assert.equal(w.eventsOf('library-changed').length, 1)
 })

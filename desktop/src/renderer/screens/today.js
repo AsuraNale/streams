@@ -8,12 +8,12 @@
 import { html, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
-import { dayText, fmt, whenText } from '../lib/format.js'
+import { dayText, fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { AppFrame, AppSidebar, LinkButton, Main, Notice, TopBar } from '../kit/index.js'
-import { CONNECTIONS, DAY, ERRORS, FETCH_STATES, NODE_NAMES, ROUND_PHASES, SEP, WHEN } from '../texts/common.js'
+import { CONNECTIONS, DAY, ERRORS, FETCH_STATES, NEXT_WHEN, NODE_NAMES, ROUND_PHASES, SEP, WHEN } from '../texts/common.js'
 import { TODAY as T } from '../texts/today.js'
 import { RunDialog } from './run-dialog.js'
 import { LoginLoop } from './settings.js'
@@ -190,7 +190,8 @@ export function TodayScreen() {
   const connLine = conn?.kind
     ? (conn.model ? fmt(T.connection, { name: CONNECTIONS.names[conn.kind] ?? conn.kind, model: conn.model }) : fmt(T.connectionDefault, { name: CONNECTIONS.names[conn.kind] ?? conn.kind }))
     : T.noConnection
-  const nextRun = data?.nextRun ? fmt(T.nextRun.at, { when: whenText(data.nextRun, WHEN) ?? data.nextRun }) : T.nextRun.none
+  // the next timed round (getHome().nextRun = getSchedule().nextRunAt): 「下次运行 明天 08:30」, or 「定时没开」
+  const nextRun = data?.nextRun ? fmt(T.nextRun.at, { when: nextText(data.nextRun, NEXT_WHEN) ?? data.nextRun }) : T.nextRun.none
   const state = data ? 'ready' : home.status
   return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="today" />`}>
     <${Main} screen="today" state=${state} labelledby="today-title">

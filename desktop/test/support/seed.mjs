@@ -277,3 +277,42 @@ export async function seedPlanB(world) {
   world.planB = { ...B, oldUrl, kept: [world.seed.kept.id, B.memgpt.id, B.evals.id], authored: [B.mine.id] }
   return world.planB
 }
+
+// ---- a folder of the user's own .md files, not a library yet (plan A3 / S8: 导入已有文件夹) ----
+//   const imp = seedImportFolder(dir)   → the files written, by what S8 should do with each
+// What it writes (nothing else; no streams.json): two files without a header (one with a "# heading", one without), one
+// whose header lacks source and date, one that conforms already, one whose name cannot be an id, one whose header cannot
+// be read, a sub folder with a .md (not read in v1.0), an .obsidian folder; every file's mtime is MTIME. Bodies use CRLF
+// and lack a final newline on purpose, so a writer that normalizes them is seen.
+import { mkdirSync, utimesSync } from 'node:fs'
+
+export const IMPORT_MTIME = new Date(2026, 9, 20, 9, 30, 0)
+export const IMPORT_FILES = Object.freeze({
+  '记忆方案选型.md': '# 记忆方案选型\r\n\r\n比较了 MemGPT、Letta 和自己写的三种做法。\r\n- 和 [[2025-读书笔记]] 有关\r\n最后一行没有换行',
+  '2025-读书笔记.md': '---\nid: 2025-读书笔记\ntitle: 2025 读书笔记\nstatus: authored\ntopics: [阅读]\n---\n今年读的书。\n\n',
+  'untitled.md': '随手记的一段话，没有标题。\n',
+  '已经合规范.md': '---\nid: 已经合规范\ntitle: 已经合规范的一条\nsource: file:已经合规范.md\ndate: 2026-09-01\nstatus: authored\ntopics: [阅读]\n---\n这一条本来就合规范。\n',
+  '会议记录(草稿).md': '# 会议记录\n草稿。\n',
+  '坏了的文件头.md': '---\nid: 坏了的文件头\ntitle\n---\n正文。\n',
+  '旧笔记/2024.md': '# 2024\n',
+  '.obsidian/app.json': '{}\n',
+})
+
+export function seedImportFolder(dir) {
+  for (const [rel, text] of Object.entries(IMPORT_FILES)) {
+    const path = join(dir, rel)
+    mkdirSync(join(path, '..'), { recursive: true })
+    writeFileSync(path, text, 'utf8')
+    utimesSync(path, IMPORT_MTIME, IMPORT_MTIME)
+  }
+  return {
+    dir,
+    files: Object.keys(IMPORT_FILES),
+    conforming: ['已经合规范.md'],
+    proposable: ['2025-读书笔记.md', 'untitled.md', '记忆方案选型.md'],
+    badName: ['会议记录(草稿).md'],
+    notProposable: ['坏了的文件头.md'],
+    skippedDirs: ['旧笔记'],
+    mdCount: 6,
+  }
+}

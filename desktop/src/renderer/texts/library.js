@@ -53,7 +53,7 @@ export const LIBRARY = Object.freeze({
 
   // 「待规范」: files in the folder that are not in the index yet (read-only today)
   pending: Object.freeze({
-    note: '这些文件已经在你的文件夹里，流息没有动它们。给它们加上文件头后才会进库；加文件头的功能还没做好，现在只列出来。',
+    note: '这些文件已经在你的文件夹里，流息没有动它们。给它们加上文件头后才会进库。正文一个字不改。',
     codes: Object.freeze({
       'no-frontmatter': '没有文件头',
       'bad-frontmatter': '文件头读不出来',
@@ -65,6 +65,26 @@ export const LIBRARY = Object.freeze({
     missing: '缺 {field}',
     badDate: '{field} 不是日期',
     other: '不合规范（{code}）',
+    // the S8 cards (screens/library.js TidyCards): one per file, the header proposed and editable, written only on a click
+    heading: '{n} 个文件缺文件头',
+    applyAll: '全部按拟的写入',
+    applyingAll: '正在写入……',
+    allWritten: '写入了 {n} 个文件。',
+    allLeft: '{n} 个没有写：{files}。',
+    headerLabel: '流息拟的文件头（可改）',
+    dateComment: '取文件修改时间',
+    apply: '写入这一个',
+    applying: '正在写入……',
+    skip: '跳过',
+    written: '已写入 {file}，它在「{view}」里了。',
+    skippedLine: '跳过了 {n} 个：这次不写，下次打开这一页还在这里。',
+    showSkipped: '显示跳过的',
+    badName: '文件名「{name}」不能当条目的 id：只能用字母、数字、汉字、空格和 - _ .，开头要是字母、数字或汉字。流息不改你的文件名，请你自己改个名字，再回到这一页。',
+    notProposable: '这个文件的文件头有别的问题（{problems}），流息拟不出来。请用 Obsidian 或记事本把文件头改好，再在设置里点「重建索引」。',
+    parseFailed: '第 {line} 行看不懂。照拟好的那几行的写法改：键、冒号、空格、值，主题放在方括号里、用逗号隔开。',
+    failed: '没能写入：这个文件头不合规范（标题、来源、日期、状态、主题都要有，日期写成 2026-10-20 这样）。文件没有动。',
+    failedOther: '没能写入，文件没有动。可以再试一次。',
+    subfolders: '子文件夹里的文件这一版不读：{dirs}。下一版会读。',
   }),
 
   reader: Object.freeze({

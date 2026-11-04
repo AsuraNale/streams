@@ -9,6 +9,7 @@ export const FIRST_RUN = Object.freeze({
     connection: '连接方式',
     pack: '主题与来源',
     trial: '试跑一轮',
+    schedule: '定时',
   }),
   // under a finished step in the wizard's sidebar
   stepDone: Object.freeze({
@@ -27,6 +28,7 @@ export const FIRST_RUN = Object.freeze({
     note: '流息会在这里放 Markdown 文件和索引。这个文件夹你随时可以用 Obsidian 或资源管理器打开。',
     empty: '空文件夹：会在这里新建库。',
     library: '这里已经有一个库：会直接打开它。',
+    importable: '这个文件夹里有 {n} 个 .md，流息会把它当库打开，不搬、不改你的文件。',
     other: '这个文件夹里有别的东西，换一个。',
     failed: '没能用这个文件夹。',
   }),
@@ -88,5 +90,20 @@ export const FIRST_RUN = Object.freeze({
     failed: '没能开始。',
     goInbox: '去待看',
     goToday: '去今日',
+  }),
+
+  // the last screen (plan A1 「设好明天，关窗口」; docs/desktop.md §4.3): the schedule, accepted as it is with 完成
+  schedule: Object.freeze({
+    heading: '设好明天',
+    lead: '最后一步：流息什么时候自己跑一轮。',
+    card: '定时',
+    every: '每天 {time}',
+    where: '软件在托盘时运行',
+    missed: '错过了（比如关了机）：下次打开时补跑一轮，不会堆积。',
+    close: '关窗口时，流息收进托盘，到点自己跑；托盘菜单里可以退出。',
+    later: '时刻和开关以后在设置的「运行」里改。',
+    finishInbox: '完成，去待看',
+    finishToday: '完成，去今日',
+    failed: '没能保存定时。',
   }),
 })

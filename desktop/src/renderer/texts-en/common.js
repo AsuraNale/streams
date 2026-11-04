@@ -32,6 +32,7 @@ export const SEP = ' · '
 // a moment with its time (lib/format.js whenText) and just the day (dayText); {mon} is the month's short name (Oct)
 export const WHEN = Object.freeze({ today: 'Today {hm}', yesterday: 'Yesterday {hm}', date: '{mon} {d} {hm}' })
 export const DAY = Object.freeze({ today: 'Today', yesterday: 'Yesterday', date: '{mon} {d}' })
+export const NEXT_WHEN = Object.freeze({ today: 'today {hm}', tomorrow: 'tomorrow {hm}', date: '{mon} {d} {hm}' })
 
 export const ERRORS = Object.freeze({
   retry: 'Retry',

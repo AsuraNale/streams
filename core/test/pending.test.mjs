@@ -25,7 +25,7 @@ test('no front matter: proposed header from "# heading", file name, mtime; nothi
   assert.deepEqual(list[0].codes, ['no-frontmatter']);
   assert.deepEqual(list[0].messages, ['line 1: first line is not "---"']);
   assert.deepEqual(list[0].proposedHeader, {
-    id: 'my-notes', title: '我的笔记', source: 'file:my-notes.md', date: localDate(MTIME.getTime()), status: 'authored', topics: [],
+    id: 'my-notes', title: '我的笔记', source: 'file:my-notes.md', date: localDate(MTIME.getTime()), status: 'authored', topics: ['未分类'],
   });
   assert.equal(list[1].proposedHeader.title, 'no-heading');
   assert.equal(list[1].proposedHeader.id, 'no-heading');

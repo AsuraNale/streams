@@ -5,8 +5,8 @@
 //   writeNoteCalls(files)       [{ file, line, by, fn }] for every call of writeNoteFile (fn = the enclosing function)
 //   sourceFiles(dir, exts)      [{ rel, text }] for every file under dir with one of the extensions (no node_modules)
 //
-// "Leads into notes/": the argument mentions the notes folder (NOTES_DIR, notesDir(…), notePath(…), a string literal
-// 'notes' or '…/notes/…'), or an identifier that was assigned from such an expression in the same file, or a parameter of
+// "Leads into notes/": the argument mentions the notes folder (NOTES_DIR, notesDir(…), notePath(…), a config's notesDir key
+// read as `.notesDir` or `['notesDir']`, a string literal 'notes' or '…/notes/…'), or an identifier that was assigned from such an expression in the same file, or a parameter of
 // a function in the same file that is called with such an argument (followed to a fixed point).
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
@@ -18,7 +18,7 @@ export const WRITE_CALLS = {
   symlinkSync: [1], symlink: [1], linkSync: [1], link: [1],
 }
 const WRITE_RE = new RegExp(`(?<![\\w$])(${Object.keys(WRITE_CALLS).join('|')})\\s*\\(`, 'g')
-const NOTES_REF = /\bNOTES_DIR\b|\bnotesDir\s*\(|\bnotePath\s*\(|(['"`])(?:[^'"`\n]*[\\/])?notes(?:[\\/][^'"`\n]*)?\1/
+const NOTES_REF = /\bNOTES_DIR\b|\bnotesDir\s*\(|\bnotePath\s*\(|\.notesDir\b|\[\s*['"`]notesDir['"`]\s*\]|(['"`])(?:[^'"`\n]*[\\/])?notes(?:[\\/][^'"`\n]*)?\1/
 
 export function sourceFiles(dir, exts, base = dir) {
   const out = []

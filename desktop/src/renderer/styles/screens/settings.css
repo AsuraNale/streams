@@ -87,6 +87,12 @@
 .settings__kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
 .settings__path { display: flex; align-items: baseline; gap: 2px; flex-wrap: wrap; min-width: 0; }
 .settings__recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+/* 运行 · 定时: the switch and the time on one line, the next run and the two rules under it (docs/desktop.md §4.3) */
+.settings__schedule { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.settings__schedule .settings__check { margin-right: 12px; }
+/* the name 定时 beside the first line (the switch), not the middle of the block */
+.settings__schedule-name { align-self: start; padding-top: 11px; }
+.settings__schedule [data-next-run] { font-weight: 700; }
 
 /* 「关于」: the version, 「检查更新」 and the update (screens/settings-update.js, docs/desktop.md §四) */
 .settings__about { display: flex; flex-direction: column; gap: 10px; }

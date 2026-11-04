@@ -64,6 +64,15 @@ test('getStatus: the core view plus the connections; getGraph: the filter and th
   assert.deepEqual(Object.keys(seen[2][1]), ['now'], 'null filter: the core defaults')
 })
 
+test('getStatus.nextRun (plan C8 「下次运行」): the schedule\'s next slot when it is on; null when it is off or there is none', async () => {
+  const { make } = shared
+  const at = '2026-11-05T13:30:00.000Z'
+  assert.equal((await make({ schedule: () => ({ enabled: true, time: '08:30', nextRunAt: at }) }).getStatus()).nextRun, at)
+  // reverse: off, or no schedule service at all, says nothing
+  assert.equal((await make({ schedule: () => ({ enabled: false, time: '08:30', nextRunAt: at }) }).getStatus()).nextRun, null)
+  assert.equal((await make().getStatus()).nextRun, null)
+})
+
 test('openLogsFolder: <library>/_pipeline/logs through openPath; its failure, or no folder, → open_failed; a test run only logs', async () => {
   const { w, dir, make } = shared
   const h = make()

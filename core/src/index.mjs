@@ -6,10 +6,10 @@ export { readConfig, topicNames, nodeIds, CONFIG_FILE } from './library/config.m
 export { extractWikiLinks, resolveLinks } from './library/links.mjs';
 export { rebuildIndex, readIndex, formatIndexLine, INDEX_FILE, INDEX_META_FILE, INDEX_KEYS } from './library/index.mjs';
 export { appendEvent, replayLedger, recordSeen, isSeen, LEDGER_FILE, LEDGER_EVENTS } from './library/ledger.mjs';
-export { listPending } from './library/pending.mjs';
+export { listPending, pendingView, applyProposedHeader, bodyHashOf } from './library/pending.mjs';
 export { writeNoteFile, WRITE_NOTE_BY } from './library/write-note.mjs';
-export { createLibrary, DEFAULT_NODE_IDS } from './library/create.mjs';
-export { scanLibrary, listNoteFiles, NOTES_DIR } from './library/scan.mjs';
+export { createLibrary, importFolder, countFirstLevelMd, DEFAULT_NODE_IDS } from './library/create.mjs';
+export { scanLibrary, listNoteFiles, notesDir, NOTES_DIR, IMPORTED_NOTES_DIR } from './library/scan.mjs';
 export { STARTER_PACKS, STARTER_PACK_IDS, BLANK_PACK_ID, starterPack, packView, listStarterPacks, applyStarterPack, applyStarterPackToLibrary } from './library/starter-packs.mjs';
 
 // W2 fetch layer and W3 connection layer (wired 2026-11-02 evening).

@@ -61,6 +61,27 @@
 .lib-reader__title { overflow-wrap: anywhere; }
 .lib-reader__meta { overflow-wrap: anywhere; padding-bottom: 8px; border-bottom: 1px solid var(--st-divider-soft); }
 
+/* 待规范 (S8): one card per file, the header text box, the buttons */
+.lib-tidy { display: flex; flex-direction: column; gap: 12px; max-width: 760px; }
+.lib-tidy__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lib-tidy__dirs { padding: 6px 10px; border: 1px solid var(--st-wait-border); border-radius: var(--st-radius-s); background: var(--st-wait-bg); color: var(--st-text); }
+.lib-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--st-border); border-radius: var(--st-radius); background: var(--st-surface); }
+.lib-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.lib-card__file { margin: 0; font-size: var(--st-fs-body); font-weight: 700; overflow-wrap: anywhere; }
+.lib-card__why { margin: 0; padding: 6px 10px; border-radius: var(--st-radius-s); background: var(--st-surface-2); color: var(--st-text-2); }
+.lib-card__header {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--st-control-border);
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface-2);
+  font-family: var(--st-font-mono);
+  font-size: var(--st-fs-small);
+  line-height: 1.6;
+  resize: vertical;
+}
+.lib-card__actions { display: flex; align-items: center; gap: 8px; }
+
 /* a note's Markdown */
 .md { display: flex; flex-direction: column; gap: 10px; line-height: 1.7; overflow-wrap: anywhere; }
 .md-h { margin: 6px 0 0; font-weight: 700; }

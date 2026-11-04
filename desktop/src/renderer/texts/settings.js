@@ -42,7 +42,16 @@ export const SETTINGS = Object.freeze({
   runHint: '定时、每轮上限、默认过关线',
   runFailed: '没能读出运行的设置。',
   schedule: '定时',
-  scheduleNone: '还没启用（托盘做好后）',
+  // the timed round (docs/desktop.md §4.3): the switch, the time of day, what happens when it is missed, the close button
+  scheduleOn: '每天定时跑一轮（软件在托盘时）',
+  scheduleTime: '时刻',
+  scheduleMissed: '错过了：下次打开补跑一轮，不会堆积',
+  scheduleClose: '关窗口时：收进托盘（定时开着时）；定时关着时，关窗口就退出流息',
+  scheduleNext: '下次运行 {when}',
+  scheduleOff: '定时没开',
+  scheduleSaved: '已保存。',
+  scheduleBad: '时刻要在 00:00 到 23:59 之间。',
+  scheduleFailed: '没能读出定时的设置。',
   cap: '每轮上限',
   capUnit: '次模型调用',
   capSave: '保存',
@@ -68,6 +77,8 @@ export const SETTINGS = Object.freeze({
   rebuildFailed: '没能重建索引。',
   folderOther: '这个文件夹里有别的东西，换一个。',
   folderNotEmptyForNew: '新建库要一个空文件夹。',
+  folderImportable: '这个文件夹里有 {n} 个 .md，流息会把它当库打开，不搬、不改你的文件。',
+  importFolder: '当库打开',
   openFailed: '没能打开这个文件夹。',
 
   // the language of the app's own words (docs/desktop.md §六)

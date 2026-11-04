@@ -23,13 +23,15 @@ import * as realCore from '../core.mjs'
  * @param {Record<string, unknown>} [o.core] - the core's exports (tests: a stand-in for what is not there yet)
  * @param {() => Date} [o.now]
  */
-export function createStatusService({ library, connections, log, hidden = false, shell, core = realCore, now = () => new Date() }) {
+export function createStatusService({ library, connections, log, hidden = false, shell, core = realCore, now = () => new Date(), schedule = () => null }) {
   const call = coreCaller(core)
 
   const handlers = {
     async getStatus() {
       const dir = library.require()
-      return { ...call('statusView', dir, { now }), connections: await connections.handlers.getConnections() }
+      // 下次运行 (plan C8): the schedule's next slot (services/schedule.mjs view), null while the schedule is off
+      const s = schedule()
+      return { ...call('statusView', dir, { now }), nextRun: s?.enabled ? s.nextRunAt ?? null : null, connections: await connections.handlers.getConnections() }
     },
     async openLogsFolder() {
       const dir = library.require()

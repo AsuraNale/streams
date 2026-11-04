@@ -34,10 +34,10 @@ const text = (page, sel) => page.evaluate(s => document.querySelector(s)?.textCo
 const step = page => page.evaluate(() => document.querySelector('main[data-screen="first-run"] .fr-body')?.dataset.step ?? null)
 const config = () => JSON.parse(readFileSync(join(chosenDir(), 'streams.json'), 'utf8'))
 
-test('no library open → the wizard, on its first step, with its own sidebar of four steps', async () => {
+test('no library open → the wizard, on its first step, with its own sidebar of five steps (the last one 定时)', async () => {
   assert.equal(await step(a.page), 'folder')
   const steps = await a.page.evaluate(() => [...document.querySelectorAll('.st-sidebar [data-step]')].map(e => [e.dataset.step, e.dataset.stepState]))
-  assert.deepEqual(steps, [['folder', 'current'], ['connection', 'todo'], ['pack', 'todo'], ['trial', 'todo']])
+  assert.deepEqual(steps, [['folder', 'current'], ['connection', 'todo'], ['pack', 'todo'], ['trial', 'todo'], ['schedule', 'todo']])
   assert.equal(await a.page.evaluate(() => document.querySelectorAll('[data-nav]').length), 0, 'not the usual entries')
   assert.equal(await a.page.evaluate(() => document.querySelector('[data-action="next"] button').disabled), true, 'nothing chosen yet: no next')
 })
@@ -108,7 +108,7 @@ test('step 3: a pack chosen, its sources removed, one RSS on this machine added;
   await until(a.page, () => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === 'trial')
 })
 
-test('step 4: the estimate, 开始, the progress to done with the counts; _pipeline/inbox/ holds files; 去今日 ends the wizard', async () => {
+test('step 4: the estimate, 开始, the progress to done with the counts; _pipeline/inbox/ holds files; 下一步 → 定时, 完成，去今日 ends the wizard', async () => {
   const rows = await a.page.evaluate(() => [...document.querySelectorAll('[data-part="estimate"] [data-row]')].map(e => e.dataset.row))
   assert.deepEqual(rows, ['fetch', 'items', 'calls', 'cap'])
   assert.equal(await a.page.evaluate(() => document.querySelector('[data-no-connection]')), null, 'a connection was chosen: no 「没有连接」 line')
@@ -119,6 +119,9 @@ test('step 4: the estimate, 开始, the progress to done with the counts; _pipel
   assert.ok(counts.fetched && counts.inbox, JSON.stringify(counts))
   const inboxFiles = readdirSync(join(chosenDir(), '_pipeline', 'inbox'))
   assert.ok(inboxFiles.length > 0, 'the round wrote inbox files')
+  // the last screen, 定时 (test/ui-schedule.test.mjs checks it): 完成，去今日
+  await click(a.page, '[data-action="next"]')
+  await until(a.page, () => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === 'schedule')
   await click(a.page, '[data-action="go-today"]')
   await ready(a.page, 'today')
   assert.equal(await text(a.page, '.st-sidebar__library-name'), basename(chosenDir()))

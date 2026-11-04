@@ -61,12 +61,18 @@ const METHODS = [
   'laterItem',
   'openItemUrl',
   'getPipelineSettings',
+  // the timed round
+  'getSchedule',
+  'setSchedule',
   // interface B: the library and reading
   'getLibrary',
   'searchLibrary',
   'readNote',
   'editNote',
   'openInObsidian',
+  // 待规范 (S8): writing headers onto the files of an imported folder
+  'applyHeader',
+  'applyAllHeaders',
   // interface B: the sources and the topics
   'getSources',
   'guessSource',

@@ -1,10 +1,13 @@
-// streams.json: library configuration. Today the core only reads `topics[].name`
-// and `pipeline.nodes[].id`; everything else is passed through untouched.
+// streams.json: library configuration. Today the core only reads `topics[].name`,
+// `pipeline.nodes[].id` and `notesDir`; everything else is passed through untouched.
+//   notesDir (optional): the note folder, relative to the library folder; default "notes", "." = the library folder
+//   itself (an imported folder, core-api 5.9). An absolute path, a drive, a ".." step or a path outside the library
+//   folder is invalid-shape.
 //
 // readConfig(libraryDir) -> { ok, config, error?: { code, message } }
 //   error.code: 'missing' | 'invalid-json' | 'invalid-shape'
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, posix, win32 } from 'node:path';
 import { isPlainObject } from './frontmatter.mjs';
 
 export const CONFIG_FILE = 'streams.json';
@@ -34,8 +37,22 @@ export function readConfig(libraryDir) {
   return { ok: true, config };
 }
 
+// null when `v` is a usable notesDir, else what is wrong with it
+export function notesDirProblem(v) {
+  if (typeof v !== 'string' || v.trim() === '') return '"notesDir" must be a non-empty relative path';
+  if (posix.isAbsolute(v) || win32.isAbsolute(v) || v.includes(':')) return `"notesDir" must be relative to the library folder, got ${JSON.stringify(v)}`;
+  if (/[\0\r\n]/.test(v)) return `"notesDir" must be one line, got ${JSON.stringify(v)}`;
+  const steps = v.split(/[\\/]/);
+  if (steps.includes('..')) return `"notesDir" must stay inside the library folder (no ".."), got ${JSON.stringify(v)}`;
+  return null;
+}
+
 function checkShape(config) {
   if (!isPlainObject(config)) return 'top level must be a JSON object';
+  if (config.notesDir !== undefined) {
+    const p = notesDirProblem(config.notesDir);
+    if (p) return p;
+  }
   if (config.topics !== undefined) {
     if (!Array.isArray(config.topics)) return '"topics" must be an array';
     for (const [i, t] of config.topics.entries()) {

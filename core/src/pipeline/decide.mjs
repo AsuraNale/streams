@@ -20,7 +20,7 @@ import { pipelineFrom } from './config.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 
 export const SLUG_MAX = 60;
-const FALLBACK_TOPIC = { 'zh-CN': '未分类', en: 'uncategorized' };
+export const FALLBACK_TOPIC = { 'zh-CN': '未分类', en: 'uncategorized' };
 const WHAT_LABEL = { 'zh-CN': '**这是什么：**', en: '**What it is:** ' };
 
 export function slugOf(title, url) {

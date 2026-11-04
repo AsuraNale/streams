@@ -10,6 +10,9 @@
 //       library | edit | sources | pipeline | status | ask | graph   plan B's screens on the seeded world plus its extras
 //                   (test/support/seed.mjs seedPlanB): library = 资料库 with the MemGPT note open; edit = its 编辑 dialog;
 //                   ask = after one question
+//       settings-run        设置 on the seeded world, the schedule on (setSchedule from the page), scrolled to 「运行」 (A2, 11-04)
+//       first-run-schedule  首次设置 walked to its last screen 「定时」: the folder, the connection skipped, the blank pack, the round
+//       import      资料库 · 待规范 (S8) on a folder of .md files imported as a library: one card per file (11-04)
 //   --lang en      the app in English            --out <file.png>   where the picture goes
 // The app runs on a world under the OS temp folder, removed after; the process tree is ended (scripts/lib/close-app.mjs).
 import { mkdirSync } from 'node:fs'
@@ -21,6 +24,8 @@ import { tempDir } from './lib/temp.mjs'
 import { makeWorld } from './lib/world.mjs'
 import { launch, ready } from '../test/support/app.mjs'
 import { seedPlanB } from '../test/support/seed.mjs'
+import { seedImportFolder } from '../test/support/seed.mjs'
+import { pathToFileURL } from 'node:url'
 
 const args = process.argv.slice(2)
 const value = name => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined)
@@ -46,6 +51,12 @@ const PLAN = {
   status: { start: 'status', connection: 'fake', planB: true },
   ask: { start: 'ask', connection: 'fake', planB: true },
   graph: { start: 'graph', connection: 'fake', planB: true },
+  // the timed round (A2, 11-04)
+  'settings-run': { start: 'settings', connection: 'fake' },
+  'first-run-schedule': { start: null, connection: 'fake', chooseFolder: true, noLibrary: true },
+  // 资料库 · 待规范 (S8, 11-04) on a folder of .md files imported as a library (test/support/seed.mjs seedImportFolder + the
+  // core's importFolder), any world kind; the window opens on that folder instead of the world's library
+  import: { start: 'library', connection: 'fake', importFolder: true },
 }
 const plan = PLAN[screen] ?? { start: screen, connection: kind === 'seeded' ? 'fake' : null }
 
@@ -54,6 +65,12 @@ let app = null
 try {
   const world = await makeWorld({ root, kind })
   if (plan.planB && kind === 'seeded') await seedPlanB(world)
+  const imported = plan.importFolder ? join(root, 'vault') : null
+  if (imported) {
+    seedImportFolder(imported)
+    const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
+    core.importFolder(imported, { name: 'vault' })
+  }
   const env = {
     STREAMS_WINDOW: 'shown', // a hidden window draws no frames: nothing to take a picture of
     ...(plan.start ? { STREAMS_START_SCREEN: plan.start } : {}),
@@ -61,6 +78,7 @@ try {
     ...(plan.noLibrary ? { STREAMS_DEV_LIBRARY: '' } : {}),
     ...(plan.connection ? { STREAMS_DEV_CONNECTION: plan.connection } : {}),
     ...(plan.chooseFolder ? { STREAMS_DEV_CHOOSE_FOLDER: world.library } : {}),
+    ...(imported ? { STREAMS_DEV_LIBRARY: imported } : {}),
     ...(lang ? { STREAMS_DEV_SYSTEM_LANGUAGES: lang === 'en' ? 'en-US' : lang === 'zh' ? 'zh-CN' : lang } : {}),
   }
   // the seeded world has no connection chosen; the shots show the fake one chosen, as a user would in 设置
@@ -94,11 +112,41 @@ try {
       await page.click('[data-action="edit"] button')
       await page.waitForFunction(() => document.querySelector('[data-dialog="edit"]') !== null, null, POLL)
     }
+  } else if (screen === 'import') {
+    await ready(page, 'library')
+    await page.click('[data-view="pending"]')
+    await page.waitForFunction(() => document.querySelector('[data-part="tidy"] [data-card] textarea') !== null, null, POLL)
   } else if (screen === 'ask') {
     await ready(page, 'ask')
     await page.fill('textarea[data-field="question"]', world.planB?.demandQuestion ?? 'agent')
     await page.click('[data-action="send"] button')
     await page.waitForFunction(() => document.querySelector('[data-turn="0"]')?.dataset.state === 'done', null, POLL)
+  } else if (screen === 'settings-run') {
+    await ready(page, 'settings')
+    await page.evaluate(() => window.streams.setSchedule({ enabled: true, time: '08:30' }))
+    // the part reads the schedule when it is drawn: the page again, on the same screen
+    await page.reload()
+    await ready(page, 'settings')
+    await page.waitForFunction(() => document.querySelector('[data-part="run"] [data-schedule="on"]') !== null, null, POLL)
+    await page.evaluate(() => document.querySelector('[data-part="run"]').scrollIntoView({ block: 'start' }))
+  } else if (screen === 'first-run-schedule') {
+    const step = id => page.waitForFunction(i => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === i, id, POLL)
+    await ready(page, 'first-run')
+    await page.click('[data-action="choose-folder"] button')
+    await page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
+    await page.click('[data-action="next"] button')
+    await step('connection')
+    await page.click('[data-action="skip"] button')
+    await step('pack')
+    await page.click('[data-pack="blank"]')
+    await page.click('[data-action="apply"] button')
+    await page.waitForFunction(() => document.querySelector('[data-part="tried"]') !== null, null, POLL)
+    await page.click('[data-action="continue"] button')
+    await step('trial')
+    await page.click('[data-action="start"] button')
+    await page.waitForFunction(() => document.querySelector('[data-part="round-progress"]')?.dataset.done === 'true', null, POLL)
+    await page.click('[data-action="next"] button')
+    await step('schedule')
   } else {
     await ready(page, plan.start)
   }

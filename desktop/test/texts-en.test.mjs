@@ -22,7 +22,7 @@ const PAIRS = [
 // the only Chinese an English table shows: the name of the Chinese language in the chooser
 const GLYPHS = ['settings.js:SETTINGS.languages.zh-CN']
 // placeholders that differ by design (dates by Intl)
-const PLACEHOLDERS_DIFFER = ['common.js:WHEN.date', 'common.js:DAY.date']
+const PLACEHOLDERS_DIFFER = ['common.js:WHEN.date', 'common.js:DAY.date', 'common.js:NEXT_WHEN.date']
 // strings that are empty on purpose (the English brand has no tagline: the name is the wordmark)
 const BLANK_OK = ['common.js:BRAND.tagline']
 

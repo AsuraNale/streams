@@ -50,8 +50,12 @@ export function withFirstProbe(connector, result) {
  * @param {() => {resolved: string}} o.locale - the language the starter packs are named in
  * @param {() => Date} [o.now]
  * @param {object} [o.fetchContext] - overrides for the core's fetch context (tests: fetchImpl, timeoutMs)
+ * @param {() => {enabled: boolean, time: string, nextRunAt: string|null}|null} [o.schedule] - the schedule as getSchedule gives it
+ *   (services/schedule.mjs): getHome's nextRun, getPipelineSettings' schedule; none given: null
+ * @param {(done: {roundId: string, result: object|null}) => void} [o.onRoundDone] - after every round that ran in the
+ *   background, once it ended (services/schedule.mjs: the notification)
  */
-export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {} }) {
+export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {}, schedule = () => null, onRoundDone = () => {} }) {
   // the round in the background, if one runs; what the last one gave; the problems the last self-check found
   let running = null
   let last = null
@@ -104,6 +108,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       progress({ ...base, phase: 'done', counts: null, calls: 0, done: true, result: null, problems })
     }
     emit('inbox-changed', { count: inboxCount(dir) })
+    try { onRoundDone({ roundId, result: last?.roundId === roundId ? last.result : null }) } catch (err) { log(`pipeline: after round ${roundId}: ${String(err?.stack ?? err)}`) }
   }
 
   const handlers = {
@@ -121,7 +126,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
         roundState: roundState(),
         recentKept: kept.slice(0, 3).map(e => ({ id: e.id, title: e.title, source_name: e.source_name ?? null, date: e.date, kept: e.kept ?? null })),
         connection: connectionView(),
-        nextRun: null,
+        nextRun: schedule()?.nextRunAt ?? null,
         problem: p ? { code: p.code, connectionCode: p.connectionCode ?? null, kind: a?.kind ?? null, caughtKept: numbers.caught } : null,
       }
     },
@@ -209,7 +214,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       const cfg = pipelineConfig(dir)
       const gates = gateNodes(cfg)
       const threshold = (id, i) => (gates.find(g => g.id === id) ?? gates[i])?.threshold ?? null
-      return { cap: cfg.cap, thresholds: { relevance: threshold('relevance', 0), substance: threshold('substance', 1) }, schedule: null }
+      return { cap: cfg.cap, thresholds: { relevance: threshold('relevance', 0), substance: threshold('substance', 1) }, schedule: schedule() }
     },
     async applyStarterPack(packId, edits) {
       const dir = library.require()

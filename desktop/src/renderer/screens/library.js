@@ -3,13 +3,19 @@
 // a [[link]] that names a note in the library opens it) · the right panel (this note: topics, source, the scores with
 // their reasons, freshness, the file; the notes that link here; the notes from the same source). The top bar: 「编辑」
 // (screens/edit-dialog.js), 「用 Obsidian 打开」, 「打开原文」. 「抓到的」 lists what the core's ledger holds short of kept or
-// let go, with each step's score and the step it stopped at; 「待规范」 lists the files and their problems, read only.
-// Data only through the bridge (getLibrary, searchLibrary, readNote, getSources for the topics, openInObsidian, openItemUrl);
-// read again on `library-changed`. The page counts nothing: the tab counts are getLibrary().counts.
+// let go, with each step's score and the step it stopped at; 「待规范」 (mockup S8, docs/desktop.md §4.3) lists the files
+// and their problems on the left and, in the reader, one card per file: the problem, the header the core proposes in a
+// text box the user may change (lib/header-text.js), 「写入这一个」「跳过」, and 「全部按拟的写入」 on top. A file whose
+// name cannot be an id, or for which no header can be proposed, says what to do instead and has no write button; the
+// sub folders that are not read are named. 「跳过」 writes nothing and only hides the card until the page is opened again.
+// Data only through the bridge (getLibrary, searchLibrary, readNote, getSources for the topics, openInObsidian, openItemUrl,
+// applyHeader, applyAllHeaders); read again on `library-changed`. The page counts nothing: the tab counts are getLibrary().counts.
 // Test hooks: main[data-screen="library"][data-state], [data-view=<id>][data-count][aria-current], [data-filter-topic=<name>],
 // [data-filter-days], input[data-field="search"], [data-part=list|reader|note-panel|backlinks|same-source],
 // [data-row=<id | url | file>][data-current], [data-reader=<id>], [data-panel-row=<key>],
-// [data-action=edit|obsidian|source|verdicts|caught-verdicts], [data-stopped=<step>], [data-score=<node>].
+// [data-action=edit|obsidian|source|verdicts|caught-verdicts], [data-stopped=<step>], [data-score=<node>];
+// 待规范: [data-part=tidy|skipped-dirs|apply-all-result|written|skipped-line], [data-card=<file>][data-name-ok][data-proposable]
+// with textarea[data-field="header"], [data-card-error], [data-card-why], [data-action=apply|skip|apply-all|show-skipped].
 import { html, useEffect, useMemo, useState } from '../lib/html.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
@@ -17,6 +23,7 @@ import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { renderMarkdown } from '../lib/markdown.js'
+import { headerText, parseHeaderText } from '../lib/header-text.js'
 import { AppFrame, AppSidebar, LinkButton, Main, Panel, Tag, TopBar } from '../kit/index.js'
 import { ERRORS, NODE_NAMES, NOTE_STATUS, SEP } from '../texts/common.js'
 import { LIBRARY as T } from '../texts/library.js'
@@ -111,6 +118,95 @@ function PendingRow({ item }) {
     <span class="lib-row__title">${item.file}</span>
     <span class="lib-row__meta st-t-small st-t-wait">${codes.map(pendingWords).join(SEP)}</span>
   </li>`
+}
+
+/** The text box's first text for a file: its proposed header, the date marked when it was taken from the file's mtime. */
+function proposedText(item) {
+  const codes = Array.isArray(item.codes) ? item.codes : []
+  const dated = codes.includes('no-frontmatter') || codes.includes('missing:date')
+  return headerText(item.proposedHeader, { comments: dated ? { date: T.pending.dateComment } : {} })
+}
+
+function TidyCard({ item, busy, onApply, onSkip }) {
+  const initial = useMemo(() => (item.proposedHeader ? proposedText(item) : ''), [item.file, item.bodyHash, JSON.stringify(item.proposedHeader ?? null)])
+  const [text, setText] = useState(initial)
+  const [error, setError] = useState(null)
+  const [writing, setWriting] = useState(false)
+  useEffect(() => { setText(initial); setError(null) }, [initial])
+  const codes = Array.isArray(item.codes) ? item.codes : []
+  const id = `tidy-${item.file.replace(/[^A-Za-z0-9_-]/g, c => c.charCodeAt(0).toString(16))}`
+  const proposable = Boolean(item.proposedHeader) && item.nameOk !== false
+  const write = async () => {
+    setError(null)
+    let header = null
+    if (text !== initial) {
+      const r = parseHeaderText(text)
+      if (!r.ok) { setError(fmt(T.pending.parseFailed, { line: r.line })); return }
+      header = r.header
+    }
+    setWriting(true)
+    try { await onApply(item.file, header) } catch (err) { setError(err?.code === 'bad_arguments' ? T.pending.failed : T.pending.failedOther) } finally { setWriting(false) }
+  }
+  let why = null
+  if (item.nameOk === false) why = fmt(T.pending.badName, { name: item.file.replace(/\.md$/i, '') })
+  else if (!item.proposedHeader) why = fmt(T.pending.notProposable, { problems: codes.map(pendingWords).join(SEP) })
+  return html`<article class="lib-card" data-card=${item.file} data-name-ok=${String(item.nameOk !== false)} data-proposable=${String(proposable)} aria-labelledby=${`${id}-file`}>
+    <div class="lib-card__head">
+      <h3 class="lib-card__file" id=${`${id}-file`}>${item.file}</h3>
+      <span class="st-t-small st-t-wait">${codes.map(pendingWords).join(SEP)}</span>
+    </div>
+    ${why ? html`<p class="lib-card__why st-t-small" data-card-why>${why}</p>` : html`
+      <label class="st-t-small st-t-sub" for=${`${id}-header`}>${T.pending.headerLabel}</label>
+      <textarea id=${`${id}-header`} class="lib-card__header" data-field="header" rows=${Math.max(4, text.split('\n').length + 1)} spellcheck=${false}
+        value=${text} onInput=${e => setText(e.currentTarget.value)}></textarea>`}
+    ${error ? html`<p class="lib-error st-t-small" role="alert" data-card-error>${error}</p>` : null}
+    <div class="lib-card__actions">
+      ${proposable ? html`<${Act} name="apply" variant="primary" disabled=${busy || writing} onClick=${write}>${writing ? T.pending.applying : T.pending.apply}<//>` : null}
+      <${Act} name="skip" disabled=${writing} onClick=${() => onSkip(item.file)}>${T.pending.skip}<//>
+    </div>
+  </article>`
+}
+
+/** 待规范 (S8): the cards, 「全部按拟的写入」, what was written, what was skipped, the sub folders not read. */
+function TidyCards({ items, skippedDirs }) {
+  const [skipped, setSkipped] = useState([])
+  const [showSkipped, setShowSkipped] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(null)
+  const [allResult, setAllResult] = useState(null)
+  const [allError, setAllError] = useState(null)
+  const shown = items.filter(it => showSkipped || !skipped.includes(it.file))
+  const skippedHere = items.filter(it => skipped.includes(it.file)).length
+  const proposable = items.filter(it => it.proposedHeader && it.nameOk !== false)
+  const apply = async (file, header) => {
+    setDone(null)
+    const r = await call('applyHeader', file, header)
+    setDone({ file: r.file, view: r.entry?.status === 'kept' ? T.views.kept : T.views.authored })
+  }
+  const applyAll = async () => {
+    setBusy(true)
+    setDone(null)
+    setAllResult(null)
+    setAllError(null)
+    try { setAllResult(await call('applyAllHeaders')) } catch { setAllError(T.pending.failedOther) } finally { setBusy(false) }
+  }
+  return html`<section class="lib-tidy" data-part="tidy" aria-labelledby="lib-tidy-title">
+    <div class="lib-tidy__head">
+      <h2 class="st-t-heading" id="lib-tidy-title">${items.length ? fmt(T.pending.heading, { n: items.length }) : T.empty.pending}</h2>
+      ${items.length ? html`<${Act} name="apply-all" disabled=${busy || proposable.length === 0} onClick=${applyAll}>${busy ? T.pending.applyingAll : T.pending.applyAll}<//>` : null}
+    </div>
+    <p class="st-t-small st-t-sub">${T.pending.note}</p>
+    ${skippedDirs.length ? html`<p class="lib-tidy__dirs st-t-small" data-part="skipped-dirs" data-dirs=${skippedDirs.join('\n')}>${fmt(T.pending.subfolders, { dirs: skippedDirs.join(SEP) })}</p>` : null}
+    ${done ? html`<p class="st-t-small st-t-done" role="status" data-part="written" data-file=${done.file}>${fmt(T.pending.written, { file: done.file, view: done.view })}</p>` : null}
+    ${allResult ? html`<p class="st-t-small" role="status" data-part="apply-all-result" data-written=${allResult.written.length} data-left=${allResult.skipped.length}>
+      <span class="st-t-done">${fmt(T.pending.allWritten, { n: allResult.written.length })}</span>
+      ${allResult.skipped.length ? html` <span class="st-t-wait">${fmt(T.pending.allLeft, { n: allResult.skipped.length, files: allResult.skipped.map(x => x.file).join(SEP) })}</span>` : null}
+    </p>` : null}
+    ${allError ? html`<p class="lib-error st-t-small" role="alert">${allError}</p>` : null}
+    ${shown.map(it => html`<${TidyCard} key=${it.file} item=${it} busy=${busy} onApply=${apply} onSkip=${f => setSkipped(list => (list.includes(f) ? list : [...list, f]))} />`)}
+    ${skippedHere && !showSkipped ? html`<p class="st-t-small st-t-sub" data-part="skipped-line" data-count=${skippedHere}>${fmt(T.pending.skippedLine, { n: skippedHere })}
+      <${LinkButton} onClick=${() => setShowSkipped(true)}>${T.pending.showSkipped}<//></p>` : null}
+  </section>`
 }
 
 function Reader({ note, resolve, onWiki }) {
@@ -261,7 +357,7 @@ export function LibraryScreen({ params = {} }) {
   } else if (view === 'caught') {
     list = html`<ul class="lib-list__rows">${items.map(it => html`<${CaughtRow} key=${it.url} item=${it} current=${it.url === caughtUrl} onSelect=${url => { setCaughtUrl(url); setActionError(null) }} />`)}</ul>`
   } else if (view === 'pending') {
-    list = html`<p class="lib-list__note st-t-small st-t-sub">${T.pending.note}</p><ul class="lib-list__rows">${items.map(it => html`<${PendingRow} key=${it.file} item=${it} />`)}</ul>`
+    list = html`<ul class="lib-list__rows">${items.map(it => html`<${PendingRow} key=${it.file} item=${it} />`)}</ul>`
   } else {
     list = html`<ul class="lib-list__rows">${items.map(it => html`<${NoteRow} key=${it.id} item=${it} current=${it.id === selected} onSelect=${choose} />`)}</ul>`
   }
@@ -269,7 +365,9 @@ export function LibraryScreen({ params = {} }) {
   let reader
   if (caughtItem) reader = html`<${CaughtReader} item=${caughtItem} onVerdicts=${() => setVerdictsFor({ url: caughtItem.url, title: caughtItem.title })} />`
   else if (mode === 'caught') reader = html`<p class="st-t-small st-t-muted">${T.reader.none}</p>`
-  else if (mode === 'pending') reader = html`<p class="st-t-small st-t-muted">${T.pending.note}</p>`
+  // lib.data must be the pending view's own answer, not the list of the tab before (still shown while this one loads)
+  else if (mode === 'pending') reader = lib.data?.view === 'pending' && (items.length || lib.data.skippedDirs?.length) ? html`<${TidyCards} items=${items} skippedDirs=${Array.isArray(lib.data.skippedDirs) ? lib.data.skippedDirs : []} />`
+    : html`<p class="st-t-small st-t-muted">${T.pending.note}</p>`
   else if (n) reader = html`<${Reader} note=${n} resolve=${resolve} onWiki=${choose} />`
   else if (note.status === 'error') reader = html`<p class="lib-error" role="alert">${T.reader.loadFailed}</p>`
   else reader = html`<p class="st-t-small st-t-muted">${T.reader.none}</p>`

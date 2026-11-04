@@ -48,7 +48,7 @@ export const LIBRARY = Object.freeze({
   }),
 
   pending: Object.freeze({
-    note: 'These files are in your folder already and Streams has not touched them. They join the library once they have a header; adding headers is not ready yet, so for now they are only listed.',
+    note: 'These files are in your folder already and Streams has not touched them. They join the library once they have a header. Not a word of the text is changed.',
     codes: Object.freeze({
       'no-frontmatter': 'no header',
       'bad-frontmatter': 'the header cannot be read',
@@ -60,6 +60,26 @@ export const LIBRARY = Object.freeze({
     missing: 'no {field}',
     badDate: '{field} is not a date',
     other: 'not in order ({code})',
+    // the S8 cards (screens/library.js TidyCards): one per file, the header proposed and editable, written only on a click
+    heading: '{n} files have no header',
+    applyAll: 'Write all as proposed',
+    applyingAll: 'Writing…',
+    allWritten: '{n} files written.',
+    allLeft: '{n} not written: {files}.',
+    headerLabel: 'The header Streams proposes (you can change it)',
+    dateComment: 'the file\'s modified date',
+    apply: 'Write this one',
+    applying: 'Writing…',
+    skip: 'Skip',
+    written: '{file} written. It is under "{view}" now.',
+    skippedLine: '{n} skipped: not written this time, still here the next time this page opens.',
+    showSkipped: 'Show the skipped ones',
+    badName: 'The file name "{name}" cannot be an item id: only letters, digits, Chinese characters, spaces and - _ ., starting with a letter, a digit or a Chinese character. Streams does not rename your files: rename it yourself, then come back to this page.',
+    notProposable: 'This file\'s header has other problems ({problems}), so Streams cannot propose one. Fix the header in Obsidian or a text editor, then press "Rebuild the index" in Settings.',
+    parseFailed: 'Line {line} cannot be read. Write it like the proposed lines: a key, a colon, a space, the value; the topics in square brackets, separated by commas.',
+    failed: 'Not written: this header is not in order (it needs a title, a source, a date, a status and topics; dates look like 2026-10-20). The file was not touched.',
+    failedOther: 'Not written; the file was not touched. You can try again.',
+    subfolders: 'Files in sub folders are not read in this version: {dirs}. The next version reads them.',
   }),
 
   reader: Object.freeze({

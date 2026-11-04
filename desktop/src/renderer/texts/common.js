@@ -37,6 +37,8 @@ export const SEP = ' · '
 // a moment with its time (lib/format.js whenText) and just the day (dayText)
 export const WHEN = Object.freeze({ today: '今天 {hm}', yesterday: '昨天 {hm}', date: '{m}-{d} {hm}' })
 export const DAY = Object.freeze({ today: '今天', yesterday: '昨天', date: '{m}-{d}' })
+// a moment still ahead (lib/format.js nextText): the next timed round
+export const NEXT_WHEN = Object.freeze({ today: '今天 {hm}', tomorrow: '明天 {hm}', date: '{m}-{d} {hm}' })
 
 // what the page says when a bridge call fails (codes: src/main/bridge-methods.mjs ERROR_CODES)
 export const ERRORS = Object.freeze({

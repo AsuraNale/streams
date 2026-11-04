@@ -9,6 +9,8 @@
  *                       verify null = same as the main model); `api` also has `vendor` (core VENDOR_IDS) and `baseUrl`
  *                       (only `custom` uses it, else null). The key itself is never here: secrets.mjs (safeStorage).
  *   showDeveloperInfo   the advanced switch of the settings page (default off)
+ *   schedule            the timed round (A2; docs/core-api.md 5.10): { enabled, time: 'HH:MM' }, default
+ *                       { enabled: true, time: '08:30' }; each of the two fields checked on its own
  * Read whole and checked field by field (a field that is not what it should be is its default; inside `connections`
  * each field on its own); written whole, through a temporary file and a rename, so a crash never leaves half a file.
  * @module desktop/main/settings
@@ -17,7 +19,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { DEFAULT_LANGUAGE, LANGUAGE_SETTINGS } from './locale.mjs'
-import { VENDOR_IDS } from './core.mjs'
+import { DEFAULT_SCHEDULE, VENDOR_IDS, isScheduleTime } from './core.mjs'
 
 export const SETTINGS_SCHEMA = 'streams.settings/1'
 export const CONNECTION_KINDS = Object.freeze(['claude-code', 'codex', 'api'])
@@ -70,6 +72,18 @@ export function normalizeConnections(raw) {
   return out
 }
 
+/** The schedule, each field checked on its own: a bad field is its default ({ enabled: true, time: '08:30' }). */
+export function normalizeSchedule(raw) {
+  const enabled = own(raw, 'enabled')
+  const time = own(raw, 'time')
+  return { enabled: typeof enabled === 'boolean' ? enabled : DEFAULT_SCHEDULE.enabled, time: isScheduleTime(time) ? time : DEFAULT_SCHEDULE.time }
+}
+
+/** Is `raw` exactly { enabled: boolean, time: 'HH:MM' } and nothing else? */
+export function isSchedule(raw) {
+  return isObject(raw) && Object.keys(raw).every(k => k === 'enabled' || k === 'time') && typeof raw.enabled === 'boolean' && isScheduleTime(raw.time)
+}
+
 /** The recent list: absolute paths only, no repeats (letter case does not count on Windows), at most RECENT_MAX. */
 export function normalizeRecent(raw) {
   if (!Array.isArray(raw)) return []
@@ -103,6 +117,7 @@ export function readSettings(file) {
     recentLibraries: normalizeRecent(own(data, 'recentLibraries')),
     connections: normalizeConnections(own(data, 'connections')),
     showDeveloperInfo: own(data, 'showDeveloperInfo') === true,
+    schedule: normalizeSchedule(own(data, 'schedule')),
   }
 }
 
@@ -124,7 +139,7 @@ function checkConnections(raw) {
 /**
  * Change some settings and write them all.
  * @param {string} file
- * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean}} patch
+ * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}}} patch
  * @returns {object} the settings now
  */
 export function writeSettings(file, patch) {
@@ -147,6 +162,10 @@ export function writeSettings(file, patch) {
     next.connections = normalizeConnections(patch.connections)
   }
   if (Object.hasOwn(patch, 'showDeveloperInfo')) next.showDeveloperInfo = patch.showDeveloperInfo === true
+  if (Object.hasOwn(patch, 'schedule')) {
+    if (!isSchedule(patch.schedule)) throw new TypeError("schedule must be { enabled: boolean, time: 'HH:MM' } (00:00–23:59)")
+    next.schedule = { enabled: patch.schedule.enabled, time: patch.schedule.time }
+  }
   const tmp = `${file}.${process.pid}.tmp`
   writeFileSync(tmp, `${JSON.stringify({ schema: SETTINGS_SCHEMA, ...next }, null, 2)}\n`)
   renameSync(tmp, file)

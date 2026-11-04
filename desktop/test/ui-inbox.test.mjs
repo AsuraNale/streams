@@ -15,6 +15,9 @@ const cards = () => s.page.evaluate(() => [...document.querySelectorAll('[data-c
 const current = () => s.page.evaluate(() => document.querySelector('[data-card][data-current="true"]')?.dataset.url ?? null)
 const ledger = () => readFileSync(join(s.world.library, '_pipeline', 'ledger.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
 const notes = () => readdirSync(join(s.world.library, 'notes'))
+// the keyboard focus: the url of the card that has it (null when the focus is elsewhere), and whether that card is the current one
+const focused = () => s.page.evaluate(() => { const a = document.activeElement; return a?.matches?.('[data-card]') ? { url: a.dataset.url, current: a.dataset.current } : null })
+const waitFocusOn = url => s.page.waitForFunction(u => document.activeElement?.matches?.('[data-card]') && document.activeElement.dataset.url === u && document.activeElement.dataset.current === 'true', url, POLL)
 const waitCards = n => s.page.waitForFunction(k => document.querySelectorAll('[data-card]').length === k, n, POLL)
 
 test('the cards in the core\'s order, the first one current; the 17-day card and the unverified card are marked; the keys in the top bar', async () => {
@@ -46,6 +49,8 @@ test('S15 from a card: 「这一条的记录」 opens the check record of that c
   assert.equal(await current(), cur, 'the list keys are off while the record is open')
   await s.page.keyboard.press('Escape')
   await s.page.waitForFunction(() => !document.querySelector('[data-dialog="verdicts"]'), null, POLL)
+  // the record was opened with the mouse, from the link: with the dialog gone the focus is on the current card, not the link
+  await waitFocusOn(cur)
   // control: with the dialog gone the keys work again; put the current card back where it was
   const all = await cards()
   if (all.indexOf(cur) === all.length - 1) {
@@ -60,17 +65,25 @@ test('S15 from a card: 「这一条的记录」 opens the check record of that c
   assert.equal(await current(), before)
 })
 
-test('J and K move the current card and keep it in view', async () => {
+test('J and K move the current card and keep it in view; the keyboard focus goes with it (activeElement is the current card)', async () => {
   const urls = await cards()
+  // control: the focus starts somewhere else, so the checks below can fail
+  await s.page.evaluate(() => document.activeElement?.blur())
+  assert.equal(await focused(), null, 'control: no card has the focus before J')
   await s.page.keyboard.press('j')
   await s.page.waitForFunction(u => document.querySelector('[data-card][data-current="true"]')?.dataset.url === u, urls[1], POLL)
+  await waitFocusOn(urls[1])
+  assert.deepEqual(await focused(), { url: urls[1], current: 'true' })
   await s.page.keyboard.press('j')
   await s.page.waitForFunction(u => document.querySelector('[data-card][data-current="true"]')?.dataset.url === u, urls[2], POLL)
+  await waitFocusOn(urls[2])
   await s.page.keyboard.press('k')
   await s.page.waitForFunction(u => document.querySelector('[data-card][data-current="true"]')?.dataset.url === u, urls[1], POLL)
+  await waitFocusOn(urls[1])
   await s.page.keyboard.press('k')
   await s.page.keyboard.press('k')
   assert.equal(await current(), urls[0], 'K at the top stays at the top')
+  await waitFocusOn(urls[0])
   const inView = await s.page.evaluate(() => { const r = document.querySelector('[data-card][data-current="true"]').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight })
   assert.equal(inView, true)
 })
@@ -85,6 +98,7 @@ test('C keeps the current card: a file in notes/, a kept event, the card gone, t
   assert.equal(kept.length, 1)
   assert.equal(await current(), urls[1])
   assert.equal((await cards()).includes(urls[0]), false)
+  await waitFocusOn(urls[1])
 })
 
 test('D: the dialog; 放弃并下一条 disabled while the reason is empty, Enter alone does nothing (control); a reason → dismissed with it', async () => {
@@ -105,6 +119,8 @@ test('D: the dialog; 放弃并下一条 disabled while the reason is empty, Ente
   const dismissed = ledger().filter(e => e.ev === 'dismissed' && e.url === urls[0])
   assert.deepEqual(dismissed.map(e => e.reason), ['只是提到「memory」这个词'])
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-dialog="dismiss"]')), null, 'the dialog closed')
+  // the dismissed card is gone: the focus is on the card that is current now
+  await waitFocusOn(urls[1])
   await s.page.waitForFunction(r => [...document.querySelectorAll('[data-part="reasons"] [data-reason]')].some(e => e.dataset.reason === r), '只是提到「memory」这个词', POLL)
   const reasons = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="reasons"] [data-reason]')].map(e => e.dataset.reason))
   assert.deepEqual(reasons, ['只是提到「memory」这个词', s.world.seed.dismissed.reason], 'newest first, the seed\'s reason too')

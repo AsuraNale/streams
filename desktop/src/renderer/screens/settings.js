@@ -7,17 +7,18 @@
 // Test hooks: [data-part="…"] on each part; [data-connection=<kind>][data-conn-state] rows with input[data-field="active"],
 // select[data-field="model"|"verify-model"], [data-action=probe|login|login-again|setup-key]; the key dialog [data-dialog="api-key"]
 // with select[data-field="vendor"], input[data-field="base-url"|"key"], [data-action=save-key|remove-key|cancel-key];
-// [data-part="run"] input[data-field="cap"] + [data-action="save-cap"]; [data-part="library"] [data-library-path],
+// [data-part="run"] input[data-field="cap"] + [data-action="save-cap"], [data-schedule="on"|"off"] with input[data-field="schedule-on"|
+// "schedule-time"], [data-next-run], [data-schedule-note]; [data-part="library"] [data-library-path],
 // [data-action=new-library|open-folder|rebuild], [data-recent=<path>]; the language radios' ids `settings-language-<setting>`.
 import { html, useEffect, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
-import { fmt } from '../lib/format.js'
+import { fmt, nextText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { AppFrame, AppSidebar, Button, Dialog, LinkButton, Main, TopBar } from '../kit/index.js'
-import { CONNECTIONS, SEP } from '../texts/common.js'
+import { CONNECTIONS, NEXT_WHEN, SEP } from '../texts/common.js'
 import { SETTINGS as T } from '../texts/settings.js'
 import { AboutUpdate } from './settings-update.js'
 
@@ -200,6 +201,39 @@ function ConnectionsPart() {
   <//>`
 }
 
+/** 定时 (docs/desktop.md §4.3): the switch and the time (setSchedule at once), what a missed round and the close button do, the next run. */
+function ScheduleRows() {
+  const sched = useLoad(() => call('getSchedule'), [])
+  const [time, setTime] = useState('')
+  const [note, setNote] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const d = sched.data
+  useEffect(() => { if (d) setTime(d.time) }, [d?.time])
+  const save = async (enabled, value) => {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) { setNote(T.scheduleBad); return }
+    setBusy(true)
+    setNote(null)
+    try { const r = await call('setSchedule', { enabled, time: value }); sched.mutate(() => r); setNote(T.scheduleSaved) } catch { setNote(T.scheduleBad) } finally { setBusy(false) }
+  }
+  if (!d) return html`<span class="st-t-small st-t-sub">${T.schedule}</span><span>${sched.status === 'error' ? html`<span class="settings__error">${T.scheduleFailed}</span>` : null}</span>`
+  return html`<span class="st-t-small st-t-sub settings__schedule-name">${T.schedule}</span>
+    <span class="settings__schedule" data-schedule=${d.enabled ? 'on' : 'off'}>
+      <span class="settings__row">
+        <span class="settings__check">
+          <input type="checkbox" id="settings-schedule-on" data-field="schedule-on" checked=${d.enabled} disabled=${busy} onChange=${e => save(e.currentTarget.checked, d.time)} />
+          <label class="settings__check-name" for="settings-schedule-on">${T.scheduleOn}</label>
+        </span>
+        <label class="st-t-small st-t-sub" for="settings-schedule-time">${T.scheduleTime}</label>
+        <input id="settings-schedule-time" class="settings__field settings__field--edit settings__field--short" type="time" step="60" data-field="schedule-time" value=${time} disabled=${busy || !d.enabled}
+          onInput=${e => setTime(e.currentTarget.value)} onChange=${e => save(d.enabled, e.currentTarget.value)} />
+        ${note ? html`<span class=${note === T.scheduleSaved ? 'st-t-small st-t-done' : 'settings__error'} role="status" data-schedule-note>${note}</span>` : null}
+      </span>
+      <span class="st-t-small" data-next-run=${d.nextRunAt ?? ''}>${d.nextRunAt ? fmt(T.scheduleNext, { when: nextText(d.nextRunAt, NEXT_WHEN) ?? d.nextRunAt }) : T.scheduleOff}</span>
+      <span class="st-t-small st-t-sub">${T.scheduleMissed}</span>
+      <span class="st-t-small st-t-sub">${T.scheduleClose}</span>
+    </span>`
+}
+
 function RunPart() {
   const run = useLoad(() => call('getPipelineSettings'), [])
   const [cap, setCap] = useState('')
@@ -217,8 +251,7 @@ function RunPart() {
   return html`<${Part} id="run" name=${T.run} hint=${T.runHint}>
     ${!d && run.status === 'error' ? html`<div class="settings__error">${T.runFailed}</div>` : null}
     <div class="settings__kv">
-      <span class="st-t-small st-t-sub">${T.schedule}</span>
-      <span data-schedule=${d?.schedule ? 'set' : 'none'}>${T.scheduleNone}</span>
+      <${ScheduleRows} />
       <label class="st-t-small st-t-sub" for="settings-cap">${T.cap}</label>
       <span class="settings__row">
         <input id="settings-cap" class="settings__field settings__field--edit settings__field--short" type="number" min="1" step="1" data-field="cap" value=${cap} disabled=${!d || busy} onInput=${e => setCap(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); save() } }} />
@@ -241,17 +274,26 @@ function LibraryPart({ appState }) {
   const [note, setNote] = useState(null)
   const [busy, setBusy] = useState(false)
   const [rebuilt, setRebuilt] = useState(null)
+  const [importable, setImportable] = useState(null)
   const choose = async mode => {
     setBusy(true)
     setNote(null)
     try {
       const r = await call('chooseLibraryFolder')
       if (!r) return
+      setImportable(null)
       if (r.state === 'other') { setNote(T.folderOther); return }
       if (mode === 'new' && r.state !== 'empty') { setNote(T.folderNotEmptyForNew); return }
+      // a folder of the user's own .md files (docs/desktop.md §4.3): said first, opened as a library only on the next click
+      if (r.state === 'importable') { setImportable(r); return }
       await call('useChosenFolder', '')
       appState.reload()
     } catch { setNote(T.openFailed) } finally { setBusy(false) }
+  }
+  const importNow = async () => {
+    setBusy(true)
+    setNote(null)
+    try { await call('useChosenFolder', ''); setImportable(null); appState.reload() } catch { setNote(T.openFailed) } finally { setBusy(false) }
   }
   const openRecent = async path => {
     setBusy(true)
@@ -280,6 +322,10 @@ function LibraryPart({ appState }) {
       ${rebuilt ? html`<span class="st-t-small st-t-done" data-rebuilt=${rebuilt.count}>${fmt(T.rebuilt, { count: rebuilt.count, tidy: rebuilt.pending?.length ?? 0 })}</span>` : null}
       ${note ? html`<span class="settings__error" role="alert">${note}</span>` : null}
     </div>
+    ${importable ? html`<div class="settings__row" data-part="importable" data-md-count=${importable.mdCount ?? ''}>
+      <span class="st-t-small st-t-sub">${fmt(T.folderImportable, { n: importable.mdCount ?? '' })}</span>
+      <${Act} name="import-folder" variant="primary" disabled=${busy} onClick=${importNow}>${T.importFolder}<//>
+    </div>` : null}
   <//>`
 }
 

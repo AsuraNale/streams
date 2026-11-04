@@ -2,6 +2,8 @@
 // the recent reasons for letting go. Keys: J / K move, C keeps, D opens the dialog, L = later. A decision takes the card off
 // the page at once (useLoad mutate) and the list is read again; the main process says `inbox-changed` as well. Words:
 // texts/inbox.js, texts/common.js NODE_NAMES.
+// The keyboard focus follows the current card (docs/desktop.md §4.3): J / K / L and a keep move it there (card.focus()), and when
+// a dialog (放弃, 这一条的记录) goes, the focus goes back to the current card, so a screen reader follows the list.
 // Test hooks: article[data-card][data-url][data-current], [data-waiting], [data-unverified], [data-maybe-duplicate],
 // [data-action=open|keep|dismiss|later], the dialog [data-dialog="dismiss"] with [data-field="reason"] and
 // [data-action=confirm-dismiss|cancel-dismiss], the panel [data-part="reasons"] with [data-reason] lines, [data-action="adjust"].
@@ -89,18 +91,26 @@ export function InboxScreen() {
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const listRef = useRef(null)
+  // bumped by every move of the keyboard's card (J / K / L, a keep, a dialog gone): the effect below puts the focus on it
+  const [focusTick, setFocusTick] = useState(0)
+  const focusCurrent = () => setFocusTick(t => t + 1)
   const items = inbox.data?.items ?? []
   const cur = items[current] ?? null
   const last = Math.max(0, items.length - 1)
   useEffect(() => { if (current > last) setCurrent(last) }, [items.length])
   useEffect(() => { listRef.current?.querySelector('[data-current="true"]')?.scrollIntoView({ block: 'nearest' }) }, [current, items.length])
+  useEffect(() => { if (focusTick > 0) listRef.current?.querySelector('[data-current="true"]')?.focus({ preventScroll: true }) }, [focusTick])
+  // a dialog gone (confirmed or cancelled): the focus back on the current card (the dialog would give it to what opened it)
+  const dialogOpen = dismissing !== null || record !== null
+  const wasOpen = useRef(false)
+  useEffect(() => { if (wasOpen.current && !dialogOpen) focusCurrent(); wasOpen.current = dialogOpen }, [dialogOpen])
 
   const remove = url => inbox.mutate(d => ({ ...d, items: d.items.filter(i => i.url !== url) }))
   const keep = async item => {
     if (!item || busy) return
     setBusy(true)
     setError(null)
-    try { await call('keepItem', item.url); remove(item.url); inbox.reload() } catch { setError(T.card.failed) } finally { setBusy(false) }
+    try { await call('keepItem', item.url); remove(item.url); focusCurrent(); inbox.reload() } catch { setError(T.card.failed) } finally { setBusy(false) }
   }
   const openDismiss = item => { if (item && !busy) { setReason(''); setDismissing(item.url) } }
   const confirmDismiss = async () => {
@@ -122,6 +132,7 @@ export function InboxScreen() {
     try { await call('laterItem', item.url) } catch { /* nothing is written for later */ }
     pos.current = Math.min((at < 0 ? pos.current : at) + 1, last)
     setCurrent(pos.current)
+    focusCurrent()
   }
   const open = item => { if (item) call('openItemUrl', item.url).catch(() => setError(T.card.failed)) }
 
@@ -142,7 +153,7 @@ export function InboxScreen() {
       const k = typeof e.key === 'string' ? e.key.toLowerCase() : ''
       const end = Math.max(0, st.items.length - 1)
       const item = st.items[Math.min(pos.current, end)] ?? null
-      if (k === 'j') { e.preventDefault(); pos.current = Math.min(pos.current + 1, end); setCurrent(pos.current) } else if (k === 'k') { e.preventDefault(); pos.current = Math.max(0, pos.current - 1); setCurrent(pos.current) } else if (k === 'c') { e.preventDefault(); st.keep(item) } else if (k === 'd') { e.preventDefault(); st.openDismiss(item) } else if (k === 'l') { e.preventDefault(); st.later(item) }
+      if (k === 'j') { e.preventDefault(); pos.current = Math.min(pos.current + 1, end); setCurrent(pos.current); focusCurrent() } else if (k === 'k') { e.preventDefault(); pos.current = Math.max(0, pos.current - 1); setCurrent(pos.current); focusCurrent() } else if (k === 'c') { e.preventDefault(); st.keep(item) } else if (k === 'd') { e.preventDefault(); st.openDismiss(item) } else if (k === 'l') { e.preventDefault(); st.later(item) }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)

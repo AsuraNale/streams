@@ -7,6 +7,7 @@ export const FIRST_RUN = Object.freeze({
     connection: 'Connection',
     pack: 'Topics and sources',
     trial: 'A first round',
+    schedule: 'Schedule',
   }),
   stepDone: Object.freeze({
     connection: 'Connected',
@@ -24,6 +25,7 @@ export const FIRST_RUN = Object.freeze({
     note: 'Streams keeps its note files and the index here. You can open this folder at any time with Obsidian or the file explorer.',
     empty: 'An empty folder: a new library is created here.',
     library: 'There is a library here already: it is opened as it is.',
+    importable: 'This folder holds {n} .md files. Streams opens it as a library and does not move or change your files.',
     other: 'That folder holds other things. Pick another one.',
     failed: 'That folder could not be used.',
   }),
@@ -85,5 +87,19 @@ export const FIRST_RUN = Object.freeze({
     failed: 'Could not start.',
     goInbox: 'Go to the inbox',
     goToday: 'Go to Today',
+  }),
+
+  schedule: Object.freeze({
+    heading: 'Set up tomorrow',
+    lead: 'Last step: when Streams runs a round by itself.',
+    card: 'Schedule',
+    every: 'Every day at {time}',
+    where: 'Runs while Streams is in the tray',
+    missed: 'Missed one (the computer was off, say): a single round runs the next time Streams opens; missed rounds do not pile up.',
+    close: 'Closing the window puts Streams in the tray, where it runs on time; the tray menu can quit it.',
+    later: 'The time and the switch can be changed later under Runs in Settings.',
+    finishInbox: 'Done, go to the inbox',
+    finishToday: 'Done, go to Today',
+    failed: 'The schedule could not be saved.',
   }),
 })

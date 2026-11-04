@@ -4,7 +4,7 @@
 export const NOTIFY = Object.freeze({
   title: '流息',
   kinds: Object.freeze({
-    // a pipeline round ended with new items in 待看 (plan C5; nothing sends it yet)
-    newItems: '抓到 {n} 条新的，放在「待看」里。',
+    // a pipeline round ended with new items in 待看 (plan C5, A2; services/schedule.mjs sends it, not for 0)
+    newItems: '这一轮进来 {n} 条待看。',
   }),
 })

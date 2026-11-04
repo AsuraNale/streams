@@ -10,7 +10,7 @@
 //   caught    { url, title, source, date, firstSeen, stage, scores, unscored, topic, stoppedAt } newest first seen first;
 //             stoppedAt: '<gate id>' (below that gate's threshold) | 'unscored' | 'queued' | 'inbox'
 //             topic = the topic its source is filed under in streams.json (null when none)
-//   pending   listPending() rows
+//   pending   listPending() rows; this view also has skippedDirs (scanLibrary's: the sub folders not read, core-api 5.9)
 //   topics: any one matches. days: date >= today - days (caught: firstSeen within days * 24 h).
 //   total = items.length after the filters.
 // readNote(libraryDir, id) -> { entry, body, backlinks:[{id,title}], sameSource:[{id,title,date}], file }
@@ -21,10 +21,10 @@ import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
 import { readIndex } from './index.mjs';
 import { replayLedger, TERMINAL_STAGES } from './ledger.mjs';
-import { listPending } from './pending.mjs';
+import { listPending, pendingView } from './pending.mjs';
 import { readConfig } from './config.mjs';
 import { parseFrontmatter } from './frontmatter.mjs';
-import { NOTES_DIR } from './scan.mjs';
+import { notesDir } from './scan.mjs';
 import { isNoteId } from './write-note.mjs';
 import { localIsoDate } from '../fetch/dates.mjs';
 import { pipelineFrom } from '../pipeline/config.mjs';
@@ -86,7 +86,8 @@ export function listLibrary(libraryDir, { view, topics, days, now } = {}) {
   if (!LIBRARY_VIEWS.includes(view)) throw new StreamsError('bad-view', `view must be one of ${LIBRARY_VIEWS.join(' | ')}, got ${JSON.stringify(view)}`);
   let items;
   if (view === 'pending') {
-    items = listPending(libraryDir);
+    const p = pendingView(libraryDir);
+    return { view, items: p.items, total: p.items.length, skippedDirs: p.skippedDirs };
   } else if (view === 'caught') {
     items = caughtItems(libraryDir, { topics, days, now });
   } else {
@@ -153,7 +154,7 @@ function caughtItems(libraryDir, { topics, days, now }) {
 }
 
 function noteFile(libraryDir, id) {
-  return join(libraryDir, NOTES_DIR, `${id}.md`);
+  return join(notesDir(libraryDir), `${id}.md`);
 }
 
 export function noteBodyOf(libraryDir, id) {

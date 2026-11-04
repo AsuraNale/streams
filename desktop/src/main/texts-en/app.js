@@ -2,4 +2,10 @@
 
 export const APP = Object.freeze({
   loginWindowTitle: 'Streams',
+  tray: Object.freeze({
+    tooltip: 'Streams · {n} in the Inbox',
+    open: 'Open Streams',
+    runNow: 'Run a round now',
+    quit: 'Quit',
+  }),
 })

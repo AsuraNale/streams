@@ -17,7 +17,8 @@ desktop/
     settings.mjs       settings.json              secrets.mjs    safeStorage 加密的 API key（按厂商一个文件）
     locale.mjs         界面语言（§六）            diagnostics.mjs 「复制诊断信息」
     update-wiring.mjs · services/update.mjs   自更新（GitHub AsuraNale/streams 的发布）· services/env-proxy-fetch.mjs
-    services/notify.mjs   Windows 通知（今天只建，不发）   quit.mjs   退出时结束本次运行的辅助进程
+    services/notify.mjs   Windows 通知（一轮跑完「这一轮进来 n 条待看」）   quit.mjs   退出时结束本次运行的辅助进程
+    services/schedule.mjs 定时、补跑、跑完的提示（§4.3）   tray.mjs   托盘图标、提示文字与菜单（§4.3）
     version.mjs · icon.mjs · app-id.mjs · log.mjs
     texts/notify.js · texts-en/notify.js   主进程自己的字
   src/preload/preload.cjs   预加载桥：页面里唯一的 window.streams
@@ -70,7 +71,7 @@ manifest-src 'none'; form-action 'none'; base-uri 'none'; require-trusted-types-
 frame-ancestors 'none'
 ```
 
-开发与测试专用的环境变量，打包后的应用不认：`STREAMS_WINDOW=hidden`（不显示窗口）、`STREAMS_START_SCREEN=<屏幕 id>`、`STREAMS_DEV_SYSTEM_LANGUAGES`（§六）、`STREAMS_DEV_LIBRARY`（当作已打开的库）、`STREAMS_DEV_UPDATE_URL`（`off` 或 GitHub 的替身）、`STREAMS_DEV_UPDATE_SETUP_RECORD`。组件一览（`screens/kit.js`、`texts/kit.js`、`styles/screens/kit.css`）只在开发时发（`protocol.mjs DEV_ONLY`）。
+开发与测试专用的环境变量，打包后的应用不认：`STREAMS_WINDOW=hidden`（不显示窗口）、`STREAMS_START_SCREEN=<屏幕 id>`、`STREAMS_DEV_SYSTEM_LANGUAGES`（§六）、`STREAMS_DEV_LIBRARY`（当作已打开的库）、`STREAMS_DEV_UPDATE_URL`（`off` 或 GitHub 的替身）、`STREAMS_DEV_UPDATE_SETUP_RECORD`、`STREAMS_DEV_NOW`（§4.3：启动时「现在」是这个本地时间，之后照常往前走）。组件一览（`screens/kit.js`、`texts/kit.js`、`styles/screens/kit.css`）只在开发时发（`protocol.mjs DEV_ONLY`）。
 
 **页面拿不到 key、文件系统**：桥上的方法不收路径、不返回任何密钥材料；key 只在主进程里解密、只交给发请求的那条连接（方案 C2），页面最多看到「已连接」和末四位（`secrets.mjs keyHint`）。
 
@@ -108,8 +109,8 @@ frame-ancestors 'none'
 | `cancelUpdateDownload()` | 无 | 同上；停下下载、删掉下了一半的文件 | 设置页下载中的「取消」 |
 | `installUpdate()` | 无 | `{ ok: true }` 安装程序已启动、应用随即退出；或 `{ ok: false, reason }` | 设置页「开始更新」 |
 | `openReleasePage()` | 无 | `null`；在用户的浏览器里打开这一版的发布页（测试时只记日志） | 设置页「打开发布页」 |
-| `chooseLibraryFolder()` | 无 | 主进程开系统的选文件夹对话框（测试与开发：`STREAMS_DEV_CHOOSE_FOLDER=<绝对路径>` 代替对话框）；`{ path, name, state: 'empty' \| 'library' \| 'other' } \| null`（取消是 null）。主进程记住这次选择，页面不回传路径 | S1 第 1 步、设置「新建库」「打开已有文件夹」 |
-| `useChosenFolder(name)` | 库名字符串（空串 = 用文件夹名） | 对上一次 `chooseLibraryFolder` 的选择：`empty` → `createLibrary` 建库；`library`（已有 `streams.json`）→ 打开；`other` → `open_failed`。写 `settings.libraryPath`、进 `recentLibraries`；发 `library-changed`；返回 `{ path, name }`（没选过文件夹 → `bad_arguments`） | S1 第 1 步、设置「库」 |
+| `chooseLibraryFolder()` | 无 | 主进程开系统的选文件夹对话框（测试与开发：`STREAMS_DEV_CHOOSE_FOLDER=<绝对路径>` 代替对话框）；`{ path, name, state: 'empty' \| 'library' \| 'importable' \| 'other', mdCount? } \| null`（取消是 null；`importable` = 没有 `streams.json`、第一层有 `.md`，`mdCount` 是那一层 `.md` 的个数，11-04 加）。主进程记住这次选择，页面不回传路径 | S1 第 1 步、设置「新建库」「打开已有文件夹」 |
+| `useChosenFolder(name)` | 库名字符串（空串 = 用文件夹名） | 对上一次 `chooseLibraryFolder` 的选择：`empty` → `createLibrary` 建库；`library`（已有 `streams.json`）→ 打开；`importable` → 核心 `importFolder`（在旁边写 `streams.json` 与 `_pipeline/`，不碰已有文件，`notesDir: "."`）再打开；`other` → `open_failed`。写 `settings.libraryPath`、进 `recentLibraries`；发 `library-changed`；返回 `{ path, name }`（没选过文件夹 → `bad_arguments`） | S1 第 1 步、设置「库」 |
 | `openRecentLibrary(path)` | 必须是 `recentLibraries` 里的一条，否则 `bad_arguments` | 同上的打开；那个文件夹里的 `streams.json` 读不出 → `open_failed` | 设置「库 · 其他」 |
 | `rebuildIndex()` | 无 | `{ count, pending: [{file, codes}] }`；`no_library` | 设置「重建索引」 |
 | `revealLibrary()` | 无 | `null`；在资源管理器里显示库文件夹（测试只记日志） | S1 第 1 步「这个文件夹你随时可以打开」 |
@@ -135,12 +136,16 @@ frame-ancestors 'none'
 | `dismissItem(url, reason)` | 理由非空，否则 `bad_arguments` | `{ url }`；发 `inbox-changed` | S3「放弃」 |
 | `laterItem(url)` | | `{ url }`；不写盘 | S3「稍后」 |
 | `openItemUrl(url)` | 必须是 inbox 里或索引里某条的 `source`，否则 `bad_arguments` | `null`；`shell.openExternal`（测试只记日志） | S3「打开原文」 |
-| `getPipelineSettings()` | 无 | `{ cap, thresholds: { relevance, substance }, schedule: null }`（定时 11-06 接上，先 null） | 设置「运行」 |
+| `getPipelineSettings()` | 无 | `{ cap, thresholds: { relevance, substance }, schedule }`；`schedule` = `getSchedule()` 的返回 | 设置「运行」 |
+| `getSchedule()` | 无 | `{ enabled, time, nextRunAt: ISO \| null, lastRoundAt: ISO \| null, missed: boolean }`（§4.3；没打开库时 `lastRoundAt` 为 null、`missed` 为 false） | 设置「运行」、今日顶栏「下次运行」 |
+| `setSchedule(schedule)` | `{ enabled: boolean, time: 'HH:MM' }`（00:00–23:59，别的键 → `bad_arguments`） | 同上；写 `settings.json`、重设定时器；发 `settings-changed` | 设置「运行」、首次设置最后一步 |
 | `getLibrary(view, filter)` | `view` ∈ `kept` · `authored` · `caught` · `pending`；`filter = { topics: string[], days: number \| null }` | `{ counts: 核心 libraryCounts, view, items, total }`（核心 `listLibrary`） | S6 |
 | `searchLibrary(q, filter)` | 字符串（≤ 200 字）；`filter = { view: 'kept' \| 'authored' \| 'all', topics, days }` | 核心 `search` 的结果数组 | S6 搜索框 |
 | `readNote(id)` | id 必须在索引里，否则 `bad_arguments` | 核心 `readNote` | S6 正文与右栏 |
 | `editNote(id, changes)` | `changes` 只能有 `title` / `topics` / `body` | `{ id, file, entry }`；核心 `bad-edit` / `invalid-note` → `bad_arguments`；发 `library-changed` | S7 |
 | `openInObsidian(id)` | id 在索引里 | `null`；`shell.openExternal('obsidian://open?path=<绝对路径>')`，打不开时 `shell.openPath(路径)`（测试只记日志） | S6「用 Obsidian 打开」 |
+| `applyHeader(file, header)` | `file` 是核心 `listPending` 里的文件名（否则 `bad_arguments`）；`header` 是对象（页面上改过的文件头，与拟好的合并、用户给的键优先）或 `null`（用拟好的） | 核心 `applyProposedHeader` 的返回 `{ id, file, entry }`；`not-proposable` / `bad-file-name` / `already-conforming` / `bad-id` / `invalid-note` → `bad_arguments`；发 `library-changed` | S8「写入这一个」 |
+| `applyAllHeaders()` | 无 | `{ written: [file…], skipped: [{ file, code }] }`：对每个文件名能当 id、拟得出文件头的待规范文件按拟的写入；文件名不能当 id 的 `code: 'bad-file-name'`，拟不出的 `'not-proposable'`，核心拒绝的是核心的错误码；写了至少一个才发 `library-changed` | S8「全部按拟的写入」 |
 | `getSources()` | 无 | 核心 `sourcesView` | S5 |
 | `guessSource(input)` | 字符串 | 核心 `guessSource` | S5「加来源」第一步 |
 | `trySource(source)` | 来源对象（形状同 streams.json 的一项） | 核心 `fetchSource` 的结果，只回 `{ status, hint, http, message, count, sample: [前 3 条的 {title, date}] }`；不写盘 | S5「试抓」 |
@@ -155,7 +160,7 @@ frame-ancestors 'none'
 | `getPipeline()` | 无 | `{ config: 核心 pipelineConfig, defaults: 同形状的默认配置（「恢复默认」用）, lastRound: 核心 roundLog 最近一行 \| null, dismissReasons: recentDismissReasons(10), verdictFailures: { [节点 id]: recentVerdictFailures(…, 5) } }` | S4 |
 | `savePipeline(cfg)` | 整份 pipeline 配置 | `{ config }`；核心 `locked-node` / `bad-config` → `bad_arguments` | S4「保存」「恢复默认」 |
 | `previewNode(nodeId, url, draft)` | `nodeId` 是配置里的关卡或摘要；url 必须在账本里；`draft` 是页面上正在改、还没保存的那个节点（`id` 必须等于 `nodeId`），或 `null` 用已保存的（方案 C3：改了要求先试一条再保存）；草稿不过核心的配置校验 → `bad_arguments` | 核心 `previewNode`（连接失败的 `{ ok: false, code }` 原样作 `data`）；不写账本 / inbox / verdicts；计入连接的用量（`purpose: preview:<节点 id>`）；没选连接 → `no_connection` | S4「试一条看结果」 |
-| `getStatus()` | 无 | `{ ...核心 statusView, connections: getConnections() }` | S11 |
+| `getStatus()` | 无 | `{ ...核心 statusView, nextRun: 定时开着时 getSchedule().nextRunAt，否则 null, connections: getConnections() }` | S11 |
 | `openLogsFolder()` | 无 | `null`；`shell.openPath(<库>/_pipeline/logs)`（测试只记日志） | S11「打开运行记录文件夹」 |
 | `getGraph(filter)` | `{ days: number \| null, status: 'kept' \| 'all', topics: string[], links: boolean }` | 核心 `graph` | S9 |
 | `askLibrary(question)` | 1–500 字（去掉首尾空白后） | 核心 `ask` 的返回（连接失败的 `{ ok: false, code }` 原样作 `data`）；一次只许一个问题在跑（第二个 → `bad_arguments`）；没选连接 → `no_connection`（新错误码） | S10 |
@@ -341,6 +346,8 @@ src/renderer/
 | `events.test.mjs` | `emit` 只发表里的主题、只发给开着的本应用页面；`onEvent` 只收表里的主题与函数、只交 `payload`、能取消；`setShowDeveloperInfo` → `settings-changed` → 页面重读状态、不重载；`open-screen` 让页面去那一屏；侧栏 232px、主区从 244 起、页面不横向溢出 | 是 |
 | `language.test.mjs` | 英文界面：侧栏九个词、窗口标题、`<html lang>`；设置页切中文重载、切跟随系统不重载；没设置时系统无中文 → 英文 | 是 |
 | `single-instance.test.mjs` | 第二次启动立刻退出、第一个把窗口提到前面 | 是 |
+| `tray.test.mjs` · `ui-schedule.test.mjs` | 定时开时关窗口进程还在、关时退出；`STREAMS_DEV_NOW` 下错过 → 启动补跑一轮且只一轮、`notifications.jsonl` 一条，没错过 → 不补；设置「运行」改时刻 / 关定时写 settings.json、25:00 被拒；今日顶栏；首次设置「定时」屏。测试世界的 `settings.json` 默认 `schedule.enabled: false`（`test/support/app.mjs`），要定时的测试自己打开 | 是 |
+| `services-schedule.test.mjs` | 假时钟下补跑判定、只补一轮、定时器到点只跑一次、提示 0 条不发、托盘菜单 | 否 |
 | `protocol.test.mjs` | 不起 Electron：页面文件 200；指向别的机器的写法 1 秒内 404；路径规则逐条；中文文件名；英文下 `texts/` 换 `texts-en/`；组件一览只在开发时发 | 否 |
 | `bridge.test.mjs` | 预加载、主进程表、本文 §四 表三者一致；事件主题三处一致；预加载只交出一个对象；信封与错误码 | 否 |
 | `layout.test.mjs` · `settings.test.mjs` · `locale.test.mjs` | 布局；settings.json 的每个字段；语言的判定与状态 | 否 |
@@ -364,9 +371,9 @@ src/renderer/
 2. `release.json` 的 `version` 写成 `1.0.0`、`pre_release: dev.0`、`app_ver_name: 流息 1.0.0-dev.0`：`version.mjs` / 更新比较只认 `major.minor.patch` 数字，`1.0.0-dev.0` 填进 `version` 会让应用显示 0.0.0、安装包构建拒绝。要不要改 `VERSION_RE` 以认预发布号，归 PM。
 3. 图标是 15 分钟内的记号（三条白色波浪 + river 圆角方块，`assets/icon/README.md`）；小尺寸由大图缩下来，没有像素级手画版；重建要 sharp（不是本仓依赖）。
 4. `services/update.mjs` 的更新状态里还有 `turnRunning`（云织的「研究回合在跑」）：现在永远是 false，以后由流水线的「这一轮在跑」接上。
-5. `services/notify.mjs` 建了没用：流水线（C5）发「抓到 N 条新的」时接上。
+5. ~~`services/notify.mjs` 建了没用~~ 11-04 接上：每一轮跑完、写进待看的条数 n > 0 时，`services/schedule.mjs` 经它发「这一轮进来 n 条待看」（窗口在最前面时不发；测试世界写 `logs/notifications.jsonl`）。
 6. 侧栏底色选了 river（方案主色）而不是 ink，理由在 `docs/tokens.md`；要改只动 `--st-sidebar` 一行。
-7. 托盘与定时 11-06：今日的「下次运行」在 `nextRun` 为 null 时写「还没设定时」，设置「运行 · 定时」写「还没启用（托盘做好后）」，`getPipelineSettings().schedule` 先是 null。
+7. ~~托盘与定时 11-06~~ 11-04 落地（§4.3）：`services/schedule.mjs`（定时器、补跑、跑完的提示）、`tray.mjs`、设置「运行」、首次设置第 5 屏「定时」、今日顶栏。运行状态页（S11）的「下次运行」11-04 集成时也接上了：`getStatus().nextRun`（定时开着时 = 下一个定时时刻）。
 8. 安装包 11-06 按流息的安装包重写（§八）；界面 A 的六张截图在 `docs/shots/2026-11-03-<screen>.png`，由 `npm run shots -- --world seeded --screen <id>` 在播种世界上拍。
 9. ~~`getAppState` 没有 `recentLibraries`~~ 已解决（11-03 PM 集成）：`getAppState().recentLibraries = [{ path, name }]`，设置「库 · 其他」就用它。首次设置每步「谁定的」没有桥方法，这次不写盘（11-06 再定）。
 10. ~~「没有连接也能抓」做不到~~ 已解决（11-03 PM 集成）：核心 `runRound({ scoreless: true })`，主进程没选连接时走它（见 §4.2「实做差别（界面 B 主进程）」）；待看卡片对这种条目标「没有打分」并显示来源自带的摘要。

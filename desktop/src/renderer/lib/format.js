@@ -79,6 +79,14 @@ export function whenText(iso, templates, now = new Date()) {
   return fmt(templates[p.day], p)
 }
 
+/** A moment still ahead: 「今天 08:30」 / 「明天 08:30」 / 「11-7 08:30」 (templates: texts/common.js NEXT_WHEN). Null for a bad date. */
+export function nextText(iso, templates, now = new Date()) {
+  const d = new Date(iso)
+  if (typeof iso !== 'string' || Number.isNaN(d.getTime())) return null
+  const days = Math.round((dayStart(d) - dayStart(now)) / 86_400_000)
+  return fmt(templates[days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'date'], whenParts(iso, now))
+}
+
 /** Just the day: 「今天」 / 「昨天」 / 「9-30」 (templates: texts/common.js DAY). */
 export function dayText(iso, templates, now = new Date()) {
   const p = whenParts(iso, now)

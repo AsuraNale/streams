@@ -4,13 +4,25 @@
 // library answers no_library without one. Each case first shows the refused input really is refused.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createLibraryService, folderState } from '../src/main/services/library.mjs'
 import { readSettings } from '../src/main/settings.mjs'
 import { readConfig } from '../src/main/core.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { testWorld } from './support/services.mjs'
+import { IMPORT_FILES, seedImportFolder } from './support/seed.mjs'
+
+/** sha256 of every file under dir, by its path relative to dir with "/". */
+function hashTree(dir, base = dir, out = {}) {
+  for (const d of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, d.name)
+    if (d.isDirectory()) hashTree(p, base, out)
+    else out[p.slice(base.length + 1).replace(/\\/g, '/')] = createHash('sha256').update(readFileSync(p)).digest('hex')
+  }
+  return out
+}
 
 const worlds = []
 const world = () => { const w = testWorld('st-library-'); worlds.push(w); return w }
@@ -145,4 +157,60 @@ test('rebuildIndex and revealLibrary need a library; the development library sta
   const dev = service(w, { devLibrary: join(w.root, 'dev-lib') })
   assert.deepEqual(dev.current(), { path: join(w.root, 'dev-lib'), name: 'dev-lib' })
   assert.equal(dev.dir(), join(w.root, 'dev-lib'))
+})
+
+// ---- 导入已有文件夹 (docs/desktop.md §4.3): a folder of .md files without streams.json is importable ----
+
+test('folderState importable: .md files on the first level and no streams.json; a .md only in a sub folder is other', () => {
+  const w = world()
+  const folder = join(w.root, 'vault')
+  seedImportFolder(folder)
+  assert.equal(folderState(folder), 'importable')
+  const deep = join(w.root, 'deep')
+  mkdirSync(join(deep, 'sub'), { recursive: true })
+  writeFileSync(join(deep, 'sub', 'a.md'), '# a')
+  writeFileSync(join(deep, 'a.txt'), 'x')
+  assert.equal(folderState(deep), 'other', 'nothing on the first level to import')
+  writeFileSync(join(folder, 'streams.json'), '{}')
+  assert.equal(folderState(folder), 'library', 'a streams.json makes it a library, whatever else is there')
+})
+
+test('useChosenFolder on an importable folder: importFolder, then opened; every file that was there is byte for byte the same', async () => {
+  const w = world()
+  const s = service(w)
+  const folder = join(w.root, 'my notes')
+  const seeded = seedImportFolder(folder)
+  const before = hashTree(folder)
+  w.dialogAnswers.push(folder)
+  const chosen = await s.handlers.chooseLibraryFolder()
+  assert.deepEqual(chosen, { path: folder, name: 'my notes', state: 'importable', mdCount: seeded.mdCount })
+  assert.equal(existsSync(join(folder, 'streams.json')), false, 'choosing writes nothing')
+  assert.deepEqual(await s.handlers.useChosenFolder(''), { path: folder, name: 'my notes' })
+  const cfg = readConfig(folder)
+  assert.equal(cfg.ok, true)
+  assert.equal(cfg.config.notesDir, '.')
+  assert.equal(cfg.config.name, 'my notes')
+  const after = hashTree(folder)
+  for (const [rel, h] of Object.entries(before)) assert.equal(after[rel], h, rel)
+  assert.equal(readSettings(w.settingsFile).libraryPath, folder)
+  assert.deepEqual(w.eventsOf('library-changed').at(-1), { topic: 'library-changed', payload: { path: folder, name: 'my notes' } })
+  assert.ok(w.lines.some(l => l.startsWith(`library: imported ${folder}: 1 conforming, 5 to tidy, 1 sub folders not read`)), w.lines.join('\n'))
+  // chosen again: it is a library now, opened as it is
+  w.dialogAnswers.push(folder)
+  assert.equal((await s.handlers.chooseLibraryFolder()).state, 'library')
+  // reverse: the hash comparison sees a changed file
+  writeFileSync(join(folder, 'untitled.md'), 'changed')
+  assert.notEqual(hashTree(folder)['untitled.md'], before['untitled.md'])
+})
+
+test('useChosenFolder: an importable folder that became a library meanwhile is opened, not imported again; one that lost its .md files is open_failed', async () => {
+  const w = world()
+  const s = service(w)
+  const folder = join(w.root, 'changing')
+  seedImportFolder(folder)
+  w.dialogAnswers.push(folder)
+  assert.equal((await s.handlers.chooseLibraryFolder()).state, 'importable')
+  for (const f of Object.keys(IMPORT_FILES).filter(f => !f.includes('/'))) rmSync(join(folder, f))
+  await assert.rejects(async () => s.handlers.useChosenFolder(''), err => err.code === 'open_failed')
+  assert.equal(existsSync(join(folder, 'streams.json')), false)
 })

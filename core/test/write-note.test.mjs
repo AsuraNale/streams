@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeNoteFile, WRITE_NOTE_BY } from '../src/library/write-note.mjs';
-import { parseFrontmatter } from '../src/library/frontmatter.mjs';
+import { parseFrontmatter, serializeFrontmatter, splitNoteBytes } from '../src/library/frontmatter.mjs';
+import { caseDir } from './support/tmp.mjs';
 import { validateNote } from '../src/library/validate.mjs';
 import { listNoteFiles } from '../src/library/scan.mjs';
 import { listPending } from '../src/library/pending.mjs';
@@ -27,14 +28,83 @@ test('writeNoteFile by:keep writes notes/<id>.md = serialized header + body, whi
   assert.deepEqual(parseFrontmatter(text).meta, SPEC_META);
 });
 
-test('writeNoteFile by:import-header works; header.id may be given if it matches', () => {
-  const dir = makeLibrary('write-import');
-  const r = writeNoteFile(dir, { id: 'imported', header: { id: 'imported', ...header('imported', { status: 'authored' }) }, body: 'no trailing newline' }, { by: 'import-header' });
-  const text = readRawNote(dir, r.file);
-  assert.ok(text.endsWith('no trailing newline\n'), 'body gets a final newline');
-  assert.equal(parseFrontmatter(text).meta.id, 'imported');
-  const r2 = writeNoteFile(dir, { id: 'empty-body', header: header('empty-body') }, { by: 'import-header' });
-  assert.ok(readRawNote(dir, r2.file).endsWith('---\n'));
+// ---------------------------------------------------------------- by:'import-header' (core-api 5.9)
+
+const rawBytes = (dir, file) => readFileSync(join(dir, 'notes', file));
+const plantBytes = (dir, file, bytes) => writeFileSync(join(dir, 'notes', file), bytes);
+const authored = (id) => header(id, { status: 'authored', kept: undefined });
+
+test("by:'import-header' puts a header on a file without one: header + the old bytes, not one byte added", () => {
+  const dir = makeLibrary('write-import-plain');
+  // no final newline, CRLF line breaks, a byte that is not UTF-8: each one is something a normalizing writer would change
+  const old = Buffer.concat([Buffer.from('# Heading\r\n\r\nline one\r\nlast line, no newline', 'utf8'), Buffer.from([0xff])]);
+  plantBytes(dir, 'plain.md', old);
+  const r = writeNoteFile(dir, { id: 'plain', header: { id: 'plain', ...authored('plain') } }, { by: 'import-header' });
+  assert.equal(r.path, join(dir, 'notes', 'plain.md'));
+  const now = rawBytes(dir, 'plain.md');
+  const head = Buffer.from(serializeFrontmatter({ ...authored('plain'), id: 'plain' }), 'utf8');
+  assert.ok(now.equals(Buffer.concat([head, old])), 'the file is the serialized header followed by the old file, byte for byte');
+  assert.ok(splitNoteBytes(now).body.equals(old));
+  assert.equal(validateNote({ fileName: 'plain.md', text: now.toString('utf8'), config: null }).ok, true);
+  assert.deepEqual(readdirSync(join(dir, 'notes')), ['plain.md'], 'no temporary file is left');
+});
+
+test("by:'import-header' on a file whose header lacks source and date: the old header goes, the body after it stays byte for byte", () => {
+  const dir = makeLibrary('write-import-half');
+  const oldHead = '---\r\nid: half\r\ntitle: Half\r\nstatus: kept\r\ntopics: [MCP]\r\n---\r\n';
+  const oldBody = '\r\nbody line\r\n\r\n\r\n';
+  plantBytes(dir, 'half.md', Buffer.from(oldHead + oldBody, 'utf8'));
+  writeNoteFile(dir, { id: 'half', header: { title: 'Half', status: 'kept', topics: ['MCP'], source: 'file:half.md', date: '2026-10-20' } }, { by: 'import-header' });
+  const now = rawBytes(dir, 'half.md');
+  assert.ok(splitNoteBytes(now).body.equals(Buffer.from(oldBody, 'utf8')), 'the body (blank lines and CRLF included) is what it was');
+  assert.equal(now.toString('utf8').startsWith('---\nid: half\ntitle: Half\nsource: file:half.md\ndate: 2026-10-20\n'), true);
+  assert.equal(validateNote({ fileName: 'half.md', text: now.toString('utf8'), config: null }).ok, true);
+});
+
+test("by:'import-header' keeps a UTF-8 byte-order mark in front and the rest of the file after the header", () => {
+  const dir = makeLibrary('write-import-bom');
+  const text = Buffer.from('plain text\n', 'utf8');
+  plantBytes(dir, 'bom.md', Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), text]));
+  writeNoteFile(dir, { id: 'bom', header: authored('bom') }, { by: 'import-header' });
+  const now = rawBytes(dir, 'bom.md');
+  assert.deepEqual([...now.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+  assert.ok(now.subarray(now.length - text.length).equals(text));
+  assert.equal(validateNote({ fileName: 'bom.md', text: now.toString('utf8'), config: null }).ok, true);
+});
+
+test("by:'import-header' never creates a file: a missing one throws not-found and nothing appears", () => {
+  const dir = makeLibrary('write-import-create');
+  assert.throws(() => writeNoteFile(dir, { id: 'fresh', header: authored('fresh') }, { by: 'import-header' }), (e) => e.code === 'not-found' && /fresh\.md/.test(e.message));
+  assert.deepEqual(readdirSync(join(dir, 'notes')), []);
+  // control: keep does create it, so the refusal above is import-header's own
+  writeNoteFile(dir, { id: 'fresh', header: header('fresh'), body: 'b\n' }, { by: 'keep' });
+  assert.deepEqual(readdirSync(join(dir, 'notes')), ['fresh.md']);
+});
+
+test("by:'import-header' leaves a conforming file alone (already-conforming), takes no body, and refuses a header that does not conform", () => {
+  const dir = makeLibrary('write-import-refuse');
+  writeNoteFile(dir, { id: 'fine', header: header('fine'), body: 'mine\n' }, { by: 'keep' });
+  plantBytes(dir, 'raw.md', Buffer.from('raw text\n', 'utf8'));
+  const before = hashNotes(dir);
+  assert.throws(() => writeNoteFile(dir, { id: 'fine', header: header('fine', { title: 'Other' }) }, { by: 'import-header' }), (e) => e.code === 'already-conforming');
+  assert.throws(() => writeNoteFile(dir, { id: 'raw', header: authored('raw'), body: 'replaced\n' }, { by: 'import-header' }), (e) => e.code === 'bad-argument');
+  assert.throws(() => writeNoteFile(dir, { id: 'raw', header: authored('raw'), body: '' }, { by: 'import-header' }), (e) => e.code === 'bad-argument', 'an empty body is a body too');
+  assert.throws(() => writeNoteFile(dir, { id: 'raw', header: { ...authored('raw'), topics: [] } }, { by: 'import-header' }), (e) => e.code === 'invalid-note' && e.problems.some((p) => p.code === 'missing:topics'));
+  assert.deepEqual(hashNotes(dir), before, 'every refusal left the bytes as they were');
+  assert.deepEqual(readdirSync(join(dir, 'notes')).sort(), ['fine.md', 'raw.md'], 'and no temporary file');
+});
+
+test('a library whose notesDir is "." has its notes in the library folder: keep, import-header and edit write there', () => {
+  const dir = caseDir('write-notesdir-dot');
+  writeFileSync(join(dir, 'streams.json'), JSON.stringify({ ...TEST_CONFIG, notesDir: '.' }), 'utf8');
+  writeFileSync(join(dir, 'mine.md'), 'my own text', 'utf8');
+  const k = writeNoteFile(dir, { id: 'kept-here', header: header('kept-here'), body: 'k\n' }, { by: 'keep' });
+  assert.equal(k.path, join(dir, 'kept-here.md'));
+  writeNoteFile(dir, { id: 'mine', header: authored('mine') }, { by: 'import-header' });
+  assert.ok(readFileSync(join(dir, 'mine.md'), 'utf8').endsWith('---\nmy own text'));
+  writeNoteFile(dir, { id: 'kept-here', header: header('kept-here', { title: 'Edited' }), body: 'e\n' }, { by: 'edit' });
+  assert.ok(readFileSync(join(dir, 'kept-here.md'), 'utf8').includes('title: Edited'));
+  assert.deepEqual(readdirSync(dir).sort(), ['kept-here.md', 'mine.md', 'streams.json']);
 });
 
 test('by must be keep | import-header | edit: anything else is refused before touching disk', () => {
@@ -52,7 +122,7 @@ test('id-conflict: an existing note is never overwritten', () => {
   writeNoteFile(dir, { id: 'dup', header: header('dup', { title: 'original' }), body: 'first\n' }, { by: 'keep' });
   const before = hashNotes(dir);
   assert.throws(() => writeNoteFile(dir, { id: 'dup', header: header('dup', { title: 'replacement' }), body: 'second\n' }, { by: 'keep' }), (e) => e.code === 'id-conflict' && /dup\.md/.test(e.message));
-  assert.throws(() => writeNoteFile(dir, { id: 'dup', header: header('dup'), body: 'x' }, { by: 'import-header' }), (e) => e.code === 'id-conflict');
+  assert.throws(() => writeNoteFile(dir, { id: 'dup', header: header('dup') }, { by: 'import-header' }), (e) => e.code === 'already-conforming');
   assert.deepEqual(hashNotes(dir), before);
   assert.ok(readRawNote(dir, 'dup.md').includes('title: original'));
 });
@@ -83,22 +153,45 @@ test('a header that does not conform to spec v0 is refused with the problem code
 });
 
 // Acceptance V2: there is exactly one place in src/ that writes into the note folder.
-test('V2 guard: only write-note.mjs mentions the notes folder together with a write call', () => {
+// A file "mentions the note folder" when its code (comments taken out) names it: a string 'notes' or '…/notes/…', NOTES_DIR,
+// notesDir(…), notePath(…), or a config's notesDir key read as `.notesDir` / `['notesDir']`. Since the folder became
+// configurable (core-api 5.9) the writer reaches it through notesDir(libraryDir) and no longer spells "notes": the
+// planted samples below show that every one of these spellings is still caught.
+const WRITE_CALL_RE = /\b(?:writeFile|writeFileSync|appendFile|appendFileSync|createWriteStream|openSync|renameSync|copyFileSync|cpSync)\s*\(/;
+const NOTES_FOLDER_RE = /(['"`])(?:[^'"`\n]*[\/])?notes(?:[\/][^'"`\n]*)?\1|\bNOTES_DIR\b|\bnotesDir\s*\(|\bnotePath\s*\(|\.notesDir\b|\[\s*['"`]notesDir['"`]\s*\]/;
+const codeOf = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\'"`])\/\/.*$/gm, '$1');
+const writesNotes = (t) => { const c = codeOf(t); return WRITE_CALL_RE.test(c) && NOTES_FOLDER_RE.test(c); };
+
+test('V2 guard: only write-note.mjs mentions the note folder together with a write call', () => {
   const hits = [];
   const walk = (d) => {
     for (const f of readdirSync(d, { withFileTypes: true })) {
       const p = join(d, f.name);
       if (f.isDirectory()) walk(p);
-      else if (f.name.endsWith('.mjs')) {
-        const t = readFileSync(p, 'utf8');
-        if (/writeFile|appendFile|createWriteStream|openSync/.test(t) && /notes/.test(t)) hits.push(relative(SRC, p).replace(/\\/g, '/'));
-      }
+      else if (f.name.endsWith('.mjs') && writesNotes(readFileSync(p, 'utf8'))) hits.push(relative(SRC, p).replace(/\\/g, '/'));
     }
   };
   walk(SRC);
   assert.deepEqual(hits, ['library/write-note.mjs']);
-  // and that one file uses create-only mode, so it can never clobber an existing note
+  // and that one file uses create-only mode for keep, so keep can never clobber an existing note
   assert.match(readFileSync(join(SRC, 'library', 'write-note.mjs'), 'utf8'), /flag: 'wx'/);
+});
+
+test('V2 guard, reverse: a write call into the note folder is caught however the folder is named', () => {
+  const planted = [
+    "import { writeFileSync } from 'node:fs'; writeFileSync(join(dir, 'notes', 'x.md'), s);",
+    "import { appendFileSync } from 'node:fs'; appendFileSync(`${dir}/notes/x.md`, s);",
+    "import { writeFileSync } from 'node:fs'; import { NOTES_DIR } from './scan.mjs'; writeFileSync(join(dir, NOTES_DIR, 'x.md'), s);",
+    "import { writeFileSync } from 'node:fs'; import { notesDir } from './scan.mjs'; const p = join(notesDir(dir), 'x.md'); writeFileSync(p, s);",
+    "import { renameSync } from 'node:fs'; renameSync(tmp, notePath(dir, id));",
+    "import { writeFileSync } from 'node:fs'; writeFileSync(join(dir, config.notesDir, 'x.md'), s);",
+    "import { writeFileSync } from 'node:fs'; writeFileSync(join(dir, cfg['notesDir'], 'x.md'), s);",
+  ];
+  for (const t of planted) assert.equal(writesNotes(t), true, t);
+  // what is not reported: the folder named only in a comment, or a write beside a config that only sets the key
+  assert.equal(writesNotes("// writes into notes/\nwriteFileSync(join(dir, 'streams.json'), s);"), false);
+  assert.equal(writesNotes("const config = { notesDir: '.' }; writeFileSync(join(dir, 'streams.json'), JSON.stringify(config));"), false);
+  assert.equal(writesNotes("writeFileSync(join(dir, 'index.jsonl'), s); return { notes: n };"), false);
 });
 
 test('sentinel: by:pipeline must throw (a writer that accepts it would let the pipeline bypass the user)', () => {
@@ -151,13 +244,12 @@ test("by:'edit' still validates the new header: a non-conforming one throws inva
   assert.deepEqual(hashNotes(dir), before);
 });
 
-test("keep / import-header are still create-only after 'edit' was added", () => {
+test("keep is still create-only and import-header still cannot replace a conforming note after 'edit' was added", () => {
   const dir = makeLibrary('write-edit-createonly');
   writeNoteFile(dir, { id: 'c1', header: header('c1', { title: 'original' }), body: 'first\n' }, { by: 'keep' });
   const before = hashNotes(dir);
-  for (const by of ['keep', 'import-header']) {
-    assert.throws(() => writeNoteFile(dir, { id: 'c1', header: header('c1', { title: 'other' }), body: 'second\n' }, { by }), (e) => e.code === 'id-conflict', by);
-  }
+  assert.throws(() => writeNoteFile(dir, { id: 'c1', header: header('c1', { title: 'other' }), body: 'second\n' }, { by: 'keep' }), (e) => e.code === 'id-conflict');
+  assert.throws(() => writeNoteFile(dir, { id: 'c1', header: header('c1', { title: 'other' }) }, { by: 'import-header' }), (e) => e.code === 'already-conforming');
   assert.deepEqual(hashNotes(dir), before);
 });
 

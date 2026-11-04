@@ -3,8 +3,8 @@
 export const TODAY = Object.freeze({
   title: 'Today',
   nextRun: Object.freeze({
-    none: 'Next run: no schedule yet',
-    at: 'Next run: {when}',
+    none: 'Schedule off',
+    at: 'Next run {when}',
   }),
   connection: 'Connection: {name} · {model}',
   connectionDefault: 'Connection: {name} · default model',

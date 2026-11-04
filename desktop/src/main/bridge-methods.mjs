@@ -99,12 +99,18 @@ export const BRIDGE_METHODS = Object.freeze({
   laterItem: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
   openItemUrl: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
   getPipelineSettings: Object.freeze({ args: 0 }),
+  // the timed round (services/schedule.mjs; docs/desktop.md §4.3): { enabled, time: 'HH:MM' } with 00:00–23:59, nothing else
+  getSchedule: Object.freeze({ args: 0 }),
+  setSchedule: Object.freeze({ args: 1, check: ([s]) => isObject(s) && onlyKeys(s, ['enabled', 'time']) && typeof s.enabled === 'boolean' && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time) }),
   // interface B (docs/desktop.md §4.2). The library and reading (services/browse.mjs): an id must be in the index
   getLibrary: Object.freeze({ args: 2, check: ([view, filter]) => LIBRARY_VIEWS.includes(view) && libraryFilter(filter) }),
   searchLibrary: Object.freeze({ args: 2, check: ([q, filter]) => shortString(200)(q) && searchFilter(filter) }),
   readNote: Object.freeze({ args: 1, check: ([id]) => id200(id) }),
   editNote: Object.freeze({ args: 2, check: ([id, changes]) => id200(id) && noteChanges(changes) }),
   openInObsidian: Object.freeze({ args: 1, check: ([id]) => id200(id) }),
+  // 待规范 (docs/desktop.md §4.3, S8): a file name the core lists as needing a header; the header the page edited, or null
+  applyHeader: Object.freeze({ args: 2, check: ([file, header]) => nonEmptyShort(300)(file) && (header === null || smallObject(header, 20_000)) }),
+  applyAllHeaders: Object.freeze({ args: 0 }),
   // the sources and the topics (services/sources.mjs): the shapes are the core's to judge; a name must be in streams.json
   getSources: Object.freeze({ args: 0 }),
   guessSource: Object.freeze({ args: 1, check: ([input]) => nonEmptyShort(2000)(input) }),
@@ -157,6 +163,8 @@ export class BridgeError extends Error {
 export const CORE_BAD_ARGUMENT_CODES = Object.freeze([
   'bad-argument', 'bad-edit', 'invalid-note', 'not-editable', 'bad-source', 'bad-topic', 'bad-input', 'bad-url',
   'bad-feedback', 'bad-question', 'bad-view', 'locked-node', 'bad-config', 'not-found',
+  // writing a header onto a file of an imported folder (core-api 5.9)
+  'not-proposable', 'bad-file-name', 'already-conforming', 'bad-id',
 ])
 
 /** A core error as the bridge's: shape errors (and every `duplicate-*`) → bad_arguments, the rest → internal. */

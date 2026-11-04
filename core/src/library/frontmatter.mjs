@@ -344,3 +344,39 @@ function quote(s) {
 export function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
 }
+
+// ---------------------------------------------------------------- bytes
+
+// splitNoteBytes(bytes) -> { bom, head, body }   three Buffers whose concatenation is the input, byte for byte
+//   bom   the UTF-8 byte-order mark (EF BB BF) when the file starts with one, else empty
+//   head  the front matter with its closing "---" line and that line's line break, else empty
+//   body  everything after it: the whole file (after the mark) when there is no closed front matter
+// The same line rule as parseFrontmatter: lines end at \r?\n, the first line must be exactly "---", the next line that is
+// exactly "---" closes. Bytes are never decoded and re-encoded (latin1 maps each byte to one character), so a line break,
+// a missing final newline or a non-UTF-8 byte in the body is kept as it is.
+export function splitNoteBytes(bytes) {
+  const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const bomLen = buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf ? 3 : 0;
+  const s = buf.toString('latin1', bomLen);
+  const lineEnd = /\r?\n/g;
+  let pos = 0;
+  let first = true;
+  let headEnd = 0;
+  for (;;) {
+    lineEnd.lastIndex = pos;
+    const m = lineEnd.exec(s);
+    const end = m ? m.index : s.length;
+    const next = m ? m.index + m[0].length : s.length;
+    const line = s.slice(pos, end);
+    if (first) {
+      if (line !== DELIM) break;
+      first = false;
+    } else if (line === DELIM) {
+      headEnd = next;
+      break;
+    }
+    if (!m) break;
+    pos = next;
+  }
+  return { bom: buf.subarray(0, bomLen), head: buf.subarray(bomLen, bomLen + headEnd), body: buf.subarray(bomLen + headEnd) };
+}

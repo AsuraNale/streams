@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
 import { isPlainObject } from './frontmatter.mjs';
 import { validateNote } from './validate.mjs';
-import { NOTES_DIR } from './scan.mjs';
+import { notesDir } from './scan.mjs';
 import { writeNoteFile, isNoteId } from './write-note.mjs';
 import { rebuildIndex } from './index.mjs';
 
@@ -42,7 +42,7 @@ export function editNote(libraryDir, id, changes) {
   const given = checkChanges(changes);
   if (!isNoteId(id)) throw new StreamsError('not-found', `no note with id ${JSON.stringify(id)}`);
   const file = `${id}.md`;
-  const path = join(libraryDir, NOTES_DIR, file);
+  const path = join(notesDir(libraryDir), file);
   if (!existsSync(path)) throw new StreamsError('not-found', `${file} is not in the note folder`);
   const current = validateNote({ fileName: file, text: readFileSync(path, 'utf8'), config: null });
   if (!current.ok) throw new StreamsError('not-editable', `${file} does not conform to spec v0`, { problems: current.problems });

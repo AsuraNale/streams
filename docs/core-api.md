@@ -258,6 +258,18 @@
 - **`by:'import-header'` 的语义**（V2，取代原来的「只新建」）：只能改 `notesDir` 里**已存在且不合规范**的同名文件；新内容 = 序列化后的完整文件头 + **原文件的正文逐字节不变**（正文 = 原文件去掉旧 frontmatter 之后的部分，没有 frontmatter 时就是全文；不加换行、不改编码）；写完必须合规范；先写临时文件再 rename。文件不存在 → `not-found`；原文件已合规范 → `already-conforming`。`keep` 仍只新建、`edit` 仍只改合规范的。
 - `listPending` 的每条多 `bodyHash`（正文 sha256，界面与测试核「正文没动」用）与 `nameOk`。
 
+### 5.9 实做差别（11-04）
+
+- **拟的 `topics`**：没有文件头的文件，`proposedHeader.topics` 从 `[]` 改为 `['未分类']`（英文库 `['uncategorized']`；与收藏的兜底主题同一个常量 `pipeline/decide.mjs FALLBACK_TOPIC`）。原因：spec v0 要求 `topics` 非空，`[]` 写不进去（`invalid-note`），「全部按拟的写入」会一个也写不成。
+- **`notesDir(libraryDir)`**：库文件夹里没有 `streams.json` 时给默认 `notes`（不抛）；`streams.json` 读不出 → `config:invalid-json`。同一规则的纯函数 `notesDirOf(libraryDir, config)`；`ensureNotesDir(libraryDir)` 建条目文件夹（`createLibrary` 用，只建文件夹、不写文件）。不合法的还包括：空串、含 `:`（`C:x` 这类盘符相对路径）、含换行。
+- **`skippedDirs`**：相对库文件夹、用 `/`（默认库是 `notes/<子文件夹>`，导入库是 `<子文件夹>`），只列条目文件夹第一层的子文件夹。`listLibrary(dir, {view:'pending'})` 多返回 `skippedDirs`（新函数 `pendingView(dir)`：一次扫描给 `{items, skippedDirs}`）；桌面 `getLibrary('pending', …)` 原样带出。
+- **`importFolder`** 另两种拒绝：文件夹不存在 → `not-found`；`_pipeline`、`index.jsonl`、`index.meta.json` 已在 → `exists`。新写的文件一律 create-only。另导出 `countFirstLevelMd(dir)`（桌面 `folderState` 用）。
+- **`applyProposedHeader`** 另几种错误码：文件已合规范 → `already-conforming`；不在条目文件夹第一层 → `not-found`；用户给的 `id` 不是文件名 → `bad-id`；合并后的文件头不合规范 → `invalid-note`；`header` 不是对象 / null → `bad-argument`。用户在文本框里删掉一个键 = 那个键仍用拟的（合并的结果）。
+- **`by:'import-header'`** 不收 `body`（给了 → `bad-argument`）。正文按字节切（`library/frontmatter.mjs splitNoteBytes`，与 `parseFrontmatter` 同一条行规则：第一行恰为 `---`、下一个恰为 `---` 的行收尾）：CRLF、没有末尾换行、非 UTF-8 字节都原样；原文件以 UTF-8 BOM 开头时 BOM 留在新文件最前面，正文 = BOM 与旧 frontmatter 之后的字节。`bodyHash` = 这段字节的 sha256，导出 `bodyHashOf(bytes)`。
+- 「拟得出」仍只认两种：没有 frontmatter；或问题只有缺 `source` / `date`。缺 `id` 的有头文件（如只写了 title / status / topics）拟不出 → `not-proposable`。
+- `readNote` 读导入的 CRLF 文件时 `body` 是 LF（`parseFrontmatter` 的既有行为）；盘上的字节不变。
+- 桌面：`chooseLibraryFolder` 对 `importable` 多回 `mdCount`（第一层 `.md` 的个数，页面「这个文件夹里有 n 个 .md」用）。设置「打开已有文件夹」选到 importable 时先说明，点「当库打开」才 `useChosenFolder`；首次设置第 1 步点「下一步」才导入。`applyAllHeaders` 对文件名不能当 id 的记 `bad-file-name`、拟不出的记 `not-proposable`，核心拒绝的记核心的错误码；页面「跳过」只在这一页隐藏卡片，「全部按拟的写入」仍写所有拟得出的（桥方法没有参数）。
+
 ## 5.10 定时与补跑（A2）· 桌面主进程做，核心只给纯函数
 
 `schedule = { enabled: boolean, time: 'HH:MM' }`（存 `settings.json`，默认 `{enabled: true, time: '08:30'}`）。核心 `src/pipeline/schedule.mjs`：
