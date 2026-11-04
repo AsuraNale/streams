@@ -32,6 +32,8 @@
  *     `setupLog` (the record keeps the app's arguments as the app gave them)
  *   - app.setAppUserModelId and app.setToastActivatorCLSID are recorded; quit times are recorded; a file the test touches
  *     makes the app quit (app.quit, as the tray's 「退出」 does), so quitting needs no debugger attached
+ *   - a slow exit, when the test gives `slowExitMs` (upgrade.test.mjs: a busy machine): the app's first will-quit is held
+ *     that long (event.preventDefault, then app.quit again), so Streams.exe outlives its windows by that much
  *
  * Then the inspector session is used to read the main process when needed, or closed; the pages are driven with
  * Playwright through Chromium's remote-debugging port (chromium.connectOverCDP). Chromium itself is started with a proxy
@@ -172,6 +174,19 @@ export function hookSource(h) {
   }
   require('module').syncBuiltinESMExports()
   for (const e of ['before-quit', 'will-quit', 'quit']) app.on(e, () => record(e))
+  // a slow exit (the update test's busy machine): the first will-quit is held for H.slowExitMs, then the app quits again —
+  // the windows are gone by then, the process (Streams.exe, holding its program files) stays that long. Registered before the
+  // app's own will-quit listeners, which run as usual both times
+  if (H.slowExitMs > 0) {
+    let held = false
+    app.on('will-quit', event => {
+      if (held) return
+      held = true
+      event.preventDefault()
+      record('exit-held', { ms: H.slowExitMs })
+      setTimeout(() => { record('exit-released'); app.quit() }, H.slowExitMs)
+    })
+  }
   process.on('exit', () => record('exit'))
   if (H.quitFile) {
     const watcher = fs.watchFile(H.quitFile, { interval: 100 }, cur => { if (cur.mtimeMs > 0) { record('quit-file'); app.quit() } })
@@ -223,7 +238,7 @@ function lineMatching(child, re, ms, label) {
  * @param {object} o
  * @param {string} o.exe - the installed Streams.exe
  * @param {Record<string,string>} o.env - its whole environment
- * @param {object} o.hook - {appData, localAppData, recordFile, pickFolder, quitFile?, githubUrl?, setupSpawn?: 'record' | 'run', setupLog?}
+ * @param {object} o.hook - {appData, localAppData, recordFile, pickFolder, quitFile?, githubUrl?, setupSpawn?: 'record' | 'run', setupLog?, slowExitMs?}
  * @param {string} [o.chromiumProxy] - Chromium's proxy (the test's trap), as --proxy-server
  * @param {boolean} [o.devtools] - open Chromium's remote-debugging port and connect Playwright to the page
  * @param {string} o.repo - the repository (playwright-core from desktop/node_modules)

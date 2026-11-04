@@ -114,7 +114,7 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 
 ## 五、怎么测（`installer/test/`）
 
-`node --test --test-concurrency=1 "installer/test/*.test.mjs"`，构建之后跑。六个测试文件、五个共用模块：
+`node --test --test-concurrency=1 "installer/test/*.test.mjs"`，构建之后跑。七个测试文件、五个共用模块：
 
 | 文件 | 核什么 | 会安装吗 |
 |---|---|---|
@@ -123,6 +123,7 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 | `stage-check.test.mjs` | 构建的 stage 核对函数与扫描在 stage 的副本上：原样通过；删掉核心的一个文件、删掉整个核心、放进测试文件 / fixtures / 开发脚本、放一个链接、放本机用户路径 / key / 提交邮箱，各自被报出 | 否 |
 | `install-delete.test.mjs` | 更新时的清理 `[InstallDelete]`：真的 `streams.iss` 与真的清单生成器，对着六个文件的小 stage 编译，用**测试自己的身份**真装三次（第一次装不删；装在自己的旧版上删旧版文件、留用户的文件；装进别人的文件夹不删） | 是（测试身份） |
 | `uninstall-entry.test.mjs` | 更新后卸载项的版本号：9.0.0 → 9.0.1 → 9.1.0（其中一个故意不写卸载项）依次覆盖，卸载项总是最后那一版；另一个文件夹的不碰 | 是（测试身份） |
+| `wait-pid.test.mjs` | 更新的握手：`/STWAITPID` 给了、没给、不合法、进程已不在、超时，安装日志里各一行（§七） | 是（测试身份） |
 | `deltree.test.mjs` | 卸载时删应用数据用的 `DelTree` 不跟进链接 | 否（一次性安装程序，什么也不装） |
 | `harness.mjs` · `machine.mjs` · `world.mjs` · `github-standin.mjs` · `use-case-a.mjs` | 共用：起装好的应用；读注册表、快捷方式、进程；测试的世界（本机假 RSS、代理陷阱、应用的环境）；GitHub 的替身；用例 A 的几步 | — |
 
@@ -132,7 +133,7 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 - 窗口从不显示；选文件夹的对话框答测试的空文件夹；`shell.openPath` / `openExternal` / `showItemInFolder` 只记下；
 - **通知与托盘图标**换成只记录的替身：Electron 的 `Notification` 一被用到就会在开始菜单建或重写快捷方式、在 `HKCU\Software\Classes\CLSID` 注册；真的托盘图标 Windows 会记在通知区域的设置里。替身装在 Electron 取这两个类的地方（`process._linkedBinding('electron_browser_notification')` 与 `('electron_browser_tray')`），钩子随即读一次 `require('electron').Notification` / `.Tray`，不是替身就报错并结束还停在第一行的应用；
 - **网络全记下**：主进程的每个请求 —— `globalThis.fetch`（核心的抓取）、`http/https.request`、`http/https.get`（更新）—— 发出前记下地址与方法，原样放行；只有更新的两个 GitHub 地址交给测试的替身（§七）；应用启动 `…\updates\Streams-<版本>-setup.exe` 时记下参数与启动方式，测试说 `run` 才真启动（这时在应用的五个参数后面加 `/LOG=…`）；
-- 记下 `app.setAppUserModelId`、`app.setToastActivatorCLSID` 的参数与退出各阶段；测试碰一个文件，应用就 `app.quit()`。
+- 记下 `app.setAppUserModelId`、`app.setToastActivatorCLSID` 的参数与退出各阶段；测试碰一个文件，应用就 `app.quit()`；测试给 `slowExitMs` 时，把应用第一次的 `will-quit` 扣住那么久再 `app.quit()`（慢退出，§七）。
 
 页面用 Playwright 经 Chromium 的远程调试口驱动（`chromium.connectOverCDP`）。**出路的陷阱**（`world.mjs` 的 `startTrap`）：应用的环境里 `HTTP_PROXY` / `HTTPS_PROXY` 指向一个什么都拒、全记下的本机代理，加 `NODE_USE_ENV_PROXY=1`（Node 自己的 fetch 也走代理），Chromium 以 `--proxy-server` 指向它；回环不走代理。漏过 harness 记录的请求会落到这里，也不会再往外走。应用的 `PATH` 只有 System32（没有 Node、Python、git、Claude Code、Codex）。**每个 `STREAMS_*` 开关都设成陷阱**（`world.mjs` 的 `trapSwitches`：数据文件夹、库、选文件夹、更新地址、更新记录文件指向空的陷阱文件夹或陷阱代理，`STREAMS_WINDOW=hidden`、`STREAMS_START_SCREEN=settings`、`STREAMS_DEV_SYSTEM_LANGUAGES=en`、`STREAMS_DEV_CONNECTION=fake`、`STREAMS_DEV_NOW=2001-02-03…`），测试逐个核没生效。
 
@@ -165,11 +166,18 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 
 1. 用户在「设置 → 关于」点「检查更新」：一次匿名 `GET https://api.github.com/repos/AsuraNale/streams/releases/latest`（`Accept: application/vnd.github+json`、`User-Agent: Streams/<版本>`；只在用户点时问）。比 `tag_name` 与自己的版本，新的才提示；附件必须恰好叫 `Streams-<版本>-setup.exe`、带 GitHub 给的 `digest`（`sha256:…`）与 `size`，地址在 `https://github.com/AsuraNale/streams/releases/download/` 下。缺一样就只让用户去发布页手动下载。
 2. 「下载」：下到 `<应用数据>\updates\`（不是程序目录），边下边算 SHA-256；大小或 SHA-256 与发布不符 → 删掉、什么也不运行（`verify_failed`）。
-3. 「开始更新」：运行前再核一次大小与 SHA-256，然后以 `/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /STRELAUNCH=1` 分离启动（`detached`、不接标准输入输出、不开控制台窗口），应用照常退出。
+3. 「开始更新」：运行前再核一次大小与 SHA-256，然后以 `/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /STRELAUNCH=1 /STWAITPID=<主进程的进程号>` 分离启动（`detached`、不接标准输入输出、不开控制台窗口），应用照常退出（约 0.3 秒后 `app.quit()`）。参数由 `setupArgs(pid)` 组：前五个不变，最后一个是握手用的 `/STWAITPID=`，值是 `process.pid`（`createUpdateService` 的 `pid` 选项，测试可给别的值）；`desktop/test/services-update.test.mjs` 逐个核参数的形状与值。
 4. 下一次启动时清掉 `updates\` 里的东西。
 
 安装程序这一半（`installer/setup/streams.iss`）：
 
+- **握手：先等应用退出**（`[Code] WaitForTheApp`，由 `PrepareToInstall` 调用 —— 「准备安装」这一步的第一件事，早于 Restart Manager 找占着我们文件的程序（日志里的 `Calling RestartManager's RmGetList`），也早于 `[InstallDelete]` 与复制文件）：读 `/STWAITPID`，以 `SYNCHRONIZE` 打开那个进程（kernel32 的 `OpenProcess`），每 250 毫秒 `WaitForSingleObject` 一次，最多 60 秒（`#define WaitPidTimeoutMs 60000`，构建不改它）。日志里每种情况一行，都以 `Wait for the app to exit:` 开头：
+  - 没有这个参数（手动双击、管理员的静默安装、旧版应用发起的更新）：`no /STWAITPID given, nothing to wait for`，什么也不等，与握手之前完全一样；
+  - 值不是进程号（不是 1–10 位、不以 0 开头的数字，或大于 4294967295）：`/STWAITPID=<值> is not a process id; not waiting`；
+  - 那个进程已经不在：`process <pid> is not running (it has exited already)`；
+  - 等到了：`process <pid> exited after <n> ms`；
+  - 超时：`process <pid> still running after <n> ms (limit 60000 ms); going on, the Restart Manager closes it` —— 安装照常往下走，由 `/CLOSEAPPLICATIONS` 的 Restart Manager 去关它，与握手之前一样。
+  为什么要等：应用启动安装程序后约 0.3 秒才 `app.quit()`，退出本身（关窗口、结束 Chromium 的子进程）在忙的机器上要更久；握手之前安装程序一起来就让 Restart Manager 去关一个正在自己退出的 `Streams.exe`，11-04 审核时机器忙，更新测试就卡在这一步约 13 分钟后失败。现在 Restart Manager 动手时旧版通常已经退了，它找不到要关的程序（日志 `RestartManager found no applications using one of our files.`）。
 - **同一个 AppId 覆盖安装**（`release.json` 的 `app_guid`，发出去后不能改）：沿用上次的位置与附加任务，卸载项还是那一条（值按新版本重写），快捷方式与通知激活器的键同样重写；应用数据与库不碰。
 - **`[InstallDelete]` 先清掉旧版的程序文件**：构建从 stage 的顶层现生成清单（`installer/install-delete.mjs` → `installer/dist/install-delete.iss`，`#include` 进来）：顶层每个文件 `Type: files`、每个文件夹 `Type: filesandordirs`。只有当这个文件夹里有 `Streams.exe`、而且正是本应用的卸载项记的安装位置时才删（`[Code] OldCopyHere`，答案在 `ssInstall` 定一次 —— 云织当年按项现问，删到 `Yunzhi.exe` 之后后面的项全答「否」）；不碰卸载程序、不出 `{app}`、不碰用户自己放的名字。
 - **`[Run]` 装完重新打开**：只在静默且带 `/STRELAUNCH=1`（应用自己发起的更新）时。
@@ -187,24 +195,26 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 | 1 | 0.9.0 静默装进临时文件夹：卸载项 0.9.0、名字以「流息」开头的只一条；测试用户的开始菜单与桌面上有快捷方式；真的开始菜单与桌面上没有 |
 | 2 | 0.9.0 第一次打开（harness）：版本 0.9.0；用例 A 走到收藏一条；「设置 → 关于」写「流息 0.9.0（Windows 版）」，没有「开发版」 |
 | 3 | **反向在前**：替身给错的 sha256 →「检查更新」→「有新版本：1.0.0」→「下载」→ `verify_failed`，`updates\` 是空的，没有启动任何东西，`main.log` 写着「did not pass the check (sha256); deleted, nothing runs」；替身改回对的 → 再检查 → 下载 → `ready`，`updates\Streams-1.0.0-setup.exe` 与 1.0.0 安装包逐字节相同；应用问的恰好是 GitHub 的两个真地址各两次（`Accept`、`User-Agent: Streams/0.9.0`），替身收到的正是这四次；除了替身与本机假 RSS 没有别的请求；代理陷阱为空（`STREAMS_DEV_UPDATE_URL` 没生效）；陷阱文件夹全空（`STREAMS_DEV_UPDATE_SETUP_RECORD` 没生效） |
-| 4 | 「开始更新」→ 应用启动的正是下好的那个文件，参数恰好是那五个，`detached` / `stdio: 'ignore'` / `windowsHide`；之后有 `before-quit`、`will-quit`、`exit`（照常退出）。安装程序跑完、卸载项变成 1.0.0、流息从安装目录重新起来（它的 `main.log` 有起动时看 `updates\` 的那一行），随即被结束（它没有 harness，窗口在屏幕上） |
-| 5 | 程序目录与 1.0.0 的 stage 逐个文件对上（另外只有 `unins000.*`）；名字以「流息」开头的卸载项只一条，`DisplayVersion` 1.0.0、`MajorVersion` 1；两个快捷方式还指向 `Streams.exe`；安装日志：旧版文件先删了（答案 1）、装完重新打开了（1）、卸载项是这一版 |
+| 4 | **慢退出**：harness 在这一次运行里把应用的第一次 `will-quit` 扣住 8 秒（`slowExitMs`，应用代码不改；窗口已关、`Streams.exe` 还活着、占着程序文件 —— 忙的机器上旧版退得慢的样子）。「开始更新」→ 应用启动的正是下好的那个文件，参数恰好是那五个加 `/STWAITPID=<这个 Streams.exe 的进程号>`，`detached` / `stdio: 'ignore'` / `windowsHide`；之后有 `before-quit`、`will-quit`、`exit`，进程在启动安装程序之后至少 7 秒才结束。安装程序跑完、卸载项变成 1.0.0、流息从安装目录重新起来（它的 `main.log` 有起动时看 `updates\` 的那一行），随即被结束（它没有 harness，窗口在屏幕上）；从「开始更新」到这里不到 2 分钟 |
+| 5 | 程序目录与 1.0.0 的 stage 逐个文件对上（另外只有 `unins000.*`）；名字以「流息」开头的卸载项只一条，`DisplayVersion` 1.0.0、`MajorVersion` 1；两个快捷方式还指向 `Streams.exe`；安装日志：恰好一行 `Wait for the app to exit: process <那个进程号> exited after <n> ms`，n 至少 4 秒，在 `Calling RestartManager's RmGetList` 与 `Starting the installation process` 之前，没有 `RestartManager found an application using one of our files`；旧版文件先删了（答案 1）、装完重新打开了（1）、卸载项是这一版 |
 | 6 | 再起一次（harness）：打包态、1.0.0；首屏是今日、侧栏是那个库；「关于」写 1.0.0；`settings.json` 的库与定时与更新前相同；那条笔记逐字节还在、库的索引里有它；`updates\` 空了；起动时没有问 GitHub；整轮代理陷阱为空、陷阱文件夹全空 |
 | 7 | 静默卸载：卸载项、程序文件、快捷方式、通知激活器的键都没了；应用数据与库还在；真的机器上没有任何流息的痕迹，真的 `%APPDATA%\Streams`、`%LOCALAPPDATA%\Streams` 与测试前相同 |
 
 结果写进 `installer/dist/upgrade-test-result.json`。
 
+**握手的各种情况 `wait-pid.test.mjs`**（约 20 秒，任何机器）：真的 `streams.iss` 对着一个小 stage 编译（测试自己的身份，与 `install-delete.test.mjs` 同一套隔离与清理；另编一份 `WaitPidTimeoutMs=2000` 的看超时），每次带应用的开关（`/SILENT` 换成 `/VERYSILENT`、不带 `/STRELAUNCH`）静默装进本轮文件夹，用测试自己起的、会多活几秒的进程（`node -e "setTimeout(…)"`）：A 给它的进程号 → `exited after <n> ms`、n ≥ 3 秒、在开始安装之前，装好了；B **反向**：同样一个活着的慢进程、不给参数 → 只有 `no /STWAITPID given`，没有 `exited after`，安装程序跑完时那个进程还活着（没等它）；C `/STWAITPID=12ab`、`/STWAITPID=0` → `is not a process id`；D 一个已经退出的进程号 → `is not running`；E 2 秒上限、活 8 秒的进程 → `still running after <n> ms (limit 2000 ms)`，安装照常完成。收尾卸载。
+
 ## 八、已知限制
 
 1. **没有签名**：安装包与 `Streams.exe` 都是「未知发布者」，SmartScreen 会拦（§四 的两步）。应用自己下载的更新包没有「来自网络」标记、经 `CreateProcess` 启动，SmartScreen 不拦；用户从浏览器下载时照旧会拦。没有签名也意味着：更新包是否可信全靠 GitHub API 经 HTTPS 给的 `digest`（能改发布的人也能改 digest）。
 2. **只有 Windows x64**。安装包约 111 MiB，装好约 368 MiB、449 个文件（另加卸载程序的 2 个），几乎全是 Electron。
-3. **会安装的两个测试要一台没有真安装的机器（或 Windows 用户）**：守门见到流息的卸载项、快捷方式或通知激活器的键就拒跑，也不许为了跑测试去动真安装。`install-delete`、`uninstall-entry` 用测试自己的身份，不受这一条限制。
+3. **会安装的两个测试要一台没有真安装的机器（或 Windows 用户）**：守门见到流息的卸载项、快捷方式或通知激活器的键就拒跑，也不许为了跑测试去动真安装。`install-delete`、`uninstall-entry`、`wait-pid` 用测试自己的身份，不受这一条限制。
 4. **测试写真 `HKCU`**：卸载项与通知激活器的键是真的两个（Windows 不让环境变量挪 `HKCU`）；每个会安装的测试结束时卸载、`after` 里无论成败再补一次。测试被强行中断在收尾之前，这两个键可能留下：下一次守门会因此拒跑；跑那一轮临时文件夹里的 `unins000.exe`，或手动删这两个键。另：从某些桌面应用（如 Claude 桌面版）的工具 shell 里跑时，进程可能看到的是该应用的私有注册表视图（云织 `docs/installer.md` 11.6 查到过）—— 测试的写与读在同一个视图里，自身一致；要确认真注册表要从资源管理器起的进程去读。
 5. **真更新测试里，被安装程序重新打开的流息没有 harness**：它的窗口与托盘图标会出现在屏幕上几秒（测试随即结束它）；Windows 可能把这个托盘图标记在通知区域的设置里（`HKCU\Control Panel\NotifyIconSettings`，按程序路径，指向已删的测试文件夹）。
 6. **packaged 测试的安装用的是真的用户文件夹**（为了核开始菜单与桌面上的真快捷方式）：测试期间约一两分钟，真的开始菜单与桌面上有「流息」，卸载时删掉；测试结束后再查一遍没有。
 7. 打包测试要 `--inspect-brk`（`EnableNodeCliInspectArguments` fuse 开着）。
 8. `[InstallDelete]` 只认**新版** stage 顶层的名字：旧版独有、新版已经不发的顶层文件会留在程序目录里（云织 `docs/installer.md` 11.5 第 6 条）。
-9. 安装程序与应用之间没有握手：应用启动安装程序后约 0.3 秒退出；安装中途失败（用户取消、磁盘满）时旧版本仍在，不会自动重新打开。
+9. **握手只有一个方向、有上限**（11-04 补）：应用把自己的进程号交给安装程序，安装程序在 Restart Manager 动手之前最多等 60 秒；超过 60 秒还没退（机器极忙、进程挂住），安装照常往下走，仍由 Restart Manager 去关它 —— 那时的行为与握手之前一样，可能再卡在关程序那一步。等待的这段时间里安装程序的界面不处理消息（`/SILENT` 的进度窗口可能显示「未响应」，最多 60 秒）。进程号在应用退出后可能被系统分给别的进程：极少见的情况下安装程序会等一个无关的进程，最多 60 秒。安装程序不回报应用：安装中途失败（用户取消、磁盘满）时旧版本仍在，不会自动重新打开。
 
 ## 九、改了哪些文件（11-04）
 
@@ -214,6 +224,7 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 - `installer/test/*`（重写）：`harness.mjs`、`machine.mjs`、`world.mjs`、`github-standin.mjs`、`use-case-a.mjs`、`packaged.test.mjs`、`upgrade.test.mjs`、`stage-check.test.mjs`（新）；`install-delete.test.mjs`、`uninstall-entry.test.mjs`、`deltree.test.mjs` 从云织改名（测试身份换成新的 GUID）。
 - `docs/installer.md`（本文）。
 - 桌面端（`desktop/src`）**没有改**：打包后的路径本来就对（§三）。
+- 11-04 握手：`desktop/src/main/services/update.mjs`（`/STWAITPID=<pid>`：`WAIT_PID_SWITCH`、`setupArgs`、`pid` 选项）与新的 `desktop/test/services-update.test.mjs`；`installer/setup/streams.iss`（`WaitPidTimeoutMs`、`[Code] WaitForTheApp` / `PrepareToInstall`）；`installer/test/harness.mjs`（`slowExitMs`）、`upgrade.test.mjs`（慢退出、日志里的握手）、新的 `wait-pid.test.mjs`。
 
 ## 十、构建与测试的记录
 
@@ -227,3 +238,10 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 - 跑完之后查过：没有流息的卸载项、通知激活器的键，真的开始菜单与桌面上没有「流息.lnk」，系统临时文件夹里没有测试留下的文件夹。
 - **对测试的反向核对**（不在测试里，在 stage 的副本上手动做）：把副本里 `main.mjs` 的 `STREAMS_DEV_LIBRARY`、`STREAMS_DEV_CONNECTION`、`STREAMS_DEV_SYSTEM_LANGUAGES` 三处的 `!app.isPackaged &&` 各去掉一个，用同样的 harness 与陷阱环境起：三个都被 `packaged.test.mjs` 用的同一批判据抓到（首屏变成今日；两个工具被「找到」；界面不是中文）；没改的副本通过。第一次做时 `STREAMS_DEV_CONNECTION` 那个没抓到 —— 原判据只看卡片上的状态，而探测还没回来时卡片也显示「没找到」；判据改成先等主进程的探测结果、再核两个工具 `installed: false`，之后抓到。
 - 本机：`core` 458/458、`wording` 18/18、`desktop` 231 条 230 过、1 跳过（图标重建对比要 sharp）；`node tests/acceptance/run.mjs` **12 / 12 通过**（V1 变绿：安装包在、发布说明里有它的 sha256）。
+
+### 10.2 2026-11-04 握手（从 `f3c916b` 加本轮未提交的改动）
+
+- **构建**：先删 `installer/dist`，连跑两次：两次都是 `Streams-1.0.0-setup.exe` **116,015,299 字节，SHA256 `37210b332d3f0d35aa2f4df6bda86a541de45b02455fe567a5dfadb40d90139f`**，第二次记 `previous.same_installer: true`、`same_stage: true`；stage `tree_sha256` `736eba2a…`（与 10.1 比变的是 `resources/app/src/main/services/update.mjs`）；发布说明里写的就是这个 sha256（发布说明自己的 SHA256 `46e357ae…`）。10.1 的安装包（`6897811e…`）作废。
+- **测试** `node --test --test-concurrency=1 "installer/test/*.test.mjs"`：**27 条：27 过、0 失败、0 跳过**，312 秒。`upgrade` 第 4 步：应用退出被扣住 8 秒，`Streams.exe`（进程号 35348）在启动安装程序 8,772 毫秒后结束；安装日志 `Wait for the app to exit: process 35348 exited after 8000 ms`，随后 12 毫秒 `Found 14 files to register with RestartManager.`、`Calling RestartManager's RmGetList.`、`RestartManager found no applications using one of our files.`；从「开始更新」到新版起来 29 秒。`wait-pid` 五种情况都过。
+- `desktop` 新的 `services-update.test.mjs` 4 条；把副本里 `install` 的参数改回 `[...SETUP_ARGS]`（`STREAMS_UPDATE_MODULE` 指向副本）再跑：参数那两条失败、另两条通过。
+- 本机：`desktop` 235 条 234 过、1 跳过（sharp）；`core` 458/458；`wording` 18/18；`node tests/acceptance/run.mjs` **12 / 12 通过**。跑完查过：流息的卸载项、测试身份的卸载项都不在，系统临时文件夹里没有测试留下的文件夹。

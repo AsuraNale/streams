@@ -1,5 +1,5 @@
 /**
- * Check for a newer version, and update in place without uninstalling (docs/desktop.md��; work order 08, 2026-10-12).
+ * Check for a newer version, and update in place without uninstalling (docs/desktop.md��; work order 08, 2026-10-12).
  *
  *   where      the public releases of AsuraNale/streams on GitHub: one anonymous GET of
  *              https://api.github.com/repos/AsuraNale/streams/releases/latest (60 an hour for an address; only when the
@@ -17,7 +17,9 @@
  *              and the SHA-256 must be the release's, else the file is deleted and nothing runs. Then renamed to <name>.
  *   install    only when no research turn runs (otherwise the page says to wait; nothing is interrupted); the file is checked
  *              again (size, SHA-256) right before it runs; started on its own (detached, no stdio, no console window) with
- *              /SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /STRELAUNCH=1 — the setup program shows its progress,
+ *              /SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /STRELAUNCH=1 /STWAITPID=<this main process's pid> — the
+ *              setup program first waits (at most 60 s) for this process to have exited before it installs (the handshake:
+ *              installer/setup/streams.iss [Code] PrepareToInstall, before the Restart Manager looks), shows its progress,
  *              installs over this copy (same AppId: the uninstall entry, the shortcuts, the app's data and the library stay)
  *              and, because of /STRELAUNCH=1, opens Streams again when done (installer/setup/streams.iss [Run]). Once it has
  *              started, the app quits the ordinary way (`quit`: app.quit — the helpers end as at any quit).
@@ -55,8 +57,15 @@ export const DOWNLOAD_PREFIX = `https://github.com/${RELEASES_REPO}/releases/dow
 export function isGitHubDownloadHost(url) {
   return url.protocol === 'https:' && url.port === '' && (url.hostname === 'github.com' || url.hostname.endsWith('.githubusercontent.com'))
 }
-/** What the setup program is started with (work order 08 §二; installer/setup/streams.iss reads /STRELAUNCH). */
+/** What the setup program is started with (work order 08 §二; installer/setup/streams.iss reads /STRELAUNCH), before /STWAITPID. */
 export const SETUP_ARGS = Object.freeze(['/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', '/STRELAUNCH=1'])
+/** The handshake's switch: the process the setup program waits for before it installs (installer/setup/streams.iss). */
+export const WAIT_PID_SWITCH = '/STWAITPID'
+/** The whole argument list for a main process id: SETUP_ARGS, then /STWAITPID=<pid>. */
+export function setupArgs(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) throw new TypeError(`setupArgs: not a process id: ${pid}`)
+  return [...SETUP_ARGS, `${WAIT_PID_SWITCH}=${pid}`]
+}
 export const CHECK_TIMEOUT_MS = 10_000
 export const STALL_MS = 60_000
 export const MAX_API_BYTES = 256 * 1024
@@ -212,6 +221,7 @@ export function cleanUpdates(dir) {
  * @param {Function|null} [o.fetchImpl] - the check's GET (env-proxy-fetch.mjs); null: no source (the tests' `off`)
  * @param {Function} [o.openImpl] - the download's streamed GET (env-proxy-fetch.mjs)
  * @param {Function} [o.spawnImpl] - how the setup program is started (child_process.spawn; tests record it)
+ * @param {number} [o.pid] - the main process's id, given to the setup program to wait for (process.pid; tests set it)
  * @param {() => void} [o.quit] - the app's ordinary quit, once the setup program runs
  * @param {() => boolean} [o.turnRunning] - is a research turn running now
  * @param {(snapshot: object) => void} [o.onChange]
@@ -219,7 +229,7 @@ export function cleanUpdates(dir) {
  */
 export function createUpdateService({
   dir, current, dev = false, canUpdate = !dev, apiBaseURL = API_BASE_URL, downloadPrefix = DOWNLOAD_PREFIX, allowHttp = false,
-  fetchImpl = envProxyFetch({ maxBytes: MAX_API_BYTES }), openImpl = envProxyOpen(), spawnImpl = nodeSpawn, quit = () => {},
+  fetchImpl = envProxyFetch({ maxBytes: MAX_API_BYTES }), openImpl = envProxyOpen(), spawnImpl = nodeSpawn, pid = process.pid, quit = () => {},
   turnRunning = () => false, onChange = () => {}, log = () => {}, clock = () => new Date(),
   checkTimeoutMs = CHECK_TIMEOUT_MS, stallMs = STALL_MS, progressEveryMs = 250, quitDelayMs = 300,
 }) {
@@ -480,7 +490,7 @@ export function createUpdateService({
     let child
     try {
       child = await new Promise((resolve, reject) => {
-        const c = spawnImpl(file, [...SETUP_ARGS], { detached: true, stdio: 'ignore', windowsHide: true, cwd: dir })
+        const c = spawnImpl(file, setupArgs(pid), { detached: true, stdio: 'ignore', windowsHide: true, cwd: dir })
         c.once('error', reject)
         c.once('spawn', () => resolve(c))
       })
@@ -490,7 +500,7 @@ export function createUpdateService({
       return { ok: false, reason: 'launch_failed' }
     }
     try { child.unref() } catch { /* a stand-in without it */ }
-    log(`update: the setup program of ${s.release.version} started (pid ${child.pid ?? '?'}): ${SETUP_ARGS.join(' ')}; the app quits`)
+    log(`update: the setup program of ${s.release.version} started (pid ${child.pid ?? '?'}): ${setupArgs(pid).join(' ')}; the app quits`)
     // the page gets its answer first; then the ordinary quit (the helpers end with it)
     setTimeout(() => { try { quit() } catch (err) { log(`update: quit: ${err.message}`) } }, quitDelayMs)
     return { ok: true }

@@ -19,13 +19,20 @@
 ; anything: [Code] OldCopyHere), so nothing of the old version stays behind below
 ; resources\ and locales\ (a top-level file only an older version had is not on the list: docs/installer.md 11.5); [Run]
 ; opens Streams again when the app itself started the update (/STRELAUNCH=1, desktop/src/main/services/update.mjs); after the
-; install [Code] UninstallEntryVersion makes sure the uninstall entry shows this version (docs/installer.md 11.6).
+; install [Code] UninstallEntryVersion makes sure the uninstall entry shows this version (docs/installer.md 11.6). The
+; handshake: the app also passes /STWAITPID=<its process id>, and [Code] PrepareToInstall waits (at most
+; {#WaitPidTimeoutMs} ms) for that process to have exited before the Restart Manager looks for programs holding our files.
 
 #ifndef StageDir
   #error StageDir is not defined: build with node installer/build-installer.mjs
 #endif
 #ifndef InstallDeleteFile
   #error InstallDeleteFile is not defined: build with node installer/build-installer.mjs
+#endif
+; the handshake's limit ([Code] WaitForTheApp): how long the setup program waits for the app that started it to exit.
+; The build does not set it (60 s); installer/test/wait-pid.test.mjs compiles a shorter one to see the time-out
+#ifndef WaitPidTimeoutMs
+  #define WaitPidTimeoutMs 60000
 #endif
 
 [Setup]
@@ -255,6 +262,83 @@ function RelaunchAfterUpdate: Boolean;
 begin
   Result := WizardSilent and (ExpandConstant('{param:STRELAUNCH|0}') = '1');
   Log('Open the app again after the update: ' + IntToStr(Ord(Result)));
+end;
+
+// The handshake with the app's update (docs/installer.md §七): the app starts this setup program with
+// /STWAITPID=<its main process id> and then quits; before anything is installed — PrepareToInstall, the first step of
+// "Preparing to install", before the Restart Manager looks for programs that hold our files — the setup program waits for
+// that process to have exited, at most {#WaitPidTimeoutMs} ms. Each case writes one line to the log, all beginning
+// "Wait for the app to exit:": no /STWAITPID (an install not started by the app: nothing waits, as before), a value that is
+// not a process id, a process that is not running (it has exited already), the process exited after <n> ms, or still running
+// after the limit (the install goes on; the Restart Manager then closes it, as before the handshake). The wait polls in
+// short steps (WaitForSingleObject, 250 ms) on a handle opened with SYNCHRONIZE only.
+const
+  SYNCHRONIZE = $00100000;
+  WAIT_OBJECT_0 = 0;
+
+function OpenProcess(dwDesiredAccess: DWORD; bInheritHandle: BOOL; dwProcessId: DWORD): THandle;
+  external 'OpenProcess@kernel32.dll stdcall';
+function WaitForSingleObject(hHandle: THandle; dwMilliseconds: DWORD): DWORD;
+  external 'WaitForSingleObject@kernel32.dll stdcall';
+function CloseHandle(hObject: THandle): BOOL;
+  external 'CloseHandle@kernel32.dll stdcall';
+function GetTickCount: DWORD;
+  external 'GetTickCount@kernel32.dll stdcall';
+
+function IsProcessId(const Text: String): Boolean;
+var
+  I: Integer;
+begin
+  Result := (Length(Text) >= 1) and (Length(Text) <= 10) and (Text[1] <> '0');
+  if Result then
+    for I := 1 to Length(Text) do
+      if (Text[I] < '0') or (Text[I] > '9') then Result := False;
+  if Result then Result := StrToInt64Def(Text, 0) <= 4294967295;
+end;
+
+procedure WaitForTheApp;
+var
+  Given: String;
+  Pid: DWORD;
+  Handle: THandle;
+  Started, Waited: DWORD;
+  Exited: Boolean;
+begin
+  Given := ExpandConstant('{param:STWAITPID|}');
+  if Given = '' then
+  begin
+    Log('Wait for the app to exit: no /STWAITPID given, nothing to wait for');
+    Exit;
+  end;
+  if not IsProcessId(Given) then
+  begin
+    Log('Wait for the app to exit: /STWAITPID=' + Given + ' is not a process id; not waiting');
+    Exit;
+  end;
+  Pid := StrToInt64Def(Given, 0);
+  Handle := OpenProcess(SYNCHRONIZE, False, Pid);
+  if Handle = 0 then
+  begin
+    Log('Wait for the app to exit: process ' + Given + ' is not running (it has exited already)');
+    Exit;
+  end;
+  Started := GetTickCount;
+  Exited := False;
+  repeat
+    Exited := WaitForSingleObject(Handle, 250) = WAIT_OBJECT_0;
+    Waited := GetTickCount - Started;
+  until Exited or (Waited >= {#WaitPidTimeoutMs});
+  CloseHandle(Handle);
+  if Exited then
+    Log('Wait for the app to exit: process ' + Given + ' exited after ' + IntToStr(Waited) + ' ms')
+  else
+    Log('Wait for the app to exit: process ' + Given + ' still running after ' + IntToStr(Waited) + ' ms (limit {#WaitPidTimeoutMs} ms); going on, the Restart Manager closes it');
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  WaitForTheApp;
+  Result := '';
 end;
 
 // The uninstall entry's version (0.2.2, docs/installer.md 11.6): what Settings → Apps shows. Inno Setup deletes and writes

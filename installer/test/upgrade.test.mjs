@@ -17,10 +17,14 @@
 //      下载 → verify_failed, the file deleted, nothing started; then the right sha256: 检查更新 → 下载 → ready, the file in
 //      <appData>\updates is the 1.0.0 installer byte for byte; the app asked GitHub's real addresses (the harness's record)
 //      and nothing else but the feed; STREAMS_DEV_UPDATE_URL and STREAMS_DEV_UPDATE_SETUP_RECORD (traps) not taken
-//   4. 开始更新 → the app starts the setup program (detached, no console, its five arguments; the harness adds /LOG) and
-//      quits; the setup program installs 1.0.0 over 0.9.0 and opens Streams again (it is ended once it is up)
+//   4. 开始更新 → the app starts the setup program (detached, no console, its five arguments and /STWAITPID=<its own
+//      process id>; the harness adds /LOG) and quits — slowly: the harness holds the app's exit for 8 s (slowExitMs, a busy
+//      machine), so Streams.exe outlives its windows that long; the setup program waits for it (the handshake), installs
+//      1.0.0 over 0.9.0 and opens Streams again (it is ended once it is up), all within 2 minutes
 //   5. after the update: the program folder is the 1.0.0 stage, file for file (and the uninstaller); one uninstall entry,
-//      1.0.0; the setup log says the older copy's files were removed first and the app was opened again
+//      1.0.0; the setup log says it waited for the app's process ("process <pid> exited after <n> ms", seconds) before the
+//      Restart Manager looked, the Restart Manager found no application holding our files, the older copy's files were
+//      removed first and the app was opened again
 //   6. a start of 1.0.0 (harness): packaged, 1.0.0, 关于 says 1.0.0; the library and its note, the settings — still there;
 //      updates\ emptied; nothing asked of GitHub at start
 //   7. silent uninstall: entry, files, shortcuts, toast activator key gone; nothing of Streams left on the real machine
@@ -53,6 +57,8 @@ const NEW_SETUP = join(REPO, NEW_RECORD.installer.file)
 const NEW_MANIFEST = JSON.parse(readFileSync(join(DIST, 'stage-manifest.json'), 'utf8'))
 const RELEASE = NEW_RECORD.release
 const OLDER = '0.9.0'
+// how long the older app's exit is held after 开始更新 (the harness's slowExitMs): the busy machine of the update's handshake
+const SLOW_EXIT_MS = 8000
 const GITHUB_LATEST = 'https://api.github.com/repos/AsuraNale/streams/releases/latest'
 const GITHUB_DOWNLOAD = `https://github.com/AsuraNale/streams/releases/download/v${RELEASE.version}/Streams-${RELEASE.version}-setup.exe`
 
@@ -180,7 +186,7 @@ let A = null
 test(`2 · ${OLDER} first start: use case A to a kept note; 设置 → 关于 says ${OLDER}`, async () => {
   const env = appEnv({ profile: W.profile, tmp: W.tmp, trapUrl: S.trap.url, traps: W.traps })
   S.appEnv = env
-  A = await launchInstalled({ exe: W.exe, env, hook: hook(1, { setupSpawn: 'run', setupLog: join(ROOT, 'setup-update.log') }), chromiumProxy: S.trap.url, repo: REPO, cwd: W.install })
+  A = await launchInstalled({ exe: W.exe, env, hook: hook(1, { setupSpawn: 'run', setupLog: join(ROOT, 'setup-update.log'), slowExitMs: SLOW_EXIT_MS }), chromiumProxy: S.trap.url, repo: REPO, cwd: W.install })
   assert.equal(await A.evaluate("require('electron').app.getVersion()"), OLDER)
   await firstRunToInbox(A.page, { feedUrl: S.feed.feed })
   S.kept = await keepCurrent(A.page)
@@ -237,7 +243,7 @@ test(`3 · 检查更新 → ${RELEASE.version}: a wrong sha256 is refused (verif
 
 // ---------------------------------------------------------------- 4. the update
 
-test(`4 · 开始更新: the app starts the downloaded setup program (detached, no console, its five arguments) and quits; ${RELEASE.version} is installed over ${OLDER} and Streams opens again`, async () => {
+test(`4 · 开始更新: the app starts the downloaded setup program (detached, no console, its five arguments and its process id) and quits, 8 s late; ${RELEASE.version} is installed over ${OLDER} and Streams opens again`, async () => {
   const started = Date.now()
   const mainLog = join(W.appData, 'logs', 'main.log')
   const logLengthBefore = readFileSync(mainLog, 'utf8').length
@@ -254,8 +260,13 @@ test(`4 · 开始更新: the app starts the downloaded setup program (detached, 
   assert.equal(spawned.length, 1)
   const s = spawned[0]
   assert.ok(same(s.command, join(W.appData, 'updates', `Streams-${RELEASE.version}-setup.exe`)), s.command)
-  assert.deepEqual(s.args, [...SETUP_ARGS])
-  assert.deepEqual(s.args, ['/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', '/STRELAUNCH=1'])
+  S.appPid = A.child.pid
+  assert.deepEqual(s.args, [...SETUP_ARGS, `/STWAITPID=${S.appPid}`])
+  assert.deepEqual(s.args, ['/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', '/STRELAUNCH=1', `/STWAITPID=${S.appPid}`], 'the switches, and the main process\'s own id')
+  // the slow exit: held, then released; the process ended at least that long after it started the setup program
+  assert.ok(rec.some(r => r.kind === 'exit-held') && rec.some(r => r.kind === 'exit-released'), 'the exit was held and released (the harness)')
+  assert.ok(exit.at - s.t >= SLOW_EXIT_MS - 1000, `the app ended ${exit.at - s.t} ms after it started the setup program`)
+  S.result.slowExit = { heldMs: SLOW_EXIT_MS, appEndedAfterSpawnMs: exit.at - s.t, pid: S.appPid }
   assert.deepEqual({ detached: s.detached, stdio: s.stdio, windowsHide: s.windowsHide }, { detached: true, stdio: 'ignore', windowsHide: true })
   for (const k of ['before-quit', 'will-quit', 'exit']) assert.ok(rec.some(r => r.kind === k && r.t >= started), `${k} after 开始更新`)
   // the setup program runs, installs and opens Streams again; once the entry says the new version and Streams runs from the
@@ -272,6 +283,7 @@ test(`4 · 开始更新: the app starts the downloaded setup program (detached, 
   const setupTail = () => (existsSync(setupLog) ? readFileSync(setupLog, 'utf8').split(/\r?\n/).slice(-25).join('\n') : '(no setup log)')
   assert.equal(uninstallEntry(RELEASE.app_guid)?.DisplayVersion, RELEASE.version, `the setup program installed ${RELEASE.version}\n${setupTail()}`)
   assert.ok(reopened.length >= 1, `Streams was opened again from the install folder\n${setupTail()}`)
+  assert.ok(S.result.updateSeconds < 120, `the update took ${S.result.updateSeconds} s (nothing stuck closing the older app)\n${setupTail()}`)
   // its start is in the log (the leftovers of updates\ looked at), then it is ended
   const reopenedLog = () => readFileSync(mainLog, 'utf8').slice(logLengthBefore)
   for (let i = 0; i < 60 && !/update: the updates folder/.test(reopenedLog()); i += 1) await sleep(500)
@@ -300,6 +312,21 @@ test(`5 · after the update: the program folder is the ${RELEASE.version} stage;
   assert.ok(same(entry.InstallLocation, W.install))
   for (const lnk of [S.startMenu, S.desktop]) assert.ok(same(shortcut(lnk)?.target ?? '', W.exe), `${lnk} still → Streams.exe`)
   const log = readFileSync(join(ROOT, 'setup-update.log'), 'utf8')
+  // the handshake: the setup program waited for the app's own process — seconds, the held exit — before the Restart Manager
+  // looked; by then nothing held our files
+  const lines = log.split(/\r?\n/)
+  const waits = lines.filter(l => l.includes('Wait for the app to exit:'))
+  assert.equal(waits.length, 1, waits.join('\n'))
+  const waited = new RegExp(`Wait for the app to exit: process ${S.appPid} exited after (\\d+) ms$`).exec(waits[0])
+  assert.ok(waited, waits[0])
+  assert.ok(Number(waited[1]) >= SLOW_EXIT_MS / 2, `waited ${waited[1]} ms`)
+  const at = re => lines.findIndex(l => re.test(l))
+  const rmAt = at(/Calling RestartManager's RmGetList/)
+  assert.ok(rmAt < 0 || at(/Wait for the app to exit:/) < rmAt, 'the wait comes before the Restart Manager looks')
+  assert.ok(at(/Wait for the app to exit:/) < at(/Starting the installation process/), 'and before the installation starts')
+  assert.doesNotMatch(log, /RestartManager found an application using one of our files/, 'the Restart Manager found nothing to close')
+  S.result.setupLogWait = waits[0]
+  S.result.setupLogRestartManager = lines.filter(l => /RestartManager/.test(l))
   assert.match(log, /An older copy of the app in this folder \(its program files are removed first\): 1/)
   assert.match(log, /Open the app again after the update: 1/)
   assert.match(log, /The uninstall entry shows this version: 1\.0\.0|The uninstall entry showed version .*: written 1\.0\.0/)
