@@ -247,7 +247,7 @@
 
 `verdictsFor(libraryDir, url)`（`src/verify/verdicts.mjs`，S15）：这一条的全部核验记录，按 node、round 分组：`[{node, round, items:[{item, kind, passed, evidence, claimed}]}]`，并标出「说做了其实没做」（claimed 且没过）。
 
-## 5.9 导入已有文件夹（A3 / S8）· W6 · 建（11-04 定稿）
+## 5.9 导入已有文件夹（A3 / S8）· W6 · 有（11-04 定稿并实做；维护者 11-04 定：导入的文件夹原地当库用，v1.0 只读第一层，子文件夹进 v1.1）
 
 方案 A3：「只建索引，不搬文件、不改名。缺文件头的列到『待规范』，软件拟好文件头给你看，你点了才写入；你自己写的正文一个字不动。」
 
