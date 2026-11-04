@@ -168,9 +168,18 @@ export function buildNotices({ stage, lockFile, facts }) {
   line(rule('='))
   line("5. Streams' own parts")
   line(rule('='))
-  line('resources\\app (the desktop app and, once shipped, the core) is Streams\' own, under the MIT license (the repository\'s')
-  line('LICENSE). Developed by Starry Digital (https://starrydigital.ca).')
+  line('resources\\app (the desktop app) and resources\\core (the core) are Streams\' own, under the MIT license below')
+  line('(also at resources\\app\\LICENSE). Developed by Starry Digital (https://starrydigital.ca).')
+  line('resources\\app（桌面端）与 resources\\core（核心）是流息自己的代码，MIT 许可（原文如下，另见 resources\\app\\LICENSE）。')
   line()
+  const ownLicense = join(resources, 'app', 'LICENSE')
+  if (existsSync(ownLicense)) {
+    line(rule('-'))
+    line('Streams: LICENSE')
+    line(rule('-'))
+    line(readFileSync(ownLicense, 'utf8').replace(/\r\n/g, '\n').trim())
+    line()
+  }
   for (const p of ours) {
     line(`* ${p.id} — ${licenseOf(p.pkg)} — ${p.copies.join(', ')}`)
   }

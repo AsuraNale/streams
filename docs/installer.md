@@ -1,0 +1,229 @@
+# Windows 安装包与自动更新（installer/）
+
+> 2026-11-04 · 本文：一条命令怎么构建；用什么工具、为什么；构建做了什么；装好后是什么样；怎么安装、卸载（含给测试员的 SmartScreen 两步）；怎么测；自动更新怎么走；第三方许可；已知限制。
+> 这套工程 11-02 从云织桌面版（`C:\Users\you\dev\yunzhi-desktop`，它的 `docs/installer.md`）复制改名而来，11-04 第一次在流息上跑通；云织那边的引擎、自带 Python、dsh、DeepSeek 余额等部分全部去掉。
+> 依赖的接口：`docs/desktop.md`（§三 应用数据布局；更新服务 `desktop/src/main/services/update.mjs` 的文件头）。
+
+## 〇、一条命令
+
+```
+node installer/build-installer.mjs
+```
+
+在仓库根目录、Windows、Node 24 下运行。产物在 `installer/dist/`（不进 git：`.gitignore` 的 `dist/`）：
+
+| 文件 | 是什么 |
+|---|---|
+| `Streams-<版本>-setup.exe` | 安装包。版本取 `installer/setup/release.json` 的 `version`（现在 1.0.0），名字是它的 `output_base_filename` |
+| `release-notes-<版本>.md` | 发布说明：文件名、大小、sha256（构建对刚出的文件现算）、未签名与 SmartScreen 两步、怎么核 sha256、怎么卸载。验收 V1 的自动化前置（`tests/acceptance/v01-clean-install.test.mjs`）读它 |
+| `build-record.json` | 输入（Electron、Inno Setup、rcedit 的版本与 SHA256）、每项核对的结果、Streams.exe 的节对比 / 图标 / 版本信息 / fuse、安装包的大小与 SHA256 与读回的版本信息、扫描结果、发布说明的 SHA256、与上一次构建比是否逐字节相同（`previous`） |
+| `stage-manifest.json` | 装进去的每个文件与它的 SHA256，以及整棵树的 `tree_sha256` |
+| `stage/` | 就是安装后的文件夹 |
+| `install-delete.iss` | 更新时先清掉旧版文件的清单（§七） |
+
+第一次跑会按 manifest 下载 Inno Setup（约 14 MB，§一）、按 lock 装 rcedit；Electron 用 `installer/electron` 已核过的那份（`node installer/electron/setup_electron.mjs verify`；不在就先跑它的 `build`）。打包前可以把自己不许出现在安装包里的邮箱放进环境变量 `STREAMS_SCAN_EMAILS`（逗号分隔），扫描会一并查（§二 6）。
+
+测试（§五；装进临时文件夹、走一遍用例 A、卸载干净；再装旧版走一遍真更新）：
+
+```
+node --test --test-concurrency=1 "installer/test/*.test.mjs"
+```
+
+## 一、工具：Inno Setup 7.1.0 + rcedit（不用 electron-builder）
+
+| | Inno Setup 7.1.0 | electron-builder（NSIS） |
+|---|---|---|
+| 要下载的东西 | **一个文件** `innosetup-7.1.0-x64.exe`：GitHub 上 jrsoftware/issrc 的正式发布。核：SHA256 = GitHub 给这个发布文件的摘要；Authenticode 签名 Valid、签名者 Pyrsys B.V.（jrsoftware.org/isdl-verify.php 写明）。装好后再核 13 个编译器文件的 SHA256 | npm 上几百个包，构建时它自己再从 GitHub 下 NSIS 等 |
+| 装在哪 | 便携模式装进 `installer/downloads/innosetup/7.1.0/`（git 忽略）：不写卸载项、不建开始菜单 | 仓库的 node_modules |
+| 布局 | 构建脚本自己把安装后的文件夹原样摆好（stage），Inno Setup 只管压缩、安装、卸载；哪些文件进去全由脚本决定、逐个核对；不打 asar | 它接管依赖收集、裁剪、asar |
+| 按用户安装 | `PrivilegesRequired=lowest`：`%LOCALAPPDATA%\Programs\Streams`、用户自己的开始菜单与桌面、`HKCU` 的卸载项 | 支持 |
+| 通知要的 AppUserModelID | 快捷方式上直接写 | 自动 |
+| 卸载时问「是否删除应用数据」、默认不删 | `[Code]` 十几行；`DelTree` 删链接不跟进（§四，`deltree.test.mjs` 实测） | 只有「总删 / 总不删」 |
+| 中文界面 | 官方简体中文翻译，随 Inno Setup 自带 | 支持 |
+| 可复现 | `[Files]` 的 `notimestamp`：同样的文件压出同样的字节（§二.1 实测两次相同） | 要另外处理时间戳 |
+| 许可 | Inno Setup License（BSD 式，可商用）：`installer/downloads/innosetup/7.1.0/license.txt` | MIT |
+
+`installer/innosetup/manifest.json` 记版本、地址、SHA256、签名者与装好后 13 个文件的 SHA256；`node installer/innosetup/setup_innosetup.mjs build | verify | lock`，`build` 遇到不一致就停，下载只认 `https://github.com/jrsoftware/issrc/releases/download/`。
+
+**rcedit 5.0.2**：给 `Streams.exe` 换图标与版本信息（electron-packager、electron-builder 底下也是它）。npm 包 `rcedit` 只当运输工具：钉在 `installer/rcedit/package.json`（精确版本）与 `package-lock.json`，`node installer/rcedit/setup_rcedit.mjs build | verify | lock` 用 `npm ci --ignore-scripts`（只认 registry.npmjs.org、不读任何 npmrc、缓存在 `installer/downloads/npm-cache`）。只用包里的 `bin/rcedit-x64.exe`（自报 `Rcedit v2.0.0`），它**没有签名**，所以 `installer/rcedit/manifest.json` 记的 SHA256（`3e7801db…`，1,360,384 字节）连同 11 个 tarball 的 SHA256 就是钉它的东西。npm 把这个包所有版本都标成了 deprecated，二进制照常能用。
+
+## 二、构建做了什么（`installer/build-installer.mjs`）
+
+任何一步不过就停（退出码 1，最后一行 `STOP: …`）。
+
+1. **Electron 44.0.0**：`setup_electron.mjs verify`（zip、`electron.exe`、`dist/` 的 73 个文件与 manifest 一致）。
+2. **Inno Setup**：`setup_innosetup.mjs` 的 `ensureInnoSetup`（不在就下载、核 SHA256 与签名、便携安装；在就核 13 个文件）。
+3. **rcedit**：`setup_rcedit.mjs` 的 `ensureRcedit`（不在就 `npm ci`；核 exe 的 SHA256、大小、自报版本与 11 个 tarball）。
+4. **stage**（`installer/dist/stage/`，就是装好后的文件夹，§三）。只拿 git 知道的文件（已跟踪的，或新加而未忽略的）：
+   - Electron 的 `dist/`，除 `resources/default_app.asar`；`electron.exe` 改名 `Streams.exe`；
+   - `resources/app/`：`desktop/src`（去掉组件一览的三个文件，名单从 `desktop/src/main/protocol.mjs` 的 `DEV_ONLY` 现读）、`desktop/assets/icon/streams.ico`（只这一个，放在与开发时相对 `desktop/` 相同的位置）、仓库根的 `LICENSE`（流息自己的 MIT）、`package.json`（只留运行要的字段，`version` 写成 `release.json` 的）；`node_modules` 里只有 desktop 的两个依赖 preact、htm（先核与 `desktop/package-lock.json` 一致再拷）；
+   - `resources/core/`：`core/src`（核心，纯 Node，无依赖；`core/package.json` 有依赖就停）与精简的 `package.json`。放在这里是因为桌面端用相对路径找核心：`desktop/src/main/core.mjs` 写的是 `../../../core/src/index.mjs`，从 `resources/app/src/main/` 往上三层正是 `resources/`。这样不用改桌面端的代码；
+   - 最后 **rcedit 改 `Streams.exe` 的资源**：`--set-icon` 换成那个 `.ico`；版本字符串 CompanyName = `release.json` 的 `publisher`（Starry Data & Technology Inc.）、ProductName 与 FileDescription = `app_name`（流息）、LegalCopyright = `copyright`（`Copyright (C) 2026 Starry Data & Technology Inc.`）、OriginalFilename = `Streams.exe`、InternalName = `Streams`；FileVersion 与 ProductVersion = `version`。
+5. **THIRD-PARTY-NOTICES.txt**（§六），从 stage 里的文件现生成。
+6. **对 stage 的核对**（链接、相对 import、遗留物三项的函数在 `installer/stage-check.mjs`，`installer/test/stage-check.test.mjs` 用同一批函数在 stage 的副本上做反向核对）：
+   - 没有任何链接（`linksIn`）；记下文件数、字节数、最长路径；
+   - **我们自己的代码里每个相对 `import` 都能在 stage 里找到文件**（`relativeImportProblems`：`resources/app/src` 与 `resources/core/src` 两处；组件一览那一处除外）。核心没打进去、或少了一个文件，这一条就报出来（反向测试：删掉核心的 `errors.mjs` → 报出所有引用它的地方；删掉整个 `resources/core` → 报 `resources/core/src` 缺、`core.mjs → ../../../core/src/index.mjs` 找不到）；`resources/core/src/index.mjs` 必须在；
+   - 组件一览的三个文件不在；`resources/app`、`resources/core` 里没有测试、样例、fixtures、开发脚本（`developmentLeftovers`）；
+   - **`Streams.exe` 是钉死的 `electron.exe` 只改了资源节**：先核 `electron.exe` 本身的 SHA256 与 manifest 一致，再读两边的 PE 节表（`installer/exe-resources.mjs`），15 个节里除 `.rsrc` 外 14 个逐字节相同；`.rsrc` 里只有一个图标组、解出来与 `.ico` 的五张图（16、24、32、48、256）逐字节对上；版本信息按 Windows 的读法（PowerShell `FileVersionInfo`）与写进去的八项逐项相同；fuse 表原样记进记录；Electron 其余 71 个文件与 dist 逐字节相同；
+   - `resources/app/package.json` 的版本是 `release.json` 的；
+   - **扫描**（`installer/scan.mjs`）：API key 的样子（`sk-` 加 32 位十六进制，或本仓库测试 key 的写法）、本机的用户文件夹名与计算机名、git 的提交邮箱（仓库与全局）与 `STREAMS_SCAN_EMAILS` 里的地址、开发数据文件夹的名字、开发用的文件，一处也不许有。放行名单 `ALLOWED_HITS` 现在是空的。
+7. **stage 的文件清单** `stage-manifest.json`（上一次的在时打印两次之间变了哪些文件）；更新用的清理清单 `install-delete.iss`（§七）。
+8. **ISCC** 编译 `installer/setup/streams.iss`（脚本经标准输入给 ISCC，按 UTF-8 读；所有值由构建以 `-D` 传入：版本、名字、发布者、版权行、GUID、AppUserModelID、通知激活器 CLSID、图标、清理清单，来源是 `release.json`、`desktop/src/main/app-id.mjs`、`icon.mjs`）。`lzma2/max`、整体压缩。编译完**读回安装程序自己的版本信息核一遍**：CompanyName、ProductName、FileDescription = `app_ver_name`、ProductVersion `1.0.0`、FileVersion `1.0.0.0`、LegalCopyright（Inno Setup 把 `(C)` 写成 `©`，按它的写法比）。
+9. **记录**：`build-record.json`；**发布说明** `release-notes-<版本>.md`，写完再读一遍、核里面有这个 sha256。
+
+只给更新测试用的两个构建变量（应用从不读它们）：`STREAMS_INSTALLER_VERSION=<x.y.z>` 用同一份源码、同一个脚本构建另一个版本号（`release.json` 本身不改：`version`、`output_base_filename`、`app_ver_name` 只在这一次替换），`STREAMS_INSTALLER_OUT=<绝对路径>` 让这次构建写的所有东西都去那里而不是 `installer/dist`。`upgrade.test.mjs` 用它们造 0.9.0。
+
+### 2.1 结果
+
+见 §十（每次构建与测试的数字）。
+
+## 三、装好后是什么样
+
+```
+%LOCALAPPDATA%\Programs\Streams\        （默认；用户可改）
+  Streams.exe                           Electron 44.0.0 的 electron.exe，改了名字（app.isPackaged 由此为真），rcedit 换上流息的图标与版本信息（只有 .rsrc 节不同）
+  *.dll *.pak *.bin *.dat locales\ …    Electron 的其余文件（不含 resources\default_app.asar）
+  LICENSE  LICENSES.chromium.html       Electron 与 Chromium 的许可
+  THIRD-PARTY-NOTICES.txt               §六
+  unins000.exe  unins000.dat            卸载程序（安装时生成）
+  resources\
+    app\                                桌面端：package.json（1.0.0）、LICENSE（流息的 MIT）、src\、assets\icon\streams.ico、node_modules\{preact, htm}
+    core\                               核心：package.json、src\（desktop 的 src\main\core.mjs 经 ../../../core/src/ 找到它）
+```
+
+- **路径怎么取**：桌面端没有为打包改代码。`main.mjs` 的页面、预加载、图标都按自己所在的文件夹算（`resources\app\src\…`）；核心按相对路径（上面）；preact、htm 由 `protocol.mjs` 从 `resources\app\node_modules` 发给页面。
+- **数据放哪**（`desktop/src/main/layout.mjs`，没改）：应用数据 `%APPDATA%\Streams`（设置、加密的 API key、日志、Chromium 的数据、`updates\`），本地数据 `%LOCALAPPDATA%\Streams`（缓存）；库在用户选的文件夹里（`settings.json` 的 `libraryPath`）。
+- **开发用的开关**：打包态一律不认（`STREAMS_*` 全部由 `app.isPackaged` 挡住；安装测试里每个都设成陷阱、一个也没生效，§五）。开发者工具关着（`devTools: !app.isPackaged`），菜单为空，组件一览的文件不在。
+- **AppUserModelID 与通知激活器 CLSID**：`StarryDigital.Streams` 与 `{10309C50-6EBE-4E03-AB99-FF685983103D}`（`desktop/src/main/app-id.mjs`，与安装包写进两个快捷方式的是同一对）。安装程序装完把快捷方式上的 ID 改写成 Electron 认的 VT_LPWSTR 型（Inno Setup 写的是 VT_BSTR），另在 `HKCU\Software\Classes\CLSID\{10309C50-…}` 写下与 Electron 同键同值的通知激活器注册，卸载时整个键删掉。为什么要这样：Electron 44 在一次运行里第一次用到通知时，会核开始菜单里以产品名命名的快捷方式，有一样不对就整个重写（不带图标），并每次写这个注册表键（云织 `docs/installer.md` §九 12 查过源码与实测）。
+- **图标**：一个文件 `resources\app\assets\icon\streams.ico`，用在窗口与任务栏（`main.mjs`）、托盘、`Streams.exe` 自己的资源、安装程序（`SetupIconFile`）、卸载项与两个快捷方式。
+- **fuses**：一个都没动（`Streams.exe` 与 `electron.exe` 除 `.rsrc` 外逐节相同）。`RunAsNode` 开着（流息不用它，但关掉要改 exe 的字节、引入 `@electron/fuses`）；`EnableNodeCliInspectArguments` 开着，打包后的测试要用 `--inspect-brk`（§五）。
+- **发布者与版权行**：发布者 `Starry Data & Technology Inc.`；版权行只写在 `release.json` 的 `copyright` 一处，`Streams.exe` 与安装程序都取它。仓库代码的许可是根目录 `LICENSE`（MIT）。
+
+## 四、安装与卸载
+
+**给测试员**：双击 `Streams-1.0.0-setup.exe`。这一版**未签名**，Windows 会弹蓝色的「Windows 已保护你的电脑」（SmartScreen，「未知发布者」）：
+
+1. 点「**更多信息**」；
+2. 再点「**仍要运行**」。
+
+安装不要管理员权限，安装本身不联网。装完开始菜单和桌面上有「流息」。卸载：「设置 → 应用 → 已安装的应用」里找「流息 1.0.0-dev.0」（`release.json` 的 `app_ver_name`）→ 卸载。下载后可以先核 sha256（发布说明里有）：`Get-FileHash .\Streams-1.0.0-setup.exe -Algorithm SHA256`。
+
+- 安装：按用户装，默认 `%LOCALAPPDATA%\Programs\Streams`，可以改；开始菜单「流息」，桌面「流息」（可以不勾）；装完可以直接打开。只装 x64（Windows 10 1809 及以上）。
+- 卸载：只删安装时放进去的文件、两个快捷方式、卸载项、通知激活器的注册表键。**不删库**。最后问一句「是否同时删除流息的应用数据？」（API key、设置、缓存），**默认「否」**；选「是」才删 `%APPDATA%\Streams` 与 `%LOCALAPPDATA%\Streams`（`DelTree`：遇到链接只删链接本身，不跟进 —— `installer/test/deltree.test.mjs` 用钉死的 Inno Setup 实测）。应用开着时，安装 / 卸载程序会提示先关（Restart Manager）。
+- 静默（测试 / 管理员）：`Streams-1.0.0-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART [/DIR=…] [/MERGETASKS="!desktopicon"]`；卸载 `"%LOCALAPPDATA%\Programs\Streams\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`（静默卸载取默认：保留应用数据；卸载程序先把自己拷到 TEMP 再运行，命令会先返回）。
+
+## 五、怎么测（`installer/test/`）
+
+`node --test --test-concurrency=1 "installer/test/*.test.mjs"`，构建之后跑。六个测试文件、五个共用模块：
+
+| 文件 | 核什么 | 会安装吗 |
+|---|---|---|
+| `packaged.test.mjs` | 真安装包：装、用例 A、退出、卸载（下表） | 是（流息的身份） |
+| `upgrade.test.mjs` | 真更新：装 0.9.0、应用里检查 → 下载 → 更新到 1.0.0（§七） | 是（流息的身份） |
+| `stage-check.test.mjs` | 构建的 stage 核对函数与扫描在 stage 的副本上：原样通过；删掉核心的一个文件、删掉整个核心、放进测试文件 / fixtures / 开发脚本、放一个链接、放本机用户路径 / key / 提交邮箱，各自被报出 | 否 |
+| `install-delete.test.mjs` | 更新时的清理 `[InstallDelete]`：真的 `streams.iss` 与真的清单生成器，对着六个文件的小 stage 编译，用**测试自己的身份**真装三次（第一次装不删；装在自己的旧版上删旧版文件、留用户的文件；装进别人的文件夹不删） | 是（测试身份） |
+| `uninstall-entry.test.mjs` | 更新后卸载项的版本号：9.0.0 → 9.0.1 → 9.1.0（其中一个故意不写卸载项）依次覆盖，卸载项总是最后那一版；另一个文件夹的不碰 | 是（测试身份） |
+| `deltree.test.mjs` | 卸载时删应用数据用的 `DelTree` 不跟进链接 | 否（一次性安装程序，什么也不装） |
+| `harness.mjs` · `machine.mjs` · `world.mjs` · `github-standin.mjs` · `use-case-a.mjs` | 共用：起装好的应用；读注册表、快捷方式、进程；测试的世界（本机假 RSS、代理陷阱、应用的环境）；GitHub 的替身；用例 A 的几步 | — |
+
+**打包后的应用不认任何开发开关**，所以不能像桌面端的测试那样用环境变量指挥它。`harness.mjs` 用 `--inspect-brk` 起 `Streams.exe`，停在应用第一行之前，只改**周围的环境**，全经 Electron 与 Node 的公开对象，应用的代码一行不改：
+
+- 用户数据放哪：`app.setPath('appData')` 与 `LOCALAPPDATA` 指到测试自己的文件夹；应用的 `USERPROFILE`、`APPDATA`、`LOCALAPPDATA`、`TEMP` 也都在测试文件夹里（**真的 `%APPDATA%\Streams`、`%LOCALAPPDATA%\Streams` 一律不碰**，测试前后拍照核）；系统语言答中文；
+- 窗口从不显示；选文件夹的对话框答测试的空文件夹；`shell.openPath` / `openExternal` / `showItemInFolder` 只记下；
+- **通知与托盘图标**换成只记录的替身：Electron 的 `Notification` 一被用到就会在开始菜单建或重写快捷方式、在 `HKCU\Software\Classes\CLSID` 注册；真的托盘图标 Windows 会记在通知区域的设置里。替身装在 Electron 取这两个类的地方（`process._linkedBinding('electron_browser_notification')` 与 `('electron_browser_tray')`），钩子随即读一次 `require('electron').Notification` / `.Tray`，不是替身就报错并结束还停在第一行的应用；
+- **网络全记下**：主进程的每个请求 —— `globalThis.fetch`（核心的抓取）、`http/https.request`、`http/https.get`（更新）—— 发出前记下地址与方法，原样放行；只有更新的两个 GitHub 地址交给测试的替身（§七）；应用启动 `…\updates\Streams-<版本>-setup.exe` 时记下参数与启动方式，测试说 `run` 才真启动（这时在应用的五个参数后面加 `/LOG=…`）；
+- 记下 `app.setAppUserModelId`、`app.setToastActivatorCLSID` 的参数与退出各阶段；测试碰一个文件，应用就 `app.quit()`。
+
+页面用 Playwright 经 Chromium 的远程调试口驱动（`chromium.connectOverCDP`）。**出路的陷阱**（`world.mjs` 的 `startTrap`）：应用的环境里 `HTTP_PROXY` / `HTTPS_PROXY` 指向一个什么都拒、全记下的本机代理，加 `NODE_USE_ENV_PROXY=1`（Node 自己的 fetch 也走代理），Chromium 以 `--proxy-server` 指向它；回环不走代理。漏过 harness 记录的请求会落到这里，也不会再往外走。应用的 `PATH` 只有 System32（没有 Node、Python、git、Claude Code、Codex）。**每个 `STREAMS_*` 开关都设成陷阱**（`world.mjs` 的 `trapSwitches`：数据文件夹、库、选文件夹、更新地址、更新记录文件指向空的陷阱文件夹或陷阱代理，`STREAMS_WINDOW=hidden`、`STREAMS_START_SCREEN=settings`、`STREAMS_DEV_SYSTEM_LANGUAGES=en`、`STREAMS_DEV_CONNECTION=fake`、`STREAMS_DEV_NOW=2001-02-03…`），测试逐个核没生效。
+
+`packaged.test.mjs` 一次走完（任何一步失败，`after` 照样结束安装目录里的进程、本轮的安装还在就静默卸载、删临时文件夹，先解链接）：
+
+| 步 | 核什么 |
+|---|---|
+| 0 | 守门：这台机器上没有流息的卸载项（`HKCU\…\Uninstall\{DF025A05-…}_is1`）、没有开始菜单或桌面上的「流息.lnk」、没有通知激活器的键，有一样就停（不碰真的安装）；拍下真的 `%APPDATA%\Streams`、`%LOCALAPPDATA%\Streams`（只看名字、大小、时间） |
+| 1 | 静默安装到临时文件夹：卸载项（名字 `app_ver_name`、版本、发布者、位置、图标 = 装上的 `.ico`），名字以「流息」开头的卸载项只有这一条；开始菜单与桌面两个快捷方式（目标、起始位置、图标、AppUserModelID、通知激活器 CLSID，并按 Electron 读快捷方式的方式核 VT_LPWSTR / VT_CLSID 两个类型）；通知激活器的键；装上的 `Streams.exe` 的图标组与 `.ico` 五张图逐字节对上、版本信息是 `release.json` 的且与 `build-record.json` 记的相同；安装程序的版本信息也是；**装上的每个文件与 stage 逐字节相同**（另外只有 `unins000.exe/.dat`）；没有链接；核心在；没有 `default_app.asar`、组件一览；`LICENSE`、`LICENSES.chromium.html`、`THIRD-PARTY-NOTICES.txt`、`resources\app\LICENSE`（与仓库根的逐字相同）都在 |
+| 2 | 扫描安装目录与安装包本身：没有 key、提交邮箱、本机路径与计算机名、开发内容（卸载日志 `unins000.dat` 写着装到了哪里 —— 那是安装时在本机写的，只放过它的「本机路径」一类）；对照：同一扫描找得到故意放进去的 key、路径、邮箱、内容（UTF-8 与 UTF-16 各一） |
+| 3 | **用例 A**：打包态、版本 1.0.0、资源在安装目录、没有菜单、开发者工具打不开、窗口没显示过、通知激活器 CLSID 是固定的那个；开关陷阱没生效（首屏是首次设置第 1 步 —— 不是陷阱库的今日、不是设置；中文；托盘图标经替身建了 —— `STREAMS_WINDOW=hidden` 会不建）；第 1 步点「选文件夹」→ 对话框答测试的空文件夹 →「空的」→ 下一步，库建在那里；第 2 步三张卡都不可用（本机没有工具也没有 key；`STREAMS_DEV_CONNECTION=fake` 会让两张可用）→ 跳过；第 3 步选空白、加一个本机假 RSS（测试起的 `127.0.0.1` 服务器）→ 试抓 `ok`、`streams.json` 的来源正是它；第 4 步页面写着没有连接 → 开始 → 跑完，三条全部进待看（不打分）；定时那屏「完成」→ 待看；`settings.json` 记着库与定时；待看按 **C** → 库的 `notes\` 里出现一个 `.md`，**核心自己的 `validateNote` 没有问题**、来源是那张卡、`status: kept`、收藏日期是今天（不是 `STREAMS_DEV_NOW` 那天）；**harness 记下的请求全部是去本机假 RSS 的**，代理陷阱为空，陷阱文件夹全空，没往外开任何东西。对照（同一步里、用例走完之后）：从主进程发一个 Node 的 `fetch`、一个 `https.request`、一个应用自己会话里的 `net.fetch`、一个另开的内存会话里的 `net.fetch`（地址都在 `.invalid` 下）—— 前两个 harness 记下、陷阱收到，第三个被应用的会话拒绝并记进 `main.log`，第四个陷阱收到：记录与陷阱都抓得到东西 |
+| 4 | 退出（调试器全部断开，碰退出文件）：进程结束，3 秒后安装目录里没有任何进程 |
+| 5 | 静默卸载（默认：保留应用数据）：卸载项、两个快捷方式、通知激活器的键、程序目录整个没了；测试的应用数据与库（连同那条笔记）还在；真的 `%APPDATA%\Streams`、`%LOCALAPPDATA%\Streams` 与测试前**完全一样**；再按第 0 步查一遍：没有任何流息的痕迹 |
+
+结果写进 `installer/dist/packaged-test-result.json`（含收藏下来的那条笔记的路径与全文、harness 记下的每个请求、对照的结果）。
+
+## 六、第三方许可
+
+`THIRD-PARTY-NOTICES.txt` 在安装目录根上，由构建从 stage 里的文件现生成（`installer/notices.mjs`），列的正是装进去的东西：
+
+1. MPL-2.0 与 LGPL 组件的源码在哪里（这一版没有）。
+2. Electron 44.0.0（MIT 全文；Chromium 及其组件见同目录的 `LICENSES.chromium.html`）。
+3. 2 个 npm 包：preact 10.29.8（MIT）、htm 3.1.1（Apache-2.0）—— 名字、版本、许可、仓库。
+4. 它们自带的 LICENSE 原文。
+5. 流息自己的部分：`resources\app` 与 `resources\core` 是流息的代码，MIT，`LICENSE` 全文（另见 `resources\app\LICENSE`）；由 Starry Digital 开发。
+
+## 七、自动更新是怎么走的
+
+应用这一半（`desktop/src/main/services/update.mjs`，文件头写全了）：
+
+1. 用户在「设置 → 关于」点「检查更新」：一次匿名 `GET https://api.github.com/repos/AsuraNale/streams/releases/latest`（`Accept: application/vnd.github+json`、`User-Agent: Streams/<版本>`；只在用户点时问）。比 `tag_name` 与自己的版本，新的才提示；附件必须恰好叫 `Streams-<版本>-setup.exe`、带 GitHub 给的 `digest`（`sha256:…`）与 `size`，地址在 `https://github.com/AsuraNale/streams/releases/download/` 下。缺一样就只让用户去发布页手动下载。
+2. 「下载」：下到 `<应用数据>\updates\`（不是程序目录），边下边算 SHA-256；大小或 SHA-256 与发布不符 → 删掉、什么也不运行（`verify_failed`）。
+3. 「开始更新」：运行前再核一次大小与 SHA-256，然后以 `/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /STRELAUNCH=1` 分离启动（`detached`、不接标准输入输出、不开控制台窗口），应用照常退出。
+4. 下一次启动时清掉 `updates\` 里的东西。
+
+安装程序这一半（`installer/setup/streams.iss`）：
+
+- **同一个 AppId 覆盖安装**（`release.json` 的 `app_guid`，发出去后不能改）：沿用上次的位置与附加任务，卸载项还是那一条（值按新版本重写），快捷方式与通知激活器的键同样重写；应用数据与库不碰。
+- **`[InstallDelete]` 先清掉旧版的程序文件**：构建从 stage 的顶层现生成清单（`installer/install-delete.mjs` → `installer/dist/install-delete.iss`，`#include` 进来）：顶层每个文件 `Type: files`、每个文件夹 `Type: filesandordirs`。只有当这个文件夹里有 `Streams.exe`、而且正是本应用的卸载项记的安装位置时才删（`[Code] OldCopyHere`，答案在 `ssInstall` 定一次 —— 云织当年按项现问，删到 `Yunzhi.exe` 之后后面的项全答「否」）；不碰卸载程序、不出 `{app}`、不碰用户自己放的名字。
+- **`[Run]` 装完重新打开**：只在静默且带 `/STRELAUNCH=1`（应用自己发起的更新）时。
+- **卸载项的版本号**：装完再读一次卸载项，指向本文件夹却不是本版本号时照 Inno Setup 的写法补写（`[Code] UninstallEntryVersion`，`uninstall-entry.test.mjs`）。
+
+**测试 `upgrade.test.mjs`**（真更新，约 5–8 分钟）：
+
+- 旧版本由测试自己造：`node installer/build-installer.mjs`，带 `STREAMS_INSTALLER_VERSION=0.9.0` 与 `STREAMS_INSTALLER_OUT=<本轮文件夹>`，同一份源码、同一个脚本，`release.json` 不改。
+- 安装程序、应用、被安装程序重新打开的应用都在一个**测试自己的用户文件夹**里（`USERPROFILE`、`APPDATA`、`LOCALAPPDATA`、`TEMP`）：开跑前先问 Windows（带这几个变量）「程序」「桌面」与两个应用数据文件夹在哪，有一个不在测试文件夹里就不跑。挪不动的是 `HKCU`（卸载项与通知激活器的键是真的那两个），所以守门与 `packaged.test.mjs` 相同。
+- GitHub 由 `github-standin.mjs` 扮演（本机 `127.0.0.1`）：harness 把应用对那两个地址的请求原样带路径转给它，并记下应用问的是什么 —— 打包后的应用不认 `STREAMS_DEV_UPDATE_URL`（它被设成指向代理陷阱），只能这样从环境里接管。
+
+| 步 | 核什么 |
+|---|---|
+| 0 | 守门；造 0.9.0（记下 SHA256，与 1.0.0 的不同）；测试用户的文件夹解析在测试文件夹里 |
+| 1 | 0.9.0 静默装进临时文件夹：卸载项 0.9.0、名字以「流息」开头的只一条；测试用户的开始菜单与桌面上有快捷方式；真的开始菜单与桌面上没有 |
+| 2 | 0.9.0 第一次打开（harness）：版本 0.9.0；用例 A 走到收藏一条；「设置 → 关于」写「流息 0.9.0（Windows 版）」，没有「开发版」 |
+| 3 | **反向在前**：替身给错的 sha256 →「检查更新」→「有新版本：1.0.0」→「下载」→ `verify_failed`，`updates\` 是空的，没有启动任何东西，`main.log` 写着「did not pass the check (sha256); deleted, nothing runs」；替身改回对的 → 再检查 → 下载 → `ready`，`updates\Streams-1.0.0-setup.exe` 与 1.0.0 安装包逐字节相同；应用问的恰好是 GitHub 的两个真地址各两次（`Accept`、`User-Agent: Streams/0.9.0`），替身收到的正是这四次；除了替身与本机假 RSS 没有别的请求；代理陷阱为空（`STREAMS_DEV_UPDATE_URL` 没生效）；陷阱文件夹全空（`STREAMS_DEV_UPDATE_SETUP_RECORD` 没生效） |
+| 4 | 「开始更新」→ 应用启动的正是下好的那个文件，参数恰好是那五个，`detached` / `stdio: 'ignore'` / `windowsHide`；之后有 `before-quit`、`will-quit`、`exit`（照常退出）。安装程序跑完、卸载项变成 1.0.0、流息从安装目录重新起来（它的 `main.log` 有起动时看 `updates\` 的那一行），随即被结束（它没有 harness，窗口在屏幕上） |
+| 5 | 程序目录与 1.0.0 的 stage 逐个文件对上（另外只有 `unins000.*`）；名字以「流息」开头的卸载项只一条，`DisplayVersion` 1.0.0、`MajorVersion` 1；两个快捷方式还指向 `Streams.exe`；安装日志：旧版文件先删了（答案 1）、装完重新打开了（1）、卸载项是这一版 |
+| 6 | 再起一次（harness）：打包态、1.0.0；首屏是今日、侧栏是那个库；「关于」写 1.0.0；`settings.json` 的库与定时与更新前相同；那条笔记逐字节还在、库的索引里有它；`updates\` 空了；起动时没有问 GitHub；整轮代理陷阱为空、陷阱文件夹全空 |
+| 7 | 静默卸载：卸载项、程序文件、快捷方式、通知激活器的键都没了；应用数据与库还在；真的机器上没有任何流息的痕迹，真的 `%APPDATA%\Streams`、`%LOCALAPPDATA%\Streams` 与测试前相同 |
+
+结果写进 `installer/dist/upgrade-test-result.json`。
+
+## 八、已知限制
+
+1. **没有签名**：安装包与 `Streams.exe` 都是「未知发布者」，SmartScreen 会拦（§四 的两步）。应用自己下载的更新包没有「来自网络」标记、经 `CreateProcess` 启动，SmartScreen 不拦；用户从浏览器下载时照旧会拦。没有签名也意味着：更新包是否可信全靠 GitHub API 经 HTTPS 给的 `digest`（能改发布的人也能改 digest）。
+2. **只有 Windows x64**。安装包约 111 MiB，装好约 368 MiB、449 个文件（另加卸载程序的 2 个），几乎全是 Electron。
+3. **会安装的两个测试要一台没有真安装的机器（或 Windows 用户）**：守门见到流息的卸载项、快捷方式或通知激活器的键就拒跑，也不许为了跑测试去动真安装。`install-delete`、`uninstall-entry` 用测试自己的身份，不受这一条限制。
+4. **测试写真 `HKCU`**：卸载项与通知激活器的键是真的两个（Windows 不让环境变量挪 `HKCU`）；每个会安装的测试结束时卸载、`after` 里无论成败再补一次。测试被强行中断在收尾之前，这两个键可能留下：下一次守门会因此拒跑；跑那一轮临时文件夹里的 `unins000.exe`，或手动删这两个键。另：从某些桌面应用（如 Claude 桌面版）的工具 shell 里跑时，进程可能看到的是该应用的私有注册表视图（云织 `docs/installer.md` 11.6 查到过）—— 测试的写与读在同一个视图里，自身一致；要确认真注册表要从资源管理器起的进程去读。
+5. **真更新测试里，被安装程序重新打开的流息没有 harness**：它的窗口与托盘图标会出现在屏幕上几秒（测试随即结束它）；Windows 可能把这个托盘图标记在通知区域的设置里（`HKCU\Control Panel\NotifyIconSettings`，按程序路径，指向已删的测试文件夹）。
+6. **packaged 测试的安装用的是真的用户文件夹**（为了核开始菜单与桌面上的真快捷方式）：测试期间约一两分钟，真的开始菜单与桌面上有「流息」，卸载时删掉；测试结束后再查一遍没有。
+7. 打包测试要 `--inspect-brk`（`EnableNodeCliInspectArguments` fuse 开着）。
+8. `[InstallDelete]` 只认**新版** stage 顶层的名字：旧版独有、新版已经不发的顶层文件会留在程序目录里（云织 `docs/installer.md` 11.5 第 6 条）。
+9. 安装程序与应用之间没有握手：应用启动安装程序后约 0.3 秒退出；安装中途失败（用户取消、磁盘满）时旧版本仍在，不会自动重新打开。
+
+## 九、改了哪些文件（11-04）
+
+- `installer/build-installer.mjs`：核心打进 `resources/core/`；流息的 `LICENSE` 进 `resources/app/`；相对 import 的核对扩到核心并移到 `installer/stage-check.mjs`；遗留物核对；发布说明；`STREAMS_INSTALLER_VERSION` / `STREAMS_INSTALLER_OUT` 两个构建变量；扫描的开发文件名单补上 desktop 的两个脚本。
+- `installer/stage-check.mjs`（新）：构建与测试共用的三项 stage 核对。
+- `installer/notices.mjs`：「流息自己的部分」写上 `resources\core` 并附 `LICENSE` 全文。
+- `installer/test/*`（重写）：`harness.mjs`、`machine.mjs`、`world.mjs`、`github-standin.mjs`、`use-case-a.mjs`、`packaged.test.mjs`、`upgrade.test.mjs`、`stage-check.test.mjs`（新）；`install-delete.test.mjs`、`uninstall-entry.test.mjs`、`deltree.test.mjs` 从云织改名（测试身份换成新的 GUID）。
+- `docs/installer.md`（本文）。
+- 桌面端（`desktop/src`）**没有改**：打包后的路径本来就对（§三）。
+
+## 十、构建与测试的记录
+
+### 10.1 2026-11-04（从 `048413a` 加本轮未提交的改动；`desktop/src`、`core/src` 本轮没改）
+
+- **构建**：先删掉 `installer/dist`，`node installer/build-installer.mjs` 连跑两次（`STREAMS_SCAN_EMAILS` 设了打包人的邮箱）：两次都是 `installer/dist/Streams-1.0.0-setup.exe` **116,014,411 字节（110.6 MiB），SHA256 `6897811ebafbe2fffcfee9d14237257adfaa60cae5a51389c58cce1a3c9ec571`**，第二次的 `build-record.json` 记 `previous.same_installer: true`、stage 没有一个文件变（`tree_sha256` `0dcb2a7d…`）。一次约 75 秒，其中 ISCC 约 50 秒。当天更早的第一次构建（改测试之前）也是这个 SHA256。
+- **stage**：449 个文件、386,221,644 字节；拷进去的：Electron 72（`electron.exe` 改名）、desktop 122、核心 78、preact 131、htm 41、图标 1、LICENSE 1；最长路径 75 个字符；我们自己的代码 182 个文件里 576 个相对 import 都找得到；扫描 0 处。`Streams.exe` 244,428,288 字节、SHA256 `8d5a0c9f…`，15 个 PE 节里 14 个与 `electron.exe` 逐字节相同、只有 `.rsrc` 不同，图标组 = `.ico` 的五张图；Electron 其余 71 个文件逐字节相同。
+- **版本信息**（PowerShell `VersionInfo` 读）：`Streams.exe` —— Starry Data & Technology Inc. / 流息 / 流息 / 1.0.0 / 1.0.0 / `Copyright (C) 2026 Starry Data & Technology Inc.`；安装程序 —— 同一发布者 / 流息 / 流息 1.0.0-dev.0 / 1.0.0.0 / 1.0.0 / `Copyright © 2026 Starry Data & Technology Inc.`。`Get-AuthenticodeSignature`：两个都是 `NotSigned`。
+- **发布说明** `installer/dist/release-notes-1.0.0.md`（SHA256 `f5f06c15…`）；`node --test tests/acceptance/v01-clean-install.test.mjs` 2/2 通过；把发布说明里的 sha256 改掉一位再跑：失败（「发布说明里没有这个安装包的 sha256 …（写的是 …）」），改回原字节后又通过。
+- **测试** `node --test --test-concurrency=1 "installer/test/*.test.mjs"`：**22 条：22 过、0 失败、0 跳过**，368 秒。`packaged`：安装 12 秒、卸载 1.5 秒；装上的 449 个文件与 stage 逐字节相同；用例 A 里 harness 记下的请求只有两次 `GET http://127.0.0.1:<端口>/feed`（第 3 步的试抓与第 4 步的一轮），代理陷阱为空；收藏下来的是 `notes\2026-11-04-streams-installer-check-the-first-item.md`，`validateNote` 没有问题（一条提醒：话题「未分类」不在 `streams.json` 里 —— 空白包没有话题，核心给的兜底话题）；一轮跑完经通知替身发了一条通知；对照的四个请求都在该在的地方（Node 的两个：harness 记下、陷阱收到；应用会话里的：被拒并记进 `main.log`；另开会话里的：陷阱收到）。`upgrade`：造 0.9.0 约 80 秒（两次运行造出的 0.9.0 安装包 SHA256 都是 `c77d7b6d…`）；从「开始更新」到安装程序跑完、流息重新起来约 25 秒；重新起来的流息在 `main.log` 写了「update: the updates folder: 1 file(s) removed」。
+- 跑完之后查过：没有流息的卸载项、通知激活器的键，真的开始菜单与桌面上没有「流息.lnk」，系统临时文件夹里没有测试留下的文件夹。
+- **对测试的反向核对**（不在测试里，在 stage 的副本上手动做）：把副本里 `main.mjs` 的 `STREAMS_DEV_LIBRARY`、`STREAMS_DEV_CONNECTION`、`STREAMS_DEV_SYSTEM_LANGUAGES` 三处的 `!app.isPackaged &&` 各去掉一个，用同样的 harness 与陷阱环境起：三个都被 `packaged.test.mjs` 用的同一批判据抓到（首屏变成今日；两个工具被「找到」；界面不是中文）；没改的副本通过。第一次做时 `STREAMS_DEV_CONNECTION` 那个没抓到 —— 原判据只看卡片上的状态，而探测还没回来时卡片也显示「没找到」；判据改成先等主进程的探测结果、再核两个工具 `installed: false`，之后抓到。
+- 本机：`core` 458/458、`wording` 18/18、`desktop` 231 条 230 过、1 跳过（图标重建对比要 sharp）；`node tests/acceptance/run.mjs` **12 / 12 通过**（V1 变绿：安装包在、发布说明里有它的 sha256）。

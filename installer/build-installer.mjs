@@ -10,9 +10,10 @@
  * 3. rcedit 5.0.2 (installer/rcedit/setup_rcedit.mjs): the pinned rcedit-x64.exe, its SHA256 checked against the manifest
  *    (installed with npm ci when missing).
  * 4. The stage, installer/dist/stage/: exactly the install folder (docs/installer.md §三) — Electron renamed Streams.exe,
- *    resources/app (the desktop app with preact and htm, the core (core/) once the app imports it, and the icon file
- *    assets/icon/streams.ico), THIRD-PARTY-NOTICES.txt. Only files git knows (tracked, or new and not ignored) from
- *    desktop/; tests, fixtures and the component gallery stay out. Then rcedit gives Streams.exe its icon (the .ico) and
+ *    resources/app (the desktop app with preact and htm, the icon file assets/icon/streams.ico, Streams' LICENSE),
+ *    resources/core (core/src: desktop/src/main/core.mjs imports ../../../core/src/index.mjs, which from
+ *    resources/app/src/main is resources/core/src), THIRD-PARTY-NOTICES.txt. Only files git knows (tracked, or new and
+ *    not ignored) from desktop/src and core/src; tests, fixtures and the component gallery stay out. Then rcedit gives Streams.exe its icon (the .ico) and
  *    流息's version info (publisher, name, version, the company's copyright line — release.json's `copyright`, the one
  *    source of that line for Streams.exe and the setup program both).
  * 5. Checks on the stage: no link anywhere; Streams.exe is electron.exe with only its .rsrc section rewritten (every other
@@ -24,8 +25,14 @@
  *    release.json's: publisher, name, version, copyright. installer/dist/ is git-ignored.
  * 7. installer/dist/build-record.json: inputs, stage, Streams.exe, the installer's size, SHA256 and version info; the stage's
  *    file list goes to installer/dist/stage-manifest.json, and when the previous build's list is there, the files that
- *    differ are printed.
- * Stops at the first failed check (exit code 1). Not run yet for Streams (plan 5.2: the installer round is later this week).
+ *    differ are printed. installer/dist/release-notes-<version>.md: the installer's name, size and SHA256, that it is not
+ *    signed and the two clicks past SmartScreen (tests/acceptance/v01-clean-install.test.mjs reads it).
+ * Stops at the first failed check (exit code 1).
+ *
+ * For the update test only (installer/test/upgrade.test.mjs): STREAMS_INSTALLER_VERSION=<major.minor.patch> builds the same
+ * app under another version number (release.json itself is not changed: version, output_base_filename and app_ver_name are
+ * taken over for this one run), and STREAMS_INSTALLER_OUT=<absolute folder> puts everything this build writes there
+ * instead of installer/dist. Both are build-time variables of this script; the app never reads them.
  */
 
 import { spawnSync } from 'node:child_process'
@@ -34,7 +41,7 @@ import {
   closeSync, copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync,
   statSync, writeFileSync,
 } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { ensureInnoSetup } from './innosetup/setup_innosetup.mjs'
 import { ensureRcedit } from './rcedit/setup_rcedit.mjs'
@@ -42,6 +49,7 @@ import { compareSections, groupMatchesIco, iconGroups, innoCopyright, setupVersi
 import { buildNotices } from './notices.mjs'
 import { machineMarkers, scanForLeaks } from './scan.mjs'
 import { installDeleteList } from './install-delete.mjs'
+import { developmentLeftovers, linksIn, relativeImportProblems, walk } from './stage-check.mjs'
 import { ICON_FILE } from '../desktop/src/main/icon.mjs'
 import { parseIco } from '../desktop/scripts/lib/icon.mjs'
 import { VERSION_RE } from '../desktop/src/main/version.mjs'
@@ -49,14 +57,27 @@ import { setupName } from '../desktop/src/main/services/update.mjs'
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const INSTALLER = join(REPO, 'installer')
-const DIST = join(INSTALLER, 'dist')
+const OUT_OVERRIDE = process.env.STREAMS_INSTALLER_OUT ?? ''
+if (OUT_OVERRIDE && !isAbsolute(OUT_OVERRIDE)) throw new Error('STREAMS_INSTALLER_OUT must be an absolute folder')
+const DIST = OUT_OVERRIDE ? resolve(OUT_OVERRIDE) : join(INSTALLER, 'dist')
 const STAGE = join(DIST, 'stage')
 const RECORD = join(DIST, 'build-record.json')
 const STAGE_MANIFEST = join(DIST, 'stage-manifest.json')
 // the update's clean-up list, made from the stage (installer/install-delete.mjs) and included by installer/setup/streams.iss
 const INSTALL_DELETE = join(DIST, 'install-delete.iss')
 const ELECTRON_DIST = join(INSTALLER, 'electron', 'node_modules', 'electron', 'dist')
-const RELEASE = JSON.parse(readFileSync(join(INSTALLER, 'setup', 'release.json'), 'utf8'))
+const RELEASE_FILE_JSON = JSON.parse(readFileSync(join(INSTALLER, 'setup', 'release.json'), 'utf8'))
+const VERSION_OVERRIDE = process.env.STREAMS_INSTALLER_VERSION ?? ''
+// the update test's other version (see the header): the same release.json with the version, the setup program's name and
+// the version-and-name line taken over for this one build
+const RELEASE = VERSION_OVERRIDE
+  ? {
+      ...RELEASE_FILE_JSON,
+      version: VERSION_OVERRIDE,
+      output_base_filename: setupName(VERSION_OVERRIDE).replace(/.exe$/, ''),
+      app_ver_name: RELEASE_FILE_JSON.app_ver_name.split(RELEASE_FILE_JSON.version).join(VERSION_OVERRIDE),
+    }
+  : RELEASE_FILE_JSON
 for (const key of ['version', 'app_name', 'app_ver_name', 'publisher', 'copyright', 'app_guid', 'install_folder', 'exe_name', 'output_base_filename']) {
   if (typeof RELEASE[key] !== 'string' || !RELEASE[key].trim()) throw new Error(`installer/setup/release.json has no "${key}"`)
 }
@@ -184,7 +205,22 @@ function stage() {
     if (installed !== desktopLock[`node_modules/${name}`]?.version) throw new Stop(`desktop/node_modules/${name} is ${installed}, the lock says ${desktopLock[`node_modules/${name}`]?.version}`)
     counts[name] = copyTree(join(REPO, 'desktop', 'node_modules', name), join(app, 'node_modules', name))
   }
-  // (the core — core/ — goes in here as resources/app/node_modules/@streams/core once the desktop app imports it, plan 5.2)
+  // Streams' own license, next to the app's package.json (Electron's LICENSE is the one at the top of the install folder)
+  if (!gitFiles('LICENSE').includes('LICENSE')) throw new Stop('LICENSE is not a file git knows')
+  copyInto(join(REPO, 'LICENSE'), join(app, 'LICENSE'))
+  counts.license = 1
+
+  // the core (core/src): the desktop app reaches it by a relative path (desktop/src/main/core.mjs:
+  // ../../../core/src/index.mjs), so it sits where that path lands from resources/app/src/main — resources/core/src. It has
+  // no npm dependencies (core/package.json); its package.json goes along with the fields that say what it is
+  const coreDir = join(STAGE, 'resources', 'core')
+  const coreFiles = gitFiles('core/src')
+  if (!coreFiles.includes('core/src/index.mjs')) throw new Stop('core/src/index.mjs is not a file git knows')
+  for (const f of coreFiles) copyInto(join(REPO, f), join(coreDir, relative('core', f)))
+  const corePkg = JSON.parse(readFileSync(join(REPO, 'core', 'package.json'), 'utf8'))
+  if (Object.keys(corePkg.dependencies ?? {}).length) throw new Stop(`core/package.json has dependencies (${Object.keys(corePkg.dependencies).join(', ')}): the stage does not carry them`)
+  writeJson(join(coreDir, 'package.json'), { name: corePkg.name, version: RELEASE.version, private: true, license: corePkg.license, type: corePkg.type })
+  counts.core = coreFiles.length
   return { counts, devOnly }
 }
 
@@ -213,16 +249,6 @@ function brandExe(rcedit) {
 
 // ---------------------------------------------------------------- checks
 
-function* walk(root, dir = root) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name)
-    const st = lstatSync(path)
-    if (st.isSymbolicLink()) yield { path, link: true, dir: false }
-    else if (st.isDirectory()) { yield { path, link: false, dir: true }; yield* walk(root, path) }
-    else yield { path, link: false, dir: false, size: st.size }
-  }
-}
-
 function readFuses(exe) {
   const buf = readFileSync(exe)
   const at = buf.indexOf(Buffer.from(FUSE_SENTINEL, 'ascii'))
@@ -241,14 +267,13 @@ function checkStage({ devOnly, branded }) {
   let files = 0
   let bytes = 0
   let longest = ''
-  const links = []
+  const links = linksIn(STAGE)
+  if (links.length) throw new Stop(`links in the stage: ${links.slice(0, 5).join(', ')}`)
   for (const e of walk(STAGE)) {
-    if (e.link) links.push(relative(STAGE, e.path))
     if (!e.dir && !e.link) { files += 1; bytes += e.size }
     const r = relative(STAGE, e.path)
     if (r.length > longest.length) longest = r
   }
-  if (links.length) throw new Stop(`links in the stage: ${links.slice(0, 5).join(', ')}`)
   facts.files = files
   facts.bytes = bytes
   facts.longest_relative_path = { length: longest.length, path: longest }
@@ -256,31 +281,22 @@ function checkStage({ devOnly, branded }) {
 
   // every relative import in our own code resolves inside the stage (a package laid out differently from the repository
   // fails here, at build time, not as a dialog in the packaged app)
-  const ownCode = [join(STAGE, 'resources', 'app', 'src')]
-  const importRe = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"\n]+)\1/g
-  let imports = 0
-  const unresolved = []
-  for (const root of ownCode) {
-    for (const e of walk(root)) {
-      if (e.dir || e.link || !/\.(mjs|js|cjs)$/.test(e.path)) continue
-      for (const m of readFileSync(e.path, 'utf8').matchAll(importRe)) {
-        imports += 1
-        const target = resolve(dirname(e.path), m[2])
-        // app.js loads the component gallery only in development (`#kit`); its files are left out on purpose
-        const gallery = devOnly.some(d => resolve(STAGE, 'resources', 'app', 'src', 'renderer', d) === target)
-        if (!existsSync(target) && !gallery) unresolved.push(`${relative(STAGE, e.path)} → ${m[2]}`)
-      }
-    }
-  }
-  if (unresolved.length) throw new Stop(`relative imports that do not resolve in the stage: ${unresolved.slice(0, 10).join('; ')}`)
-  facts.relative_imports = imports
-  say(`  ok  ${imports} relative imports in our own code all resolve inside the stage`)
+  // (installer/stage-check.mjs: resources/app/src and resources/core/src; app.js loads the component gallery only in
+  // development (`#kit`), its files are left out on purpose)
+  const imports = relativeImportProblems(STAGE, { devOnly })
+  if (imports.missingRoots.length) throw new Stop(`our own code is missing from the stage: ${imports.missingRoots.join(', ')}`)
+  if (imports.unresolved.length) throw new Stop(`relative imports that do not resolve in the stage: ${imports.unresolved.slice(0, 10).join('; ')}`)
+  facts.relative_imports = { imports: imports.imports, files: imports.files }
+  say(`  ok  ${imports.imports} relative imports in ${imports.files} files of our own code (resources/app/src, resources/core/src) all resolve inside the stage`)
+  if (!existsSync(join(STAGE, 'resources', 'core', 'src', 'index.mjs'))) throw new Stop('resources/core/src/index.mjs is not in the stage')
 
-  // the component gallery is not there
+  // the component gallery is not there; nor tests, fixtures, samples, development scripts
   const app = join(STAGE, 'resources', 'app', 'src', 'renderer')
   const shipped = devOnly.filter(d => existsSync(join(app, ...d.split('/'))))
   if (shipped.length) throw new Stop(`development-only files in the stage: ${shipped.join(', ')}`)
-  say(`  ok  the component gallery's files are not in the stage (${devOnly.join(', ')})`)
+  const leftovers = developmentLeftovers(STAGE)
+  if (leftovers.length) throw new Stop(`tests, fixtures or development scripts in the stage: ${leftovers.slice(0, 10).join(', ')}`)
+  say(`  ok  the component gallery's files are not in the stage (${devOnly.join(', ')}); no tests, fixtures, samples or development scripts`)
 
   // Streams.exe is the pinned electron.exe with its resources rewritten and nothing else: the same PE sections in the same
   // order and every one but .rsrc byte for byte electron.exe's (the manifest's hash first: setup_electron verify ran, but
@@ -337,6 +353,59 @@ function checkStage({ devOnly, branded }) {
 /** Content that is not ours to ship (the scan looks for it): where a development run keeps its data, the dev scripts. */
 function contentMarkers() {
   return ['streams-desktop-dev', 'Streams-trial']
+}
+
+/**
+ * The release notes for this version (installer/dist/release-notes-<version>.md): what a tester or the release page needs —
+ * the file, its size and SHA-256 (as computed from the file just built), that it is not signed and what Windows then
+ * shows, how to check the SHA-256, how to uninstall. Written from the build's own facts: the same bytes for the same
+ * installer.
+ */
+function releaseNotes({ file, bytes, sha256, electron }) {
+  const v = RELEASE.version
+  const tick = '`'
+  const fence = '```'
+  return [
+    `# 流息 Streams ${v} · 发布说明 / Release notes`,
+    '',
+    '由 Starry Digital 开发（https://starrydigital.ca）· Developed by Starry Digital · MIT',
+    '',
+    '## 安装包 / Installer',
+    '',
+    '| | |',
+    '|---|---|',
+    `| 文件 / File | ${tick}${file}${tick} |`,
+    `| 大小 / Size | ${bytes} 字节 / bytes |`,
+    `| sha256 | ${tick}${sha256}${tick} |`,
+    `| 版本 / Version | ${v}（${RELEASE.app_ver_name}） |`,
+    `| 发布者 / Publisher | ${RELEASE.publisher} |`,
+    '| 系统 / System | Windows 10 1809 及以上、Windows 11，x64 |',
+    `| 内含 / Contains | Electron ${electron} |`,
+    '',
+    '核对下载的文件（PowerShell）/ To check the download:',
+    '',
+    fence,
+    `Get-FileHash .\\${file} -Algorithm SHA256`,
+    fence,
+    '',
+    '显示的值应与上面的 sha256 一致（大小写不论）。The hash shown must be the sha256 above (letter case aside).',
+    '',
+    '## 这一版没有代码签名 / This version is not code-signed',
+    '',
+    '安装包和 Streams.exe 都**未签名**。第一次打开安装包时，Windows 会弹出蓝色的「Windows 已保护你的电脑」（SmartScreen，「未知发布者」）：',
+    '',
+    '1. 点「**更多信息**」；',
+    '2. 再点「**仍要运行**」。',
+    '',
+    'The installer and Streams.exe are not code-signed, so Windows SmartScreen shows "Windows protected your PC" (unknown publisher): click "More info", then "Run anyway".',
+    '',
+    '## 安装与卸载 / Install and uninstall',
+    '',
+    `- 按用户安装，不要管理员权限：默认装到 ${tick}%LOCALAPPDATA%\\Programs\\${RELEASE.install_folder}${tick}；开始菜单与桌面有「${RELEASE.app_name}」。安装本身不联网。`,
+    `- 卸载：「设置 → 应用 → 已安装的应用」里找「${RELEASE.app_ver_name}」→ 卸载。最后会问是否同时删除应用数据（API key、设置、缓存），默认「否」；你的库（Markdown 文件夹）不会被删除。`,
+    '- 以后的版本可以在应用里「设置 → 关于 → 检查更新」直接更新，不用先卸载。',
+    '',
+  ].join('\n')
 }
 
 function stageManifest() {
@@ -398,7 +467,7 @@ async function main() {
   say('6. checks on the stage')
   const facts = checkStage({ ...staged, branded })
   const markers = machineMarkers()
-  const scan = scanForLeaks([STAGE], { markers, contentMarkers: contentMarkers(), devFiles: [...staged.devOnly.map(d => `src/renderer/${d}`), 'scripts/start.mjs'] })
+  const scan = scanForLeaks([STAGE], { markers, contentMarkers: contentMarkers(), devFiles: [...staged.devOnly.map(d => `src/renderer/${d}`), 'scripts/start.mjs', 'scripts/run-tests.mjs', 'test/support/app.mjs'] })
   const allowed = scan.hits.filter(h => ALLOWED_HITS.some(a => a.kind === h.kind && a.file === h.file.split(sep).join('/')))
   const hits = scan.hits.filter(h => !allowed.includes(h))
   for (const h of allowed) say(`  allowed ${h.kind}  ${h.file}: ${ALLOWED_HITS.find(a => a.file === h.file.split(sep).join('/')).why}`)
@@ -483,7 +552,13 @@ async function main() {
     copyright: { source: 'installer/setup/release.json', line: RELEASE.copyright, streams_exe: facts.exe.version_info.LegalCopyright, setup: setupInfo.LegalCopyright },
     previous: previousRecord ? { sha256: previousRecord.installer?.sha256, same_installer: previousRecord.installer?.sha256 === sha256, same_stage: previousRecord.stage?.tree_sha256 === manifest.tree_sha256, stage_diff: diff } : null,
   }
+  // the release notes, with the installer's own name, size and SHA-256 (tests/acceptance/v01-clean-install.test.mjs reads them)
+  const notesFile = join(DIST, `release-notes-${RELEASE.version}.md`)
+  writeFileSync(notesFile, releaseNotes({ file: `${RELEASE.output_base_filename}.exe`, bytes, sha256, electron: facts.exe.electron.version }))
+  if (!readFileSync(notesFile, 'utf8').includes(sha256)) throw new Stop(`${notesFile} does not carry the installer's sha256`)
+  record.release_notes = { file: relative(REPO, notesFile).split(sep).join('/'), sha256: sha256File(notesFile) }
   writeJson(RECORD, record)
+  say(`  ok  release notes: ${relative(REPO, notesFile)} (the installer's name, size, sha256; not signed, the two SmartScreen clicks)`)
   say(`\n${RELEASE.app_ver_name}: ${relative(REPO, output)}`)
   say(`  ${bytes} bytes (${mib(bytes)})  sha256 ${sha256}`)
   if (record.previous) say(`  previous build: ${record.previous.same_installer ? 'byte-identical' : `different (stage ${record.previous.same_stage ? 'identical' : 'different'})`}`)
