@@ -80,8 +80,9 @@ frame-ancestors 'none'
 | 位置 | 打包后的应用 | 开发与测试 | 放什么 |
 |---|---|---|---|
 | **受保护目录** `appData` | `%APPDATA%\Streams` | `STREAMS_APP_DATA` | 下面各项；`protectedDirs = [appData]` |
-| `settings.json` | ↑ 下 | ↑ 下 | `language`、`libraryPath`、`showDeveloperInfo`（`settings.mjs`）；v2 包 A 起 `libraryPath` / `recentLibraries` / `schedule` 只读不写（留作迁移来源，§4.4） |
+| `settings.json` | ↑ 下 | ↑ 下 | `language`、`libraryPath`、`showDeveloperInfo`（`settings.mjs`）；v2 包 A 起 `libraryPath` / `recentLibraries` / `schedule` 只读不写（留作迁移来源，§4.4）；v2 包 B 加 `libraryRoot`（提议卡建库的默认位置，§4.5） |
 | `libraries.json` | ↑ 下 | ↑ 下 | **v2 包 A**：库登记表（核心 registry，`layout.librariesFile`；§4.4） |
+| `proposals.jsonl` | ↑ 下 | ↑ 下 | **v2 包 B**：所有提议卡与结果，只追加（核心 proposals；§4.5） |
 | `secrets\` | | | `key-<厂商>.bin`：各条连接的 API key，`safeStorage` 加密，盘上不留明文（`secrets.mjs`；今天只定名字） |
 | `updates\` | | | 新版本的安装程序（`services/update.mjs`），下一次启动时清空 |
 | `logs\` | | | `main.log`（应用自己的诊断）、测试时的 `clipboard.txt`、`notifications.jsonl` |
@@ -154,6 +155,11 @@ frame-ancestors 'none'
 | `getLibrarySchedule(id)` | 登记表里的 id | 那个库的定时，形状同 `getSchedule`；不认识 → `bad_arguments`；文件夹不在 → `open_failed` | 包 F 库页、设置一览 |
 | `setLibrarySchedule(id, schedule)` | id + 同 `setSchedule` | 写那个库的 `streams.json`；同 `setSchedule` | 同上 |
 | `getUsageTotal()` | 无 | 全部库本月用量合计（维护者 11-05）：核心 `usageTotal`，`{ month, calls, inputTokens, outputTokens, costUsd, byKind: { <连接>: 次数 }, libraries: [{ id, name, calls, missing }] }`；`month` 是主进程时钟的 UTC 月；文件夹不在的库 `calls: 0, missing: true`，不报错 | 包 F / I 的设置页 |
+| `listProposals(filter)` | `null` 或 `{ status?, libraryId? }`：`status` ∈ `pending` · `confirmed` · `declined` · `revise` · `stale` · `failed`；`libraryId` 是登记 id，或 `null`（= 建库卡）；别的键 → `bad_arguments` | **v2 包 B**：提议卡，新的在前：`[card]`，卡的形状见 §4.5（核心 5.13）；不改任何东西 | 包 G 的卡片（「和主 Agent 聊」、库页） |
+| `confirmProposal(id)` | 卡的 id（不认识 → `bad_arguments`） | **唯一会改东西的方法**：卡生效后的样子 `card`，`status` 是 `confirmed`（已生效，`result` 写了做了什么）· `stale`（出卡后相关配置变了 / 库不在了 / 新库的文件夹不空了：什么都没改，`reason`）· `failed`（中途出错：已做的回滚，或 `failure` 写明到哪一步）；卡不是 `pending`（已确认、已不要、已改一下、过期、失败）→ `bad_arguments`，什么都不做，不会重复生效。发 `proposals-changed`；生效的是当前库 → `library-changed`；定时卡再发 `settings-changed { libraryId }`；建库卡经包 A 登记、设为当前库（`libraries-changed`、`library-changed`）、把第一轮放进队列 | 包 G「确认」 |
+| `declineProposal(id)` | 卡的 id | 「不要」：`status: 'declined'` 的卡；库一个字节都不变；不是 `pending` → `bad_arguments`；发 `proposals-changed` | 包 G「不要」 |
+| `reviseProposal(id, text)` | 卡的 id；你的一句话（1–2000 字） | 「改一下」：`status: 'revise'`、`reviseText` 是你的话的卡（包 C 据此重出一张）；库不变；不是 `pending` → `bad_arguments`；发 `proposals-changed` | 包 G「改一下」 |
+| `getWhoDecided()` | 无 | 当前库「谁定的」：核心 `whoDecided`，`{ brief, sources, topics, thresholds, schedule, cap }`，每项 `{ by: 'you' \| 'agent-confirmed', at, proposalId }` 或 `null`（没有记录）；`no_library` | 包 H 来源与要求页「谁定的」 |
 | `getLibrary(view, filter)` | `view` ∈ `kept` · `authored` · `caught` · `pending`；`filter = { topics: string[], days: number \| null }` | `{ counts: 核心 libraryCounts, view, items, total }`（核心 `listLibrary`） | S6 |
 | `searchLibrary(q, filter)` | 字符串（≤ 200 字）；`filter = { view: 'kept' \| 'authored' \| 'all', topics, days }` | 核心 `search` 的结果数组 | S6 搜索框 |
 | `readNote(id)` | id 必须在索引里，否则 `bad_arguments` | 核心 `readNote` | S6 正文与右栏 |
@@ -294,6 +300,7 @@ frame-ancestors 'none'
 | `connections-changed` | `null` | 连接的设置变了（选定、模型槽、key 存了或删了） | 设置、S1 |
 | `round-progress` | `{ roundId, libraryId, phase, counts, calls, cap, done, result?, problems? }` | 一轮的每个阶段开始、每条打完分、跑完或停下（哪个库的一轮都发，带它的 `libraryId`） | 今日（只认当前库的）、S12 |
 | `inbox-changed` | `{ libraryId, count }` | 某个库的待看变了（一轮写入、收藏、放弃） | 侧栏角标（只认当前库的 `count`）、待看、今日 |
+| `proposals-changed` | `{ libraryId, id, status }`（建库卡 `libraryId` 为 null） | **v2 包 B**：出了一张提议卡，或一张卡被确认 / 不要 / 改一下 / 过期 / 失败 | 包 G 的卡片、「等你定的事」角标 |
 <!-- events:end -->
 
 **加一个主题**：`src/main/events.mjs` 的 `EVENT_TOPICS` 加一项、`src/preload/preload.cjs` 的 `EVENT_TOPICS` 加同名、上表加一行；少一处 `npm test` 就红。
@@ -349,6 +356,29 @@ frame-ancestors 'none'
 - **关窗口进托盘**：任一库的定时开着（v1.0 是「定时开着」）。
 - **通知**：一轮写进待看 n 条 → 「<库名>：这一轮进来 n 条待看」（`newItems`，中英两张表都有）；0 条不发。
 - 测试：`test/services-schedule.test.mjs`（v1.0 的单库规则）、`test/services-queue.test.mjs`（多库、队列、补跑、跳过、迁移、托盘条件、手动）、`test/services-registry.test.mjs`（登记表、迁移、新桥方法）。
+
+### 4.5 §四补：提议卡、「谁定的」（v2 包 B，11-05）
+
+契约 `docs/checks/2026-11-05-wp-b/contract.md`；核心 `docs/core-api.md` 5.13；`services/proposals.mjs`。本包只有后台，卡片组件在包 G。
+
+**谁出卡、谁让它生效**：主 Agent（包 C）以后经主进程的 `createProposal(kind, params, why, { by })` 出卡——这个函数**不上桥**，页面不能出卡；今天只有开发钩子出卡。卡只经 `confirmProposal` 生效，「不要」「改一下」只记一笔。只有 `pending` 的卡能被确认 / 不要 / 改一下，别的状态 → `bad_arguments`、什么都不做（守卫在核心 `assertPending`，一处）。
+
+**卡的形状**（核心 `draftProposal` 出、`confirmProposal` 等改）：`{ id, kind, libraryId, params, why, before, after, trial?, status, createdAt, decidedAt?, by: 'agent' | 'dev', baseHash, reason?, reviseText?, result?, failure? }`。
+- `kind` 十种：`create_library` · `add_source` · `remove_source` · `pause_source` · `edit_topics` · `edit_brief` · `edit_thresholds` · `edit_schedule` · `edit_cap` · `run_round`；`params` 逐种校验（核心 5.13），不合格 → `createProposal` 抛 `bad-proposal`。建库卡之外都用登记 id 指库（不认识 / 读不出的库 → `bad-proposal`，`reason: 'unknown-library'`）。
+- `before` / `after` 由代码算：出卡时核心在临时文件夹里拿 `streams.json` 的副本用确认时同一组函数真跑一遍，读出改后；出卡方给的改前改后一律不读。改了等于没改 → `bad-proposal`（`no-change`）。
+- `trial`：`add_source` 一个、`create_library` 每个来源一个——出卡时用 v1.0 试抓的同一个函数（核心 `fetchSource`）试抓一次，`{ status（五种之一）, hint, http, message, count, sample, include }`；建库卡里 `blocked` / `gap` 的来源 `include: false`（确认时不加）。
+- `baseHash`：卡所涉那部分配置的哈希（加来源 = 来源与主题；改主题 = 主题与来源；改要求 = `brief`；过关线 / 定时 / 上限各自那一项；建库 = 文件夹与它空不空）；确认时重算，不一样 → `stale`。
+- 建库卡的位置：`params.folder` 给了就用它（绝对路径），没给 = `libraryRoot\<库名>`（库名里不能做文件夹名的字符换成 `-`，核心 `libraryFolderName`），完整路径写在卡的 `params.folder` 与 `after.folder` 上；文件夹在且不空 → 出卡时 `bad-proposal`（`reason: 'folder_not_empty'`），确认时才不空 → `stale`（`reason: 'folder_not_empty'`）。`libraryRoot` = `settings.json` 的 `libraryRoot`，没有就是默认位置：打包后的应用 `%USERPROFILE%\Documents\Streams`；开发与测试 `STREAMS_DEV_LIBRARY_ROOT`，没给就是 `<appData>\libraries`（开发运行从不落到真的「文档」文件夹，同 §三 的规矩）。今天没有桥方法改 `libraryRoot`（设置页在包 I）。
+
+**确认时做什么**（核心 5.13 的表；写 `streams.json` 一律整份、临时文件 + rename）：来源 / 主题用 v1.0 的 `addSource` · `removeSource` · `setSourcePaused` · `addTopic` · `removeTopic` · `updateTopic`；要求 `saveBrief`；过关线、上限走 v1.0 `savePipeline` / `setRoundCap` 的同一个核心函数 `savePipelineConfig`；定时走包 A 的 `saveLibrarySchedule`（再重排定时器、发 `settings-changed { libraryId }`）；`run_round` 经包 A 的队列（`services/schedule.mjs queueRound`，同一个库在跑或在排就不重复）。建库：`createLibrary` → 要求、主题、勾上的来源、过关线（给了才写）、定时（没给 = `settings.json` 的 `schedule`）→ 包 A 登记并设为当前库（`services/library.mjs adopt`）→ 第一轮进队列。中途一步出错：库的配置卡 → `streams.json` 按字节放回；建库卡在登记之前 → 撤回登记、把这一次在文件夹里建的东西拿掉（原来没有文件夹就连文件夹一起；原来是空文件夹就留下空文件夹），`failure: { step, done, rolledBack: true }`；登记之后（进队列失败）→ 库留着，`failure: { step: 'queue', rolledBack: false }`、`result: { libraryId, folder }`。
+
+**记录**：每张卡出卡时、每次状态变化，各追加一行整张卡到 `<appData>\proposals.jsonl`；与库有关的同时追加到那个库的 `_pipeline\proposals.jsonl`（建库卡：确认后追加到新库的）。启动时从 `<appData>\proposals.jsonl` 重建：每个 id 取最后一行，坏行跳过（记一行日志）；`pending` 的卡重启后还是 `pending`。
+
+**「谁定的」**：库的 `_pipeline\changes.jsonl`，只追加，每次改动一行 `{ at, field, by, proposalId?, before, after }`（`field` ∈ `brief` · `sources` · `topics` · `thresholds` · `schedule` · `cap`）。卡生效 → `by: 'agent-confirmed'`、带卡的 id（核心写）；你在界面上直接改——`addSource` · `updateSource` · `removeSource` · `setSourcePaused` · `addTopic` · `updateTopic` · `removeTopic` · `savePipeline`（过关线、上限）· `setRoundCap` · `setSchedule` · `setLibrarySchedule` · `applyStarterPack`（来源、主题）——→ `by: 'you'`（`services/changes.mjs byYou`：改前改后各读一次，变了的字段各一行；改动失败不记；记不下来只记日志，改动照算）。`getWhoDecided()` 给当前库每个字段最近一次是谁定的。
+
+**开发钩子** `STREAMS_DEV_PROPOSALS=<json 文件的绝对路径>`（只在非打包时生效，`main.mjs` 判 `app.isPackaged`）：启动时把文件里的 `[{ kind, params, why }]`（或 `{ proposals: [...] }`）按 `by: 'dev'` 出成 `pending` 卡；库的卡没给 `params.libraryId` 就用当前库的；出不了的卡记一行日志、跳过。给界面测试与包 G 用。
+
+测试：`test/services-proposals.test.mjs`（十种卡经主进程生效、N1、stale、建库与回滚、记录、「谁定的」、开发钩子）、`test/proposals-app.test.mjs`（真应用：开发钩子出的卡经桥列出、确认、不要）。
 
 ## 五、界面写法
 

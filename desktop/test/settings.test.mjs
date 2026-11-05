@@ -14,7 +14,7 @@ const made = []
 const folder = () => { const dir = tempDir('st-settings-'); made.push(dir); return dir }
 after(() => { for (const dir of made) removeTree(dir, { waitMs: 3000 }) })
 const onDisk = file => JSON.parse(readFileSync(file, 'utf8'))
-const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME })
+const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, libraryRoot: null })
 
 test('no file, a broken file, a file of another shape: the defaults', () => {
   const dir = folder()
@@ -25,7 +25,7 @@ test('no file, a broken file, a file of another shape: the defaults', () => {
   assert.deepEqual(readSettings(file), defaults, 'broken JSON')
   writeFileSync(file, '[1, 2]')
   assert.deepEqual(readSettings(file), defaults, 'not an object')
-  writeFileSync(file, `${JSON.stringify({ language: 'de', libraryPath: 'relative\\lib', recentLibraries: 'C:\\lib', connections: 'claude-code', showDeveloperInfo: 'yes', schedule: 'daily', theme: 'blue' })}\n`)
+  writeFileSync(file, `${JSON.stringify({ language: 'de', libraryPath: 'relative\\lib', recentLibraries: 'C:\\lib', connections: 'claude-code', showDeveloperInfo: 'yes', schedule: 'daily', theme: 'blue', libraryRoot: 'relative\\libs' })}\n`)
   assert.deepEqual(readSettings(file), defaults, 'every field of the wrong kind reads as its default')
 })
 
@@ -142,4 +142,19 @@ test('theme: one of river · paper · night; anything else reads as DEFAULT_THEM
   const before = readFileSync(file, 'utf8')
   for (const bad of ['blue', 'Paper', '', null, undefined]) assert.throws(() => writeSettings(file, { theme: bad }), TypeError, String(bad))
   assert.equal(readFileSync(file, 'utf8'), before, 'a refused write changes nothing on disk')
+})
+
+test('libraryRoot (v2 package B): null by default; an absolute path is kept; a relative one reads as null and is refused on write', () => {
+  const dir = folder()
+  const file = join(dir, 'settings.json')
+  assert.equal(readSettings(file).libraryRoot, null)
+  const root = join(dir, 'libs')
+  assert.equal(writeSettings(file, { libraryRoot: root }).libraryRoot, root)
+  assert.equal(readSettings(file).libraryRoot, root)
+  const before = readFileSync(file, 'utf8')
+  assert.throws(() => writeSettings(file, { libraryRoot: 'libs' }), TypeError)
+  assert.equal(readFileSync(file, 'utf8'), before, 'nothing written')
+  writeFileSync(file, `${JSON.stringify({ libraryRoot: 'libs' })}\n`)
+  assert.equal(readSettings(file).libraryRoot, null)
+  assert.equal(writeSettings(file, { libraryRoot: null }).libraryRoot, null)
 })

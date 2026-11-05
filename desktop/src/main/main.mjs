@@ -39,6 +39,7 @@ import { endHelpers } from './quit.mjs'
 import { APP_USER_MODEL_ID, TOAST_ACTIVATOR_CLSID } from './app-id.mjs'
 import { iconPath } from './icon.mjs'
 import { createScheduleService } from './services/schedule.mjs'
+import { createProposalsService } from './services/proposals.mjs'
 import { createTray } from './tray.mjs'
 import { listInbox } from './core.mjs'
 import { nativeSource, windowColour } from './theme.mjs'
@@ -74,6 +75,12 @@ const DEV_CONNECTION = !app.isPackaged && DEV_CONNECTION_MODES.includes(process.
 // the timed round (services/schedule.mjs; docs/desktop.md §4.3), development and tests only: 「now」 is this ISO time when the
 // app starts and runs on from there (the schedule, the catch-up and the rounds read this clock); a packaged app reads the real one
 const DEV_NOW = !app.isPackaged && typeof process.env.STREAMS_DEV_NOW === 'string' && !Number.isNaN(Date.parse(process.env.STREAMS_DEV_NOW)) ? Date.parse(process.env.STREAMS_DEV_NOW) : null
+// the proposal cards (services/proposals.mjs; docs/desktop.md §4.5), development and tests only: a JSON file of cards made at
+// start (by: 'dev'), for the page's tests and package G; where a new library goes when a card names no folder and
+// settings.json has no libraryRoot (a development run never falls back to the real Documents folder: without this, a folder in
+// its own app data). A packaged app ignores both: its cards come from the main agent, its default place is Documents\Streams
+const DEV_PROPOSALS = !app.isPackaged && typeof process.env.STREAMS_DEV_PROPOSALS === 'string' && isAbsolute(process.env.STREAMS_DEV_PROPOSALS) ? process.env.STREAMS_DEV_PROPOSALS : null
+const DEV_LIBRARY_ROOT = !app.isPackaged && typeof process.env.STREAMS_DEV_LIBRARY_ROOT === 'string' && isAbsolute(process.env.STREAMS_DEV_LIBRARY_ROOT) ? process.env.STREAMS_DEV_LIBRARY_ROOT : null
 const STARTED_AT = Date.now()
 const clock = DEV_NOW === null ? () => new Date() : () => new Date(DEV_NOW + (Date.now() - STARTED_AT))
 // the app's own version (version.mjs): release.json's — packaged through resources/app/package.json, in development read from it
@@ -240,6 +247,15 @@ app.whenReady().then(() => {
   // the timed rounds, the queue and the tray (docs/desktop.md §4.3–4.4): the timer, the catch-up, the close button into the tray
   scheduler = createScheduleService({ settingsFile: layout.settingsFile, library, pipeline, notifier, emit, log, now: clock })
   closeToTray = () => scheduler.enabled()
+  // the proposal cards (v2 package B): made by the main agent later (createProposal, not on the bridge), confirmed on the page;
+  // a confirm reaches the registry and the queue through the library service and the scheduler
+  const defaultLibraryRoot = app.isPackaged ? join(app.getPath('documents'), 'Streams') : (DEV_LIBRARY_ROOT ?? join(layout.appData, 'libraries'))
+  const proposals = createProposalsService({
+    appDataDir: layout.appData, library, scheduler: () => scheduler, emit, log, now: clock, locale: currentLocale,
+    libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot,
+    fallbackSchedule: () => readSettings(layout.settingsFile).schedule,
+    devProposals: DEV_PROPOSALS,
+  })
   // the tray's count is the current library's
   const inboxNow = () => { const d = library.dir(); if (!d) return 0; try { return listInbox(d).length } catch { return 0 } }
   const tray = createTray({
@@ -285,12 +301,15 @@ app.whenReady().then(() => {
       ...ask.handlers,
       ...status.handlers,
       ...scheduler.handlers,
+      ...proposals.handlers,
     },
   })
 
   createWindow()
   // the catch-up at start: the libraries are known by now (the registry, the development one)
   void scheduler.start()
+  // the development cards (STREAMS_DEV_PROPOSALS), once the libraries are known
+  void proposals.loadDev()
 
   // a second launch (the single-instance lock above): this app's window comes to the front instead
   app.on('second-instance', () => {

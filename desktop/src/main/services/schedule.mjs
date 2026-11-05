@@ -28,6 +28,7 @@
 import { BridgeError } from '../bridge-methods.mjs'
 import { ensureLibrarySchedule, isSchedule, lastDueAt, listRounds, missedRun, nextRunAt, saveLibrarySchedule } from '../core.mjs'
 import { readSettings } from '../settings.mjs'
+import { byYou } from './changes.mjs'
 
 export const MAX_WAIT_MS = 10 * 60_000
 
@@ -221,7 +222,8 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
   function setFor(entry, s) {
     if (!isSchedule(s)) throw new BridgeError('bad_arguments', "schedule must be { enabled: boolean, time: 'HH:MM' } (00:00–23:59)")
     if (!library.usable(entry.path)) throw new BridgeError('open_failed', `${entry.path} is not a readable library`)
-    try { saveLibrarySchedule(entry.path, s) } catch (err) { log(`schedule: ${entry.id}: not saved: ${String(err?.message ?? err)}`); throw new BridgeError('internal', String(err?.message ?? err)) }
+    // 「谁定的」 (v2 package B): a schedule set from the page is the user's own (changes.jsonl, by 'you')
+    try { byYou(entry.path, ['schedule'], () => saveLibrarySchedule(entry.path, s), { log, now }) } catch (err) { log(`schedule: ${entry.id}: not saved: ${String(err?.message ?? err)}`); throw new BridgeError('internal', String(err?.message ?? err)) }
     const next = arm()
     log(`schedule: ${entry.id}: set to ${s.enabled ? `every day at ${s.time}` : 'off'}; next slot ${next ? next.toISOString() : 'none'}`)
     // the page re-reads what it shows (v1.0's event), told which library's schedule it was
@@ -252,6 +254,11 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
     stop: clear,
     /** The queue as it is: the library whose round runs, those waiting (in order). */
     queue: () => ({ running: runningId, waiting: queue.map(q => q.id) }),
+    /**
+     * One round of the library `entry` put in the queue, like a slot that came (v2 package B: a confirmed run_round or
+     * create_library card) → { queued } or { queued: false, reason: 'running' | 'queued' } (never twice).
+     */
+    queueRound: (entry, why) => enqueue(entry, why),
     /**
      * After a round (services/pipeline.mjs onRoundDone): its library is free, one notification when it wrote into 待看
      * (none for 0), then the next one of the queue.

@@ -12,6 +12,9 @@
  *   schedule            the timed round (A2; docs/core-api.md 5.10): { enabled, time: 'HH:MM' }, default
  *                       { enabled: true, time: '08:30' }; each of the two fields checked on its own
  *   theme               the app's look (theme.mjs): river · paper · night; anything else is DEFAULT_THEME (one line in theme.mjs)
+ *   libraryRoot         v2 package B: where a new library a proposal card makes goes when the card names no folder
+ *                       (<libraryRoot>\<the library's name as a folder name>); an absolute path, or null (default) = the
+ *                       app's default place (main.mjs: %USERPROFILE%\Documents\Streams in the packaged app)
  * Read whole and checked field by field (a field that is not what it should be is its default; inside `connections`
  * each field on its own); written whole, through a temporary file and a rename, so a crash never leaves half a file.
  * @module desktop/main/settings
@@ -42,7 +45,7 @@ export function defaultConnections() {
   }
 }
 
-const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false })
+const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false, libraryRoot: null })
 
 /** A model slot: a non-empty string id, or null (the default). Anything else is null. */
 function modelOf(v) {
@@ -113,6 +116,7 @@ export function readSettings(file) {
   try { data = JSON.parse(readFileSync(file, 'utf8')) } catch { data = null }
   const language = own(data, 'language')
   const library = own(data, 'libraryPath')
+  const root = own(data, 'libraryRoot')
   return {
     language: LANGUAGE_SETTINGS.includes(language) ? language : DEFAULTS.language,
     libraryPath: typeof library === 'string' && isAbsolute(library) ? library : DEFAULTS.libraryPath,
@@ -121,6 +125,7 @@ export function readSettings(file) {
     showDeveloperInfo: own(data, 'showDeveloperInfo') === true,
     schedule: normalizeSchedule(own(data, 'schedule')),
     theme: themeOf(own(data, 'theme')),
+    libraryRoot: typeof root === 'string' && isAbsolute(root) ? root : DEFAULTS.libraryRoot,
   }
 }
 
@@ -142,7 +147,7 @@ function checkConnections(raw) {
 /**
  * Change some settings and write them all.
  * @param {string} file
- * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}, theme?: string}} patch
+ * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}, theme?: string, libraryRoot?: string|null}} patch
  * @returns {object} the settings now
  */
 export function writeSettings(file, patch) {
@@ -172,6 +177,10 @@ export function writeSettings(file, patch) {
   if (Object.hasOwn(patch, 'theme')) {
     if (!isThemeId(patch.theme)) throw new TypeError(`no theme ${patch.theme}`)
     next.theme = patch.theme
+  }
+  if (Object.hasOwn(patch, 'libraryRoot')) {
+    if (patch.libraryRoot !== null && (typeof patch.libraryRoot !== 'string' || !isAbsolute(patch.libraryRoot))) throw new TypeError('libraryRoot must be an absolute path, or null')
+    next.libraryRoot = patch.libraryRoot
   }
   const tmp = `${file}.${process.pid}.tmp`
   writeFileSync(tmp, `${JSON.stringify({ schema: SETTINGS_SCHEMA, ...next }, null, 2)}\n`)

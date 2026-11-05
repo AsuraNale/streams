@@ -79,6 +79,12 @@ const METHODS = [
   'getLibrarySchedule',
   'setLibrarySchedule',
   'getUsageTotal',
+  // the proposal cards (v2 package B)
+  'listProposals',
+  'confirmProposal',
+  'declineProposal',
+  'reviseProposal',
+  'getWhoDecided',
   // interface B: the library and reading
   'getLibrary',
   'searchLibrary',
@@ -127,6 +133,8 @@ const EVENT_TOPICS = [
   'connections-changed',
   'round-progress',
   'inbox-changed',
+  // a proposal card made or decided (v2 package B)
+  'proposals-changed',
 ]
 const EVENT_CHANNEL = 'streams:event'
 

@@ -130,6 +130,8 @@ function apply(states, ev) {
       break;
     case 'inbox':
       s.stage = 'inbox';
+      // v2 D1: the material had 「写给 AI 的话」 (the event carries aiInstruction:true only then)
+      if (ev.aiInstruction === true) s.aiInstruction = true;
       break;
     case 'kept':
       s.stage = 'kept';

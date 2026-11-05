@@ -17,6 +17,10 @@
  * the recent reasons beside them, the save (the core's locked-node / bad-config → bad_arguments; `library-changed`), one
  * node tried on one item of the ledger (no connection → `no_connection`; its calls count in the usage as `preview:<node>`).
  *
+ * v2 package B: the cap (setRoundCap), the gates' thresholds and the cap of a saved configuration (savePipeline) and the
+ * sources and topics of a starter pack (applyStarterPack) are the user's own: one line by 'you' in the library's
+ * changes.jsonl for each of those fields that changed (services/changes.mjs byYou).
+ *
  * Pure Node apart from what is injected (`shell`), so the rules run in plain Node (test/services-pipeline.test.mjs).
  * @module desktop/main/services/pipeline
  */
@@ -28,6 +32,7 @@ import {
   homeNumbers, keep, later, listInbox, listRounds, listStarterPacks, makeContext, pipelineConfig, previewNode, readIndex, recentDismissReasons,
   recentVerdictFailures, replayLedger, runRound, savePipelineConfig, selfCheck, DEFAULT_PIPELINE, NO_OUTPUT_ROUNDS, pipelineFrom,
 } from '../core.mjs'
+import { byYou } from './changes.mjs'
 
 const HTTP_URL = /^https?:\/\/\S+$/i
 
@@ -179,7 +184,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     setRoundCap(cap) {
       const dir = library.require()
       const cfg = pipelineConfig(dir)
-      const saved = savePipelineConfig(dir, { ...cfg, cap })
+      const saved = byYou(dir, ['cap'], () => savePipelineConfig(dir, { ...cfg, cap }), { log, now })
       return { cap: saved.cap }
     },
     async startRound() {
@@ -244,7 +249,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       if (!STARTER_PACK_IDS.includes(packId)) throw new BridgeError('bad_arguments')
       let config
       try {
-        config = applyStarterPackToLibrary(dir, packId, edits).config
+        config = byYou(dir, ['sources', 'topics'], () => applyStarterPackToLibrary(dir, packId, edits), { log, now }).config
       } catch (err) {
         if (['bad-edits', 'bad-url', 'duplicate-source', 'unknown-pack'].includes(err?.code)) throw new BridgeError('bad_arguments', err.message)
         throw err
@@ -278,7 +283,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     },
     savePipeline(cfg) {
       const dir = library.require()
-      try { savePipelineConfig(dir, cfg) } catch (err) { throw bridgeErrorOf(err) }
+      try { byYou(dir, ['thresholds', 'cap'], () => savePipelineConfig(dir, cfg), { log, now }) } catch (err) { throw bridgeErrorOf(err) }
       log('pipeline: configuration saved')
       emit('library-changed', library.current())
       return { config: pipelineConfig(dir) }

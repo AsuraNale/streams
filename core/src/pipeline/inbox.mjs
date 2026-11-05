@@ -6,7 +6,8 @@
 // removeInboxItem(libraryDir, url) -> { removed }
 // listInbox(libraryDir, { now })   -> cards sorted by relevance score desc, then substance desc
 //   [{ url, title, source, date, scores:{ relevance:{score,reason}, substance:{…}, freshness:{value,reason} },
-//      summary:{ what, points, quote }, verification:{ passed, rounds, failed:[] }, waitingDays, maybeDuplicateOf?, inboxAt }]
+//      summary:{ what, points, quote }, verification:{ passed, rounds, failed:[], aiInstruction? }, waitingDays, maybeDuplicateOf?,
+//      inboxAt, aiInstruction? }]   aiInstruction:true = the material had 「写给 AI 的话」 (v2 D1; the ledger inbox event says so)
 //   waitingDays is computed from the ledger's inbox event ts, not from the file.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -77,6 +78,7 @@ export function listInbox(libraryDir, { now = () => new Date() } = {}) {
     };
     if (s.maybeDuplicateOf) card.maybeDuplicateOf = s.maybeDuplicateOf;
     if (item.materials) card.materials = item.materials;
+    if (s.aiInstruction === true || item.aiInstruction === true) card.aiInstruction = true;
     if (item.scoreless === true) { card.scoreless = true; card.excerpt = typeof item.excerpt === 'string' ? item.excerpt : ''; }
     cards.push(card);
   }

@@ -12,10 +12,9 @@
 //                                    ledger's scored / unscored events carry it (same url, same gate, same cfg: never twice)
 // gateNodes(cfg) / summaryNode(cfg)  the model nodes in pipeline order
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
-import { CONFIG_FILE, readConfig } from '../library/config.mjs';
+import { readConfig } from '../library/config.mjs';
+import { loadWhole, saveWhole } from '../library/setup.mjs';
 import { isPlainObject } from '../library/frontmatter.mjs';
 import { gateBaseline, summaryBaseline, lockChecklist } from '../verify/index.mjs';
 import { DEFAULT_REQUIREMENTS, LANGUAGES, languageOf } from './prompts.mjs';
@@ -243,11 +242,10 @@ export function savePipelineConfig(libraryDir, cfg) {
   if (!r.ok) throw new StreamsError(`config:${r.error.code}`, r.error.message);
   const current = pipelineFrom(r.config);
   const pipeline = checkPipeline(cfg, { current });
-  const path = join(libraryDir, CONFIG_FILE);
-  let raw = readFileSync(path, 'utf8');
-  if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
-  const whole = JSON.parse(raw);
+  // the whole streams.json through a temporary file and a rename (setup.mjs saveWhole; v2 package B: every write of
+  // streams.json is whole and atomic), every other key as it was
+  const whole = loadWhole(libraryDir);
   whole.pipeline = pipeline;
-  writeFileSync(path, JSON.stringify(whole, null, 2) + '\n', 'utf8');
+  saveWhole(libraryDir, whole);
   return pipelineFrom(whole);
 }

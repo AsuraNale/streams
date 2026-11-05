@@ -9,6 +9,9 @@
 //   -> { status: 'unscored', reason, output?, verification?, calls }
 //   -> { status: 'connection', code, detail, calls }     (login-expired, network…: the round stops)
 //   write:false runs everything but writes nothing (previewNode).
+//   「写给 AI 的话」 (v2 D1): detectAiInstructions on the material, plus the judge fallback item when the gate has judge
+//   items (aiCheck). A mark is stamped on the attempt's verdicts.jsonl lines, recorded in ai-instructions.jsonl and
+//   returned as `aiInstruction`; it never triggers the retry, never changes the score, never changes a prompt.
 // countingConnector(connector) -> { connector, calls() }
 //   every complete() is counted (usage.calls, 1 when absent); the round's cap sees gate calls, summary calls
 //   and judge calls alike. A complete() that throws becomes { ok:false, code } so the round stops with
@@ -17,7 +20,7 @@
 //   sleeps callGapMs before every complete() after the first (the per-round call gap of core-api 4.0).
 import { completeJson } from '../connect/complete-json.mjs';
 import { appendEvent } from '../library/ledger.mjs';
-import { verifyOnce, appendVerdict } from '../verify/index.mjs';
+import { verifyOnce, appendVerdict, detectAiInstructions, aiInstructionMark, recordMark } from '../verify/index.mjs';
 import { cfgOf } from './config.mjs';
 import { gatePrompt, materialText, retryPrompt } from './prompts.mjs';
 
@@ -81,6 +84,12 @@ export async function runGate({ libraryDir, cfg, node, item, body, materials, re
   let last = null;
   let lastOutput;
   let lastVerification;
+  const rule = detectAiInstructions(source);
+  const judgeFlags = [];
+  let mark = aiInstructionMark(rule);
+  const recordIt = () => { if (write && mark) recordMark(libraryDir, mark, { at: now().toISOString(), source: item.source ?? '', itemId: item.url, node: node.id }); };
+  recordIt();
+  const withMark = (out) => (mark ? { ...out, aiInstruction: mark } : out);
 
   for (let attempt = 1; attempt <= GATE_ATTEMPTS; attempt++) {
     const r = await completeJson(counted.connector, { prompt: current, format: 'json', model: 'main' }, { retries: 0 });
@@ -90,10 +99,14 @@ export async function runGate({ libraryDir, cfg, node, item, body, materials, re
       current = retryPrompt(prompt, last.failed, language);
       continue;
     }
-    const v = await verifyOnce({ task: `gate:${node.id}`, checklist, output: r.json, claimed: [], source, connector: counted.connector });
+    const v = await verifyOnce({ task: `gate:${node.id}`, checklist, output: r.json, claimed: [], source, connector: counted.connector, aiCheck: true });
     lastOutput = r.json;
     lastVerification = v;
-    if (write) appendVerdict(libraryDir, { node: node.id, url: item.url, round: attempt, items: v.items, ts: now().toISOString() });
+    if (v.aiJudge) judgeFlags.push(v.aiJudge);
+    const before = mark;
+    mark = aiInstructionMark(rule, judgeFlags);
+    if (mark && !before) recordIt();
+    if (write) appendVerdict(libraryDir, { node: node.id, url: item.url, round: attempt, items: v.items, ts: now().toISOString(), ...(mark ? { aiInstruction: mark } : {}) });
     if (v.code && v.code !== 'bad-format') return { status: 'connection', code: v.code, detail: 'judge call failed', calls: counted.calls() };
     if (v.passed) {
       const score = r.json[scoreKey];
@@ -102,7 +115,7 @@ export async function runGate({ libraryDir, cfg, node, item, body, materials, re
         appendEvent(libraryDir, { ts, ev: 'scored', url: item.url, node: node.id, score, reason: r.json.reason, quote: r.json.quote, materials: mats, cfg: nodeCfg, round });
         for (const k of enumKeysOf(node)) appendEvent(libraryDir, { ts, ev: 'scored', url: item.url, node: k, value: r.json[k], reason: r.json.reason, cfg: nodeCfg, round });
       }
-      return { status: 'scored', score, passed: score >= node.threshold, output: r.json, verification: v, calls: counted.calls() };
+      return withMark({ status: 'scored', score, passed: score >= node.threshold, output: r.json, verification: v, calls: counted.calls() });
     }
     const failed = failedOf(v);
     last = { reason: `rule:${failed[0].id}`, failed };
@@ -110,5 +123,5 @@ export async function runGate({ libraryDir, cfg, node, item, body, materials, re
   }
 
   if (write) appendEvent(libraryDir, { ts: now().toISOString(), ev: 'unscored', url: item.url, node: node.id, reason: last.reason, cfg: nodeCfg, round });
-  return { status: 'unscored', reason: last.reason, output: lastOutput, verification: lastVerification, calls: counted.calls() };
+  return withMark({ status: 'unscored', reason: last.reason, output: lastOutput, verification: lastVerification, calls: counted.calls() });
 }

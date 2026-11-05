@@ -322,5 +322,5 @@ export async function previewNode(libraryDir, { connector, nodeId, url, item, ct
   const common = { libraryDir, cfg, node, item: it, body, materials, related, topics: libraryTopics(r.config), sourceTopic, connector, round: 'preview', now: c.now, write: false };
   const out = node.kind === 'gate' ? await runGate(common) : await runSummary({ ...common, state });
   if (out.status === 'connection') return { ok: false, code: out.code, calls: out.calls };
-  return { ok: true, status: out.status, output: out.output, verification: out.verification, calls: out.calls, nextStep: state ? nextStep(state, cfg) : undefined };
+  return { ok: true, status: out.status, output: out.output, verification: out.verification, calls: out.calls, nextStep: state ? nextStep(state, cfg) : undefined, ...(out.aiInstruction ? { aiInstruction: out.aiInstruction } : {}) };
 }

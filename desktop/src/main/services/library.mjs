@@ -149,9 +149,9 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
     return lib
   }
 
-  /** The folder becomes the current library: registered (once), active, its index rebuilt, the events. */
-  const open = path => {
-    const { registry: reg, entry, added } = withLibrary(registry(), path, { now })
+  /** The folder becomes the current library: registered (once; `name` the registry's name, default the folder's), active, its index rebuilt, the events. */
+  const open = (path, { name } = {}) => {
+    const { registry: reg, entry, added } = withLibrary(registry(), path, { now, name })
     save(withActive(reg, entry.id))
     endDev()
     try { rebuildIndex(path) } catch (err) { log(`library: index not rebuilt on open: ${String(err?.message ?? err)}`) }
@@ -325,5 +325,23 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
     chosen: () => (chosen ? { ...chosen } : null),
     /** The library with this id (bridge-free: the scheduler, later the agent), or null. */
     find: id => entries().find(l => l.id === id) ?? null,
+    /**
+     * A library a confirmed proposal card made (v2 package B, services/proposals.mjs): registered under `name` and made the
+     * current one, the same way an open does. Bridge-free. → { libraryId, path, name }
+     */
+    adopt: (path, { name } = {}) => open(path, { name }),
+    /**
+     * The undo of adopt when a later step of the card failed: the registration dropped (nothing in the folder touched by
+     * this), and `back` the current library again when it is still registered.
+     */
+    forget(id, back = null) {
+      let reg = withoutLibrary(registry(), id)
+      if (back && back !== id && libraryOf(reg, back)) reg = withActive(reg, back)
+      save(reg)
+      if (devId === id) devId = null
+      log(`library: the registration of ${id} undone`)
+      emit('libraries-changed', { libraryId: id })
+      announce(`registration of ${id} undone`)
+    },
   }
 }

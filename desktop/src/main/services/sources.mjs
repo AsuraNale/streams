@@ -7,11 +7,15 @@
  *
  * The core's W5 functions are reached by name through `coreCaller` (bridge-methods.mjs): a stand-in core in the tests,
  * `internal` for a function not there yet. Pure Node: test/services-sources.test.mjs.
+ *
+ * v2 package B: each change of the sources or the topics is the user's own — one line by 'you' in the library's
+ * changes.jsonl for each of the two fields that changed (services/changes.mjs byYou).
  * @module desktop/main/services/sources
  */
 
 import { BridgeError, coreCaller } from '../bridge-methods.mjs'
 import * as realCore from '../core.mjs'
+import { byYou } from './changes.mjs'
 
 const HTTP_URL = /^https?:\/\/\S+$/i
 // what a try may carry of a source (streams.json's keys the fetchers read)
@@ -41,6 +45,8 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
   const knownTopic = (dir, name) => {
     if (!(config(dir).topics ?? []).some(t => t.name === name)) throw new BridgeError('bad_arguments', `no topic ${name}`)
   }
+  /** The change, recorded as the user's (「谁定的」) for the fields it changed. */
+  const yours = (dir, fn) => byYou(dir, ['sources', 'topics'], fn, { log, now })
   /** A change to streams.json went through: say so, then hand the core's answer back. */
   const changed = (what, r) => {
     log(`sources: ${what}`)
@@ -73,23 +79,23 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
     },
     addSource(source) {
       const dir = library.require()
-      const r = call('addSource', dir, source)
+      const r = yours(dir, () => call('addSource', dir, source))
       return changed(`added ${r?.source?.name ?? '?'}`, r)
     },
     updateSource(name, patch) {
       const dir = library.require()
       knownSource(dir, name)
-      return changed(`updated ${name}`, call('updateSource', dir, name, patch))
+      return changed(`updated ${name}`, yours(dir, () => call('updateSource', dir, name, patch)))
     },
     removeSource(name) {
       const dir = library.require()
       knownSource(dir, name)
-      return changed(`removed ${name}`, call('removeSource', dir, name))
+      return changed(`removed ${name}`, yours(dir, () => call('removeSource', dir, name)))
     },
     setSourcePaused(name, paused) {
       const dir = library.require()
       knownSource(dir, name)
-      return changed(`${paused ? 'paused' : 'resumed'} ${name}`, call('setSourcePaused', dir, name, paused))
+      return changed(`${paused ? 'paused' : 'resumed'} ${name}`, yours(dir, () => call('setSourcePaused', dir, name, paused)))
     },
     addManualLink(url, title) {
       const dir = library.require()
@@ -99,17 +105,17 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
     },
     addTopic(topic) {
       const dir = library.require()
-      return changed(`topic added ${topic.name}`, call('addTopic', dir, topic))
+      return changed(`topic added ${topic.name}`, yours(dir, () => call('addTopic', dir, topic)))
     },
     updateTopic(name, patch) {
       const dir = library.require()
       knownTopic(dir, name)
-      return changed(`topic updated ${name}`, call('updateTopic', dir, name, patch))
+      return changed(`topic updated ${name}`, yours(dir, () => call('updateTopic', dir, name, patch)))
     },
     removeTopic(name) {
       const dir = library.require()
       knownTopic(dir, name)
-      return changed(`topic removed ${name}`, call('removeTopic', dir, name))
+      return changed(`topic removed ${name}`, yours(dir, () => call('removeTopic', dir, name)))
     },
   }
 

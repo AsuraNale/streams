@@ -33,3 +33,9 @@ export * from './ask/index.mjs';
 
 // v2 package A: the library registry (core-api 5.12, 2026-11-05).
 export * from './registry/index.mjs';
+
+// v2 package B: the library's brief, the proposal cards, 「谁定的」 (core-api 5.13, 2026-11-05).
+export { readBrief, saveBrief, isBrief, BRIEF_MAX } from './library/brief.mjs';
+export * from './proposals/index.mjs';
+// v2 package D: rule-based suggestion cards (core-api 5.14, 2026-11-05). 「写给 AI 的话」 is exported with verify/ above.
+export * from './suggest/index.mjs';

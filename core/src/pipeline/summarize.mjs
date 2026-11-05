@@ -7,11 +7,15 @@
 //   -> { status: 'inbox', passed, rounds, output, verification, calls }
 //   -> { status: 'unscored', reason: 'bad-format', calls }      (no usable output in any round: no inbox)
 //   -> { status: 'connection', code, calls }
-//   verification = { passed, rounds, failed:[{ id, evidence }], claimsNotFound:[], forgot:[] }
+//   verification = { passed, rounds, failed:[{ id, evidence }], claimsNotFound:[], forgot:[], aiInstruction? }
+//   「写给 AI 的话」 (v2 D1): detectAiInstructions on the material + the judge fallback item in the judge call. A mark
+//   { source:'rule'|'judge', matches, evidence? } goes on verification.aiInstruction, on every verdicts.jsonl line of
+//   the item, as aiInstruction:true on the card and the ledger `inbox` event, and into _pipeline/ai-instructions.jsonl.
+//   It never sends the summary back, never changes passed / scores, and every model call is the same as without it.
 import { completeJson } from '../connect/complete-json.mjs';
 import { appendEvent } from '../library/ledger.mjs';
 import { StreamsError } from '../errors.mjs';
-import { verifyLoop, appendVerdict } from '../verify/index.mjs';
+import { verifyLoop, appendVerdict, detectAiInstructions, aiInstructionMark, recordMark, readAiInstructions } from '../verify/index.mjs';
 import { cfgOf } from './config.mjs';
 import { summaryPrompt, materialText } from './prompts.mjs';
 import { writeInboxItem } from './inbox.mjs';
@@ -54,17 +58,23 @@ export async function runSummary({ libraryDir, cfg, node, state, item, body, mat
     return { output: r.json, claimed: Array.isArray(r.json?.claimed) ? r.json.claimed : [], calls: 0 };
   };
 
+  // 「写给 AI 的话」 (v2 D1): the fixed patterns on the material, before and independent of every model call; the judge
+  // fallback rides in the existing judge call (aiCheck). Neither changes a prompt, a retry or a score.
+  const rule = detectAiInstructions(source);
+
   let loop;
   try {
-    loop = await verifyLoop({ task: 'summary', checklist, source, connector: counted.connector, produce, maxRounds: cfg.maxVerifyRounds });
+    loop = await verifyLoop({ task: 'summary', checklist, source, connector: counted.connector, produce, maxRounds: cfg.maxVerifyRounds, aiCheck: true });
   } catch (e) {
     if (connection) return { status: 'connection', code: connection.code, detail: connection.detail, calls: counted.calls() };
     throw e;
   }
 
   const ts = now().toISOString();
+  const aiInstruction = aiInstructionMark(rule, loop.history.map((h) => h.aiJudge));
   if (write) {
-    loop.history.forEach((h, i) => appendVerdict(libraryDir, { node: node.id, url: item.url, round: i + 1, items: h.items, ts }));
+    loop.history.forEach((h, i) => appendVerdict(libraryDir, { node: node.id, url: item.url, round: i + 1, items: h.items, ts, ...(aiInstruction ? { aiInstruction } : {}) }));
+    if (aiInstruction) recordMark(libraryDir, aiInstruction, { at: ts, source: item.source ?? state?.source ?? '', itemId: item.url, node: node.id });
   }
   if (loop.last?.code && loop.last.code !== 'bad-format') {
     return { status: 'connection', code: loop.last.code, detail: 'judge call failed', calls: counted.calls() };
@@ -75,6 +85,9 @@ export async function runSummary({ libraryDir, cfg, node, state, item, body, mat
     return { status: 'unscored', reason: 'bad-format', calls: counted.calls() };
   }
   const verification = verificationOf(loop);
+  if (aiInstruction) verification.aiInstruction = aiInstruction;
+  // the inbox event carries the mark when this summary found one, or when an earlier gate already recorded this item
+  const marked = Boolean(aiInstruction) || (write && readAiInstructions(libraryDir).some((l) => l.itemId === item.url));
   const card = {
     url: item.url,
     title: item.title ?? state?.title ?? '',
@@ -88,9 +101,10 @@ export async function runSummary({ libraryDir, cfg, node, state, item, body, mat
     inboxAt: ts,
   };
   if (state?.maybeDuplicateOf) card.maybeDuplicateOf = state.maybeDuplicateOf;
+  if (marked) card.aiInstruction = true;
   if (write) {
     writeInboxItem(libraryDir, card);
-    appendEvent(libraryDir, { ts, ev: 'inbox', url: item.url, round, verified: verification.passed });
+    appendEvent(libraryDir, { ts, ev: 'inbox', url: item.url, round, verified: verification.passed, ...(marked ? { aiInstruction: true } : {}) });
   }
-  return { status: 'inbox', passed: verification.passed, rounds: loop.rounds, output, verification, calls: counted.calls() };
+  return { status: 'inbox', passed: verification.passed, rounds: loop.rounds, output, verification, calls: counted.calls(), ...(aiInstruction ? { aiInstruction } : {}) };
 }

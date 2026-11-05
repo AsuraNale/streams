@@ -62,7 +62,7 @@
 | 库登记 `registry` | `core/src/registry/` + 主进程 | 应用知道有哪些库（id、文件夹、显示名、图标、颜色、排序），不再「一次只开一个」 | 登记表在 `<应用数据>\Streams\libraries.json`；库文件夹仍是自包含的（换电脑拷文件夹再「添加已有库」即可） |
 | 定时与排队 `scheduler` | 主进程（用 v1.0 的 `nextRunAt / lastDueAt / missedRun`） | 每个库按自己的时间跑；错过的补一轮不叠加（v1.0 规则）；**同一时间只跑一轮**（一个队列，按到点先后），避免几个库同时打满连接 | 用量：每轮上限按库算；设置页显示全部库本月用量合计（维护者 11-05 定） |
 | 主 Agent `agent` | `core/src/agent/` | 对话记录（`agent/transcript.jsonl`，正本）、局面摘要（所有库的名字 / 要求 / 待看数 / 问题 / 待定的提议）、一轮对话（发 → 收 JSON → 校验 → lookups 循环 → 落盘）、长对话压缩（超过阈值时让模型把旧对话缩成摘要，原文仍留在 jsonl） | 一次只问你一个问题（`ask` 字段只能一个，带快捷回答）；JSON 不合格式重试一次，再不行就只显示 `reply` 文本、不出卡 |
-| 提议卡 `proposals` | `core/src/proposals/` | 卡的种类：建库、加来源、删 / 暂停来源、改主题与关键词、改要求、改过关线、改定时 / 上限、开跑一轮；每张卡：改什么、为什么、改前 / 改后、试抓结果（加来源时代码先试抓一次） | 状态：待定 → 确认 / 不要 / 改一下（改一下 = 把你的话带回主 Agent 重出一张）；**只有「确认」由代码执行**；每张卡和结果记进 `proposals.jsonl`（全局一份 + 相关库里一份）；执行后在库的配置旁记「主 Agent 提的 · 你确认的 · 日期」 |
+| 提议卡 `proposals` | `core/src/proposals/` | 卡的种类：建库、加来源、删 / 暂停来源、改主题与关键词、改要求、改过关线、改定时 / 上限、开跑一轮；每张卡：改什么、为什么、改前 / 改后、试抓结果（加来源时代码先试抓一次） | 状态：待定 → 确认 / 不要 / 改一下（改一下 = 把你的话带回主 Agent 重出一张）；**只有「确认」由代码执行**；每张卡和结果记进 `proposals.jsonl`（全局一份 + 相关库里一份）；执行后在库的配置旁记「主 Agent 提的 · 你确认的 · 日期」。**包 B 实做（11-05）与上面的差别**：十种 `kind`（定时与上限分成 `edit_schedule` / `edit_cap` 两种）；状态多两种：`stale`（出卡后相关配置变了，确认被拒、要重出）、`failed`（生效时出错，回滚或写明到哪一步）；建库卡也先试抓每个来源，被拒 / 地址有问题的默认不勾；改前 / 改后由代码在副本上真跑一遍算出，不信出卡方；「配置旁的记录」落在库的 `_pipeline\changes.jsonl`（每次改动一行：`agent-confirmed` 带卡的 id，你在界面上直接改的记 `you`），`getWhoDecided` 读它；出卡的 `createProposal` 只在主进程、不上桥。细节：`docs/core-api.md` 5.13、`docs/desktop.md` §4.5 |
 | 建议卡 `suggest` | `core/src/suggest/` | **规则型**、不花模型：来源连续 N 轮被拒 / 失败、连续三轮没有产出（v1.0 已有的数）、来源出现过写给 AI 的指令、两个库的主题关键词高度重合 | 维护者 11-05 定「先不放权」：建议卡一律要你点，没有「以后这类直接做」按钮（设计稿 UC2 第 4 步那个按钮去掉）；主 Agent 可以把建议卡变成提议卡（例如替你挑一个替代来源并试抓） |
 | 对话分流 `route` | `core/src/ask/route.mjs` | 库内对话框一句话 → 提问 / 改动要求 / 拿不准 | 改动要求连同库 id 交给主 Agent，提议卡回到同一个对话框里显示 |
 | 阅读模式 | 主进程 + 页面 | 「打开原文」在流息里打开原网页，可切到阅读模式（抽正文） | 原网页放在隔离的 webview 里（不给 Node、不给桥）；抽正文用 `mozilla/readability`（Apache-2.0，调研已核许可证）；抽不出就退回原网页 |
@@ -80,7 +80,7 @@
 <每个库的文件夹>\
   notes\  index.jsonl  streams.json（★ brief / schedule / cap / setup 里多「谁定的」历史）
   _pipeline\ ledger.jsonl fetch_log.jsonl rounds.jsonl verdicts.jsonl usage.jsonl demand.jsonl …（v1.0）
-  _pipeline\ ★ proposals.jsonl  ★ suggestions.jsonl
+  _pipeline\ ★ proposals.jsonl  ★ suggestions.jsonl  ★ changes.jsonl（「谁定的」，包 B）
 ```
 
 ### 2.4 一轮怎么跑（v2）

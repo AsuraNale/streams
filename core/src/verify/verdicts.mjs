@@ -34,7 +34,9 @@ function endsWithoutNewline(path) {
   }
 }
 
-export function appendVerdict(libraryDir, { node, url, round, items, ts } = {}) {
+// aiInstruction (optional, v2 package D): the item's 「写给 AI 的话」 mark { source: 'rule' | 'judge', matches, evidence? };
+// when given it is stamped on every line written by this call (the lines of one item, one node, one round).
+export function appendVerdict(libraryDir, { node, url, round, items, ts, aiInstruction } = {}) {
   if (typeof node !== 'string' || node === '') throw new StreamsError('bad-verdict', 'verdict is missing "node"');
   if (typeof url !== 'string' || url === '') throw new StreamsError('bad-verdict', 'verdict is missing "url"');
   if (!Array.isArray(items)) throw new StreamsError('bad-verdict', 'verdict "items" must be an array');
@@ -51,6 +53,7 @@ export function appendVerdict(libraryDir, { node, url, round, items, ts } = {}) 
       evidence: typeof it.evidence === 'string' ? it.evidence : '',
       round: typeof round === 'number' ? round : null,
       claimed: it.claimed === true,
+      ...(isPlainObject(aiInstruction) ? { aiInstruction } : {}),
     };
   });
   if (lines.length === 0) return [];
@@ -95,7 +98,7 @@ export function recentVerdictFailures(libraryDir, nodeId, n = 10) {
     .map(({ v }) => ({ ts: v.ts, url: v.url, item: v.item, evidence: v.evidence, round: v.round }));
 }
 
-// verdictsFor(libraryDir, url) -> [{ node, round, ts, items:[{ item, kind, passed, evidence, claimed, claimedNotDone }], claimsNotFound }]
+// verdictsFor(libraryDir, url) -> [{ node, round, ts, items:[{ item, kind, passed, evidence, claimed, claimedNotDone }], claimsNotFound, aiInstruction? }]
 // Every verification line of one url (S15), grouped by node + round (+ ts, so a later re-run of the same
 // node is its own group), groups in the order they were first written. claimedNotDone / claimsNotFound =
 // the producing model said it did the item, and the item did not pass ("说做了其实没做").
@@ -115,6 +118,7 @@ export function verdictsFor(libraryDir, url) {
     }
     const passed = v.passed === true;
     const claimed = v.claimed === true;
+    if (isPlainObject(v.aiInstruction) && !g.aiInstruction) g.aiInstruction = v.aiInstruction;
     g.items.push({ item: v.item, kind: v.kind === 'judge' ? 'judge' : 'rule', passed, evidence: typeof v.evidence === 'string' ? v.evidence : '', claimed, claimedNotDone: claimed && !passed });
     if (claimed && !passed) g.claimsNotFound.push(v.item);
   }

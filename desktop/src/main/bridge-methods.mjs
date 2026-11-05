@@ -53,6 +53,10 @@ const question = v => typeof v === 'string' && v.trim().length >= 1 && v.trim().
 const libraryId = nonEmptyShort(40)
 const schedule = s => isObject(s) && onlyKeys(s, ['enabled', 'time']) && typeof s.enabled === 'boolean' && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)
 /** { name?, icon?, color? }, at least one, each a string (the core's withMeta judges the values) */
+// v2 package B: a proposal card's id, the filter of listProposals, the statuses a card has (core PROPOSAL_STATUSES)
+export const PROPOSAL_STATUSES = Object.freeze(['pending', 'confirmed', 'declined', 'revise', 'stale', 'failed'])
+const proposalId = nonEmptyShort(80)
+const proposalFilter = f => f === null || (isObject(f) && onlyKeys(f, ['status', 'libraryId']) && optional(f, 'status', v => PROPOSAL_STATUSES.includes(v)) && optional(f, 'libraryId', v => v === null || libraryId(v)))
 const libraryMeta = m => isObject(m) && Object.keys(m).length > 0 && onlyKeys(m, ['name', 'icon', 'color']) && Object.values(m).every(v => typeof v === 'string' && v.length <= 200)
 
 /** name → how many arguments it takes, and a check for them. */
@@ -128,6 +132,13 @@ export const BRIDGE_METHODS = Object.freeze({
   getLibrarySchedule: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
   setLibrarySchedule: Object.freeze({ args: 2, check: ([id, s]) => libraryId(id) && schedule(s) }),
   getUsageTotal: Object.freeze({ args: 0 }),
+  // the proposal cards (v2 package B; services/proposals.mjs; docs/desktop.md §4.5): the list, the three answers — only
+  // confirmProposal changes anything, and only for a pending card — and 「谁定的」 of the current library
+  listProposals: Object.freeze({ args: 1, check: ([filter]) => proposalFilter(filter) }),
+  confirmProposal: Object.freeze({ args: 1, check: ([id]) => proposalId(id) }),
+  declineProposal: Object.freeze({ args: 1, check: ([id]) => proposalId(id) }),
+  reviseProposal: Object.freeze({ args: 2, check: ([id, text]) => proposalId(id) && nonEmptyShort(2000)(text) }),
+  getWhoDecided: Object.freeze({ args: 0 }),
   // interface B (docs/desktop.md §4.2). The library and reading (services/browse.mjs): an id must be in the index
   getLibrary: Object.freeze({ args: 2, check: ([view, filter]) => LIBRARY_VIEWS.includes(view) && libraryFilter(filter) }),
   searchLibrary: Object.freeze({ args: 2, check: ([q, filter]) => shortString(200)(q) && searchFilter(filter) }),
@@ -195,6 +206,8 @@ export const CORE_BAD_ARGUMENT_CODES = Object.freeze([
   'bad-setup',
   // a library id the registry does not hold (core withActive / withMeta / withoutLibrary; v2 package A)
   'unknown-library',
+  // a proposal card that does not fit (core draftProposal / reviseProposal), one that is not pending any more (v2 package B)
+  'bad-proposal', 'not-pending',
 ])
 
 /** A core error as the bridge's: shape errors (and every `duplicate-*`) → bad_arguments, the rest → internal. */
