@@ -1,12 +1,17 @@
 /* Design tokens of 流息 Streams — the names follow the shell's kit (docs/tokens.md is the list: name · value ·
    where it is used); the values are the product plan's palette (方案/src/head.html: bg, surface, sunk, sunk2, ink,
    muted, faint, rule, river, green, amber, red, violet, shadow). Use these names; do not repeat a colour in a
-   component or screen file (test/kit.test.mjs). Changing the look = changing the values here, nothing else. */
+   component or screen file (test/kit.test.mjs). Changing the look = changing the values here, nothing else.
+   Three sets (plan 5.6 D5; docs/desktop.md §五「主题」): :root is 河蓝 river, the set the app always had; 素灰 paper and
+   夜间 night override only the values they change, on <html data-theme="…"> (the main process serves index.html with the
+   attribute, so the first frame is already the set chosen). The names are the same in all three. */
 :root {
+  color-scheme: light;
   /* the identity colour: the sidebar and the accent (river, the plan's primary) */
   --st-sidebar: #1F6E8C;             /* river */
   --st-accent: #1F6E8C;              /* river */
   --st-accent-hover: #1A5E77;        /* river, one step darker (derived) */
+  --st-on-accent: #FFFFFF;           /* river-ink: the words of a primary button and the other marks on the accent */
   --st-on-accent-2: #E1EEF4;         /* river-soft: light words on the accent */
 
   /* text */
@@ -100,4 +105,100 @@
   --st-col-panel: 404px;
   --st-step: 8px;
   --st-step-gap: 3px;
+}
+
+/* 素灰 paper: river's light page with a light sidebar — the sidebar on sunk, its words ink and muted; its lines and buttons
+   are ink at an opacity (white at an opacity cannot be seen on a light sidebar). The current entry stays a white card with
+   river words, and the accent stays river. Amber and green one step darker than river's (river's amber on amber-soft is
+   4.42 : 1, its green on green-soft 4.45 : 1, under the 4.5 the three sets are held to; river itself keeps the plan's values).
+   Everything else is river's. */
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --st-sidebar: #E9EEF2;             /* sunk */
+  --st-sidebar-text: #16222B;        /* ink */
+  --st-sidebar-text-2: #56646F;      /* muted */
+  --st-sidebar-divider: rgba(22, 34, 43, 0.14);
+  --st-sidebar-button: rgba(22, 34, 43, 0.05);
+  --st-sidebar-button-border: rgba(22, 34, 43, 0.24);
+  --st-wait: #956112;                /* amber, one step darker (derived): 4.65 : 1 on amber-soft */
+  --st-done: #22765A;                /* green, one step darker (derived): 4.68 : 1 on green-soft */
+  --st-done-border: #22765A;
+  --st-fetch-ok: #22765A;
+  --st-fetch-gap: #956112;
+  --st-fetch-failed: #956112;
+}
+
+/* 夜间 night: the plan's dark palette (方案/src/head.html lines 25–44, docs/tokens.md 附录) through the same mapping as river.
+   Derived here: the sidebar on the dark river-soft with ink words, the current entry a dark surface card with river words,
+   river-ink words on the accent (it is light now), the hover one step lighter instead of darker, the five chart steps from
+   river toward the surface, the untouched squares on rule (sunk2 is not seen on the dark surface), the scrim and the shadow. */
+:root[data-theme="night"] {
+  color-scheme: dark;
+  --st-sidebar: #16303C;             /* river-soft (dark) */
+  --st-accent: #74B7D3;              /* river (dark) */
+  --st-accent-hover: #97C9DE;        /* river (dark), one step lighter (derived) */
+  --st-on-accent: #0F161B;           /* river-ink (dark) */
+  --st-on-accent-2: #16303C;         /* river-soft (dark) */
+
+  --st-text: #E3E9ED;                /* ink */
+  --st-text-2: #9CAAB5;              /* muted */
+  --st-text-3: #6F7D88;              /* faint */
+  --st-text-dark-2: #9CAAB5;         /* muted */
+  --st-line-todo: #6F7D88;           /* faint */
+
+  --st-page: #0F161B;                /* bg */
+  --st-surface: #171F26;             /* surface */
+  --st-surface-2: #121A20;           /* sunk */
+  --st-card-head: #121A20;           /* sunk */
+  --st-table-head: #1B252D;          /* sunk2 */
+  --st-row-head: #121A20;            /* sunk */
+  --st-border: #28343D;              /* rule */
+  --st-control-border: #28343D;      /* rule */
+  --st-divider: #28343D;             /* rule */
+  --st-divider-soft: #1B252D;        /* sunk2 */
+
+  --st-sidebar-text: #E3E9ED;        /* ink */
+  --st-sidebar-text-2: #9CAAB5;      /* muted */
+  --st-sidebar-divider: rgba(255, 255, 255, 0.14);
+  --st-sidebar-button: rgba(255, 255, 255, 0.06);
+  --st-sidebar-button-border: rgba(255, 255, 255, 0.24);
+  --st-sidebar-selected-title: #74B7D3;   /* river, on the dark card of the current entry */
+  --st-sidebar-selected-sub: #9CAAB5;     /* muted */
+
+  --st-wait: #E3B464;                /* amber */
+  --st-wait-bg: #2A2316;             /* amber-soft */
+  --st-wait-border: #5B4722;         /* amber-rule */
+  --st-done: #6CC9A6;                /* green */
+  --st-done-bg: #143026;             /* green-soft */
+  --st-done-border: #6CC9A6;         /* green */
+  --st-danger: #E88A81;              /* red */
+  --st-danger-bg: #2E1B1A;           /* red-soft */
+  --st-active-fill: #16303C;         /* river-soft */
+  --st-step-todo: #28343D;           /* rule (derived: sunk2 is not seen on the dark surface) */
+  --st-step-done-past: #6F7D88;      /* faint */
+  --st-accent-alt: #A79BE8;          /* violet */
+  --st-accent-alt-soft: #241F3C;     /* violet-soft */
+
+  --st-fetch-ok: #6CC9A6;            /* green */
+  --st-fetch-ok-bg: #143026;         /* green-soft */
+  --st-fetch-empty: #9CAAB5;         /* muted */
+  --st-fetch-empty-bg: #121A20;      /* sunk */
+  --st-fetch-gap: #E3B464;           /* amber */
+  --st-fetch-gap-bg: #2A2316;        /* amber-soft */
+  --st-fetch-failed: #E3B464;        /* amber */
+  --st-fetch-failed-bg: #2A2316;     /* amber-soft */
+  --st-fetch-blocked: #E88A81;       /* red */
+  --st-fetch-blocked-bg: #2E1B1A;    /* red-soft */
+
+  --st-chart-against: #E88A81;       /* red */
+  --st-chart-background: #1B252D;    /* sunk2 */
+  --st-chart-gap: #6F7D88;           /* faint */
+  --st-chart-1: #74B7D3;             /* river (dark) */
+  --st-chart-2: #619AB0;             /* river toward the surface, 20 % (derived) */
+  --st-chart-3: #4F7A8E;             /* 40 % */
+  --st-chart-4: #3C5C6B;             /* 60 % */
+  --st-chart-5: #2A3D49;             /* 80 % */
+
+  --st-scrim: rgba(0, 0, 0, 0.55);
+  --st-shadow-menu: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
 }

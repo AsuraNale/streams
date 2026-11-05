@@ -13,13 +13,16 @@
  * A chosen folder that holds .md files but no streams.json is `importable`: `useChosenFolder` makes it a library with the
  * core's importFolder (streams.json with notesDir ".", _pipeline/, the index beside the files; no file of the user's is
  * moved, renamed or changed) and opens it.
+ *
+ * 首次设置 records who decided each of its steps in the open library's streams.json (`recordSetupStep`, the core's; plan A1),
+ * and the settings page reads it back (`getSetup`): a library made before, or imported, has none ({}).
  * @module desktop/main/services/library
  */
 
 import { existsSync, readdirSync } from 'node:fs'
 import { basename, isAbsolute, resolve } from 'node:path'
-import { BridgeError } from '../bridge-methods.mjs'
-import { CONFIG_FILE, countFirstLevelMd, createLibrary, importFolder, readConfig, rebuildIndex } from '../core.mjs'
+import { BridgeError, bridgeErrorOf } from '../bridge-methods.mjs'
+import { CONFIG_FILE, countFirstLevelMd, createLibrary, importFolder, readConfig, readSetup, rebuildIndex, recordSetupStep } from '../core.mjs'
 import { readSettings, withRecent, writeSettings } from '../settings.mjs'
 
 export const FOLDER_STATES = Object.freeze(['empty', 'library', 'importable', 'other'])
@@ -152,6 +155,16 @@ export function createLibraryService({ settingsFile, emit, log, hidden = false, 
       }
       emit('library-changed', current())
       return { count: r.entries.length, pending: r.pending.map(p => ({ file: p.file, codes: p.codes })) }
+    },
+    /** 首次设置, at the end of each step: who decided it (core recordSetupStep: bad-setup → bad_arguments). */
+    recordSetupStep(step, entry) {
+      const d = require()
+      try { return recordSetupStep(d, step, entry) } catch (err) { throw bridgeErrorOf(err) }
+    },
+    /** 设置「库 · 首次设置」: the open library's record, {} when it has none. */
+    getSetup() {
+      const d = require()
+      try { return readSetup(d) } catch (err) { throw bridgeErrorOf(err) }
     },
     revealLibrary() {
       const d = require()

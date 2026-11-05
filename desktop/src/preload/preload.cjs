@@ -20,9 +20,12 @@ const METHODS = [
   // the shell: the app state, the settings page
   'getAppState',
   'setLanguage',
+  'setTheme',
   'setShowDeveloperInfo',
   'copyDiagnostics',
   'openMakerPage',
+  'getLicenses',
+  'openNotices',
   // the update (docs/desktop.md section 19)
   'getUpdateState',
   'checkForUpdate',
@@ -36,6 +39,8 @@ const METHODS = [
   'openRecentLibrary',
   'rebuildIndex',
   'revealLibrary',
+  'recordSetupStep',
+  'getSetup',
   // the connections
   'getConnections',
   'detectConnections',

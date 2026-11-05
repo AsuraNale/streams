@@ -6,6 +6,7 @@ import { after, test } from 'node:test'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { RECENT_MAX, SETTINGS_SCHEMA, defaultConnections, normalizeConnections, normalizeRecent, normalizeSchedule, readSettings, withRecent, writeSettings } from '../src/main/settings.mjs'
+import { DEFAULT_THEME } from '../src/main/theme.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { tempDir } from '../scripts/lib/temp.mjs'
 
@@ -13,7 +14,7 @@ const made = []
 const folder = () => { const dir = tempDir('st-settings-'); made.push(dir); return dir }
 after(() => { for (const dir of made) removeTree(dir, { waitMs: 3000 }) })
 const onDisk = file => JSON.parse(readFileSync(file, 'utf8'))
-const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' } })
+const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME })
 
 test('no file, a broken file, a file of another shape: the defaults', () => {
   const dir = folder()
@@ -24,7 +25,7 @@ test('no file, a broken file, a file of another shape: the defaults', () => {
   assert.deepEqual(readSettings(file), defaults, 'broken JSON')
   writeFileSync(file, '[1, 2]')
   assert.deepEqual(readSettings(file), defaults, 'not an object')
-  writeFileSync(file, `${JSON.stringify({ language: 'de', libraryPath: 'relative\\lib', recentLibraries: 'C:\\lib', connections: 'claude-code', showDeveloperInfo: 'yes', schedule: 'daily' })}\n`)
+  writeFileSync(file, `${JSON.stringify({ language: 'de', libraryPath: 'relative\\lib', recentLibraries: 'C:\\lib', connections: 'claude-code', showDeveloperInfo: 'yes', schedule: 'daily', theme: 'blue' })}\n`)
   assert.deepEqual(readSettings(file), defaults, 'every field of the wrong kind reads as its default')
 })
 
@@ -119,4 +120,26 @@ test('schedule: default on at 08:30; each field checked on its own; a write take
   assert.equal(readFileSync(file, 'utf8'), before, 'a refused write changes nothing on disk')
   writeSettings(file, { schedule: { enabled: true, time: '00:00' } })
   assert.deepEqual(readSettings(file).schedule, { enabled: true, time: '00:00' }, '00:00 is a time')
+})
+
+test('theme: one of river · paper · night; anything else reads as DEFAULT_THEME; a write takes an id only', () => {
+  const dir = folder()
+  const file = join(dir, 'settings.json')
+  assert.equal(DEFAULT_THEME, 'river', 'the default until the maintainer picks one (plan 5.6 D5)')
+  assert.equal(readSettings(file).theme, DEFAULT_THEME, 'no file: the default')
+  writeFileSync(file, `${JSON.stringify({ theme: 'night' })}
+`)
+  assert.equal(readSettings(file).theme, 'night', 'control: a good theme is read as it is')
+  for (const bad of ['Night', 'dark', '', 7, null, ['paper'], { id: 'paper' }]) {
+    writeFileSync(file, `${JSON.stringify({ theme: bad })}
+`)
+    assert.equal(readSettings(file).theme, DEFAULT_THEME, JSON.stringify(bad))
+  }
+  writeSettings(file, { language: 'en' })
+  assert.equal(writeSettings(file, { theme: 'paper' }).theme, 'paper')
+  assert.equal(onDisk(file).theme, 'paper')
+  assert.equal(readSettings(file).language, 'en', 'the other fields stay')
+  const before = readFileSync(file, 'utf8')
+  for (const bad of ['blue', 'Paper', '', null, undefined]) assert.throws(() => writeSettings(file, { theme: bad }), TypeError, String(bad))
+  assert.equal(readFileSync(file, 'utf8'), before, 'a refused write changes nothing on disk')
 })

@@ -12,6 +12,7 @@
  */
 
 import { LANGUAGE_SETTINGS } from './locale.mjs'
+import { isThemeId } from '../shared/themes.mjs'
 
 export const CHANNEL_PREFIX = 'streams:'
 
@@ -55,10 +56,15 @@ export const BRIDGE_METHODS = Object.freeze({
   getAppState: Object.freeze({ args: 0 }),
   // the language of the app's own words (locale.mjs; docs/desktop.md§六): the setting, not a locale
   setLanguage: Object.freeze({ args: 1, check: ([v]) => LANGUAGE_SETTINGS.includes(v) }),
+  // the app's look (theme.mjs; docs/desktop.md §五「主题」): one of the three ids
+  setTheme: Object.freeze({ args: 1, check: ([id]) => isThemeId(id) }),
   setShowDeveloperInfo: Object.freeze({ args: 1, check: ([on]) => typeof on === 'boolean' }),
   copyDiagnostics: Object.freeze({ args: 0 }),
   // the about part's 「由 Starry Digital 开发」: opens the maker's site (a fixed address; the page gives none)
   openMakerPage: Object.freeze({ args: 0 }),
+  // 许可证与致谢 (S14): Streams' own license, the parts that ship with it; the install's full notices (a fixed file, no path from the page)
+  getLicenses: Object.freeze({ args: 0 }),
+  openNotices: Object.freeze({ args: 0 }),
   // the update (docs/desktop.md§四, update-wiring.mjs): the state, a check now, the download and its cancel, the setup
   // program started (the app then quits), the release's page in the user's browser — no address or file name from the page
   getUpdateState: Object.freeze({ args: 0 }),
@@ -74,6 +80,9 @@ export const BRIDGE_METHODS = Object.freeze({
   openRecentLibrary: Object.freeze({ args: 1, check: ([path]) => nonEmpty(path) }),
   rebuildIndex: Object.freeze({ args: 0 }),
   revealLibrary: Object.freeze({ args: 0 }),
+  // 首次设置 records who decided each step (plan A1): the step and { by, detail? } are the core's to judge (bad-setup)
+  recordSetupStep: Object.freeze({ args: 2, check: ([step, entry]) => nonEmptyShort(40)(step) && smallObject(entry, 4000) }),
+  getSetup: Object.freeze({ args: 0 }),
   // the connections (services/connections.mjs): a kind, model ids, a vendor; the key goes in once and never comes back
   getConnections: Object.freeze({ args: 0 }),
   detectConnections: Object.freeze({ args: 0 }),
@@ -165,6 +174,8 @@ export const CORE_BAD_ARGUMENT_CODES = Object.freeze([
   'bad-feedback', 'bad-question', 'bad-view', 'locked-node', 'bad-config', 'not-found',
   // writing a header onto a file of an imported folder (core-api 5.9)
   'not-proposable', 'bad-file-name', 'already-conforming', 'bad-id',
+  // a step of 首次设置 recorded with an unknown step or `by` (core recordSetupStep)
+  'bad-setup',
 ])
 
 /** A core error as the bridge's: shape errors (and every `duplicate-*`) → bad_arguments, the rest → internal. */

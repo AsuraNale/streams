@@ -3,7 +3,9 @@
 // of the last startRound, the four numbers, the last round (lastRound: a roundLog line) or the round running now
 // (round-progress events), the three most recently kept. The page computes no number. 「现在跑一轮」 opens the dialog of
 // screens/run-dialog.js. Words: texts/today.js, texts/common.js.
-// Test hooks: [data-part=sources|problem|numbers|round|progress|recent], [data-num=inbox|caught|passed|kept],
+// The amber banner 「连续 N 轮没有产出」 (plan C8): numbers.noOutputStreak at getHome().noOutputRounds (the core's NO_OUTPUT_ROUNDS) or more,
+// with where to look and a link to 运行状态.
+// Test hooks: [data-part=sources|no-output|problem|numbers|round|progress|recent], [data-part="no-output"][data-streak], [data-num=inbox|caught|passed|kept],
 // [data-part="problem"][data-code][data-connection-code], [data-action=run|cancel-round|retry|change|copy|login|login-again].
 import { html, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
@@ -47,6 +49,20 @@ function SourceBanner({ sources, onGo }) {
       <span data-source-state=${l.state}>${fmt(T.sources[l.state], { n: l.n, total: l.total, names: l.names.join(SEP) })}</span>
       <${LinkButton} onClick=${onGo}>${T.sources.go}<//>
     <//>`)}
+  </div>`
+}
+
+/** Plan C8: 「连续 N 轮没有产出」 from the core's threshold on (getHome().noOutputRounds); under it, nothing. */
+function NoOutputBanner({ streak, threshold, onGo }) {
+  if (!Number.isInteger(streak) || !Number.isInteger(threshold) || threshold < 1 || streak < threshold) return null
+  return html`<div class="today-banner" data-part="no-output" data-streak=${streak}>
+    <${Notice} tone="wait" role="status" class="today-banner__line">
+      <span class="today-no-output__text">
+        <span class="st-t-strong st-t-wait" data-no-output-text>${fmt(T.noOutput.text, { n: streak })}</span>
+        <span class="st-t-small st-t-sub">${T.noOutput.hint}</span>
+      </span>
+      <span data-action="go-status"><${LinkButton} onClick=${onGo}>${T.noOutput.go}<//></span>
+    <//>
   </div>`
 }
 
@@ -201,6 +217,7 @@ export function TodayScreen() {
         ${home.status === 'error' && !data ? html`<div class="today-error" role="alert">${home.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}<${LinkButton} onClick=${() => home.reload()}>${ERRORS.retry}<//></div>` : null}
         ${data ? html`
           <${SourceBanner} sources=${numbers?.sources} onGo=${() => navigate('sources')} />
+          <${NoOutputBanner} streak=${numbers?.noOutputStreak} threshold=${data.noOutputRounds} onGo=${() => navigate('status')} />
           <${ProblemCard} problem=${data.problem} busy=${busy} copied=${copied} onRetry=${retry} onChange=${() => navigate('settings')} onCopy=${copy} onRedetect=${redetect} />
           <${Numbers} numbers=${numbers} lastRound=${lastRound} />
           ${live ? html`<${Progress} progress=${live} stopping=${stopping} onStop=${stop} />` : html`<${LastRound} round=${lastRound} />`}

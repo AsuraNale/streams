@@ -40,6 +40,12 @@ function App() {
     if (appState.data) setSetup(appState.data.library === null && route.screen !== 'kit')
     else if (appState.status === 'error') setSetup(false) // the state could not be read: the screens say so themselves
   }, [appState.data, appState.status])
+  // the theme (docs/desktop.md §五「主题」): the first frame already has it (the main process serves index.html with
+  // data-theme); a change in 设置 sets it at once, and the app state keeps <html> in step after that
+  useEffect(() => {
+    const theme = appState.data?.theme
+    if (typeof theme === 'string' && document.documentElement.dataset.theme !== theme) document.documentElement.dataset.theme = theme
+  }, [appState.data?.theme])
   useEvent('settings-changed', () => appState.reload())
   useEvent('library-changed', () => appState.reload())
   const inboxCount = useInboxCount(Boolean(appState.data?.library) && setup !== true)

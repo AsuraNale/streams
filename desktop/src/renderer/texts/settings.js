@@ -80,6 +80,20 @@ export const SETTINGS = Object.freeze({
   folderImportable: '这个文件夹里有 {n} 个 .md，流息会把它当库打开，不搬、不改你的文件。',
   importFolder: '当库打开',
   openFailed: '没能打开这个文件夹。',
+  // 「首次设置」: who decided each of the wizard's steps (streams.json setup, plan A1)
+  setup: '首次设置',
+  setupNone: '没有记录',
+  setupFailed: '没能读出首次设置的记录。',
+  setupLine: '{step}：{by}',
+  setupSteps: Object.freeze({
+    library: '库放在哪',
+    connection: '连接方式',
+    pack: '起步包',
+    sources: '来源',
+    trial: '试跑一轮',
+    schedule: '定时',
+  }),
+  setupBy: Object.freeze({ chose: '你选的', wrote: '你写的', default: '接受了默认', skipped: '跳过了' }),
 
   // the language of the app's own words (docs/desktop.md §六)
   language: '语言',
@@ -89,6 +103,14 @@ export const SETTINGS = Object.freeze({
   languageNow: '（当前：{name}）',
   languageNote: '只改流息自己写的字；库里的文件和模型写的内容不受影响。',
   languageReload: '切换后这一页会重新载入。',
+
+  // the app's look (docs/desktop.md §五「主题」): three sets
+  theme: '主题',
+  themeHint: '界面用哪一套颜色',
+  themeLabel: '选择主题',
+  themes: Object.freeze({ river: '河蓝', paper: '素灰', night: '夜间' }),
+  themeNote: '选了马上换，下次打开还是它；首次设置、对话框、图谱和问库都跟着换。',
+  themeFailed: '没能换主题。',
 
   advanced: '高级',
   advancedHint: '给排查问题用，平时不用管',
@@ -103,6 +125,23 @@ export const SETTINGS = Object.freeze({
   // a development run (npm start): the version is release.json's, it checks but does not update
   versionDev: '流息 {version} 开发版（Windows 版）',
   madeBy: '由 Starry Digital 开发',
+
+  // 许可证与致谢 (mockup S14): Streams' own license, the parts that ship with it, the full notices of an install
+  licensesOpen: '许可证与致谢',
+  licenses: Object.freeze({
+    title: '许可证与致谢',
+    own: '流息本身',
+    ownLicense: '{license} 许可证，全文如下：',
+    components: '随软件带的组件',
+    name: '名字',
+    version: '版本',
+    license: '许可证',
+    notices: '打开完整的第三方声明',
+    noticesNone: '开发版没有这个文件：装好的流息才在安装目录里带着 THIRD-PARTY-NOTICES.txt。',
+    noticesFailed: '没能打开第三方声明。',
+    failed: '没能读出许可证。',
+    close: '关闭',
+  }),
 
   // 检查版本 + 更新版本 (docs/desktop.md §四). Sizes come as 「37.2 MB」, the date as the page's language writes a date,
   // {at} as WHEN (texts/common.js) writes a time

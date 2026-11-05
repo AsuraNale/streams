@@ -55,3 +55,6 @@
 .today-recent__item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid var(--st-divider-soft); }
 .today-recent__item:last-child { border-bottom: 0; }
 .today-recent__title { font-weight: 700; overflow-wrap: anywhere; }
+
+/* 「连续 N 轮没有产出」 (plan C8): the sentence, where to look under it, the link to 运行状态 at the end */
+.today-no-output__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

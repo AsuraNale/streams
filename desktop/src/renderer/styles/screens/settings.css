@@ -122,3 +122,35 @@
   font-size: var(--st-fs-small);
   font-weight: 700;
 }
+
+/* 库 · 首次设置 (plan A1): who decided each of the wizard's six steps, one per line */
+.settings__setup { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 2px 24px; }
+.settings__setup-name { align-self: start; }
+
+/* 主题 (docs/desktop.md §五): the three sets in one drop-down */
+.settings__select--theme { min-width: 180px; }
+
+/* 许可证与致谢 (mockup S14): a wider dialog; the license text scrolls inside it */
+.st-dialog[data-dialog='licenses'] { width: min(680px, 100%); max-height: calc(100vh - 48px); }
+.st-dialog[data-dialog='licenses'] .st-dialog__body { min-height: 0; overflow: auto; gap: 14px; }
+.settings__licenses-part { display: flex; flex-direction: column; gap: 6px; }
+.settings__licenses-title { margin: 0; font-weight: 700; }
+.settings__license-text {
+  max-height: 200px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--st-divider);
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface-2);
+  color: var(--st-text);
+  font-family: var(--st-font-mono);
+  font-size: var(--st-fs-tiny);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.settings__components { border-collapse: collapse; font-size: var(--st-fs-small); }
+.settings__components th { text-align: left; font-weight: 700; color: var(--st-text-2); background: var(--st-table-head); }
+.settings__components th,
+.settings__components td { padding: 5px 16px 5px 8px; border-bottom: 1px solid var(--st-divider-soft); }

@@ -7,7 +7,7 @@
  * @module desktop/main/main
  */
 
-import { app, BrowserWindow, Menu, Notification, Tray, dialog, powerMonitor, protocol, safeStorage, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeTheme, powerMonitor, protocol, safeStorage, session, shell } from 'electron'
 import { readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -41,6 +41,7 @@ import { iconPath } from './icon.mjs'
 import { createScheduleService } from './services/schedule.mjs'
 import { createTray } from './tray.mjs'
 import { listInbox } from './core.mjs'
+import { nativeSource, windowColour } from './theme.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const RENDERER_DIR = join(DESKTOP_DIR, 'src', 'renderer')
@@ -152,6 +153,15 @@ function bringToFront() {
   return true
 }
 
+// the app's look (theme.mjs; docs/desktop.md §五「主题」): settings.json's theme, read when it is needed — the window's colour
+// before the first frame, Electron's own parts (nativeTheme), index.html's data-theme (protocol.mjs)
+const currentTheme = () => readSettings(layout.settingsFile).theme
+/** The theme on Electron's side: the title bar, native scrollbars and pop-up menus, and every window's background. */
+function applyTheme(id) {
+  nativeTheme.themeSource = nativeSource(id)
+  for (const win of appWindows) if (!win.isDestroyed()) win.setBackgroundColor(windowColour(id))
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440,
@@ -160,7 +170,7 @@ function createWindow() {
     minWidth: 1280,
     minHeight: 800,
     show: false,
-    backgroundColor: '#F2F5F7',
+    backgroundColor: windowColour(currentTheme()),
     autoHideMenuBar: true,
     icon: ICON,
     webPreferences: { ...WEB_PREFERENCES, preload: PRELOAD, devTools: !app.isPackaged },
@@ -187,7 +197,9 @@ app.whenReady().then(() => {
     settingsFile: layout.settingsFile, readSettings, writeSettings, log,
     systemLanguages: () => (DEV_LANGUAGES ? { preferred: DEV_LANGUAGES, fallback: null } : { preferred: app.getPreferredSystemLanguages(), fallback: app.getLocale() }),
   })
-  const uiHandler = createAppProtocolHandler({ rendererDir: RENDERER_DIR, sharedDir: SHARED_DIR, vendor: vendorFiles(), csp, dev: !app.isPackaged, locale: () => locale.current().resolved })
+  // the theme's native side before the window is made (its background is read in createWindow, the page's in protocol.mjs)
+  nativeTheme.themeSource = nativeSource(currentTheme())
+  const uiHandler = createAppProtocolHandler({ rendererDir: RENDERER_DIR, sharedDir: SHARED_DIR, vendor: vendorFiles(), csp, dev: !app.isPackaged, locale: () => locale.current().resolved, theme: currentTheme })
   protocol.handle(APP_SCHEME, request => uiHandler(request))
 
   // the secret store (secrets.mjs), the library (services/library.mjs), the connections (services/connections.mjs), the
@@ -211,7 +223,11 @@ app.whenReady().then(() => {
   const sources = createSourcesService({ library, emit, log })
   const ask = createAskService({ library, connections, log })
   const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell, schedule: () => scheduler?.view() ?? null })
-  const services = createAppServices({ layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets })
+  const services = createAppServices({
+    layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets, applyTheme,
+    // 许可证与致谢 (licenses.mjs): the packaged app reads its own copies (resources/app, beside Streams.exe), a development run the repository's
+    licenses: { packaged: app.isPackaged, desktopDir: DESKTOP_DIR, installDir: dirname(process.execPath) },
+  })
   // Windows notifications (services/notify.mjs): made here, used by later wiring (the pipeline's rounds, plan C5)
   const notifier = createNotifier({
     Notification, windows: () => [...appWindows], bringToFront, emit, log,

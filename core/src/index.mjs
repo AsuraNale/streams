@@ -3,6 +3,7 @@ export { StreamsError } from './errors.mjs';
 export { parseFrontmatter, serializeFrontmatter, KEY_ORDER } from './library/frontmatter.mjs';
 export { validateNote, NOTE_STATUSES, REQUIRED_FIELDS, isIsoDate, idFromFileName } from './library/validate.mjs';
 export { readConfig, topicNames, nodeIds, CONFIG_FILE } from './library/config.mjs';
+export { recordSetupStep, readSetup, SETUP_STEPS, SETUP_BY } from './library/setup.mjs';
 export { extractWikiLinks, resolveLinks } from './library/links.mjs';
 export { rebuildIndex, readIndex, formatIndexLine, INDEX_FILE, INDEX_META_FILE, INDEX_KEYS } from './library/index.mjs';
 export { appendEvent, replayLedger, recordSeen, isSeen, LEDGER_FILE, LEDGER_EVENTS } from './library/ledger.mjs';

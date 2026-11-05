@@ -7,7 +7,7 @@
 .ask-q { align-self: flex-end; display: flex; flex-direction: column; gap: 2px; max-width: 80%; padding: 8px 12px; border-radius: var(--st-radius); background: var(--st-active-fill); }
 .ask-q__text { overflow-wrap: anywhere; }
 .ask-a { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; }
-.ask-a__mark { width: 26px; height: 26px; border-radius: var(--st-radius); background: var(--st-accent); color: var(--st-surface); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: var(--st-fs-small); }
+.ask-a__mark { width: 26px; height: 26px; border-radius: var(--st-radius); background: var(--st-accent); color: var(--st-on-accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: var(--st-fs-small); }
 .ask-answer { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ask-sentences { margin: 0; line-height: 1.8; overflow-wrap: anywhere; }
 .ask-cite-wrap { line-height: 0; }

@@ -21,7 +21,7 @@ import { BridgeError, bridgeErrorOf } from '../bridge-methods.mjs'
 import {
   STARTER_PACK_IDS, applyStarterPackToLibrary, createUsageCounter, dismiss, estimateRound, fetchSource, gateNodes,
   homeNumbers, keep, later, listInbox, listRounds, listStarterPacks, makeContext, pipelineConfig, previewNode, readIndex, recentDismissReasons,
-  recentVerdictFailures, replayLedger, runRound, savePipelineConfig, selfCheck, DEFAULT_PIPELINE, pipelineFrom,
+  recentVerdictFailures, replayLedger, runRound, savePipelineConfig, selfCheck, DEFAULT_PIPELINE, NO_OUTPUT_ROUNDS, pipelineFrom,
 } from '../core.mjs'
 
 const HTTP_URL = /^https?:\/\/\S+$/i
@@ -122,6 +122,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       return {
         library: { ...library.current(), count: index.length },
         numbers,
+        // plan C8: the page shows 「连续 N 轮没有产出」 from this many (numbers.noOutputStreak); the threshold is the core's
+        noOutputRounds: NO_OUTPUT_ROUNDS,
         lastRound: listRounds(dir, 1)[0] ?? null,
         roundState: roundState(),
         recentKept: kept.slice(0, 3).map(e => ({ id: e.id, title: e.title, source_name: e.source_name ?? null, date: e.date, kept: e.kept ?? null })),

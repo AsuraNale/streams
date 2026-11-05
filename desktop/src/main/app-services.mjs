@@ -1,6 +1,6 @@
 /**
  * The shell's own services and their bridge handlers: the app state the page draws itself from, the settings page
- * (language, the developer switch, the diagnostics). The library, the connections and the pipeline are their own
+ * (language, the theme, the developer switch, the diagnostics, 许可证与致谢). The library, the connections and the pipeline are their own
  * services (services/library.mjs, services/connections.mjs, services/pipeline.mjs); main.mjs creates all four and
  * spreads their `handlers` into registerBridge. This one reads the library service for the app state and the
  * connections service and the secret store for the diagnostics.
@@ -12,6 +12,9 @@ import { writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { diagnosticsText } from './diagnostics.mjs'
 import { readSettings, writeSettings } from './settings.mjs'
+import { BridgeError } from './bridge-methods.mjs'
+import { isThemeId } from './theme.mjs'
+import { licensesView, noticesFileOf } from './licenses.mjs'
 
 /**
  * @param {object} o
@@ -26,11 +29,13 @@ import { readSettings, writeSettings } from './settings.mjs'
  * @param {{current: () => {path: string, name: string}|null}} o.library - services/library.mjs
  * @param {{diagnosticLines: () => string[]}} o.connections - services/connections.mjs
  * @param {{list: () => string[], get: (name: string) => string|null}} o.secrets - secrets.mjs
+ * @param {(id: string) => void} [o.applyTheme] - the theme on Electron's side (main.mjs: nativeTheme, the windows' background)
+ * @param {{packaged: boolean, desktopDir: string, installDir: string}} o.licenses - where licensesView reads (main.mjs)
  */
 /** The maker's site (README and the about part: 「由 Starry Digital 开发」, 维护者 11-02). */
 export const MAKER_URL = 'https://starrydigital.ca'
 
-export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets }) {
+export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets, applyTheme = () => {}, licenses }) {
   const settings = () => readSettings(layout.settingsFile)
 
   const appState = () => {
@@ -46,6 +51,8 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       // the app's own version (version.mjs: release.json's) and whether this is a development run
       version: version.version,
       devBuild: version.dev,
+      // the app's look (theme.mjs): one of THEME_IDS
+      theme: s.theme,
     }
   }
 
@@ -56,6 +63,26 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       const r = locale.set(v)
       emit('settings-changed', null)
       return r
+    },
+    /** 「主题」: write the setting, then the theme on Electron's side; the page sets its own data-theme at once. */
+    setTheme(id) {
+      if (!isThemeId(id)) throw new BridgeError('bad_arguments')
+      const theme = writeSettings(layout.settingsFile, { theme: id }).theme
+      applyTheme(theme)
+      log(`theme: ${theme}`)
+      emit('settings-changed', null)
+      return { theme }
+    },
+    /** 许可证与致谢: Streams' own license, the parts that ship with it, whether the full notices are there (licensesView). */
+    getLicenses: () => licensesView(licenses),
+    /** 「打开完整的第三方声明」: the install's THIRD-PARTY-NOTICES.txt in the system's viewer (a test run only writes the log). */
+    async openNotices() {
+      if (!licensesView(licenses).notices.available) throw new BridgeError('open_failed', 'no third-party notices in a development run')
+      const file = noticesFileOf(licenses)
+      if (hidden) { log(`not opened in a test run: ${file}`); return null }
+      const problem = await shell.openPath(file)
+      if (problem) throw new BridgeError('open_failed', `openPath ${file}: ${problem}`)
+      return null
     },
     setShowDeveloperInfo(on) {
       const r = { showDeveloperInfo: writeSettings(layout.settingsFile, { showDeveloperInfo: on }).showDeveloperInfo }

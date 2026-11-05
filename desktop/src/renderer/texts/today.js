@@ -13,6 +13,12 @@ export const TODAY = Object.freeze({
   noConnection: '没有连接：只抓不打分',
   runNow: '现在跑一轮',
   loadFailed: '没能读出今天的数字。',
+  // plan C8: from NO_OUTPUT_ROUNDS (the core's) rounds in a row that put nothing into 待看 (getHome().numbers.noOutputStreak)
+  noOutput: Object.freeze({
+    text: '连续 {n} 轮没有产出：这几轮都没有一条进待看。',
+    hint: '看看来源是不是都没抓到新东西，或者过关线是不是定得太高。',
+    go: '看运行状态',
+  }),
 
   numbers: Object.freeze({
     inbox: '待看',

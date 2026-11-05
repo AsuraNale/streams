@@ -11,6 +11,12 @@ export const TODAY = Object.freeze({
   noConnection: 'No connection: fetching only, no scoring',
   runNow: 'Run a round now',
   loadFailed: "Today's numbers could not be read.",
+  // plan C8: from NO_OUTPUT_ROUNDS (the core's) rounds in a row that put nothing into the inbox (getHome().numbers.noOutputStreak)
+  noOutput: Object.freeze({
+    text: 'No output for {n} rounds in a row: none of them put anything into the inbox.',
+    hint: 'Check whether the sources found anything new, or whether the pass lines are set too high.',
+    go: 'See the run status',
+  }),
 
   numbers: Object.freeze({
     inbox: 'In the inbox',

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>流息 · 三套主题并排</title>
+<style>
+  body { margin: 24px; font-family: 'Microsoft YaHei UI', 'PingFang SC', sans-serif; font-size: 13px; color: #16222B; background: #F2F5F7; }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  p { margin: 0 0 16px; color: #56646F; }
+  table { border-collapse: collapse; }
+  th, td { padding: 8px; vertical-align: top; border-bottom: 1px solid #D5DEE4; }
+  thead th { text-align: center; font-size: 14px; }
+  tbody th { text-align: left; width: 120px; font-weight: 700; }
+  img { display: block; border: 1px solid #D5DEE4; }
+  .name { text-align: center; margin-top: 4px; font-weight: 700; }
+</style>
+</head>
+<body>
+<h1>三套主题并排（河蓝 · 素灰 · 夜间）</h1>
+<p>同一个开发假库、同一组画面，每套主题各起一次真 Electron 窗口（1440×960）拍的，主题在启动前写进 settings.json，所以每张都是那一套的第一帧。点图看原尺寸。默认主题只在 <code>desktop/src/main/theme.mjs</code> 的 <code>DEFAULT_THEME</code> 一行，现在是 river。重拍：<code>cd desktop &amp;&amp; npm run shots:themes</code>。</p>
+<table>
+  <thead><tr><th></th><th scope="col">河蓝 River</th><th scope="col">素灰 Paper</th><th scope="col">夜间 Night</th></tr></thead>
+  <tbody>
+  <tr>
+    <th scope="row">今日<br><code>today</code></th>
+    <td><a href="river/today.png"><img src="river/today.png" alt="今日 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/today.png"><img src="paper/today.png" alt="今日 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/today.png"><img src="night/today.png" alt="今日 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  <tr>
+    <th scope="row">待看<br><code>inbox</code></th>
+    <td><a href="river/inbox.png"><img src="river/inbox.png" alt="待看 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/inbox.png"><img src="paper/inbox.png" alt="待看 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/inbox.png"><img src="night/inbox.png" alt="待看 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  <tr>
+    <th scope="row">资料库 · 读一条<br><code>library</code></th>
+    <td><a href="river/library.png"><img src="river/library.png" alt="资料库 · 读一条 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/library.png"><img src="paper/library.png" alt="资料库 · 读一条 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/library.png"><img src="night/library.png" alt="资料库 · 读一条 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  <tr>
+    <th scope="row">来源与主题<br><code>sources</code></th>
+    <td><a href="river/sources.png"><img src="river/sources.png" alt="来源与主题 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/sources.png"><img src="paper/sources.png" alt="来源与主题 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/sources.png"><img src="night/sources.png" alt="来源与主题 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  <tr>
+    <th scope="row">运行状态<br><code>status</code></th>
+    <td><a href="river/status.png"><img src="river/status.png" alt="运行状态 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/status.png"><img src="paper/status.png" alt="运行状态 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/status.png"><img src="night/status.png" alt="运行状态 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  <tr>
+    <th scope="row">设置<br><code>settings</code></th>
+    <td><a href="river/settings.png"><img src="river/settings.png" alt="设置 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/settings.png"><img src="paper/settings.png" alt="设置 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/settings.png"><img src="night/settings.png" alt="设置 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  <tr>
+    <th scope="row">首次设置 · 第一步<br><code>first-run</code></th>
+    <td><a href="river/first-run.png"><img src="river/first-run.png" alt="首次设置 · 第一步 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/first-run.png"><img src="paper/first-run.png" alt="首次设置 · 第一步 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/first-run.png"><img src="night/first-run.png" alt="首次设置 · 第一步 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  <tr>
+    <th scope="row">问库<br><code>ask</code></th>
+    <td><a href="river/ask.png"><img src="river/ask.png" alt="问库 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/ask.png"><img src="paper/ask.png" alt="问库 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/ask.png"><img src="night/ask.png" alt="问库 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  <tr>
+    <th scope="row">图谱<br><code>graph</code></th>
+    <td><a href="river/graph.png"><img src="river/graph.png" alt="图谱 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/graph.png"><img src="paper/graph.png" alt="图谱 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/graph.png"><img src="night/graph.png" alt="图谱 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  <tr>
+    <th scope="row">对话框 · 许可证与致谢<br><code>licenses</code></th>
+    <td><a href="river/licenses.png"><img src="river/licenses.png" alt="对话框 · 许可证与致谢 · 河蓝 River" width="480" loading="lazy"></a><div class="name">河蓝 River</div></td>
+    <td><a href="paper/licenses.png"><img src="paper/licenses.png" alt="对话框 · 许可证与致谢 · 素灰 Paper" width="480" loading="lazy"></a><div class="name">素灰 Paper</div></td>
+    <td><a href="night/licenses.png"><img src="night/licenses.png" alt="对话框 · 许可证与致谢 · 夜间 Night" width="480" loading="lazy"></a><div class="name">夜间 Night</div></td>
+  </tr>
+  </tbody>
+</table>
+</body>
+</html>

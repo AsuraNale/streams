@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runRound } from '../src/pipeline/round.mjs';
 import { keep, dismiss } from '../src/pipeline/decide.mjs';
-import { homeNumbers, constantScoreWarning } from '../src/pipeline/numbers.mjs';
+import { homeNumbers, constantScoreWarning, noOutputStreak, NO_OUTPUT_ROUNDS } from '../src/pipeline/numbers.mjs';
+import * as coreIndex from '../src/index.mjs';
 import { roundLog, listRounds } from '../src/pipeline/rounds-log.mjs';
 import { estimateRound, recentNewCounts } from '../src/pipeline/estimate.mjs';
 import { listInbox } from '../src/pipeline/inbox.mjs';
@@ -61,7 +62,7 @@ test('homeNumbers: every number recomputed from the ledger / fetch_log / rounds.
   appendEvent(dir, { ev: 'seen', url: 'https://manual/1', source: 'manual', title: 'hand-fed' });
   assert.equal(homeNumbers(dir).caught, 3);
   const empty = makeLibrary('numbers-empty');
-  assert.deepEqual(homeNumbers(empty), { caught: 0, inbox: 0, inboxOldestDays: 0, kept: 0, dismissed: 0, lastRound: null, sources: { level: 'quiet', counts: { ok: 0, empty: 0, gap: 0, failed: 0, blocked: 0, paused: 0 }, lines: ['no-fetch-yet'] } });
+  assert.deepEqual(homeNumbers(empty), { caught: 0, inbox: 0, inboxOldestDays: 0, kept: 0, dismissed: 0, lastRound: null, noOutputStreak: 0, sources: { level: 'quiet', counts: { ok: 0, empty: 0, gap: 0, failed: 0, blocked: 0, paused: 0 }, lines: ['no-fetch-yet'] } });
 });
 
 test('roundLog / listRounds: the structured record of each round, newest first; counts agree with the ledger events of that round', async (t) => {
@@ -177,4 +178,29 @@ test('constantScoreWarning: >= 5 identical scores from one source warn; 4 do not
   assert.equal(constantScoreWarning([...five.slice(0, 4), { url: 'x', source: 'feed-a', score: 'high' }]), '');
   assert.equal(constantScoreWarning(five, { min: 6 }), '');
   assert.equal(constantScoreWarning(null), '');
+});
+
+// rounds.jsonl written by hand, oldest first (each line a round record with counts.inbox as given; null = no counts at all)
+function roundsFile(name, inboxes) {
+  const dir = makeLibrary(name);
+  mkdirSync(join(dir, '_pipeline'), { recursive: true });
+  const lines = inboxes.map((n, i) => JSON.stringify({ id: `r${i + 1}`, startedAt: `2026-11-0${(i % 9) + 1}T08:30:00.000Z`, finishedAt: `2026-11-0${(i % 9) + 1}T08:31:00.000Z`, ...(n === null ? {} : { counts: { fetched: 4, new: 2, inbox: n } }), calls: 3 }));
+  writeFileSync(join(dir, '_pipeline', 'rounds.jsonl'), lines.map((l) => l + '\n').join(''), 'utf8');
+  return dir;
+}
+
+test('noOutputStreak: from the newest round back, the rounds in a row with counts.inbox 0 / missing / not a number; a round with output stops it', () => {
+  assert.equal(NO_OUTPUT_ROUNDS, 3, 'the threshold of plan C8');
+  assert.equal(coreIndex.NO_OUTPUT_ROUNDS, 3, 'exported by the core');
+  assert.equal(coreIndex.noOutputStreak, noOutputStreak);
+  // control: the newest round had output -> 0, however many empty rounds came before
+  assert.equal(homeNumbers(roundsFile('streak-last-ok', [0, 0, 0, 0, 5])).noOutputStreak, 0);
+  assert.equal(homeNumbers(roundsFile('streak-two', [5, 0, 0])).noOutputStreak, 2, 'two below the threshold');
+  assert.equal(homeNumbers(roundsFile('streak-three', [0, 0, 0])).noOutputStreak, 3, 'three: the threshold');
+  assert.equal(homeNumbers(roundsFile('streak-reset', [0, 0, 0, 5, 0, 0])).noOutputStreak, 2, 'output in between starts the count again');
+  assert.equal(homeNumbers(roundsFile('streak-missing', [4, null, 0])).noOutputStreak, 2, 'a round without counts counts as no output');
+  assert.equal(homeNumbers(roundsFile('streak-none', [])).noOutputStreak, 0, 'no round yet: no streak');
+  // the pure function, on the same shapes (newest first)
+  assert.equal(noOutputStreak([{ counts: { inbox: 0 } }, { counts: { inbox: '3' } }, { counts: {} }, { counts: { inbox: 1 } }, { counts: { inbox: 0 } }]), 3);
+  assert.equal(noOutputStreak(null), 0);
 });

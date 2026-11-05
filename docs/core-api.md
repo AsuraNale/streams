@@ -107,7 +107,8 @@
 | `savePipelineConfig(libraryDir, cfg)` | 校验后写回 `streams.json`（其余键原样保留）。拒绝：删 / 改固定节点、改 `output`、删底线项、gate > 5、summary ≠ 1 | 抛 `locked-node`；`bad-config`（threshold 不在 0–1、未知 kind、material 不在 meta/body） |
 | `allowedActions(state, config)` / `assertAllowed(state, action)` | 不变量①：阶段 → 允许动作表。`seen` 只能 `gate:relevance`；relevance 过关才 `body` / `gate:substance`；substance 过关才 `summary`；`inbox` 才 `keep` / `dismiss` / `later`；`kept` / `dismissed` 什么都不能做 | 抛 `not-allowed` |
 | `roundLog(libraryDir, roundId)` / `listRounds(libraryDir, n=20)` | 运行记录（`rounds.jsonl` 的结构化行，最近的在前；logs/ 的 md 给人看） | 一行 = `{id, startedAt, finishedAt, counts, gates, calls, stoppedAt?, problems, warnings, fetch, unscored}`；`roundLog` 找不到返回 `null` |
-| `homeNumbers(libraryDir, {now?})` | 首页数字（S2）：全部从账本与 fetch_log 重算；`now` 可注入时钟（等待天数） | `{caught, inbox, inboxOldestDays, kept, dismissed, lastRound, sources:{level, lines}}` |
+| `homeNumbers(libraryDir, {now?})` | 首页数字（S2）：全部从账本、fetch_log 与 rounds.jsonl 重算；`now` 可注入时钟（等待天数）。`noOutputStreak`（11-04，方案 C8）：从 rounds.jsonl 最新一轮往回数，`counts.inbox` 为 0（或缺、不是数）的连续轮数，碰到一轮有产出就停；没跑过为 0 | `{caught, inbox, inboxOldestDays, kept, dismissed, lastRound, noOutputStreak, sources:{level, lines}}` |
+| `noOutputStreak(rounds)` / `NO_OUTPUT_ROUNDS` | 上面那个数的纯函数（`rounds` 最新的在前）；阈值常量 `NO_OUTPUT_ROUNDS = 3`：首页「连续 N 轮没有产出」从这个数起显示（桌面经 `getHome().noOutputRounds` 拿，页面不自己定） | 整数 |
 | `cleanCache(libraryDir, {days, now})` | 删 `_pipeline/cache/` 里超过 `cacheDays` 的正文 | `{removed}` |
 | `constantScoreWarning(scored, {min:5})` | 工具包 F3 移植：同一来源 ≥5 条分数全同 → 一句提醒（只提醒，不拒绝），进 `warnings` | `''` 或一句话 |
 
@@ -279,6 +280,18 @@
 | `nextRunAt(schedule, now)` | 下一个定时时刻（本地时间）；`enabled:false` → `null` |
 | `lastDueAt(schedule, now)` | 最近一个已经过去的定时时刻（今天的已过就是今天，否则昨天的）；`enabled:false` → `null` |
 | `missedRun(schedule, {lastRoundAt, now})` | 补跑判定：`lastDueAt` 存在且（`lastRoundAt` 为空或早于它）→ `true`。只补一轮，不堆积（错过三天也只补一次） |
+
+## 5.11 首次设置记「谁定的」（A1 / 4.10）· 有（11-04）
+
+`streams.json` 的 `setup`：键是六步 `library` · `connection` · `pack` · `sources` · `trial` · `schedule`，每个值 `{ by, at, detail? }`；`by` ∈ `chose`（你选的）· `wrote`（你写的）· `default`（接受了默认）· `skipped`（跳过了）；`at` = ISO 时间；`detail` 可选，能写成 JSON 的值（≤ 2000 字）。哪一步怎么记由桌面首次设置定（`docs/desktop.md` §4.1）。`src/library/setup.mjs`：
+
+| 函数 | 作用 | 返回 / 错误 |
+|---|---|---|
+| `recordSetupStep(libraryDir, step, {by, detail?}, {now?})` | 记一步：那一步的记录整条换成新的，别的步不动；整份 `streams.json` 读出、改 `setup`、写临时文件再 rename（格式同 5.6：两格缩进 + 末尾换行），其余键与顺序原样。不碰 `notes/`（V2：写 notes 的只有 `writeNoteFile`） | `{step, by, at, detail?}`；抛 `bad-setup`（step / by 不认识、entry 多了别的键、detail 太大）、`config:<code>`（`streams.json` 读不出） |
+| `readSetup(libraryDir)` | 读回记录；没有 `setup`（导入的、或这次之前建的库）或它不是对象 → `{}`；step / by 不认识、没有 `at` 的条目略过 | `{ <step>: {by, at, detail?} }`；抛 `config:<code>` |
+| `SETUP_STEPS` / `SETUP_BY` | 六步与四种「谁定的」 | |
+
+`readConfig` 照旧能读带 `setup` 的文件（它只看 `topics`、`pipeline`、`notesDir`）。
 
 ## 六、桌面桥（desktop 主进程 → 页面）
 

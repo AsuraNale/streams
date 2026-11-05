@@ -76,6 +76,20 @@ export const SETTINGS = Object.freeze({
   folderImportable: 'This folder holds {n} .md files. Streams opens it as a library and does not move or change your files.',
   importFolder: 'Open as a library',
   openFailed: 'That folder could not be opened.',
+  // 「首次设置」: who decided each of the wizard's steps (streams.json setup, plan A1)
+  setup: 'First-time setup',
+  setupNone: 'No record',
+  setupFailed: 'The record of the first-time setup could not be read.',
+  setupLine: '{step}: {by}',
+  setupSteps: Object.freeze({
+    library: 'Where the library goes',
+    connection: 'Connection',
+    pack: 'Starter pack',
+    sources: 'Sources',
+    trial: 'Trial round',
+    schedule: 'Schedule',
+  }),
+  setupBy: Object.freeze({ chose: 'you chose', wrote: 'you wrote', default: 'took the default', skipped: 'skipped' }),
 
   language: 'Language',
   languageHint: "The language of Streams' own words",
@@ -85,6 +99,14 @@ export const SETTINGS = Object.freeze({
   languageNow: ' (now: {name})',
   languageNote: "Changes only Streams' own words; the files in your library and what a model writes are not affected.",
   languageReload: 'The page reloads when you switch.',
+
+  // the app's look (docs/desktop.md §五「主题」): three sets
+  theme: 'Theme',
+  themeHint: 'Which set of colours the app uses',
+  themeLabel: 'Choose a theme',
+  themes: Object.freeze({ river: 'River', paper: 'Paper', night: 'Night' }),
+  themeNote: 'It changes at once and stays when you open Streams again; first-time setup, dialogs, the graph and Ask follow it.',
+  themeFailed: 'The theme could not be changed.',
 
   advanced: 'Advanced',
   advancedHint: 'For troubleshooting; you can ignore it',
@@ -98,6 +120,23 @@ export const SETTINGS = Object.freeze({
   version: 'Streams {version} (Windows)',
   versionDev: 'Streams {version} development build (Windows)',
   madeBy: 'Developed by Starry Digital',
+
+  // 许可证与致谢 (mockup S14): Streams' own license, the parts that ship with it, the full notices of an install
+  licensesOpen: 'Licenses and credits',
+  licenses: Object.freeze({
+    title: 'Licenses and credits',
+    own: 'Streams itself',
+    ownLicense: '{license} license, in full:',
+    components: 'Parts that come with it',
+    name: 'Name',
+    version: 'Version',
+    license: 'License',
+    notices: 'Open the full third-party notices',
+    noticesNone: 'A development run has no such file: only an installed Streams carries THIRD-PARTY-NOTICES.txt in its folder.',
+    noticesFailed: 'The third-party notices could not be opened.',
+    failed: 'The licenses could not be read.',
+    close: 'Close',
+  }),
 
   update: Object.freeze({
     check: 'Check for updates',

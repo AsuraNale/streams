@@ -13,9 +13,14 @@
 //       settings-run        设置 on the seeded world, the schedule on (setSchedule from the page), scrolled to 「运行」 (A2, 11-04)
 //       first-run-schedule  首次设置 walked to its last screen 「定时」: the folder, the connection skipped, the blank pack, the round
 //       import      资料库 · 待规范 (S8) on a folder of .md files imported as a library: one card per file (11-04)
+//       settings-theme   设置 scrolled to 「主题」 (the three sets; docs/desktop.md §五) (11-04)
+//       settings-setup   设置 scrolled to 「库」 with 「首次设置」: six records written by the core before the start (plan A1, 11-04)
+//       no-output        今日 with 「连续 3 轮没有产出」: three rounds without output appended to rounds.jsonl (plan C8, 11-04)
+//       licenses         设置 with the 许可证与致谢 dialog open (S14, 11-04)
+//   --theme river | paper | night   the theme settings.json starts with (default: the app's default)
 //   --lang en      the app in English            --out <file.png>   where the picture goes
 // The app runs on a world under the OS temp folder, removed after; the process tree is ended (scripts/lib/close-app.mjs).
-import { mkdirSync } from 'node:fs'
+import { appendFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { closeApp } from './lib/close-app.mjs'
 import { REPO_DIR } from './lib/paths.mjs'
@@ -57,7 +62,13 @@ const PLAN = {
   // 资料库 · 待规范 (S8, 11-04) on a folder of .md files imported as a library (test/support/seed.mjs seedImportFolder + the
   // core's importFolder), any world kind; the window opens on that folder instead of the world's library
   import: { start: 'library', connection: 'fake', importFolder: true },
+  // 11-04: the three themes' row, 首次设置's record, the banner of plan C8, 许可证与致谢
+  'settings-theme': { start: 'settings', connection: 'fake' },
+  'settings-setup': { start: 'settings', connection: 'fake', setupRecord: true },
+  'no-output': { start: 'today', connection: 'fake', noOutput: true },
+  licenses: { start: 'settings', connection: 'fake' },
 }
+const theme = value('--theme')
 const plan = PLAN[screen] ?? { start: screen, connection: kind === 'seeded' ? 'fake' : null }
 
 const root = tempDir('st-desktop-shot-')
@@ -71,6 +82,21 @@ try {
     const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
     core.importFolder(imported, { name: 'vault' })
   }
+  if (plan.setupRecord || plan.noOutput) {
+    const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
+    // who decided each step, as a walk through 首次设置 would have left it (the core's own writer)
+    if (plan.setupRecord) {
+      for (const [step, entry] of [['library', { by: 'chose', detail: 'empty' }], ['connection', { by: 'chose', detail: 'claude-code' }], ['pack', { by: 'chose', detail: 'agent-memory' }],
+        ['sources', { by: 'wrote', detail: { removed: 1, added: 1 } }], ['trial', { by: 'skipped' }], ['schedule', { by: 'default', detail: { enabled: true, time: '08:30' } }]]) core.recordSetupStep(world.library, step, entry)
+    }
+    // three rounds after the seed's, none of them with output (the shape runRound writes)
+    if (plan.noOutput) {
+      for (let i = 1; i <= core.NO_OUTPUT_ROUNDS; i++) {
+        const at = new Date(Date.now() - (core.NO_OUTPUT_ROUNDS - i + 1) * 3_600_000).toISOString()
+        appendFileSync(join(world.library, '_pipeline', 'rounds.jsonl'), `${JSON.stringify({ id: `shot-${i}`, startedAt: at, finishedAt: at, counts: { fetched: 2, new: 0, maybeDuplicates: 0, summarized: 0, inbox: 0 }, gates: {}, calls: 0 })}\n`)
+      }
+    }
+  }
   const env = {
     STREAMS_WINDOW: 'shown', // a hidden window draws no frames: nothing to take a picture of
     ...(plan.start ? { STREAMS_START_SCREEN: plan.start } : {}),
@@ -82,7 +108,8 @@ try {
     ...(lang ? { STREAMS_DEV_SYSTEM_LANGUAGES: lang === 'en' ? 'en-US' : lang === 'zh' ? 'zh-CN' : lang } : {}),
   }
   // the seeded world has no connection chosen; the shots show the fake one chosen, as a user would in 设置
-  const started = await launch(world, { env, settings: kind === 'seeded' && !plan.noLibrary ? { connections: { active: 'claude-code' } } : null })
+  const settings = { ...(kind === 'seeded' && !plan.noLibrary ? { connections: { active: 'claude-code' } } : {}), ...(theme ? { theme } : {}) }
+  const started = await launch(world, { env, settings: Object.keys(settings).length ? settings : null })
   app = started.app
   const page = started.page
   if (screen === 'first-run') {
@@ -147,6 +174,18 @@ try {
     await page.waitForFunction(() => document.querySelector('[data-part="round-progress"]')?.dataset.done === 'true', null, POLL)
     await page.click('[data-action="next"] button')
     await step('schedule')
+  } else if (screen === 'settings-theme' || screen === 'settings-setup') {
+    await ready(page, 'settings')
+    const part = screen === 'settings-theme' ? 'theme' : 'library'
+    if (screen === 'settings-setup') await page.waitForFunction(() => document.querySelector('[data-part="library"] [data-part="setup"]')?.dataset.setup === 'recorded', null, POLL)
+    await page.evaluate(p => document.querySelector(`[data-part="${p}"]`).scrollIntoView({ block: 'start' }), part)
+  } else if (screen === 'no-output') {
+    await ready(page, 'today')
+    await page.waitForFunction(() => document.querySelector('[data-part="no-output"]') !== null, null, POLL)
+  } else if (screen === 'licenses') {
+    await ready(page, 'settings')
+    await page.click('[data-part="about"] [data-action="licenses"] button')
+    await page.waitForFunction(() => document.querySelector('[data-dialog="licenses"] [data-part="components"] [data-component]') !== null, null, POLL)
   } else {
     await ready(page, plan.start)
   }

@@ -88,6 +88,7 @@ export const FIRST_RUN = Object.freeze({
     inbox: '进入待看 {n} 条',
     notStarted: '这一轮没能开始：{reason}',
     failed: '没能开始。',
+    skip: '先不跑，往下走',
     goInbox: '去待看',
     goToday: '去今日',
   }),

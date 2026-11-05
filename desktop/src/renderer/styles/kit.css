@@ -51,7 +51,7 @@
   height: 26px;
   border-radius: var(--st-radius);
   background: var(--st-surface);
-  color: var(--st-sidebar);
+  color: var(--st-sidebar-selected-title);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -200,7 +200,7 @@
   padding: 0 16px;
   border: 0;
   background: var(--st-accent);
-  color: var(--st-surface);
+  color: var(--st-on-accent);
   font-weight: 700;
 }
 .st-button--primary:hover { background: var(--st-accent-hover); }
@@ -292,7 +292,7 @@
   border: 0;
   border-radius: var(--st-radius-xs);
   background: var(--st-accent);
-  color: var(--st-surface);
+  color: var(--st-on-accent);
 }
 
 /* ---- notices ------------------------------------------------------------------------------------------- */
@@ -319,7 +319,7 @@
 .st-sidebar__step-name { line-height: 1.45; }
 .st-sidebar__step-sub { font-size: var(--st-fs-tiny); color: var(--st-sidebar-text-2); margin-top: 2px; }
 .st-sidebar__step--current { background: var(--st-surface); color: var(--st-sidebar-selected-title); }
-.st-sidebar__step--current .st-sidebar__step-mark { background: var(--st-accent); color: var(--st-surface); font-weight: 700; }
+.st-sidebar__step--current .st-sidebar__step-mark { background: var(--st-accent); color: var(--st-on-accent); font-weight: 700; }
 .st-sidebar__step--current .st-sidebar__step-name { font-weight: 700; }
 .st-sidebar__step--current .st-sidebar__step-sub { color: var(--st-sidebar-selected-sub); }
 .st-sidebar__step--todo .st-sidebar__step-mark { border: 1.5px solid var(--st-sidebar-text-2); color: var(--st-sidebar-text-2); }

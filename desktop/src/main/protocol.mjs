@@ -7,6 +7,8 @@
  *   app://ui/shared/…   src/shared/…             modules shared with the main process (pure, no Node, no DOM)
  *   app://ui/vendor/…   three files of node_modules, by name (VENDOR); nothing else of node_modules
  *
+ * index.html is served with `data-theme="<id>"` on its <html> tag, the theme settings.json names now (theme.mjs withTheme): the
+ * page's first frame is in that set, before any script runs (docs/desktop.md §五「主题」).
  * GET only. The path rule is safe-path.mjs (docs/desktop.md §二): the path is judged as text first, so nothing
  * reaches the file system that could name another folder or another machine; then only a path inside the folder by
  * its text is looked up, links followed and still inside. Only the file types the page uses are served; the
@@ -21,6 +23,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { dirname, extname, join } from 'node:path'
 import { resolveInside, safeSegments } from './safe-path.mjs'
 import { APP_HOST } from './security.mjs'
+import { DEFAULT_THEME, withTheme } from './theme.mjs'
 
 const require = createRequire(import.meta.url)
 
@@ -76,8 +79,9 @@ export const DEV_ONLY = Object.freeze(['screens/kit.js', 'texts/kit.js', 'styles
  * @param {string} o.csp
  * @param {boolean} [o.dev] - a development run (not packaged): only then are the DEV_ONLY files served
  * @param {() => 'zh-CN'|'en'} [o.locale] - the language the app runs in now (locale.mjs), asked on every request
+ * @param {() => string} [o.theme] - the theme settings.json names now (theme.mjs), asked for every index.html
  */
-export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, dev = false, locale = () => 'zh-CN' }) {
+export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, dev = false, locale = () => 'zh-CN', theme = () => DEFAULT_THEME }) {
   const headers = type => ({
     'content-type': type,
     'content-security-policy': csp,
@@ -99,6 +103,7 @@ export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, 
     if (!segments) return notFound()
 
     let file = null
+    let page = false
     if (segments[0] === 'vendor') {
       file = segments.length === 2 && Object.hasOwn(vendor, segments[1]) ? vendor[segments[1]] : null
     } else {
@@ -111,12 +116,14 @@ export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, 
       if (!found) found = await resolveInside(root, rest)
       if (found && !dev && root === rendererDir && DEV_ONLY.includes(found.rel)) return notFound()
       file = found ? found.file : null
+      page = Boolean(found) && root === rendererDir && found.rel === 'index.html'
     }
     if (!file) return notFound()
     const type = Object.hasOwn(TYPES, extname(file).toLowerCase()) ? TYPES[extname(file).toLowerCase()] : null
     if (!type) return notFound()
     try {
       if (!(await stat(file)).isFile()) return notFound()
+      if (page) return new Response(withTheme(await readFile(file, 'utf8'), theme()), { status: 200, headers: headers(type) })
       return new Response(await readFile(file), { status: 200, headers: headers(type) })
     } catch {
       return notFound()

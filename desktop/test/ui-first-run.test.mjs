@@ -2,7 +2,9 @@
 // the folder dialog answered by STREAMS_DEV_CHOOSE_FOLDER. Session A walks the four steps: the folder (a library made in it),
 // the connection (the recommended one chosen and probed), the pack (every pack source removed and one RSS on this machine
 // added, so the round touches no network), the first round to its end, then 今日 with the folder's name in the sidebar.
-// On disk after each step: streams.json's topics are the pack's, its sources are the edit, _pipeline/inbox/ holds files.
+// On disk after each step: streams.json's topics are the pack's, its sources are the edit, _pipeline/inbox/ holds files; its
+// setup (plan A1) records who decided the step — the folder chosen, the connection chosen (its kind), the pack chosen (its id),
+// the sources written (every pack source removed, one added), the round run, the schedule taken as shown.
 // Session B: the hook points at a folder holding other things → the first step refuses it and 下一步 stays disabled.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -33,6 +35,12 @@ const until = (page, fn, arg) => page.waitForFunction(fn, arg, POLL)
 const text = (page, sel) => page.evaluate(s => document.querySelector(s)?.textContent ?? null, sel)
 const step = page => page.evaluate(() => document.querySelector('main[data-screen="first-run"] .fr-body')?.dataset.step ?? null)
 const config = () => JSON.parse(readFileSync(join(chosenDir(), 'streams.json'), 'utf8'))
+/** streams.json's setup without the times (each record's `at` is checked to be an ISO time of this run). */
+const setupOnDisk = () => {
+  const setup = config().setup ?? {}
+  for (const [step, r] of Object.entries(setup)) assert.ok(Date.parse(r.at) > Date.now() - 600_000 && r.at === new Date(r.at).toISOString(), `${step}.at ${r.at}`)
+  return Object.fromEntries(Object.entries(setup).map(([step, { at, ...rest }]) => [step, rest]))
+}
 
 test('no library open → the wizard, on its first step, with its own sidebar of five steps (the last one 定时)', async () => {
   assert.equal(await step(a.page), 'folder')
@@ -52,6 +60,7 @@ test('step 1: the folder chosen through the hook is shown as empty, 下一步 ma
   await until(a.page, () => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === 'connection')
   assert.ok(existsSync(join(chosenDir(), 'streams.json')), 'the library was made in the folder')
   assert.deepEqual(config().topics, [], 'control: no topics before the pack step')
+  assert.deepEqual(setupOnDisk(), { library: { by: 'chose', detail: 'empty' } }, 'the folder step recorded: chose')
   assert.equal(await a.page.evaluate(() => document.querySelector('.st-sidebar [data-step="folder"]').dataset.stepState), 'done')
   // the folder's path under the done step wraps: the 232px sidebar does not grow or scroll sideways
   const side = await a.page.evaluate(() => { const el = document.querySelector('.st-sidebar'); return { width: el.getBoundingClientRect().width, overflow: el.scrollWidth - el.clientWidth, sub: el.querySelector('[data-step="folder"] .st-sidebar__step-sub')?.textContent ?? '' } })
@@ -76,8 +85,10 @@ test('step 2: three cards with the detection, the recommended one tagged; 用这
   assert.equal(await a.page.evaluate(() => document.querySelector('[data-connection="claude-code"]').dataset.selected), 'true')
   const conns = await a.page.evaluate(() => window.streams.getConnections())
   assert.equal(conns.data.active, 'claude-code', 'the main process has the choice')
+  assert.equal(config().setup.connection, undefined, 'control: nothing recorded before the step is walked through')
   await click(a.page, '[data-action="next"]')
   await until(a.page, () => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === 'pack')
+  assert.deepEqual(setupOnDisk().connection, { by: 'chose', detail: 'claude-code' })
 })
 
 test('step 3: a pack chosen, its sources removed, one RSS on this machine added; 下一步 writes streams.json and tries each source', async () => {
@@ -106,6 +117,8 @@ test('step 3: a pack chosen, its sources removed, one RSS on this machine added;
   assert.deepEqual(cfg.sources.map(s => [s.name, s.kind, s.url]), [[RSS_NAME, 'rss', feed.feed]], 'the sources on disk are the edit')
   await click(a.page, '[data-action="continue"]')
   await until(a.page, () => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === 'trial')
+  const rec = setupOnDisk()
+  assert.deepEqual([rec.pack, rec.sources], [{ by: 'chose', detail: pack.id }, { by: 'wrote', detail: { removed: pack.sources.length, added: 1 } }], 'the pack chosen; its sources written (all removed, one added)')
 })
 
 test('step 4: the estimate, 开始, the progress to done with the counts; _pipeline/inbox/ holds files; 下一步 → 定时, 完成，去今日 ends the wizard', async () => {
@@ -122,8 +135,17 @@ test('step 4: the estimate, 开始, the progress to done with the counts; _pipel
   // the last screen, 定时 (test/ui-schedule.test.mjs checks it): 完成，去今日
   await click(a.page, '[data-action="next"]')
   await until(a.page, () => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === 'schedule')
+  assert.deepEqual(setupOnDisk().trial, { by: 'chose' }, 'the round ran: chose')
   await click(a.page, '[data-action="go-today"]')
   await ready(a.page, 'today')
+  assert.deepEqual(setupOnDisk(), {
+    library: { by: 'chose', detail: 'empty' },
+    connection: { by: 'chose', detail: 'claude-code' },
+    pack: { by: 'chose', detail: setupOnDisk().pack.detail },
+    sources: setupOnDisk().sources,
+    trial: { by: 'chose' },
+    schedule: { by: 'default', detail: { enabled: true, time: '08:30' } },
+  }, 'six records; the schedule taken as shown')
   assert.equal(await text(a.page, '.st-sidebar__library-name'), basename(chosenDir()))
   assert.equal(await a.page.evaluate(() => document.querySelector('[data-num="inbox"]').dataset.value), String(inboxFiles.length))
 })

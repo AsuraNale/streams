@@ -16,7 +16,8 @@
 //   3. use case A in the installed app, started by installer/test/harness.mjs (no development switch: every STREAMS_* is
 //      set to a trap and must stay untaken): packaged, version 1.0.0, no menu, no developer tools; 首次设置 — the folder
 //      (the dialog answered with the test's empty folder), the connection skipped, the blank pack with one RSS feed on
-//      this machine, the trial round (no connection: nothing scored, every item to 待看), 定时 → 完成; in 待看 the key C
+//      this machine, the trial round (no connection: nothing scored, every item to 待看), 定时 → 完成 (streams.json's setup
+//      records the six steps; getLicenses gives the MIT text of the repository's LICENSE and the notices there); in 待看 the key C
 //      keeps the current card → a note file in the library's notes/ that the core's own check passes; the only address
 //      the app asked for is the feed on this machine (the harness's record of every request; the proxy trap empty)
 //   4. quitting, with no debugger attached: nothing of the install left running
@@ -316,6 +317,28 @@ test('3 · use case A in the installed app, no development switch: the folder, n
   const settings = JSON.parse(readFileSync(join(W.appData, 'settings.json'), 'utf8'))
   assert.ok(same(settings.libraryPath, W.library), 'settings.json names the library')
   assert.deepEqual(settings.schedule, { enabled: true, time: '08:30' }, '定时 → 完成 turned the schedule on')
+  // 首次设置 recorded who decided each step in the library's streams.json (plan A1): the folder chosen, the connection skipped,
+  // the blank pack with one RSS added (sources written), the round run, the schedule taken as shown
+  const setup = core.readSetup(W.library)
+  assert.deepEqual(Object.fromEntries(Object.entries(setup).map(([k, v]) => [k, [v.by, v.detail ?? null]])), {
+    library: ['chose', 'empty'], connection: ['skipped', null], pack: ['chose', 'blank'], sources: ['wrote', { removed: 0, added: 1 }],
+    trial: ['chose', null], schedule: ['default', { enabled: true, time: '08:30' }],
+  })
+  S.result.setup = setup
+  // 许可证与致谢 in the installed app (S14): Streams' MIT license word for word the repository's (the build put it in
+  // resources\app), the parts with the runtime's versions, and the full notices there to open (THIRD-PARTY-NOTICES.txt beside
+  // Streams.exe). Nothing is opened: only asked whether it can be.
+  const licenses = (await page().evaluate(() => window.streams.getLicenses())).data
+  assert.equal(licenses.own.license, 'MIT')
+  assert.equal(licenses.own.text, readFileSync(join(REPO, 'LICENSE'), 'utf8'), 'the license text is the repository\'s LICENSE')
+  assert.deepEqual(licenses.notices, { available: true }, 'the install has THIRD-PARTY-NOTICES.txt')
+  const runtime = await A.evaluate('(() => process.versions)()')
+  assert.deepEqual(licenses.components.map(c => [c.name, c.version]), [
+    ['Electron', runtime.electron], ['Chromium', runtime.chrome], ['Node.js', runtime.node],
+    ['Preact', JSON.parse(readFileSync(join(W.install, 'resources', 'app', 'node_modules', 'preact', 'package.json'), 'utf8')).version],
+    ['htm', JSON.parse(readFileSync(join(W.install, 'resources', 'app', 'node_modules', 'htm', 'package.json'), 'utf8')).version],
+  ])
+  S.result.licenses = { own: licenses.own.license, components: licenses.components, notices: licenses.notices }
 
   // 待看: C keeps the current card
   const notesDir = join(W.library, 'notes')

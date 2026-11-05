@@ -14,6 +14,7 @@
     "start": "node scripts/start.mjs",
     "test": "node scripts/run-tests.mjs",
     "shots": "node scripts/screenshot.mjs",
+    "shots:themes": "node scripts/theme-shots.mjs",
     "mutants": "node scripts/mutation-check.mjs",
     "csp": "node scripts/csp.mjs",
     "icon": "node scripts/build-icon.mjs",

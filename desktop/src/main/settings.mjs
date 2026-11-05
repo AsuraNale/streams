@@ -11,6 +11,7 @@
  *   showDeveloperInfo   the advanced switch of the settings page (default off)
  *   schedule            the timed round (A2; docs/core-api.md 5.10): { enabled, time: 'HH:MM' }, default
  *                       { enabled: true, time: '08:30' }; each of the two fields checked on its own
+ *   theme               the app's look (theme.mjs): river · paper · night; anything else is DEFAULT_THEME (one line in theme.mjs)
  * Read whole and checked field by field (a field that is not what it should be is its default; inside `connections`
  * each field on its own); written whole, through a temporary file and a rename, so a crash never leaves half a file.
  * @module desktop/main/settings
@@ -20,6 +21,7 @@ import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { DEFAULT_LANGUAGE, LANGUAGE_SETTINGS } from './locale.mjs'
 import { DEFAULT_SCHEDULE, VENDOR_IDS, isScheduleTime } from './core.mjs'
+import { isThemeId, themeOf } from './theme.mjs'
 
 export const SETTINGS_SCHEMA = 'streams.settings/1'
 export const CONNECTION_KINDS = Object.freeze(['claude-code', 'codex', 'api'])
@@ -118,6 +120,7 @@ export function readSettings(file) {
     connections: normalizeConnections(own(data, 'connections')),
     showDeveloperInfo: own(data, 'showDeveloperInfo') === true,
     schedule: normalizeSchedule(own(data, 'schedule')),
+    theme: themeOf(own(data, 'theme')),
   }
 }
 
@@ -139,7 +142,7 @@ function checkConnections(raw) {
 /**
  * Change some settings and write them all.
  * @param {string} file
- * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}}} patch
+ * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}, theme?: string}} patch
  * @returns {object} the settings now
  */
 export function writeSettings(file, patch) {
@@ -165,6 +168,10 @@ export function writeSettings(file, patch) {
   if (Object.hasOwn(patch, 'schedule')) {
     if (!isSchedule(patch.schedule)) throw new TypeError("schedule must be { enabled: boolean, time: 'HH:MM' } (00:00–23:59)")
     next.schedule = { enabled: patch.schedule.enabled, time: patch.schedule.time }
+  }
+  if (Object.hasOwn(patch, 'theme')) {
+    if (!isThemeId(patch.theme)) throw new TypeError(`no theme ${patch.theme}`)
+    next.theme = patch.theme
   }
   const tmp = `${file}.${process.pid}.tmp`
   writeFileSync(tmp, `${JSON.stringify({ schema: SETTINGS_SCHEMA, ...next }, null, 2)}\n`)

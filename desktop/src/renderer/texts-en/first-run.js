@@ -85,6 +85,7 @@ export const FIRST_RUN = Object.freeze({
     inbox: '{n} into the inbox',
     notStarted: 'The round could not start: {reason}',
     failed: 'Could not start.',
+    skip: 'Skip it for now',
     goInbox: 'Go to the inbox',
     goToday: 'Go to Today',
   }),

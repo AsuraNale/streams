@@ -10,7 +10,7 @@ export { runSummary, verificationOf } from './summarize.mjs';
 export { selfCheck, runRound, previewNode } from './round.mjs';
 export { keep, dismiss, later, recentDismissReasons, slugOf } from './decide.mjs';
 export { estimateRound, recentNewCounts, RECENT_ROUNDS, CALLS_PER_ITEM } from './estimate.mjs';
-export { homeNumbers, constantScoreWarning, MIN_CONSTANT_RUN } from './numbers.mjs';
+export { homeNumbers, noOutputStreak, constantScoreWarning, MIN_CONSTANT_RUN, NO_OUTPUT_ROUNDS } from './numbers.mjs';
 export { roundLog, listRounds, readRounds, renderRoundMd, ROUNDS_FILE, LOGS_DIR } from './rounds-log.mjs';
 export { relatedEntries, titleTokens } from './related.mjs';
 export { scriptedConnector } from './fake.mjs';

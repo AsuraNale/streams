@@ -5,6 +5,11 @@
 // detectConnections / setActiveConnection / probeConnection / openLogin, getStarterPacks / applyStarterPack, estimateRound /
 // startRound + the round-progress event). Words: texts/first-run.js and texts/common.js CONNECTIONS. The connection card's
 // pieces (the detection line, the login loop, the probe line, the key dialog) are shared with 设置 (screens/settings.js).
+// Who decided each step (plan A1; docs/desktop.md §4.1「首次设置」) goes into the library's streams.json as the step is walked
+// through (recordSetupStep, six records): library (chose) · connection (chose + its kind, or skipped) · pack (chose + its id) ·
+// sources (default when the pack's sources were left as they are, wrote + { removed, added } when not) · trial (chose when the
+// round ran, skipped when 「先不跑，往下走」) · schedule (default: 完成 takes it as shown). Walking back and through a step again
+// replaces its record. A record that cannot be written does not stop the wizard.
 // Test hooks: main[data-screen="first-run"][data-state], .fr-body[data-step=<id>] and [data-part="step-<id>"], the wizard's
 // [data-step][data-step-state], [data-action=…] around the buttons, [data-connection=<kind>][data-selected], [data-pack=<id>],
 // [data-source=<name>], [data-part="round-progress"][data-phase][data-done].
@@ -22,6 +27,11 @@ import { ApiKeyDialog, LoginLoop, ProbeLine, connectionState, detectWords, needs
 
 const STEPS = ['folder', 'connection', 'pack', 'trial', 'schedule']
 const KINDS = ['claude-code', 'codex', 'api']
+
+/** One record of 首次设置 into the open library (recordSetupStep); a failure is not the wizard's to show. */
+async function recordStep(step, by, detail) {
+  try { await call('recordSetupStep', step, detail === undefined ? { by } : { by, detail }) } catch { /* the wizard goes on */ }
+}
 
 function doneLine(id, record) {
   if (id === 'folder') return record.folder?.path ?? null
@@ -198,7 +208,7 @@ function PackStep({ onNext, onBack, onState }) {
       </ul>
       <div class="fr-actions">
         <span class="fr-actions__spacer"></span>
-        <${Act} name="continue" variant="primary" onClick=${() => onNext({ topics: applied.topics.length, sources: applied.sources.length })}>${T.pack.continue}<//>
+        <${Act} name="continue" variant="primary" onClick=${() => onNext({ topics: applied.topics.length, sources: applied.sources.length }, { packId: packId ?? 'blank', removed: removed.length, added: added.length })}>${T.pack.continue}<//>
       </div>
     </div>`
   }
@@ -265,7 +275,7 @@ function problemWords(problems) {
 }
 
 /** Step 4: the estimate (estimateRound), 「开始」 (startRound), the round's progress, the counts when it is done. */
-function TrialStep({ onBack, onNext, onState, connected }) {
+function TrialStep({ onBack, onNext, onSkip, onState, connected }) {
   const est = useLoad(() => call('estimateRound'), [])
   useEffect(() => onState(est.status), [est.status])
   const [run, setRun] = useState(null)
@@ -313,6 +323,7 @@ function TrialStep({ onBack, onNext, onState, connected }) {
     <div class="fr-actions">
       ${!run ? html`<${Act} name="back" disabled=${busy} onClick=${onBack}>${T.back}<//>` : null}
       <span class="fr-actions__spacer"></span>
+      ${!run ? html`<${Act} name="skip-trial" disabled=${busy} onClick=${onSkip}>${T.trial.skip}<//>` : null}
       ${result
         ? html`<${Act} name="next" variant="primary" onClick=${onNext}>${T.next}<//>`
         : html`<${Act} name="start" variant="primary" disabled=${busy || Boolean(run) || !d} onClick=${start}>${T.trial.start}<//>`}
@@ -332,6 +343,7 @@ function ScheduleStep({ onFinish, onState }) {
     setError(null)
     try {
       await call('setSchedule', { enabled: true, time: d.time })
+      await recordStep('schedule', 'default', { enabled: true, time: d.time })
       onFinish(screen)
     } catch { setError(T.schedule.failed) } finally { setBusy(false) }
   }
@@ -364,15 +376,24 @@ export function FirstRunScreen({ onDone }) {
   const [state, setState] = useState('loading')
   const id = STEPS[step]
   const go = (patch, next) => { setRecord(r => ({ ...r, ...patch })); setState('loading'); setStep(next) }
+  // a step walked through: its record first (the library's streams.json), then the next step
+  const done = async (records, patch, next) => {
+    for (const [s, by, detail] of records) await recordStep(s, by, detail)
+    go(patch, next)
+  }
+  const packDone = (pack, { packId, removed, added }) => done([
+    ['pack', 'chose', packId],
+    removed === 0 && added === 0 ? ['sources', 'default'] : ['sources', 'wrote', { removed, added }],
+  ], { pack }, 3)
   const finish = screen => (typeof onDone === 'function' ? onDone(screen) : navigate(screen ?? 'today'))
   return html`<${AppFrame} sidebar=${html`<${WizardSidebar} step=${step} record=${record} />`}>
     <${Main} screen="first-run" state=${state} labelledby="fr-title">
       <${TopBar} title=${T.title} subtitle=${T.steps[id]} titleTag="h1" titleId="fr-title" />
       <div class="st-main__body fr-body" data-part=${`step-${id}`} data-step=${id}>
-        ${id === 'folder' ? html`<${FolderStep} onState=${setState} onNext=${folder => go({ folder }, 1)} />` : null}
-        ${id === 'connection' ? html`<${ConnectionStep} onState=${setState} onNext=${kind => go({ connection: kind }, 2)} onSkip=${() => go({ connection: 'skipped' }, 2)} onBack=${() => go({}, 0)} />` : null}
-        ${id === 'pack' ? html`<${PackStep} onState=${setState} onNext=${pack => go({ pack }, 3)} onBack=${() => go({}, 1)} />` : null}
-        ${id === 'trial' ? html`<${TrialStep} onState=${setState} connected=${Boolean(record.connection && record.connection !== 'skipped')} onBack=${() => go({}, 2)} onNext=${() => go({ trial: 'done' }, 4)} />` : null}
+        ${id === 'folder' ? html`<${FolderStep} onState=${setState} onNext=${folder => done([['library', 'chose', folder.state]], { folder }, 1)} />` : null}
+        ${id === 'connection' ? html`<${ConnectionStep} onState=${setState} onNext=${kind => done([['connection', 'chose', kind]], { connection: kind }, 2)} onSkip=${() => done([['connection', 'skipped']], { connection: 'skipped' }, 2)} onBack=${() => go({}, 0)} />` : null}
+        ${id === 'pack' ? html`<${PackStep} onState=${setState} onNext=${packDone} onBack=${() => go({}, 1)} />` : null}
+        ${id === 'trial' ? html`<${TrialStep} onState=${setState} connected=${Boolean(record.connection && record.connection !== 'skipped')} onBack=${() => go({}, 2)} onNext=${() => done([['trial', 'chose']], { trial: 'done' }, 4)} onSkip=${() => done([['trial', 'skipped']], { trial: 'skipped' }, 4)} />` : null}
         ${id === 'schedule' ? html`<${ScheduleStep} onState=${setState} onFinish=${finish} />` : null}
       </div>
     <//>

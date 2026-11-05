@@ -9,7 +9,10 @@
 // with select[data-field="vendor"], input[data-field="base-url"|"key"], [data-action=save-key|remove-key|cancel-key];
 // [data-part="run"] input[data-field="cap"] + [data-action="save-cap"], [data-schedule="on"|"off"] with input[data-field="schedule-on"|
 // "schedule-time"], [data-next-run], [data-schedule-note]; [data-part="library"] [data-library-path],
-// [data-action=new-library|open-folder|rebuild], [data-recent=<path>]; the language radios' ids `settings-language-<setting>`.
+// [data-action=new-library|open-folder|rebuild], [data-recent=<path>], [data-part="setup"][data-setup="none"|"recorded"] with
+// [data-setup-step=<step>][data-by=<by>]; the language radios' ids `settings-language-<setting>`; [data-part="theme"]
+// select[data-field="theme"] (setTheme, docs/desktop.md §五「主题」); [data-action="licenses"] → [data-dialog="licenses"] with
+// [data-part=license-text|components|notices], [data-component=<name>], [data-action=open-notices|close-licenses].
 import { html, useEffect, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
@@ -21,8 +24,11 @@ import { AppFrame, AppSidebar, Button, Dialog, LinkButton, Main, TopBar } from '
 import { CONNECTIONS, NEXT_WHEN, SEP } from '../texts/common.js'
 import { SETTINGS as T } from '../texts/settings.js'
 import { AboutUpdate } from './settings-update.js'
+import { THEME_IDS } from '../../shared/themes.mjs'
 
 const KINDS = ['claude-code', 'codex', 'api']
+// 首次设置's six records (core SETUP_STEPS), in the wizard's order
+const SETUP_STEPS = ['library', 'connection', 'pack', 'sources', 'trial', 'schedule']
 
 /** One word for a kind's state (getConnections().kinds[kind]): usable · not-logged-in · not-installed · no-key. */
 export function connectionState(kind, k) {
@@ -268,8 +274,24 @@ function RunPart() {
   <//>`
 }
 
+/** 「首次设置」 (plan A1): who decided each of the wizard's six steps, from the open library's streams.json (getSetup). */
+function SetupRecord({ setup }) {
+  if (setup.status === 'error' && !setup.data) return html`<span class="settings__error" data-part="setup" data-setup="error">${T.setupFailed}</span>`
+  if (!setup.data) return html`<span data-part="setup" data-setup="loading"></span>`
+  const steps = SETUP_STEPS.filter(s => Object.hasOwn(setup.data, s))
+  if (!steps.length) return html`<span class="st-t-small st-t-muted" data-part="setup" data-setup="none">${T.setupNone}</span>`
+  return html`<ul class="settings__setup" data-part="setup" data-setup="recorded">
+    ${SETUP_STEPS.map(step => {
+      const by = setup.data[step]?.by ?? null
+      const words = by && Object.hasOwn(T.setupBy, by) ? T.setupBy[by] : T.setupNone
+      return html`<li key=${step} class="st-t-small" data-setup-step=${step} data-by=${by ?? ''}>${fmt(T.setupLine, { step: T.setupSteps[step], by: words })}</li>`
+    })}
+  </ul>`
+}
+
 function LibraryPart({ appState }) {
   const library = appState.data?.library ?? null
+  const setup = useLoad(() => (library ? call('getSetup') : null), [library?.path ?? null])
   const recent = (appState.data?.recentLibraries ?? []).filter(r => (typeof r === 'string' ? r : r?.path) !== library?.path)
   const [note, setNote] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -310,6 +332,7 @@ function LibraryPart({ appState }) {
     <div class="settings__kv">
       <span class="st-t-small st-t-sub">${T.current}</span>
       ${library ? html`<span class="settings__path" data-library-path=${library.path}><b>${library.name}</b><span class="st-t-small st-t-muted settings__help">${library.path}</span></span>` : html`<span class="st-t-sub" data-library-path="">${T.noLibrary}</span>`}
+      ${library ? html`<span class="st-t-small st-t-sub settings__setup-name">${T.setup}</span><${SetupRecord} setup=${setup} />` : null}
       <span class="st-t-small st-t-sub">${T.others}</span>
       ${recent.length ? html`<ul class="settings__recent">
         ${recent.map(r => { const path = typeof r === 'string' ? r : r.path; const name = typeof r === 'string' ? path.split(/[\\/]/).filter(Boolean).pop() : r.name; return html`<li key=${path}><a href="#" class="settings__link" data-recent=${path} onClick=${e => { e.preventDefault(); openRecent(path) }}>${fmt(T.otherLine, { name, path })}</a></li>` })}
@@ -348,12 +371,73 @@ function LanguagePart({ language, onChange }) {
   <//>`
 }
 
+/** 「主题」 (docs/desktop.md §五): the three sets; a choice is setTheme at once (the page's <html data-theme> follows). */
+function ThemePart({ theme, failed, onChange }) {
+  const current = THEME_IDS.includes(theme) ? theme : THEME_IDS[0]
+  return html`<${Part} id="theme" name=${T.theme} hint=${T.themeHint}>
+    <div class="settings__row">
+      <label class="st-t-small st-t-sub" for="settings-theme">${T.themeLabel}</label>
+      <select id="settings-theme" class="settings__select settings__select--theme" data-field="theme" value=${current} onChange=${e => onChange(e.currentTarget.value)}>
+        ${THEME_IDS.map(id => html`<option key=${id} value=${id} selected=${id === current}>${T.themes[id]}</option>`)}
+      </select>
+      ${failed ? html`<span class="settings__error" role="alert">${T.themeFailed}</span>` : null}
+    </div>
+    <div class="st-t-small st-t-sub">${T.themeNote}</div>
+  <//>`
+}
+
+/** 许可证与致谢 (mockup S14): Streams' MIT license in full and its maker, the parts that ship with it, the full notices. */
+function LicensesDialog({ onClose }) {
+  const lic = useLoad(() => call('getLicenses'), [])
+  const [failed, setFailed] = useState(false)
+  const d = lic.data
+  const open = async () => {
+    setFailed(false)
+    try { await call('openNotices') } catch { setFailed(true) }
+  }
+  const actions = html`<${Act} name="close-licenses" variant="primary" onClick=${onClose}>${T.licenses.close}<//>`
+  return html`<${Dialog} name="licenses" title=${T.licenses.title} onCancel=${onClose} actions=${actions}>
+    ${!d && lic.status === 'error' ? html`<div class="settings__error" role="alert">${T.licenses.failed}</div>` : null}
+    ${d ? html`<section class="settings__licenses-part" data-part="own" data-license=${d.own.license}>
+        <h3 class="settings__licenses-title st-t-body">${T.licenses.own}</h3>
+        <div class="st-t-small st-t-sub">${fmt(T.licenses.ownLicense, { license: d.own.license })}</div>
+        <pre class="settings__license-text" data-part="license-text" tabindex="0">${d.own.text}</pre>
+        <div class="st-t-small" data-part="licenses-made-by"><${LinkButton} onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}<//></div>
+      </section>
+      <section class="settings__licenses-part" aria-labelledby="settings-components">
+        <h3 class="settings__licenses-title st-t-body" id="settings-components">${T.licenses.components}</h3>
+        <table class="settings__components" data-part="components">
+          <thead><tr><th scope="col">${T.licenses.name}</th><th scope="col">${T.licenses.version}</th><th scope="col">${T.licenses.license}</th></tr></thead>
+          <tbody>${d.components.map(c => html`<tr key=${c.name} data-component=${c.name} data-version=${c.version} data-license=${c.license}>
+            <td>${c.name}</td><td class="st-t-num">${c.version}</td><td>${c.license}</td>
+          </tr>`)}</tbody>
+        </table>
+      </section>
+      <div class="settings__row" data-part="notices" data-available=${String(d.notices.available === true)}>
+        <${Act} name="open-notices" disabled=${d.notices.available !== true} onClick=${open}>${T.licenses.notices}<//>
+        ${d.notices.available !== true ? html`<span class="st-t-small st-t-sub" data-notices-why>${T.licenses.noticesNone}</span>` : null}
+        ${failed ? html`<span class="settings__error" role="alert">${T.licenses.noticesFailed}</span>` : null}
+      </div>` : null}
+  <//>`
+}
+
 export function SettingsScreen() {
   const { appState } = useApp()
   const data = appState.data
   const [devInfo, setDevInfo] = useState(data?.showDeveloperInfo ?? false)
   const [copied, setCopied] = useState(false)
+  const [themeFailed, setThemeFailed] = useState(false)
+  const [licenses, setLicenses] = useState(false)
   useEffect(() => { if (data) setDevInfo(data.showDeveloperInfo) }, [data?.showDeveloperInfo])
+  const changeTheme = async id => {
+    setThemeFailed(false)
+    try {
+      const r = await call('setTheme', id)
+      // at once, before the app state comes back (app.js keeps it in step from then on)
+      document.documentElement.dataset.theme = r.theme
+    } catch { setThemeFailed(true) }
+    appState.reload()
+  }
   const changeLanguage = async v => {
     try {
       const r = await call('setLanguage', v)
@@ -379,6 +463,7 @@ export function SettingsScreen() {
           ${data?.library ? html`<${RunPart} />` : null}
           <${LibraryPart} appState=${appState} />
           <${LanguagePart} language=${data?.language} onChange=${changeLanguage} />
+          ${data ? html`<${ThemePart} theme=${data.theme} failed=${themeFailed} onChange=${changeTheme} />` : null}
           <${Part} id="advanced" name=${T.advanced} hint=${T.advancedHint}>
             <div class="settings__advanced">
               <div class="settings__check">
@@ -397,7 +482,9 @@ export function SettingsScreen() {
           <${Part} id="about" name=${T.about}>
             ${data ? html`<${AboutUpdate} version=${data.version} devBuild=${data.devBuild} />` : null}
             <div class="st-t-small st-t-muted" data-part="made-by"><${LinkButton} onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}<//></div>
+            <div><${Act} name="licenses" onClick=${() => setLicenses(true)}>${T.licensesOpen}<//></div>
           <//>
+          ${licenses ? html`<${LicensesDialog} onClose=${() => setLicenses(false)} />` : null}
         </div>
       </div>
     <//>

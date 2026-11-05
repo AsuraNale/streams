@@ -43,9 +43,26 @@ test('tokens.css and docs/tokens.md name the same tokens, each once', () => {
   assert.ok(inCss.length > 60, `${inCss.length} tokens in tokens.css`)
   assert.deepEqual(inDoc.filter(t => !inCss.includes(t)), [], 'documented but not defined')
   assert.deepEqual(inCss.filter(t => !inDoc.includes(t)), [], 'defined but not in the list')
-  const all = [...TOKENS.matchAll(/^\s*(--st-[a-z0-9-]+)\s*:/gm)].map(m => m[1])
-  assert.equal(all.length, inCss.length, 'no token is defined twice')
+  // three sets (docs/desktop.md §五「主题」): :root defines every token once; each [data-theme] block only overrides, each of
+  // its tokens once and every one of them a :root token
+  const blocks = tokenBlocks(TOKENS)
+  assert.deepEqual(blocks.map(b => b.selector), [':root', ':root[data-theme="paper"]', ':root[data-theme="night"]'])
+  const root = blocks[0].names
+  assert.deepEqual([...new Set(root)].sort(), [...inCss].sort(), ':root defines every token')
+  for (const b of blocks) {
+    assert.equal(new Set(b.names).size, b.names.length, `${b.selector}: no token defined twice`)
+    assert.deepEqual(b.names.filter(n => !root.includes(n)), [], `${b.selector}: overrides only tokens of :root`)
+  }
+  // the readers can fail: a token defined twice in a block, an override of a name :root does not have
+  const bad = tokenBlocks(':root {\n  --st-a: #fff;\n  --st-a: #000;\n}\n:root[data-theme="x"] {\n  --st-b: #fff;\n}')
+  assert.deepEqual(bad.map(b => b.names), [['--st-a', '--st-a'], ['--st-b']])
 })
+
+/** The blocks of tokens.css: each selector with the token names it sets, in order. */
+function tokenBlocks(text) {
+  const plain = text.replace(/\/\*[\s\S]*?\*\//g, '')
+  return [...plain.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(m => ({ selector: m[1].trim(), names: [...m[2].matchAll(/^\s*(--st-[a-z0-9-]+)\s*:/gm)].map(x => x[1]) }))
+}
 
 test('every token a style file uses is defined; no colour is written outside tokens.css', () => {
   const inCss = defined(TOKENS)

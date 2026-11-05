@@ -97,12 +97,15 @@ frame-ancestors 'none'
 <!-- bridge:begin -->
 | 方法 | 参数 | 返回的 `data` | 谁用 |
 |---|---|---|---|
-| `getAppState()` | 无 | `{ library: { path, name } \| null, recentLibraries: [{ path, name }], showDeveloperInfo, language: { setting, resolved }, version, devBuild }`；`library` 是打开的库（侧栏显示 `name`，没有就是「未打开库」）；`version` 是 `installer/setup/release.json` 的版本，`devBuild` 为真时是开发版 | `app.js`（每一屏经 `useApp().appState`）、设置页 |
+| `getAppState()` | 无 | `{ library: { path, name } \| null, recentLibraries: [{ path, name }], showDeveloperInfo, language: { setting, resolved }, version, devBuild, theme }`；`library` 是打开的库（侧栏显示 `name`，没有就是「未打开库」）；`version` 是 `installer/setup/release.json` 的版本，`devBuild` 为真时是开发版；`theme` 是 `river` · `paper` · `night` 之一（§五「主题」） | `app.js`（每一屏经 `useApp().appState`）、设置页 |
 | `onEvent(topic, callback)` | 下面事件表里的一个主题；一个函数 | 不是信封：返回取消订阅的函数；主题不在表里、`callback` 不是函数就抛错 | `app.js` |
 | `setLanguage(language)` | `'auto'` · `'zh-CN'` · `'en'` | `{ setting, resolved, changed }`；写进设置并重新决定界面语言；`changed` 为真时页面自己重新载入（§六） | 设置页「语言」 |
+| `setTheme(id)` | `'river'` · `'paper'` · `'night'`（别的 → `bad_arguments`） | `{ theme }`；写进 `settings.json` 的 `theme`，主进程跟着改 `nativeTheme.themeSource`（`night` → `dark`，另两套 → `light`）和窗口底色（那一套的 `--st-page`）；发 `settings-changed`。页面自己马上把 `<html data-theme>` 换掉（§五「主题」） | 设置页「主题」 |
 | `setShowDeveloperInfo(on)` | 布尔 | `{ showDeveloperInfo }` | 设置页「显示开发者信息」 |
 | `copyDiagnostics()` | 无 | `{ ok: true }`；主进程把诊断信息写进剪贴板（不带 key；测试时写到 `logs\clipboard.txt`） | 设置页「复制诊断信息」 |
 | `openMakerPage()` | 无 | `null`；在用户的浏览器里打开 `https://starrydigital.ca`（地址写死在主进程 `app-services.mjs MAKER_URL`，页面不给地址；测试时只记日志） | 设置页「关于」的「由 Starry Digital 开发」（V11，维护者 11-02 定「链 starrydigital.ca」） |
+| `getLicenses()` | 无 | `{ own: { license: 'MIT', text }, components: [{ name, version, license }], notices: { available } }`：`text` 是流息 `LICENSE` 全文（装好的应用读 `resources\app\LICENSE`，构建把仓库根的 `LICENSE` 放在那里；开发时读仓库根那份）；`components` 依次是 Electron · Chromium · Node.js（版本取运行时 `process.versions`）、Preact · htm（版本与许可证取应用里 `node_modules/<名>/package.json`）；`notices.available`：装好的应用安装目录里有 `THIRD-PARTY-NOTICES.txt` 时为真，开发时总为假（`app-services.mjs licensesView`） | 设置页「许可证与致谢」对话框 |
+| `openNotices()` | 无 | `null`；用系统的查看程序打开安装目录里的 `THIRD-PARTY-NOTICES.txt`（文件名写死在主进程，页面不给路径；测试时只记日志）；没有这个文件（开发时）→ `open_failed` | 许可证与致谢「打开完整的第三方声明」 |
 | `getUpdateState()` | 无 | 更新的数据：`{ state, current, dev, canUpdate, checkedAt, release, progress, reason, turnRunning }`（`state` 十二态之一：`idle` · `checking` · `up_to_date` · `available` · `manual` · `check_failed` · `downloading` · `download_failed` · `verify_failed` · `ready` · `launching` · `launch_failed`） | 设置页「关于」（`lib/use-update.js`） |
 | `checkForUpdate()` | 无 | 同上；向 GitHub 问一次最新版（`AsuraNale/streams` 的 releases/latest） | 设置页「检查更新」 |
 | `downloadUpdate()` | 无 | 同上（`downloading`，进度随 `update` 事件来）；开发版不下载 | 设置页「下载并更新」 |
@@ -114,6 +117,8 @@ frame-ancestors 'none'
 | `openRecentLibrary(path)` | 必须是 `recentLibraries` 里的一条，否则 `bad_arguments` | 同上的打开；那个文件夹里的 `streams.json` 读不出 → `open_failed` | 设置「库 · 其他」 |
 | `rebuildIndex()` | 无 | `{ count, pending: [{file, codes}] }`；`no_library` | 设置「重建索引」 |
 | `revealLibrary()` | 无 | `null`；在资源管理器里显示库文件夹（测试只记日志） | S1 第 1 步「这个文件夹你随时可以打开」 |
+| `recordSetupStep(step, entry)` | `step` ∈ `library` · `connection` · `pack` · `sources` · `trial` · `schedule`；`entry = { by, detail? }`，`by` ∈ `chose` · `wrote` · `default` · `skipped`（核心 `recordSetupStep` 判，不认识 → `bad_arguments`） | `{ step, by, at, detail? }`；写进打开的库的 `streams.json` 的 `setup`（那一步的记录被新的替换，别的步不动；经临时文件 + rename）；`no_library` | 首次设置每一步走完时（§4.1「首次设置」） |
+| `getSetup()` | 无 | 核心 `readSetup`：`{ <step>: { by, at, detail? } }`，这个库没有记录（导入的、或这次之前建的）→ `{}`；`no_library` | 设置「库 · 首次设置」 |
 | `getConnections()` | 无 | 见 §4.1「连接」；不含任何 key，API 只给 `keyHint` | S1 第 2 步、设置「连接方式」、S13 |
 | `detectConnections()` | 无 | 重新检测三种连接（只读：`--version` / `auth status` / `login status` / 有没有 key），返回同 `getConnections` | S1「重新检测」、「我登录好了，再试一次」 |
 | `probeConnection(kind)` | `'claude-code' \| 'codex' \| 'api'` | **一次真调用**；`{ ok, latencyMs, model, code?, detail? }`，同时记进 `getConnections().probes[kind]` | S1「试了一次：可用」、设置「现在试一次」 |
@@ -188,7 +193,8 @@ frame-ancestors 'none'
 **今日** `getHome()`：
 ```json
 { "library": { "path", "name", "count" },
-  "numbers": 核心 homeNumbers(),            // caught · inbox · inboxOldestDays · kept · dismissed · lastRound · sources{level, lines}
+  "numbers": 核心 homeNumbers(),            // caught · inbox · inboxOldestDays · kept · dismissed · lastRound · noOutputStreak · sources{level, lines}
+  "noOutputRounds": 3,                      // 核心 NO_OUTPUT_ROUNDS（11-04）：numbers.noOutputStreak 到这个数，页面出「连续 N 轮没有产出」
   "lastRound": 核心 roundLog 的一行 | null,
   "roundState": getRoundState(),
   "recentKept": [{ "id", "title", "source_name", "date", "kept" }],   // 索引里 status kept 按 kept 日期倒序 3 条
@@ -213,6 +219,17 @@ frame-ancestors 'none'
 - 开发钩子 `STREAMS_DEV_CONNECTION` 下 `api` 的 `hasKey` / `keyHint` 仍看真的密钥仓，`loggedIn` 看假连接器。
 
 **首次设置**（S1，`screens/first-run.js`）：没打开库时 `app.js` 显示它（代替侧栏九入口），四步在自己的侧栏里：库放哪 → 连接方式 → 主题与来源 → 试跑一轮；每步的「谁定的」（用户选的 / 接受默认 / 跳过）记进 `streams.json` 的 `setup`（核心不读它）。连接步可跳过。做完 → `today`。
+
+**首次设置记「谁定的」**（11-04 实装，方案 A1 / 4.10）：每一步走完时页面调 `recordSetupStep(step, { by, detail? })`（核心 `recordSetupStep`，写进打开的库的 `streams.json` 的 `setup`，键是六步，值 `{ by, at, detail? }`），写不进去不挡向导。对应：
+- `library`：第一步选了文件夹、「下一步」开好了库 → `chose`，`detail` = 文件夹的状态（`empty` · `library` · `importable`）；
+- `connection`：「用这一条」后「下一步」→ `chose`，`detail` = 那种的 kind；「这一步先跳过」→ `skipped`；
+- `pack` 与 `sources`：起步包那一步「继续」时一起记：`pack` = `chose`，`detail` = 起步包 id（含 `blank`）；`sources` = 起步包的来源一个没删、一个没加 → `default`，删了或加了 → `wrote`，`detail` = `{ removed, added }` 个数；
+- `trial`：跑完点「下一步」→ `chose`（没连接时也能跑，只抓不打分，跑了就是 `chose`）；没跑就点「先不跑，往下走」（`[data-action="skip-trial"]`，11-04 加的按钮，开跑前才有）→ `skipped`；
+- `schedule`：「完成，去待看 / 去今日」照显示的（每天 08:30、开着）`setSchedule` 之后 → `default`，`detail` = `{ enabled, time }`；
+- 往回退再走一遍：那一步的记录被新的替换，别的步不动（核心按步整条替换）。
+设置「库」一节多一行「首次设置」（`getSetup`，`[data-part="setup"][data-setup=none|recorded]`）：六步各写「你选的 / 你写的 / 接受了默认 / 跳过了」（`[data-setup-step][data-by]`），某步没有记录写「没有记录」；整个库没有记录（导入的、或这次之前建的）→ 一句「没有记录」。
+
+**今日「连续三轮没有产出」**（11-04 实装，方案 C8）：`getHome().numbers.noOutputStreak`（核心：从 rounds.jsonl 最新一轮往回数 `counts.inbox` 为 0 或缺的连续轮数）≥ `getHome().noOutputRounds`（核心 `NO_OUTPUT_ROUNDS` = 3，页面不自己定阈值）时，今日在来源横幅下面多一条琥珀横幅 `[data-part="no-output"][data-streak]`：「连续 N 轮没有产出：这几轮都没有一条进待看。」+ 往哪看（来源是不是都没抓到新东西、过关线是不是太高）+ 链接「看运行状态」（`[data-action="go-status"]` → `status`）。不到三轮不显示；中间有一轮有产出就从头数。
 
 **界面 A 的六屏**：`first-run`（S1 四步）· `today`（S2 + S13 的出错卡片）· `inbox`（S3，键盘 J/K 上下、C 收藏、D 放弃、L 稍后；放弃对话框理由必填，右栏最近的放弃理由）· `run`（S12，`today` 上的对话框，不是独立屏）· `settings`（S14：连接方式 / 运行 / 库 / 软件四块；软件块 = 已有的语言 / 高级 / 关于）。按钮「去登录」出现在 S1 第 2 步、S13 卡片、S14 连接方式，副句「会打开一个终端窗口，由它自己完成登录；流息不经手任何凭据」，回路控件「我登录好了，再试一次」= `detectConnections`。
 
@@ -316,7 +333,13 @@ src/renderer/
 
 **加一屏**：1. `screens/<id>.js` 导出组件，外面套 `AppFrame`（`sidebar=${html\`<${AppSidebar} current=${id} />\`}`），`Main screen=${id} state=${…}`；2. `screens/index.js` 的 `SCREENS` 把占位换成它；3. 字写进 `texts/<id>.js` 并给 `texts-en/<id>.js`；4. 样式写进 `styles/screens/<id>.css`（类名用屏幕前缀），在 `styles/app.css` 加 `@import`；5. 数据走 §四 的桥。
 
-**首次设置**（`screens/first-run.js`，S1）：不是入口里的一屏，`app.js` 在应用状态第一次回来、`library` 为 null 时显示它（`setup` 状态），直到它调 `onDone(screen)`；开发时也可以按 id 打开（`npm start -- --screen first-run`）。它用侧栏零件（`Sidebar`）自己摆四步（`[data-step][data-step-state=current|done|todo]`），每步一个组件：库放哪（`chooseLibraryFolder` → `useChosenFolder('')`）、连接方式（三张卡 `[data-connection][data-selected]`，「用这一条」= `setActiveConnection` + `probeConnection`，未登录的卡带登录回路，可跳过）、主题与来源（`getStarterPacks` → 删来源 / 加 RSS → `applyStarterPack`，每个来源的试抓状态用 `st-fetch`）、试跑一轮（`estimateRound` → `startRound`，`round-progress` 画在 `[data-part="round-progress"][data-phase][data-done]`，跑完「去待看」「去今日」）。「谁定的」这次不写盘（没有桥方法，见 §九）。连接行的零件（检测词 `detectWords`、`connectionState`、登录回路 `LoginLoop`、试调结果 `ProbeLine`、key 对话框 `ApiKeyDialog`）在 `screens/settings.js` 里，首次设置和今日的出错卡片共用。
+**主题**（11-04，方案 5.6 D5；`docs/tokens.md`）：三套——河蓝 `river`（原来那套）、素灰 `paper`（浅色侧栏）、夜间 `night`（暗色）。`settings.json` 的 `theme` 是三个 id 之一，别的值 = 默认；默认只在 `src/main/theme.mjs` 的 `DEFAULT_THEME` 一处（现在 `river`，维护者 周五选完只改这一行）。三套的 id、窗口底色（各套的 `--st-page`）、明暗在 `src/shared/themes.mjs`（主进程和设置页都读）。
+- **第一帧就是选定的那套**：主进程开窗口时 `backgroundColor` 取那一套的 `--st-page`（`windowColour`）；`app://ui/index.html` 由 `protocol.mjs` 每次按设置在 `<html>` 上加 `data-theme="<id>"` 再发出（`theme.mjs withTheme`，id 先过 `THEME_IDS`，别的写不进页面），所以样式在任何脚本跑之前就是那一套；`nativeTheme.themeSource` 在开窗口前就设好（night → `dark`，另两套 → `light`：标题栏、原生滚动条、下拉菜单跟着）。
+- **换**：设置「主题」一节的下拉（`[data-part="theme"] select[data-field="theme"]`，三项「河蓝 / 素灰 / 夜间」）→ `setTheme(id)` 写设置、主进程改 `nativeTheme.themeSource` 和每个窗口的底色、发 `settings-changed`；页面拿到回答马上把 `<html data-theme>` 换掉，`app.js` 之后按 `getAppState().theme` 保持一致。重启（或页面重新载入）时 index.html 又按设置发出，还是它。
+- 样式只用 token：`tokens.css` 的 `:root` 是河蓝，`:root[data-theme="paper"]`、`:root[data-theme="night"]` 只覆写不同的值，各写 `color-scheme`；首次设置、对话框、图谱、问库都只用 token，跟着换。11-04 加了一个 token `--st-on-accent`（强调色底上的字）。
+- 并排截图：`npm run shots:themes`（`scripts/theme-shots.mjs`：每套一个新的播种世界、主题先写进 settings.json 再起真窗口，拍同一组十个画面）→ `docs/shots/themes/<id>/<画面>.png` 与 `docs/shots/themes/index.html`（每个画面一行、三套三列）。
+
+**首次设置**（`screens/first-run.js`，S1）：不是入口里的一屏，`app.js` 在应用状态第一次回来、`library` 为 null 时显示它（`setup` 状态），直到它调 `onDone(screen)`；开发时也可以按 id 打开（`npm start -- --screen first-run`）。它用侧栏零件（`Sidebar`）自己摆四步（`[data-step][data-step-state=current|done|todo]`），每步一个组件：库放哪（`chooseLibraryFolder` → `useChosenFolder('')`）、连接方式（三张卡 `[data-connection][data-selected]`，「用这一条」= `setActiveConnection` + `probeConnection`，未登录的卡带登录回路，可跳过）、主题与来源（`getStarterPacks` → 删来源 / 加 RSS → `applyStarterPack`，每个来源的试抓状态用 `st-fetch`）、试跑一轮（`estimateRound` → `startRound`，`round-progress` 画在 `[data-part="round-progress"][data-phase][data-done]`，跑完「去待看」「去今日」）。「谁定的」11-04 起每步走完写进库的 `streams.json` 的 `setup`（`recordSetupStep`，见 §4.1「首次设置记『谁定的』」）。连接行的零件（检测词 `detectWords`、`connectionState`、登录回路 `LoginLoop`、试调结果 `ProbeLine`、key 对话框 `ApiKeyDialog`）在 `screens/settings.js` 里，首次设置和今日的出错卡片共用。
 
 **界面 B 的屏**（11-03，§4.2 的要点；数据一律经桥，改了库之后听 `library-changed` 重读；页面不算数字，条数、状态、分数都是桥给的）：
 - `library`（S6）：主区里两栏（列表 300px · 正文），右栏 `Panel` 是「这一条」。列表：搜索框（停 250 ms 后 `searchLibrary`，≤ 200 字）、四个分页（`getLibrary(view, filter).counts`，`[data-view][data-count]`）、主题与「最近 30 天」筛选（`[data-filter-topic]` `[data-filter-days]`，主题名来自 `getSources().topics`）、行 `[data-row=<id | url | 文件名>]`。正文：`lib/markdown.js` 画，`[[链接]]` 按核心的规则（先 id、再标题）在已收藏 + 我写的里找，找到的可点（`[data-wiki-id]`）、找不到的只画成灰字（`[data-wiki-missing]`）；正文里的普通网址只显示、不跳（页面离不开 `app://ui/`）。右栏：主题、来源、各关分数、文件名、「这一条的核验记录」、链到这里的、同一来源的。「抓到的」行带各关分数与停在哪一步（`[data-stopped]`，词在 `texts/library.js`），点开可看核验记录；「待规范」只读列出文件与问题码的说法。顶栏「编辑」「用 Obsidian 打开」（`openInObsidian`）「打开原文」（`openItemUrl`，只给 http(s) 来源）。`navigate('library', { id })` 直接打开那一条（图谱、问库的出处用它）。
@@ -327,6 +350,8 @@ src/renderer/
 - `status`（S11）：四格 `[data-num=last-run|last-decision|month-calls|next-run][data-value]`（`statusView` 的 `lastRound.startedAt` · `lastDecisionAt` · `monthUsage.calls` · 定时未接时 `none`）；连接三行用设置页导出的零件拼（`connectionState` · `detectWords` · `LoginLoop` · `ProbeLine` · `probeView`），未登录的行是第四处「去登录」+ 副句 +「我登录好了，再试一次」；来源行五态词 + 连续轮数 + 「软件已经做了什么 / 需要你做什么」，地址有问题 / 被拒绝的行有「去处理」→ 来源与主题。顶栏「复制诊断信息」「打开运行记录文件夹」。
 - `ask`（S10）：顶栏范围（`getLibrary` 的 `counts`）；每轮问答 `[data-turn][data-state]`，每句后面的出处编号 `[data-cite]` 可点、在下方出处表 `[data-source-n][data-highlight]` 里标出，「打开」→ 资料库那一条；`removedCites` / `removedSentences` 非零各一行提示；`notInLibrary` 画成正式答案「库里没有。」；有 `notInLibrary` 或 `missing` 时给「记到想补的主题」（预填 `missing`）；「这个回答哪里不对」。问着时输入框禁用、显示「正在查库……」；`no_connection` →「去设置」。右栏：这次用了什么（命中 / 用了 / 调用 / 连接名 / 没给工具不联网 / 核对几轮）、想补的主题（`getDemands`，`suggest` 标「建议加成主题」）。`Answer` 组件导出给页面内的测试画一条给定的答案。
 - `graph`（S9）：节点位置 = `PAD_X + col × COL_GAP`、`PAD_Y + row × ROW_GAP`（`screens/graph.js` 导出这几个常数与 `place`），大小随 `count`；实线 topic / source → item，虚线（弧线）link；`svg[data-part="graph"]` 带着这份数据的 `data-days` / `data-status` / `data-links`（核心回显的 `filters`），测试据此等新数据画好。点条目开右下的框（`readNote` 补来源、日期、状态）。多于 60 条只画日期最近的 60 条（日期从 `getLibrary` 的条目取：图谱的节点不带日期），保持核心的列序。
+
+**设置的「软件」部分**（S14 的「软件」一块拆成几节：语言 · 主题 · 高级 · 关于）：「主题」一节见上；「关于」一节在「由 Starry Digital 开发」下面加按钮「许可证与致谢」（`[data-action="licenses"]`）→ 对话框 `[data-dialog="licenses"]`（`getLicenses`）：流息本身（`[data-part="own"][data-license]`，MIT，`LICENSE` 全文在可滚动的 `[data-part="license-text"]` 里，下面「由 Starry Digital 开发」= `openMakerPage`）；随软件带的组件表（`[data-part="components"]`，每行 `[data-component]`：名字、版本、许可证——Electron · Chromium · Node.js 的版本取运行时，Preact · htm 取应用里的 `package.json`）；「打开完整的第三方声明」（`[data-action="open-notices"]` → `openNotices`）：装好的应用里可点、打开安装目录的 `THIRD-PARTY-NOTICES.txt`；开发时这个文件没有，按钮不可点，旁边一句为什么（`[data-notices-why]`）。组件名、版本、许可证、LICENSE 全文是数据，不在字典里；对话框自己的字在 `texts/settings.js` 的 `licenses`。
 
 **规矩**（测试会核）：页面写的每一个字都在 `texts/` 里（别处的字符串里出现汉字就红，`test/wording.test.mjs`）；`texts/` 里的每个字串过用词扫描器 0 命中（V7 禁词：Bronze / Silver / Gold / judge / keeper / gate / Medallion / pending / ledger；品牌词只许在「连接你电脑上的 …」里，`wording/banned-terms.json`）；汉字旁一律全角标点；英文表与中文表键一一对应、没有汉字、没有禁词（`test/texts-en.test.mjs`）；**颜色只用 `tokens.css` 的变量**，别的样式文件里写 `#xxxxxx`、`rgb()` 就红，每个 token 都在 `docs/tokens.md` 的名单里（`test/kit.test.mjs`）；不用行内样式字符串、不用 `innerHTML`；源文件只用 LF、不放看不见的字符。测试用的挂钩：`main[data-screen][data-state]`（`ready` 表示数据到了）、`[data-nav=<id>]`、`[data-part=<id>]`、`[data-action=<id>]`（按钮外的一层，`lib/action.js Act`）、`[data-num=inbox|caught|passed|kept][data-value]`（今日的四个数字）、`[data-dialog=run|dismiss|api-key]`、`[data-card][data-url][data-current]`（待看的卡）、`[data-connection=<kind>][data-conn-state]`（连接行）。页面不算数字：今日的四个数字直接是 `getHome` 的 `numbers.inbox` · `numbers.caught` · `lastRound.counts.inbox` · `numbers.kept`。
 
@@ -351,7 +376,12 @@ src/renderer/
 | `protocol.test.mjs` | 不起 Electron：页面文件 200；指向别的机器的写法 1 秒内 404；路径规则逐条；中文文件名；英文下 `texts/` 换 `texts-en/`；组件一览只在开发时发 | 否 |
 | `bridge.test.mjs` | 预加载、主进程表、本文 §四 表三者一致；事件主题三处一致；预加载只交出一个对象；信封与错误码 | 否 |
 | `layout.test.mjs` · `settings.test.mjs` · `locale.test.mjs` | 布局；settings.json 的每个字段；语言的判定与状态 | 否 |
-| `kit.test.mjs` | tokens.css 与 docs/tokens.md 名单一致；别处不写颜色；五种状态各有一对 token；字体与主色是 维护者 定的 | 否 |
+| `kit.test.mjs` | tokens.css 与 docs/tokens.md 名单一致；三套主题的块（`:root` 定义全部、另两套只覆写 `:root` 有的名字）；别处不写颜色；五种状态各有一对 token；字体与主色是 维护者 定的 | 否 |
+| `theme.test.mjs` · `licenses.test.mjs` | 三个主题 id、`DEFAULT_THEME` 只定义一处；三套的 `color-scheme`、窗口底色与 `--st-page` 一致；契约的十二组字 / 底对比度（素灰、夜间 ≥ 4.5；河蓝两组照旧不到，列在 `RIVER_BELOW`）；index.html 发出时带 `data-theme`；docs/tokens.md 三栏值与 tokens.css 一致。许可证：开发时读仓库的 LICENSE、装好的布局读应用里那份、五个组件、第三方声明只在装好的应用里有 | 否 |
+| `ui-theme.test.mjs` | 设置里是夜间时第一帧：发出的 index.html 带 `data-theme="night"`、页面底色、窗口底色、`nativeTheme`；选素灰马上换、写进设置、原生一侧跟着；不认识的 id → `bad_arguments` 不写盘；关掉再开还是素灰 | 是 |
+| `ui-setup-record.test.mjs` · `ui-first-run.test.mjs` | 首次设置六步的记录（读 `streams.json`）：选的 / 写的（删了来源、加了 RSS）/ 默认（空白包原样、定时照显示）/ 跳过（连接、试跑）；往回退再走只替换那一步；设置「库 · 首次设置」六行；没有记录的库「没有记录」 | 是 |
+| `ui-today.test.mjs` | （加）rounds.jsonl 末尾两轮没有产出不出横幅、三轮出琥珀横幅带「看运行状态」、中间有产出就从头数 | 是 |
+| `ui-licenses.test.mjs` | 许可证与致谢：全文与仓库 LICENSE 逐字一致、「由 Starry Digital 开发」、五个组件的版本、开发时「打开完整的第三方声明」不可点并写原因、桥回 `open_failed` | 是 |
 | `wording.test.mjs` · `texts-en.test.mjs` | 字典过扫描器 0 命中、全角标点、别处无汉字、LF；英文表与中文表对齐、无禁词 | 否 |
 | `app-id.test.mjs` · `icon.test.mjs` · `deps.test.mjs` · `start.test.mjs` | 身份值；streams.ico 的五个尺寸（重建对比要 sharp，没有就跳过并说明）；依赖钉死；`npm start` 的文件夹规矩 | 否 |
 
@@ -375,7 +405,7 @@ src/renderer/
 6. 侧栏底色选了 river（方案主色）而不是 ink，理由在 `docs/tokens.md`；要改只动 `--st-sidebar` 一行。
 7. ~~托盘与定时 11-06~~ 11-04 落地（§4.3）：`services/schedule.mjs`（定时器、补跑、跑完的提示）、`tray.mjs`、设置「运行」、首次设置第 5 屏「定时」、今日顶栏。运行状态页（S11）的「下次运行」11-04 集成时也接上了：`getStatus().nextRun`（定时开着时 = 下一个定时时刻）。
 8. 安装包 11-06 按流息的安装包重写（§八）；界面 A 的六张截图在 `docs/shots/2026-11-03-<screen>.png`，由 `npm run shots -- --world seeded --screen <id>` 在播种世界上拍。
-9. ~~`getAppState` 没有 `recentLibraries`~~ 已解决（11-03 PM 集成）：`getAppState().recentLibraries = [{ path, name }]`，设置「库 · 其他」就用它。首次设置每步「谁定的」没有桥方法，这次不写盘（11-06 再定）。
+9. ~~`getAppState` 没有 `recentLibraries`~~ 已解决（11-03 PM 集成）：`getAppState().recentLibraries = [{ path, name }]`，设置「库 · 其他」就用它。~~首次设置每步「谁定的」没有桥方法~~ 11-04 已实装：`recordSetupStep` / `getSetup`（§4.1「首次设置记『谁定的』」）。
 10. ~~「没有连接也能抓」做不到~~ 已解决（11-03 PM 集成）：核心 `runRound({ scoreless: true })`，主进程没选连接时走它（见 §4.2「实做差别（界面 B 主进程）」）；待看卡片对这种条目标「没有打分」并显示来源自带的摘要。
 11. 界面 B 的取舍与缺口（11-03）：
     - ~~资料库右栏只有分数没有理由~~ 已解决（11-03 PM 集成）：核心 `readNote` 多返回 `scores`（文件头里的分数与理由），页面右栏照它显示。
@@ -385,3 +415,4 @@ src/renderer/
     - 核验记录的「n 次调用」：`verdictsFor` 不给调用次数，结果行只写「通过 / 未通过 · n 轮」。
     - 正文里的普通网址 `[字](地址)` 只显示、不能点（页面不能导航；`openItemUrl` 只认库里条目的来源）。
     - 界面 B 的七张截图在 `docs/shots/2026-11-03-{library,edit,sources,pipeline,status,ask,graph}.png`：`npm run shots -- --world seeded --screen <id>`（播种世界 + `test/support/seed.mjs seedPlanB`，假连接）。
+12. 11-04 三套主题、首次设置的记录、今日「连续三轮没有产出」、许可证与致谢落地（§4.1、§五「主题」「设置的『软件』部分」）。拿不准的：河蓝原来的琥珀 / 绿在各自浅底上是 4.42 / 4.45 : 1，不到契约要的 4.5，而契约又要河蓝「值一个不改」——素灰用加深一档的两个值过线；维护者 11-04 定河蓝保持原样，这两组列为已知例外（`docs/tokens.md`「对比度」）。新画面的截图：`docs/shots/2026-11-04-{settings-theme,settings-setup,no-output,licenses}.png`（`npm run shots -- --world seeded --screen <id>`），三套并排：`docs/shots/themes/index.html`。
