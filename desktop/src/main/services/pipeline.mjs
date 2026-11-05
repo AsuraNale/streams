@@ -8,6 +8,11 @@
  * With no connection chosen (the first run's connection step skipped: plan S1 「没有连接也能抓，只是不打分，全部进待看」) a
  * round still runs, scoreless (core runRound `scoreless: true`): everything fetched goes to the inbox, no model call.
  *
+ * v2 package A (docs/desktop.md §4.4): a round runs on one library — the current one for the page's startRound, any
+ * registered one for the schedule (`startRoundIn`, not on the bridge). One round at a time for the whole app: with a
+ * `roundGate` (services/schedule.mjs: the queue) the page's startRound goes through it, and a busy queue answers v1.0's
+ * 「a round is running」 (bad_arguments). Every event of a round, and every `inbox-changed`, carries its `libraryId`.
+ *
  * Interface B (plan S4; docs/desktop.md §4.2): the pipeline's nodes as the core configures them with the last round and
  * the recent reasons beside them, the save (the core's locked-node / bad-config → bad_arguments; `library-changed`), one
  * node tried on one item of the ledger (no connection → `no_connection`; its calls count in the usage as `preview:<node>`).
@@ -52,10 +57,12 @@ export function withFirstProbe(connector, result) {
  * @param {object} [o.fetchContext] - overrides for the core's fetch context (tests: fetchImpl, timeoutMs)
  * @param {() => {enabled: boolean, time: string, nextRunAt: string|null}|null} [o.schedule] - the schedule as getSchedule gives it
  *   (services/schedule.mjs): getHome's nextRun, getPipelineSettings' schedule; none given: null
- * @param {(done: {roundId: string, result: object|null}) => void} [o.onRoundDone] - after every round that ran in the
- *   background, once it ended (services/schedule.mjs: the notification)
+ * @param {(done: {roundId: string, libraryId: string|null, result: object|null}) => void} [o.onRoundDone] - after every round
+ *   that ran in the background, once it ended (services/schedule.mjs: the notification, the next one in the queue)
+ * @param {(() => Promise<object>)|null} [o.roundGate] - the page's startRound goes through this when given
+ *   (services/schedule.mjs startCurrent: `{ started: false, reason: 'running' }` while the queue is busy)
  */
-export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {}, schedule = () => null, onRoundDone = () => {} }) {
+export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {}, schedule = () => null, onRoundDone = () => {}, roundGate = null }) {
   // the round in the background, if one runs; what the last one gave; the problems the last self-check found
   let running = null
   let last = null
@@ -69,6 +76,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
   const roundState = () => ({
     running: Boolean(running),
     roundId: running?.roundId ?? last?.roundId ?? null,
+    // the library of that round (v2: the one round of the app may be another library's than the current one)
+    libraryId: running?.libraryId ?? last?.libraryId ?? null,
     progress: lastProgress,
     last: last?.result ?? null,
     lastProblems,
@@ -85,8 +94,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
   }
 
   /** The round in the background: the core's runRound, then the two events. `cap` and the connector were fixed at start. */
-  const runInBackground = async ({ dir, roundId, connector, cap, controller, scoreless = false }) => {
-    const base = { roundId, cap }
+  const runInBackground = async ({ dir, libraryId, roundId, connector, cap, controller, scoreless = false }) => {
+    const base = { roundId, libraryId, cap }
     try {
       progress({ ...base, phase: 'fetch', counts: null, calls: 0, done: false })
       const result = await runRound(dir, {
@@ -94,7 +103,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
         // a scoreless round's cards go to the inbox straight after the fetch (core stage 'inbox'): still phase 'fetch'
         onProgress: p => progress({ ...base, phase: p.stage === 'gate' ? `gate:${p.node}` : p.stage === 'inbox' ? 'fetch' : 'summary', counts: p.counts, calls: p.calls, done: false }),
       })
-      last = { roundId, result }
+      last = { roundId, libraryId, result }
       if (!result.started) lastProblems = result.problems
       log(`pipeline: round ${roundId} ${result.started ? `done: calls ${result.calls}${result.scoreless ? ' (scoreless)' : ''}${result.stoppedAt ? ` stopped at ${result.stoppedAt}` : ''}` : 'did not start'} (core ${result.round?.id ?? '-'})`)
       running = null
@@ -102,13 +111,43 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     } catch (err) {
       const problems = [{ code: 'internal', detail: String(err?.message ?? err).slice(0, 300) }]
       log(`pipeline: round ${roundId} failed: ${String(err?.stack ?? err)}`)
-      last = { roundId, result: { ok: false, started: true, problems } }
+      last = { roundId, libraryId, result: { ok: false, started: true, problems } }
       lastProblems = problems
       running = null
       progress({ ...base, phase: 'done', counts: null, calls: 0, done: true, result: null, problems })
     }
-    emit('inbox-changed', { count: inboxCount(dir) })
-    try { onRoundDone({ roundId, result: last?.roundId === roundId ? last.result : null }) } catch (err) { log(`pipeline: after round ${roundId}: ${String(err?.stack ?? err)}`) }
+    emit('inbox-changed', { libraryId, count: inboxCount(dir) })
+    try { onRoundDone({ roundId, libraryId, result: last?.roundId === roundId ? last.result : null }) } catch (err) { log(`pipeline: after round ${roundId}: ${String(err?.stack ?? err)}`) }
+  }
+
+  /**
+   * One round on the library `{ id, path }` (the current one, or the schedule's): the self-check now (a failure comes back
+   * in the answer, S13), the rest in the background. A round already running: bad_arguments (v1.0's rule).
+   */
+  async function startRoundIn({ id: libraryId = null, path: dir }) {
+    if (running) throw new BridgeError('bad_arguments', 'a round is running')
+    const a = connections.active()
+    const roundId = `d-${now().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}-${randomBytes(3).toString('hex')}`
+    const cap = pipelineConfig(dir).cap
+    // step 0 here, so a failure comes back in the answer (S13); the probe counts in the library's usage. No connection
+    // chosen: a scoreless round (no probe, no model call; everything fetched goes to the inbox)
+    const scoreless = !a
+    const probed = a ? createUsageCounter(dir, { now }).wrap(a.connector, 'probe') : null
+    progress({ roundId, libraryId, cap, phase: 'self-check', counts: null, calls: 0, done: false })
+    const check = await selfCheck(dir, scoreless ? { connector: null, scoreless: true } : { connector: probed })
+    if (!check.ok) {
+      lastProblems = check.problems
+      log(`pipeline: self-check failed${libraryId ? ` (${libraryId})` : ''}: ${JSON.stringify(check.problems)}`)
+      progress({ roundId, libraryId, cap, phase: 'done', counts: null, calls: 0, done: true, result: null, problems: check.problems })
+      return { started: false, problems: check.problems }
+    }
+    lastProblems = null
+    const controller = new AbortController()
+    running = { roundId, libraryId, controller, startedAt: now().toISOString() }
+    // runRound runs the self-check again: its probe is the one just made, not a second call
+    const connector = scoreless ? null : withFirstProbe(a.connector, { ok: true, latencyMs: check.probe?.latencyMs ?? 0, model: check.probe?.model, usage: { calls: 0 } })
+    void runInBackground({ dir, libraryId, roundId, connector, cap, controller, scoreless })
+    return { started: true, roundId }
   }
 
   const handlers = {
@@ -145,29 +184,11 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     },
     async startRound() {
       const dir = library.require()
-      if (running) throw new BridgeError('bad_arguments', 'a round is running')
-      const a = connections.active()
-      const roundId = `d-${now().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}-${randomBytes(3).toString('hex')}`
-      const cap = pipelineConfig(dir).cap
-      // step 0 here, so a failure comes back in the answer (S13); the probe counts in the library's usage. No connection
-      // chosen: a scoreless round (no probe, no model call; everything fetched goes to the inbox)
-      const scoreless = !a
-      const probed = a ? createUsageCounter(dir, { now }).wrap(a.connector, 'probe') : null
-      progress({ roundId, cap, phase: 'self-check', counts: null, calls: 0, done: false })
-      const check = await selfCheck(dir, scoreless ? { connector: null, scoreless: true } : { connector: probed })
-      if (!check.ok) {
-        lastProblems = check.problems
-        log(`pipeline: self-check failed: ${JSON.stringify(check.problems)}`)
-        progress({ roundId, cap, phase: 'done', counts: null, calls: 0, done: true, result: null, problems: check.problems })
-        return { started: false, problems: check.problems }
-      }
-      lastProblems = null
-      const controller = new AbortController()
-      running = { roundId, controller, startedAt: now().toISOString() }
-      // runRound runs the self-check again: its probe is the one just made, not a second call
-      const connector = scoreless ? null : withFirstProbe(a.connector, { ok: true, latencyMs: check.probe?.latencyMs ?? 0, model: check.probe?.model, usage: { calls: 0 } })
-      void runInBackground({ dir, roundId, connector, cap, controller, scoreless })
-      return { started: true, roundId }
+      if (!roundGate) return startRoundIn({ id: library.current()?.libraryId ?? null, path: dir })
+      const r = await roundGate()
+      // the queue is busy (a round of this or another library runs, or waits): v1.0's answer
+      if (r?.started === false && r.reason === 'running') throw new BridgeError('bad_arguments', 'a round is running')
+      return r
     },
     cancelRound() {
       library.require()
@@ -188,7 +209,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       const dir = library.require()
       if (!inboxUrls(dir).has(url)) throw new BridgeError('bad_arguments', 'not in the inbox')
       const r = keep(dir, url, { now })
-      emit('inbox-changed', { count: inboxCount(dir) })
+      emit('inbox-changed', { libraryId: library.current()?.libraryId ?? null, count: inboxCount(dir) })
       emit('library-changed', library.current())
       return { id: r.id, file: r.file }
     },
@@ -196,7 +217,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       const dir = library.require()
       if (!inboxUrls(dir).has(url)) throw new BridgeError('bad_arguments', 'not in the inbox')
       const r = dismiss(dir, url, reason, { now })
-      emit('inbox-changed', { count: inboxCount(dir) })
+      emit('inbox-changed', { libraryId: library.current()?.libraryId ?? null, count: inboxCount(dir) })
       return { url: r.url }
     },
     laterItem(url) {
@@ -281,5 +302,5 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     },
   }
 
-  return { handlers, roundState, isRunning: () => Boolean(running) }
+  return { handlers, roundState, startRoundIn, isRunning: () => Boolean(running), runningLibrary: () => running?.libraryId ?? null }
 }

@@ -9,6 +9,6 @@ export { CLAUDE_CODE_MODELS, CODEX_MODELS, VENDORS, VENDOR_IDS, modelsFor, recom
 export { extractJson } from './json-output.mjs';
 export { completeJson, RETRY_SUFFIX } from './complete-json.mjs';
 export { fakeConnector, FAKE_MODES } from './fakes.mjs';
-export { createUsageCounter, readUsage, usagePath, USAGE_FILE } from './usage.mjs';
+export { createUsageCounter, readUsage, usageTotal, usagePath, USAGE_FILE } from './usage.mjs';
 export { findExecutable } from './which.mjs';
 export { createWorkdir, removeWorkdir, withWorkdir, DEFAULT_TMP_ROOT } from './workdir.mjs';

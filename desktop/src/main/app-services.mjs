@@ -9,7 +9,7 @@
 
 import { clipboard, shell } from 'electron'
 import { writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { join } from 'node:path'
 import { diagnosticsText } from './diagnostics.mjs'
 import { readSettings, writeSettings } from './settings.mjs'
 import { BridgeError } from './bridge-methods.mjs'
@@ -26,7 +26,7 @@ import { licensesView, noticesFileOf } from './licenses.mjs'
  * @param {{current: () => {setting: string, resolved: string}, set: (v: string) => object}} o.locale - the language of the
  *   app's own words (locale.mjs)
  * @param {{version: string, dev: boolean}} o.version - the app's own version (version.mjs)
- * @param {{current: () => {path: string, name: string}|null}} o.library - services/library.mjs
+ * @param {{current: () => {libraryId: string, path: string, name: string}|null, entries: () => object[]}} o.library - services/library.mjs
  * @param {{diagnosticLines: () => string[]}} o.connections - services/connections.mjs
  * @param {{list: () => string[], get: (name: string) => string|null}} o.secrets - secrets.mjs
  * @param {(id: string) => void} [o.applyTheme] - the theme on Electron's side (main.mjs: nativeTheme, the windows' background)
@@ -43,8 +43,9 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
     return {
       // the library: its folder name is what the sidebar shows; null is 「未打开库」
       library: library.current(),
-      // the libraries opened before (settings 「库 · 其他」; openRecentLibrary takes only one of these): path and folder name
-      recentLibraries: s.recentLibraries.map(path => ({ path, name: basename(path) })),
+      // the registered libraries (settings 「库 · 其他」 lists those that are not the current one; openRecentLibrary takes
+      // only one of these): path and name. v2 package A: from the registry, no longer settings.json's recentLibraries
+      recentLibraries: library.entries().filter(l => !l.temporary).map(l => ({ path: l.path, name: l.name })),
       showDeveloperInfo: s.showDeveloperInfo,
       // the language of the app's own words: the setting and what it comes to (locale.mjs)
       language: locale.current(),

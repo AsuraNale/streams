@@ -5,6 +5,10 @@
 // readUsage(libraryDir, { month }) -> { month, calls, inputTokens, outputTokens, costUsd, byKind, byPurpose, byModel, skipped }
 // `month` = 'YYYY-MM' of the UTC timestamp; default = the current UTC month. The status page's
 // "calls this month" is readUsage(dir).calls.
+// usageTotal(libraryDirs, { month }) -> { month, calls, inputTokens, outputTokens, costUsd, byKind, libraries, missing }
+//   every library's readUsage added up (v2 package A: the settings page's 「全部库本月用量合计」, 维护者 11-05):
+//   byKind = calls per connection (claude-code · codex · api · …), the totals beside it; libraries = [{ dir, calls }] in
+//   the order given; a folder that is not there is skipped and listed in `missing` (no error).
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
@@ -92,6 +96,22 @@ export function readUsage(libraryDir, { month } = {}) {
     bump(out.byPurpose, e.purpose, calls);
     bump(out.byModel, e.model, calls);
   });
+  return out;
+}
+
+export function usageTotal(libraryDirs, { month } = {}) {
+  const m = month ?? monthOf(new Date().toISOString());
+  const out = { month: m, calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, byKind: {}, libraries: [], missing: [] };
+  for (const dir of Array.isArray(libraryDirs) ? libraryDirs : []) {
+    if (typeof dir !== 'string' || dir === '' || !existsSync(dir)) { out.missing.push(dir); continue; }
+    const u = readUsage(dir, { month: m });
+    out.calls += u.calls;
+    out.inputTokens += u.inputTokens;
+    out.outputTokens += u.outputTokens;
+    out.costUsd += u.costUsd;
+    for (const [kind, n] of Object.entries(u.byKind)) bump(out.byKind, kind, n);
+    out.libraries.push({ dir, calls: u.calls });
+  }
   return out;
 }
 

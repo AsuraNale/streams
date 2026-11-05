@@ -49,6 +49,11 @@ const graphFilter = f => f === null || (isObject(f) && onlyKeys(f, ['days', 'sta
 const noteChanges = c => isObject(c) && Object.keys(c).length > 0 && onlyKeys(c, ['title', 'topics', 'body'])
   && optional(c, 'title', nonEmptyShort(300)) && optional(c, 'topics', v => strings(v, { items: 20, max: 100 }) && v.every(nonEmpty)) && optional(c, 'body', shortString(1_000_000))
 const question = v => typeof v === 'string' && v.trim().length >= 1 && v.trim().length <= 500
+// v2 package A: a library's registry id (whether it is one is the library service's to say: an unknown one is bad_arguments)
+const libraryId = nonEmptyShort(40)
+const schedule = s => isObject(s) && onlyKeys(s, ['enabled', 'time']) && typeof s.enabled === 'boolean' && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)
+/** { name?, icon?, color? }, at least one, each a string (the core's withMeta judges the values) */
+const libraryMeta = m => isObject(m) && Object.keys(m).length > 0 && onlyKeys(m, ['name', 'icon', 'color']) && Object.values(m).every(v => typeof v === 'string' && v.length <= 200)
 
 /** name → how many arguments it takes, and a check for them. */
 export const BRIDGE_METHODS = Object.freeze({
@@ -110,7 +115,19 @@ export const BRIDGE_METHODS = Object.freeze({
   getPipelineSettings: Object.freeze({ args: 0 }),
   // the timed round (services/schedule.mjs; docs/desktop.md §4.3): { enabled, time: 'HH:MM' } with 00:00–23:59, nothing else
   getSchedule: Object.freeze({ args: 0 }),
-  setSchedule: Object.freeze({ args: 1, check: ([s]) => isObject(s) && onlyKeys(s, ['enabled', 'time']) && typeof s.enabled === 'boolean' && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time) }),
+  setSchedule: Object.freeze({ args: 1, check: ([s]) => schedule(s) }),
+  // the libraries the app knows (v2 package A; services/library.mjs, services/schedule.mjs; docs/desktop.md §4.4): every
+  // method above works on the current library; these name one by its registry id. addLibrary takes only the folder the
+  // last chooseLibraryFolder gave
+  listLibraries: Object.freeze({ args: 0 }),
+  setActiveLibrary: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
+  addLibrary: Object.freeze({ args: 1, check: ([path]) => nonEmptyShort(2000)(path) }),
+  removeLibrary: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
+  setLibraryMeta: Object.freeze({ args: 2, check: ([id, meta]) => libraryId(id) && libraryMeta(meta) }),
+  getLibrariesOverview: Object.freeze({ args: 0 }),
+  getLibrarySchedule: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
+  setLibrarySchedule: Object.freeze({ args: 2, check: ([id, s]) => libraryId(id) && schedule(s) }),
+  getUsageTotal: Object.freeze({ args: 0 }),
   // interface B (docs/desktop.md §4.2). The library and reading (services/browse.mjs): an id must be in the index
   getLibrary: Object.freeze({ args: 2, check: ([view, filter]) => LIBRARY_VIEWS.includes(view) && libraryFilter(filter) }),
   searchLibrary: Object.freeze({ args: 2, check: ([q, filter]) => shortString(200)(q) && searchFilter(filter) }),
@@ -176,6 +193,8 @@ export const CORE_BAD_ARGUMENT_CODES = Object.freeze([
   'not-proposable', 'bad-file-name', 'already-conforming', 'bad-id',
   // a step of 首次设置 recorded with an unknown step or `by` (core recordSetupStep)
   'bad-setup',
+  // a library id the registry does not hold (core withActive / withMeta / withoutLibrary; v2 package A)
+  'unknown-library',
 ])
 
 /** A core error as the bridge's: shape errors (and every `duplicate-*`) → bad_arguments, the rest → internal. */

@@ -72,7 +72,7 @@
 ```
 <应用数据>\Streams\
   settings.json          连接、主题、语言、全局开关（v1.0）；定时与上限搬到各库
-  ★ libraries.json       库登记：[{ id, path, name, icon, color, order }]
+  ★ libraries.json       库登记：{ schema: 'streams.libraries/1', active, libraries: [{ id, path, name, icon, color, addedAt }] }（排序 = 列表顺序；包 A 实做，core-api 5.12）
   ★ agent\transcript.jsonl   主 Agent 对话正本（只追加）
   ★ agent\session.json   各连接的会话 id 缓存（丢了不要紧，靠正本重建）
   ★ agent\notes.jsonl    主 Agent 的工作区笔记（经代码写）
@@ -121,7 +121,7 @@
 | 来源与要求 P7 | v1.0 来源与主题 + 「要求」编辑 + 每项「谁定的」+ 这个库的定时与上限 + **关卡**（v1.0 流水线页的关卡提示词、过关线、试跑一条，搬到这一页的「关卡」一节；玄翎的提议） | 复用 + 小改 |
 | 设置 P9 | 连接、主题、语言、关于；**全部库本月用量合计**；定时与上限挪进各库 | 改 |
 | 首次打开 | 选连接（v1.0 第 2 步）→ 进「和主 Agent 聊」：「告诉我你想追踪什么」；也能点「新建库」手动建（v1.0 起步包流程保留为手动路径） | 改 |
-| 桥 | 所有库相关方法多一个 `libraryId` 参数；新方法：库登记、主 Agent 对话、提议卡确认 / 不要 / 改一下、建议卡、分流 | 三张方法表一致的规矩不变 |
+| 桥 | ~~所有库相关方法多一个 `libraryId` 参数~~ **包 A 实做（11-05）：桥里有「当前库」**（`setActiveLibrary(id)`），原有的约 70 个库相关方法签名不变、作用于当前库；跨库的事用新方法、显式带 id（`listLibraries` · `addLibrary` · `removeLibrary` · `setLibraryMeta` · `getLibrariesOverview` · `getLibrarySchedule(id)` / `setLibrarySchedule(id, …)` · `getUsageTotal`）。理由：方案 B 一次只显示一个库的页面，切库 = 换当前库；不用改 70 个方法的签名和 v1.0 全部界面测试；后台（定时、以后的主 Agent 与提议卡）在主进程里直接按库的文件夹调核心，不经桥。代价与防护：主进程发出的、和某个库有关的事件（一轮的 `round-progress`、`inbox-changed`、`library-changed`、新的 `libraries-changed`）都带 `libraryId`，页面据此决定刷不刷新。新方法：库登记（包 A）、主 Agent 对话、提议卡确认 / 不要 / 改一下、建议卡、分流 | 三张方法表一致的规矩不变 |
 
 ## 四、做的顺序（工作包）
 

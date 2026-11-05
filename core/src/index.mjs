@@ -4,6 +4,7 @@ export { parseFrontmatter, serializeFrontmatter, KEY_ORDER } from './library/fro
 export { validateNote, NOTE_STATUSES, REQUIRED_FIELDS, isIsoDate, idFromFileName } from './library/validate.mjs';
 export { readConfig, topicNames, nodeIds, CONFIG_FILE } from './library/config.mjs';
 export { recordSetupStep, readSetup, SETUP_STEPS, SETUP_BY } from './library/setup.mjs';
+export { readLibrarySchedule, saveLibrarySchedule, ensureLibrarySchedule } from './library/schedule.mjs';
 export { extractWikiLinks, resolveLinks } from './library/links.mjs';
 export { rebuildIndex, readIndex, formatIndexLine, INDEX_FILE, INDEX_META_FILE, INDEX_KEYS } from './library/index.mjs';
 export { appendEvent, replayLedger, recordSeen, isSeen, LEDGER_FILE, LEDGER_EVENTS } from './library/ledger.mjs';
@@ -29,3 +30,6 @@ export { sourcesView, guessSource, checkSource, addSource, updateSource, removeS
 export { isNoteId } from './library/write-note.mjs';
 export * from './graph/index.mjs';
 export * from './ask/index.mjs';
+
+// v2 package A: the library registry (core-api 5.12, 2026-11-05).
+export * from './registry/index.mjs';

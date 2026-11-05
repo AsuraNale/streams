@@ -137,7 +137,7 @@ const emit = (topic, payload = null) => {
   return sent
 }
 
-// closing the window (docs/desktop.md §4.3): with the schedule on, the close button hides it into the tray; the tray's
+// closing the window (docs/desktop.md §4.3): with the schedule of any library on, the close button hides it into the tray; the tray's
 // 「退出」, an update and every other quit really end the app (before-quit comes first)
 let quitting = false
 let closeToTray = () => false
@@ -206,17 +206,20 @@ app.whenReady().then(() => {
   // pipeline (services/pipeline.mjs), then the shell's own services (app-services.mjs): the app state, the settings page
   const secrets = createSecretStore({ dir: layout.secretsDir, safeStorage })
   const currentLocale = () => locale.current()
-  const library = createLibraryService({ settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, dialog, shell, locale: currentLocale, devLibrary: DEV_LIBRARY, devChooseFolder: DEV_CHOOSE_FOLDER })
+  // the libraries the app knows (v2 package A): the registry in layout.librariesFile, made from settings.json the first time
+  const library = createLibraryService({ settingsFile: layout.settingsFile, registryFile: layout.librariesFile, emit, log, hidden: HIDDEN, dialog, shell, locale: currentLocale, now: clock, devLibrary: DEV_LIBRARY, devChooseFolder: DEV_CHOOSE_FOLDER })
   const connections = createConnectionsService({
     settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION,
     // a probe made from the page counts in the open library's usage (core createUsageCounter), under `probe`
     usageWrap: c => { const d = library.dir(); return d ? createUsageCounter(d).wrap(c, 'probe') : c },
   })
-  // the schedule (services/schedule.mjs) is made below; the pipeline reads it through these two (getHome's nextRun, the notification)
+  // the schedule and the queue (services/schedule.mjs) are made below; the pipeline reaches them through these three
+  // (getHome's nextRun; the end of a round: the notification, the next one in the queue; the page's startRound: the queue)
   let scheduler = null
   const pipeline = createPipelineService({
     library, connections, emit, log, hidden: HIDDEN, shell, locale: currentLocale, now: clock,
     schedule: () => scheduler?.view() ?? null, onRoundDone: done => scheduler?.roundDone(done),
+    roundGate: () => scheduler.startCurrent('the page'),
   })
   // interface B (docs/desktop.md §4.2): reading and editing, the sources and topics, asking the library, the run status
   const browse = createBrowseService({ library, emit, log, hidden: HIDDEN, shell })
@@ -234,9 +237,10 @@ app.whenReady().then(() => {
     logFile: HIDDEN ? join(layout.logsDir, 'notifications.jsonl') : null,
     locale: () => locale.current().resolved, clock,
   })
-  // the timed round and the tray (docs/desktop.md §4.3): the timer, the catch-up, the close button into the tray
+  // the timed rounds, the queue and the tray (docs/desktop.md §4.3–4.4): the timer, the catch-up, the close button into the tray
   scheduler = createScheduleService({ settingsFile: layout.settingsFile, library, pipeline, notifier, emit, log, now: clock })
   closeToTray = () => scheduler.enabled()
+  // the tray's count is the current library's
   const inboxNow = () => { const d = library.dir(); if (!d) return 0; try { return listInbox(d).length } catch { return 0 } }
   const tray = createTray({
     Tray, Menu, icon: ICON, hidden: HIDDEN, log, locale: () => locale.current().resolved,
@@ -246,9 +250,12 @@ app.whenReady().then(() => {
   })
   tray.setCount(inboxNow())
   emitListeners.push((topic, payload) => {
-    if (topic === 'inbox-changed') tray.setCount(Number.isInteger(payload?.count) ? payload.count : inboxNow())
+    // another library's inbox (a timed round of it) leaves the current library's count as it is
+    if (topic === 'inbox-changed') tray.setCount(Number.isInteger(payload?.count) && payload?.libraryId === library.current()?.libraryId ? payload.count : inboxNow())
     else if (topic === 'library-changed') tray.setCount(inboxNow())
     else if (topic === 'settings-changed') tray.refresh()
+    // a library registered, removed or switched to: the timer again, for the libraries as they are now
+    else if (topic === 'libraries-changed') scheduler.arm()
   })
   powerMonitor.on('resume', () => { void scheduler.resumed() })
   app.on('will-quit', () => { scheduler.stop(); tray.destroy() })
@@ -282,7 +289,7 @@ app.whenReady().then(() => {
   })
 
   createWindow()
-  // the catch-up at start: the library (if one is open) is open by now
+  // the catch-up at start: the libraries are known by now (the registry, the development one)
   void scheduler.start()
 
   // a second launch (the single-instance lock above): this app's window comes to the front instead

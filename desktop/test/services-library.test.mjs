@@ -2,13 +2,16 @@
 // page never names a path — useChosenFolder acts on the last dialog answer and openRecentLibrary only on a path already
 // in the recent list; opening writes the setting and the recent list and sends library-changed; every method needing a
 // library answers no_library without one. Each case first shows the refused input really is refused.
+// v2 package A: 「the setting and the recent list」 are the registry now (libraries.json beside settings.json: the current
+// library = its `active`, the recent list = its libraries in the order they were registered), and the library the page sees
+// carries its registry id (`libraryId`). test/services-registry.test.mjs has the registry's own cases.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createLibraryService, folderState } from '../src/main/services/library.mjs'
-import { readSettings } from '../src/main/settings.mjs'
+import { readRegistry } from '../src/main/core.mjs'
 import { readConfig } from '../src/main/core.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { testWorld } from './support/services.mjs'
@@ -27,6 +30,12 @@ function hashTree(dir, base = dir, out = {}) {
 const worlds = []
 const world = () => { const w = testWorld('st-library-'); worlds.push(w); return w }
 after(() => { for (const w of worlds) removeTree(w.root, { waitMs: 3000 }) })
+
+// the registry the service keeps beside the settings file: the current library's folder, the registered folders in order
+const registryOf = w => readRegistry(join(w.root, 'libraries.json'))
+const activePath = w => { const r = registryOf(w); return r.libraries.find(l => l.id === r.active)?.path ?? null }
+const registered = w => registryOf(w).libraries.map(l => l.path)
+const idOf = (w, path) => registryOf(w).libraries.find(l => l.path === path)?.id
 
 const service = (w, extra = {}) => createLibraryService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, dialog: w.dialog, shell: w.shell, locale: () => w.locale, ...extra })
 
@@ -71,15 +80,16 @@ test('useChosenFolder: empty → a library is made with the name given (or the f
   w.dialogAnswers.push(folder)
   await s.handlers.chooseLibraryFolder()
   assert.equal(s.current(), null, 'choosing opens nothing')
-  assert.deepEqual(await s.handlers.useChosenFolder('  AI tools  '), { path: folder, name: 'fresh' })
+  const made = await s.handlers.useChosenFolder('  AI tools  ')
+  assert.deepEqual(made, { libraryId: idOf(w, folder), path: folder, name: 'fresh' })
   assert.equal(readConfig(folder).config.name, 'AI tools', 'the name given, trimmed')
   assert.equal(readConfig(folder).config.pipeline.language, 'zh-CN', 'the prompts follow the app language')
   assert.ok(existsSync(join(folder, 'notes')))
   assert.ok(existsSync(join(folder, 'index.jsonl')), 'the index is built on open')
-  assert.deepEqual(s.current(), { path: folder, name: 'fresh' })
-  assert.equal(readSettings(w.settingsFile).libraryPath, folder)
-  assert.deepEqual(readSettings(w.settingsFile).recentLibraries, [folder])
-  assert.deepEqual(w.eventsOf('library-changed'), [{ topic: 'library-changed', payload: { path: folder, name: 'fresh' } }])
+  assert.deepEqual(s.current(), { libraryId: made.libraryId, path: folder, name: 'fresh' })
+  assert.equal(activePath(w), folder)
+  assert.deepEqual(registered(w), [folder])
+  assert.deepEqual(w.eventsOf('library-changed'), [{ topic: 'library-changed', payload: { libraryId: made.libraryId, path: folder, name: 'fresh' } }])
   // an empty name = the folder name; English app → English prompts
   const second = join(w.root, 'second')
   w.locale = { resolved: 'en' }
@@ -88,13 +98,15 @@ test('useChosenFolder: empty → a library is made with the name given (or the f
   await s.handlers.useChosenFolder('')
   assert.equal(readConfig(second).config.name, 'second')
   assert.equal(readConfig(second).config.pipeline.language, 'en')
-  assert.deepEqual(readSettings(w.settingsFile).recentLibraries, [second, folder], 'most recent first')
+  assert.deepEqual(registered(w), [folder, second], 'in the order they were registered')
+  assert.equal(activePath(w), second)
   // an existing library is opened, not remade
   w.dialogAnswers.push(folder)
   assert.equal((await s.handlers.chooseLibraryFolder()).state, 'library')
   await s.handlers.useChosenFolder('ignored')
   assert.equal(readConfig(folder).config.name, 'AI tools', 'the existing library keeps its name')
-  assert.deepEqual(readSettings(w.settingsFile).recentLibraries, [folder, second], 'moved to the front, no repeat')
+  assert.deepEqual(registered(w), [folder, second], 'no repeat')
+  assert.equal(activePath(w), folder, 'the current one again')
   // other: refused, nothing written, nothing opened
   const other = join(w.root, 'other')
   mkdirSync(other)
@@ -103,7 +115,7 @@ test('useChosenFolder: empty → a library is made with the name given (or the f
   assert.equal((await s.handlers.chooseLibraryFolder()).state, 'other')
   await assert.rejects(async () => s.handlers.useChosenFolder('x'), err => err.code === 'open_failed')
   assert.equal(existsSync(join(other, 'streams.json')), false)
-  assert.equal(readSettings(w.settingsFile).libraryPath, folder, 'the open library is unchanged')
+  assert.equal(activePath(w), folder, 'the open library is unchanged')
   // a library folder whose streams.json is broken: open_failed
   const broken = join(w.root, 'broken')
   mkdirSync(broken)
@@ -122,12 +134,12 @@ test('openRecentLibrary: only a path in the recent list; a listed path that no l
   assert.deepEqual(s.current().path, b)
   await assert.rejects(async () => s.handlers.openRecentLibrary(join(w.root, 'c')), err => err.code === 'bad_arguments', 'not in the list')
   await assert.rejects(async () => s.handlers.openRecentLibrary(a.toUpperCase()), err => err.code === 'bad_arguments', 'the exact string, nothing looser')
-  assert.deepEqual(await s.handlers.openRecentLibrary(a), { path: a, name: 'a' })
-  assert.equal(readSettings(w.settingsFile).libraryPath, a)
-  assert.deepEqual(readSettings(w.settingsFile).recentLibraries, [a, b])
+  assert.deepEqual(await s.handlers.openRecentLibrary(a), { libraryId: idOf(w, a), path: a, name: 'a' })
+  assert.equal(activePath(w), a)
+  assert.deepEqual(registered(w), [a, b])
   removeTree(b, { waitMs: 3000 })
   await assert.rejects(async () => s.handlers.openRecentLibrary(b), err => err.code === 'open_failed')
-  assert.equal(readSettings(w.settingsFile).libraryPath, a, 'still a')
+  assert.equal(activePath(w), a, 'still a')
 })
 
 test('rebuildIndex and revealLibrary need a library; the development library stands in for the setting; reveal only logs when hidden', async () => {
@@ -155,7 +167,7 @@ test('rebuildIndex and revealLibrary need a library; the development library sta
   assert.ok(w.lines.some(l => l.includes('not revealed in a test run')))
   // the development library
   const dev = service(w, { devLibrary: join(w.root, 'dev-lib') })
-  assert.deepEqual(dev.current(), { path: join(w.root, 'dev-lib'), name: 'dev-lib' })
+  assert.deepEqual(dev.current(), { libraryId: 'dev', path: join(w.root, 'dev-lib'), name: 'dev-lib' })
   assert.equal(dev.dir(), join(w.root, 'dev-lib'))
 })
 
@@ -185,15 +197,15 @@ test('useChosenFolder on an importable folder: importFolder, then opened; every 
   const chosen = await s.handlers.chooseLibraryFolder()
   assert.deepEqual(chosen, { path: folder, name: 'my notes', state: 'importable', mdCount: seeded.mdCount })
   assert.equal(existsSync(join(folder, 'streams.json')), false, 'choosing writes nothing')
-  assert.deepEqual(await s.handlers.useChosenFolder(''), { path: folder, name: 'my notes' })
+  assert.deepEqual(await s.handlers.useChosenFolder(''), { libraryId: idOf(w, folder), path: folder, name: 'my notes' })
   const cfg = readConfig(folder)
   assert.equal(cfg.ok, true)
   assert.equal(cfg.config.notesDir, '.')
   assert.equal(cfg.config.name, 'my notes')
   const after = hashTree(folder)
   for (const [rel, h] of Object.entries(before)) assert.equal(after[rel], h, rel)
-  assert.equal(readSettings(w.settingsFile).libraryPath, folder)
-  assert.deepEqual(w.eventsOf('library-changed').at(-1), { topic: 'library-changed', payload: { path: folder, name: 'my notes' } })
+  assert.equal(activePath(w), folder)
+  assert.deepEqual(w.eventsOf('library-changed').at(-1), { topic: 'library-changed', payload: { libraryId: idOf(w, folder), path: folder, name: 'my notes' } })
   assert.ok(w.lines.some(l => l.startsWith(`library: imported ${folder}: 1 conforming, 5 to tidy, 1 sub folders not read`)), w.lines.join('\n'))
   // chosen again: it is a library now, opened as it is
   w.dialogAnswers.push(folder)

@@ -183,7 +183,8 @@ test('A1-1 · the bridge has exactly the methods docs/desktop.md lists, all func
   const calls = await s.page.evaluate(async () => [await window.streams.getAppState(), await window.streams.getAppState('C:\\Windows')])
   assert.equal(calls[0].ok, true)
   // a test world opens its empty library (test/support/app.mjs testEnv STREAMS_DEV_LIBRARY): the page sees its path and folder name
-  assert.deepEqual(calls[0].data.library, { path: s.run.library, name: 'library' }, "the test world's library")
+  // (v2 package A: and its id — the development library, not registered, goes by `dev`)
+  assert.deepEqual(calls[0].data.library, { libraryId: 'dev', path: s.run.library, name: 'library' }, "the test world's library")
   assert.deepEqual(calls[1], { ok: false, error: { code: 'bad_arguments' } })
 })
 

@@ -46,6 +46,7 @@
 | `connector.models()` / `resolveModel(connection, slot)` | 型号表；核验槽默认同主模型 | |
 | `fakeConnector({mode})` | 假连接器：fixed / bad-format-once / bad-format-always / login-expired / counting / slow | |
 | `readUsage(libraryDir, {month})` | 本月调用次数与 token | |
+| `usageTotal(libraryDirs, {month})` | **v2 包 A**（维护者 11-05「设置里显示全部库本月用量合计」）：逐库 `readUsage` 相加；`month` 默认当前 UTC 月；文件夹不在的库跳过、列进 `missing`，不报错 | `{month, calls, inputTokens, outputTokens, costUsd, byKind: {<连接>: 次数}, libraries: [{dir, calls}], missing: [dir]}` |
 
 错误码：`not-installed` · `not-logged-in` · `login-expired` · `bad-key` · `bad-model` · `rate-limited` · `network` · `timeout` · `bad-format` · `refused` · `unknown` · `not-applicable`（只有 `openLogin` 用：API 连接没有登录）。
 
@@ -273,13 +274,23 @@
 
 ## 5.10 定时与补跑（A2）· 桌面主进程做，核心只给纯函数
 
-`schedule = { enabled: boolean, time: 'HH:MM' }`（存 `settings.json`，默认 `{enabled: true, time: '08:30'}`）。核心 `src/pipeline/schedule.mjs`：
+`schedule = { enabled: boolean, time: 'HH:MM' }`（v1.0 存 `settings.json`；v2 包 A 起存每个库的 `streams.json`，见本节末；默认 `{enabled: true, time: '08:30'}`）。核心 `src/pipeline/schedule.mjs`：
 
 | 函数 | 作用 |
 |---|---|
 | `nextRunAt(schedule, now)` | 下一个定时时刻（本地时间）；`enabled:false` → `null` |
 | `lastDueAt(schedule, now)` | 最近一个已经过去的定时时刻（今天的已过就是今天，否则昨天的）；`enabled:false` → `null` |
 | `missedRun(schedule, {lastRoundAt, now})` | 补跑判定：`lastDueAt` 存在且（`lastRoundAt` 为空或早于它）→ `true`。只补一轮，不堆积（错过三天也只补一次） |
+
+**v2 包 A（11-05）：定时搬进每个库的 `streams.json`**：`schedule: { enabled, time }`（规则同上，坏字段 = 默认）。核心 `src/library/schedule.mjs`（整份读写经 `setup.mjs` 的 `loadWhole` / `saveWhole`：临时文件 + rename，两格缩进 + 末尾换行，其余键与顺序原样；不碰 `notes/`）；`src/pipeline/schedule.mjs` 多两个纯函数：
+
+| 函数 | 作用 | 返回 / 错误 |
+|---|---|---|
+| `scheduleOf(raw)` | 逐字段核：坏的那一项是 `DEFAULT_SCHEDULE` 的 | `{enabled, time}` |
+| `isSchedule(raw)` | 恰好是 `{enabled: boolean, time: 'HH:MM'}`、没有别的键 | 布尔 |
+| `readLibrarySchedule(libraryDir)` | 读库的定时；没有 `schedule` 键 → 默认、`stored: false` | `{schedule, stored}`；抛 `config:<code>` |
+| `saveLibrarySchedule(libraryDir, schedule)` | 写库的定时（只认 `isSchedule`） | `schedule`；抛 `bad-argument`（什么都不写）、`config:<code>` |
+| `ensureLibrarySchedule(libraryDir, fallback)` | **迁移**：没有 `schedule` 键时把 `scheduleOf(fallback)`（桌面传 v1.0 `settings.json` 的 `schedule`，没有就是默认）写进去；已有就照读、不写 | `{schedule, migrated}`；抛 `config:<code>` |
 
 ## 5.11 首次设置记「谁定的」（A1 / 4.10）· 有（11-04）
 
@@ -292,6 +303,32 @@
 | `SETUP_STEPS` / `SETUP_BY` | 六步与四种「谁定的」 | |
 
 `readConfig` 照旧能读带 `setup` 的文件（它只看 `topics`、`pipeline`、`notesDir`）。
+
+## 5.12 库登记 `registry`（v2 包 A）· 有（11-05）
+
+登记表 `<应用数据>\Streams\libraries.json`（`REGISTRY_FILE`；桌面在 `layout.librariesFile`）：
+
+```json
+{ "schema": "streams.libraries/1", "active": "<id> | null",
+  "libraries": [{ "id": "k3v9x0qa", "path": "D:\\库\\AI 工具", "name": "AI 工具", "icon": "A", "color": "river", "addedAt": "ISO | null" }] }
+```
+
+- `id`：8 个 `[a-z0-9]`（`ID_RE`），登记时随机生成，之后不变；`path`：绝对路径，同一个文件夹只登记一次（Windows 不分大小写）；`name` 默认文件夹名（1–100 字）；`icon` 默认名字的第一个字（1–2 字）；`color` 是 `LIBRARY_COLORS`（`river` · `violet` · `green` · `muted`）里的一个 token 名，按登记顺序轮，只存名字不存颜色值（包 F 把名字对到三套主题的 token）；`active` 不在列表里 → 第一个库（没有库就是 null）。
+- 读整份、逐字段核（`normalizeRegistry`）：坏字段 = 默认；坏的一行（不是对象、没有能用的 `id` 或绝对 `path`、`id` 或文件夹重复）丢掉并经 `log` 记一行。文件不在或读不出 → 空登记表（读不出记一行）。写整份（`writeRegistry`：先 `normalizeRegistry`，再写 `<文件>.<pid>.tmp` + rename；两格缩进 + 末尾换行）。
+- **移除登记只是不再登记**：`withoutLibrary` 只去掉那一行，绝不碰那个文件夹里的任何东西。
+
+| 函数 | 作用 | 返回 / 错误 |
+|---|---|---|
+| `readRegistry(file, {log?})` / `writeRegistry(file, registry)` | 见上 | 登记表 |
+| `normalizeRegistry(raw, {log?})` / `emptyRegistry()` | 逐字段核 / 空表 | 登记表 |
+| `withLibrary(registry, path, {now?, name?})` | 登记一个文件夹（已登记 → 原表与那一行，`added: false`） | `{registry, entry, added}`；抛 `bad-argument`（不是绝对路径） |
+| `withoutLibrary(registry, id)` | 去掉登记；它是 `active` 时，`active` 变成顶替它位置的那个（下一个；它是最后一个就是新的最后一个），一个不剩就是 null | 登记表；抛 `unknown-library` |
+| `withActive(registry, id)` / `withMeta(registry, id, {name?, icon?, color?})` | 换当前库 / 改名字、图标、颜色（只改给了的键，逐个核） | 登记表；抛 `unknown-library`、`bad-argument` |
+| `libraryOf(registry, id)` / `libraryAt(registry, path)` | 按 id / 按文件夹找一行 | 那一行或 null |
+| `migrateRegistry({libraryPath, recentLibraries}, {exists?, now?, log?})` | **迁移**：v1.0 `settings.json` 的当前库排第一并设为 `active`，其余按最近顺序；不存在的文件夹不登记（记一行）；当前库本身不在 → 第一个登记的为 `active` | 登记表 |
+| `newLibraryId(taken)` · `defaultIcon(name)` · `colorFor(n)` | 生成 id、默认图标、第 n 个的颜色 | |
+
+桌面怎么用（`docs/desktop.md` §4.4）：应用启动时没有 `libraries.json` 就 `migrateRegistry(settings.json)` 写一份；之后 `settings.json` 的 `libraryPath` / `recentLibraries` 只读不写。
 
 ## 六、桌面桥（desktop 主进程 → 页面）
 

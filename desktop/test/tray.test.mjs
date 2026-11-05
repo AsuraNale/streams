@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:http'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { APP } from '../src/main/texts/app.js'
 import { NOTIFY } from '../src/main/texts/notify.js'
 import { worldSession } from './support/seed.mjs'
@@ -107,7 +107,8 @@ test('missed: the last round before the last slot → one round at start, one no
   await until(() => notifications(missed.world).length >= 1, 'the notification')
   const sent = notifications(missed.world)
   assert.equal(sent.length, 1, 'one notification')
-  assert.deepEqual([sent[0].kind, sent[0].screen, sent[0].body], ['newItems', 'inbox', NOTIFY.kinds.newItems.replace('{n}', '2')])
+  // v2 package A: the notification names the library (here the development one: its folder's name)
+  assert.deepEqual([sent[0].kind, sent[0].screen, sent[0].body], ['newItems', 'inbox', NOTIFY.kinds.newItems.replace('{n}', '2').replace('{library}', basename(missed.world.library))])
   // only one: a wake from sleep looks again and finds nothing owed
   await missed.app.evaluate(({ powerMonitor }) => { powerMonitor.emit('resume') })
   await until(() => mainLog(missed.world).includes('schedule: resume: nothing missed'), 'the look after waking')

@@ -25,7 +25,8 @@ const DETAIL_MAX = 2000;
 
 const badSetup = (message) => new StreamsError('bad-setup', message);
 
-function loadWhole(libraryDir) {
+// streams.json read whole / written whole (also the library schedule's, schedule.mjs)
+export function loadWhole(libraryDir) {
   const r = readConfig(libraryDir);
   if (!r.ok) throw new StreamsError(`config:${r.error.code}`, r.error.message);
   let raw = readFileSync(join(libraryDir, CONFIG_FILE), 'utf8');
@@ -33,7 +34,7 @@ function loadWhole(libraryDir) {
   return JSON.parse(raw);
 }
 
-function saveWhole(libraryDir, whole) {
+export function saveWhole(libraryDir, whole) {
   const path = join(libraryDir, CONFIG_FILE);
   const tmp = `${path}.${process.pid}.tmp`;
   rmSync(tmp, { force: true });

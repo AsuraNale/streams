@@ -80,13 +80,14 @@ frame-ancestors 'none'
 | 位置 | 打包后的应用 | 开发与测试 | 放什么 |
 |---|---|---|---|
 | **受保护目录** `appData` | `%APPDATA%\Streams` | `STREAMS_APP_DATA` | 下面各项；`protectedDirs = [appData]` |
-| `settings.json` | ↑ 下 | ↑ 下 | `language`、`libraryPath`、`showDeveloperInfo`（`settings.mjs`） |
+| `settings.json` | ↑ 下 | ↑ 下 | `language`、`libraryPath`、`showDeveloperInfo`（`settings.mjs`）；v2 包 A 起 `libraryPath` / `recentLibraries` / `schedule` 只读不写（留作迁移来源，§4.4） |
+| `libraries.json` | ↑ 下 | ↑ 下 | **v2 包 A**：库登记表（核心 registry，`layout.librariesFile`；§4.4） |
 | `secrets\` | | | `key-<厂商>.bin`：各条连接的 API key，`safeStorage` 加密，盘上不留明文（`secrets.mjs`；今天只定名字） |
 | `updates\` | | | 新版本的安装程序（`services/update.mjs`），下一次启动时清空 |
 | `logs\` | | | `main.log`（应用自己的诊断）、测试时的 `clipboard.txt`、`notifications.jsonl` |
 | `electron\` | | | Chromium 自己的数据（缓存、`safeStorage` 用的密钥） |
 | **本地数据** `localData` | `%LOCALAPPDATA%\Streams` | `STREAMS_LOCAL_DATA` | `cache\`：以后的抓取缓存、索引（不漫游） |
-| **库** | `settings.json` 的 `libraryPath`（用户选的 Markdown 文件夹） | `STREAMS_DEV_LIBRARY` | 用户的库；今天侧栏只显示「未打开库」 |
+| **库** | `libraries.json` 登记的文件夹，当前库是它的 `active`（v1.0 是 `settings.json` 的 `libraryPath`） | `STREAMS_DEV_LIBRARY` | 用户的库；每个库的定时在它自己的 `streams.json`（§4.4） |
 
 两个顶层目录不许互相包含（`layout.mjs checkOverlaps`）。开发与测试**必须**给 `STREAMS_APP_DATA`、`STREAMS_LOCAL_DATA`，不给就不启动（`missing_dev_paths`）。Electron 的 `userData` / `sessionData` / `crashDumps` / 日志目录在 `ready` 之前就指进受保护目录。
 
@@ -97,7 +98,7 @@ frame-ancestors 'none'
 <!-- bridge:begin -->
 | 方法 | 参数 | 返回的 `data` | 谁用 |
 |---|---|---|---|
-| `getAppState()` | 无 | `{ library: { path, name } \| null, recentLibraries: [{ path, name }], showDeveloperInfo, language: { setting, resolved }, version, devBuild, theme }`；`library` 是打开的库（侧栏显示 `name`，没有就是「未打开库」）；`version` 是 `installer/setup/release.json` 的版本，`devBuild` 为真时是开发版；`theme` 是 `river` · `paper` · `night` 之一（§五「主题」） | `app.js`（每一屏经 `useApp().appState`）、设置页 |
+| `getAppState()` | 无 | `{ library: { libraryId, path, name } \| null, recentLibraries: [{ path, name }], showDeveloperInfo, language: { setting, resolved }, version, devBuild, theme }`；`library` 是当前库（侧栏显示 `name`，没有就是「未打开库」；v2 包 A 起带登记 id `libraryId`，`name` 是登记表的名字，默认文件夹名）；`recentLibraries` 是登记表里的库（v2 包 A 起不再读 `settings.json`）；`version` 是 `installer/setup/release.json` 的版本，`devBuild` 为真时是开发版；`theme` 是 `river` · `paper` · `night` 之一（§五「主题」） | `app.js`（每一屏经 `useApp().appState`）、设置页 |
 | `onEvent(topic, callback)` | 下面事件表里的一个主题；一个函数 | 不是信封：返回取消订阅的函数；主题不在表里、`callback` 不是函数就抛错 | `app.js` |
 | `setLanguage(language)` | `'auto'` · `'zh-CN'` · `'en'` | `{ setting, resolved, changed }`；写进设置并重新决定界面语言；`changed` 为真时页面自己重新载入（§六） | 设置页「语言」 |
 | `setTheme(id)` | `'river'` · `'paper'` · `'night'`（别的 → `bad_arguments`） | `{ theme }`；写进 `settings.json` 的 `theme`，主进程跟着改 `nativeTheme.themeSource`（`night` → `dark`，另两套 → `light`）和窗口底色（那一套的 `--st-page`）；发 `settings-changed`。页面自己马上把 `<html data-theme>` 换掉（§五「主题」） | 设置页「主题」 |
@@ -113,8 +114,8 @@ frame-ancestors 'none'
 | `installUpdate()` | 无 | `{ ok: true }` 安装程序已启动、应用随即退出；或 `{ ok: false, reason }` | 设置页「开始更新」 |
 | `openReleasePage()` | 无 | `null`；在用户的浏览器里打开这一版的发布页（测试时只记日志） | 设置页「打开发布页」 |
 | `chooseLibraryFolder()` | 无 | 主进程开系统的选文件夹对话框（测试与开发：`STREAMS_DEV_CHOOSE_FOLDER=<绝对路径>` 代替对话框）；`{ path, name, state: 'empty' \| 'library' \| 'importable' \| 'other', mdCount? } \| null`（取消是 null；`importable` = 没有 `streams.json`、第一层有 `.md`，`mdCount` 是那一层 `.md` 的个数，11-04 加）。主进程记住这次选择，页面不回传路径 | S1 第 1 步、设置「新建库」「打开已有文件夹」 |
-| `useChosenFolder(name)` | 库名字符串（空串 = 用文件夹名） | 对上一次 `chooseLibraryFolder` 的选择：`empty` → `createLibrary` 建库；`library`（已有 `streams.json`）→ 打开；`importable` → 核心 `importFolder`（在旁边写 `streams.json` 与 `_pipeline/`，不碰已有文件，`notesDir: "."`）再打开；`other` → `open_failed`。写 `settings.libraryPath`、进 `recentLibraries`；发 `library-changed`；返回 `{ path, name }`（没选过文件夹 → `bad_arguments`） | S1 第 1 步、设置「库」 |
-| `openRecentLibrary(path)` | 必须是 `recentLibraries` 里的一条，否则 `bad_arguments` | 同上的打开；那个文件夹里的 `streams.json` 读不出 → `open_failed` | 设置「库 · 其他」 |
+| `useChosenFolder(name)` | 库名字符串（空串 = 用文件夹名） | 对上一次 `chooseLibraryFolder` 的选择：`empty` → `createLibrary` 建库；`library`（已有 `streams.json`）→ 打开；`importable` → 核心 `importFolder`（在旁边写 `streams.json` 与 `_pipeline/`，不碰已有文件，`notesDir: "."`）再打开；`other` → `open_failed`。登记进 `libraries.json`（已登记就不重复）并设为当前库（v2 包 A；不再写 `settings.json`）；发 `libraries-changed`、`library-changed`；返回 `{ libraryId, path, name }`（没选过文件夹 → `bad_arguments`） | S1 第 1 步、设置「库」 |
+| `openRecentLibrary(path)` | 必须是 `recentLibraries` 里的一条（= 登记表里某个库的路径，原样），否则 `bad_arguments` | 同上的打开；那个文件夹里的 `streams.json` 读不出 → `open_failed` | 设置「库 · 其他」 |
 | `rebuildIndex()` | 无 | `{ count, pending: [{file, codes}] }`；`no_library` | 设置「重建索引」 |
 | `revealLibrary()` | 无 | `null`；在资源管理器里显示库文件夹（测试只记日志） | S1 第 1 步「这个文件夹你随时可以打开」 |
 | `recordSetupStep(step, entry)` | `step` ∈ `library` · `connection` · `pack` · `sources` · `trial` · `schedule`；`entry = { by, detail? }`，`by` ∈ `chose` · `wrote` · `default` · `skipped`（核心 `recordSetupStep` 判，不认识 → `bad_arguments`） | `{ step, by, at, detail? }`；写进打开的库的 `streams.json` 的 `setup`（那一步的记录被新的替换，别的步不动；经临时文件 + rename）；`no_library` | 首次设置每一步走完时（§4.1「首次设置」） |
@@ -133,17 +134,26 @@ frame-ancestors 'none'
 | `getHome()` | 无 | 见 §4.1「今日」 | S2 |
 | `estimateRound()` | 无 | 核心 `estimateRound` + `{ connection: { kind, model, verifyModel } }` | S12 |
 | `setRoundCap(cap)` | 正整数 | `{ cap }`；写 `streams.json` 的 `pipeline.cap` | S12「改上限」、设置「每轮上限」 |
-| `startRound()` | 无 | `{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；一轮在跑时 `bad_arguments`。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | S12「开始」、S13「重试打分」 |
+| `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；一轮在跑时 `bad_arguments`（v2 包 A：走全应用的队列，任何库的一轮在跑或有库在排队都算，见 §4.4）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | S12「开始」、S13「重试打分」 |
 | `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 「今日」进度条旁 |
-| `getRoundState()` | 无 | `{ running, roundId, progress, last: runRound 的返回 \| null, lastProblems }` | S2 |
+| `getRoundState()` | 无 | `{ running, roundId, libraryId, progress, last: runRound 的返回 \| null, lastProblems }`（`libraryId`：那一轮是哪个库的，v2 包 A；全应用同一时间只有一轮） | S2 |
 | `getInbox()` | 无 | `{ items: 核心 listInbox(), recentDismissReasons: [{ts, reason, title}] }` | S3 |
 | `keepItem(url)` | url 必须在 inbox 里 | `{ id, file }`（`file` = `notes/` 里的文件名）；发 `inbox-changed`、`library-changed`（索引重建了） | S3「收藏」 |
 | `dismissItem(url, reason)` | 理由非空，否则 `bad_arguments` | `{ url }`；发 `inbox-changed` | S3「放弃」 |
 | `laterItem(url)` | | `{ url }`；不写盘 | S3「稍后」 |
 | `openItemUrl(url)` | 必须是 inbox 里或索引里某条的 `source`，否则 `bad_arguments` | `null`；`shell.openExternal`（测试只记日志） | S3「打开原文」 |
 | `getPipelineSettings()` | 无 | `{ cap, thresholds: { relevance, substance }, schedule }`；`schedule` = `getSchedule()` 的返回 | 设置「运行」 |
-| `getSchedule()` | 无 | `{ enabled, time, nextRunAt: ISO \| null, lastRoundAt: ISO \| null, missed: boolean }`（§4.3；没打开库时 `lastRoundAt` 为 null、`missed` 为 false） | 设置「运行」、今日顶栏「下次运行」 |
-| `setSchedule(schedule)` | `{ enabled: boolean, time: 'HH:MM' }`（00:00–23:59，别的键 → `bad_arguments`） | 同上；写 `settings.json`、重设定时器；发 `settings-changed` | 设置「运行」、首次设置最后一步 |
+| `getSchedule()` | 无 | 当前库的定时：`{ libraryId, enabled, time, nextRunAt: ISO \| null, lastRoundAt: ISO \| null, missed: boolean }`（§4.3–4.4；没打开库时是 `settings.json` 的、`libraryId` / `lastRoundAt` 为 null、`missed` 为 false） | 设置「运行」、今日顶栏「下次运行」 |
+| `setSchedule(schedule)` | `{ enabled: boolean, time: 'HH:MM' }`（00:00–23:59，别的键 → `bad_arguments`） | 同上；写**当前库的 `streams.json`** 的 `schedule`（v2 包 A；v1.0 写 `settings.json`）、重设定时器；发 `settings-changed { libraryId }`；没打开库 → `no_library` | 设置「运行」、首次设置最后一步 |
+| `listLibraries()` | 无 | **v2 包 A**：登记表的库，按登记顺序：`[{ id, path, name, icon, color, addedAt, temporary, active, exists }]`；`exists` = 文件夹在、`streams.json` 读得出；`temporary` 只有开发钩子 `STREAMS_DEV_LIBRARY` 指的、没登记的那个库（id `dev`，排第一，不写进登记表）；`active` = 当前库 | 包 F 的左栏、库架 |
+| `setActiveLibrary(id)` | 登记表里的 id（不认识 → `bad_arguments`） | 换当前库，返回 `{ libraryId, path, name }`；文件夹不在或读不出 → `open_failed`，什么都不变；发 `libraries-changed`、`library-changed`、`settings-changed`。原有的库相关方法签名不变，都作用于当前库 | 包 F 切库 |
+| `addLibrary(path)` | 必须是上一次 `chooseLibraryFolder` 给的那个路径（页面不另给路径），否则 `bad_arguments` | 「添加已有库」= 打开已有文件夹：那里没有库 → `open_failed`；登记（已登记就不重复）并设为当前库；返回同 `useChosenFolder` | 包 F「添加已有库」 |
+| `removeLibrary(id)` | 登记表里的 id（不认识、或开发钩子那个临时库 → `bad_arguments`） | `{ removed, active }`：**只去掉登记，绝不删文件夹里的任何东西**；移除的是当前库时，当前库变成顶替它位置的那个（下一个；它是最后一个就是新的最后一个），一个不剩就是 null（之后库相关方法回 `no_library`）；发 `libraries-changed`（当前库变了再发 `library-changed`、`settings-changed`） | 包 F |
+| `setLibraryMeta(id, meta)` | `meta = { name?, icon?, color? }`，至少一个；`name` 1–100 字、`icon` 1–2 字、`color` ∈ 核心 `LIBRARY_COLORS`（token 名）；不认识的 id、坏值 → `bad_arguments`，什么都不写 | `{ id, name, icon, color }`；发 `libraries-changed`；改的是当前库再发 `library-changed`（侧栏的名字跟着变） | 包 F 库页 |
+| `getLibrariesOverview()` | 无 | 每个库一行：`[{ id, name, icon, color, inbox, lastRoundAt, problem }]`；`inbox` / `lastRoundAt` 来自核心 `homeNumbers`（`numbers.inbox`、`numbers.lastRound.startedAt`）；`problem` 三选一或 null，按这个顺序：`missing`（文件夹不在或读不出）· `sources`（来源出问题：`numbers.sources.level` 为 `warning` 或 `blocked`）· `no-output`（连续 `NO_OUTPUT_ROUNDS` 轮没有产出） | 包 F 左栏的待看数与琥珀点、库架 |
+| `getLibrarySchedule(id)` | 登记表里的 id | 那个库的定时，形状同 `getSchedule`；不认识 → `bad_arguments`；文件夹不在 → `open_failed` | 包 F 库页、设置一览 |
+| `setLibrarySchedule(id, schedule)` | id + 同 `setSchedule` | 写那个库的 `streams.json`；同 `setSchedule` | 同上 |
+| `getUsageTotal()` | 无 | 全部库本月用量合计（维护者 11-05）：核心 `usageTotal`，`{ month, calls, inputTokens, outputTokens, costUsd, byKind: { <连接>: 次数 }, libraries: [{ id, name, calls, missing }] }`；`month` 是主进程时钟的 UTC 月；文件夹不在的库 `calls: 0, missing: true`，不报错 | 包 F / I 的设置页 |
 | `getLibrary(view, filter)` | `view` ∈ `kept` · `authored` · `caught` · `pending`；`filter = { topics: string[], days: number \| null }` | `{ counts: 核心 libraryCounts, view, items, total }`（核心 `listLibrary`） | S6 |
 | `searchLibrary(q, filter)` | 字符串（≤ 200 字）；`filter = { view: 'kept' \| 'authored' \| 'all', topics, days }` | 核心 `search` 的结果数组 | S6 搜索框 |
 | `readNote(id)` | id 必须在索引里，否则 `bad_arguments` | 核心 `readNote` | S6 正文与右栏 |
@@ -203,7 +213,7 @@ frame-ancestors 'none'
   "problem": { "code": "connection" | "not-writable" | "index", "connectionCode": "login-expired" | …, "kind": "claude-code", "caughtKept": 34 } | null }   // 上一次 startRound 的自检失败 → S13
 ```
 
-**事件**（下表加四个）：`library-changed`（payload `{ path, name } | null`）、`connections-changed`（`null`）、`round-progress`（`{ roundId, phase: 'self-check' | 'fetch' | 'gate:<id>' | 'summary' | 'done', counts, calls, cap, done: boolean, result?, problems? }`）、`inbox-changed`（`{ count }`）。
+**事件**（下表加四个）：`library-changed`（payload `{ path, name } | null`）、`connections-changed`（`null`）、`round-progress`（`{ roundId, phase: 'self-check' | 'fetch' | 'gate:<id>' | 'summary' | 'done', counts, calls, cap, done: boolean, result?, problems? }`）、`inbox-changed`（`{ count }`）。v2 包 A 起和某个库有关的都多一个 `libraryId`（见下面的事件表与 §4.4）。
 
 **开发与测试的钩子**（打包后的应用不认）：`STREAMS_DEV_CHOOSE_FOLDER=<绝对路径>`（代替选文件夹对话框）、`STREAMS_DEV_CONNECTION=fake | login-expired | bad-format-once`（三种连接全部换成核心的假连接器 / 脚本连接器，`detect` 回「已装已登录」，probe 与一轮都走它；`login-expired` 让自检失败，演 S13）、`STREAMS_DEV_LIBRARY`（已有）。
 
@@ -215,7 +225,7 @@ frame-ancestors 'none'
 - `round-progress`：`phase` 为 `self-check`（`startRound` 一进来）→ `fetch`（自检过了、后台开始）→ 每条打完 `gate:<id>` / `summary` → `done`。`counts` 在 `fetch` 阶段为 null；`cap` 是这一轮用的上限。后台抛了异常也发 `done`，`result: null`、`problems: [{ code: 'internal', detail }]`，并进 `getRoundState().lastProblems`。
 - `getRoundState().roundId`：在跑时是当前这轮的，否则是上一轮的（没跑过为 null）；`progress` 是最后一条 `round-progress` 的 payload。
 - `applyStarterPack` 整体替换 `streams.json` 的 `topics` / `sources`（首次设置只做一次），其余键（`name`、`pipeline`、页面写的 `setup`）原样保留；坏的 `edits`（不是 http(s) 地址、重名）→ `bad_arguments`，什么都不写。来源名重复 → `bad_arguments`。
-- `rebuildIndex()` 也发一次 `library-changed`；`useChosenFolder` / `openRecentLibrary` 打开时顺手重建一次索引（失败只记日志），并额外发 `settings-changed`（`libraryPath` 变了）。
+- `rebuildIndex()` 也发一次 `library-changed`；`useChosenFolder` / `openRecentLibrary` 打开时顺手重建一次索引（失败只记日志），并额外发 `settings-changed`（当前库变了；v2 包 A 起写的是登记表，不是 `libraryPath`）。
 - 开发钩子 `STREAMS_DEV_CONNECTION` 下 `api` 的 `hasKey` / `keyHint` 仍看真的密钥仓，`loggedIn` 看假连接器。
 
 **首次设置**（S1，`screens/first-run.js`）：没打开库时 `app.js` 显示它（代替侧栏九入口），四步在自己的侧栏里：库放哪 → 连接方式 → 主题与来源 → 试跑一轮；每步的「谁定的」（用户选的 / 接受默认 / 跳过）记进 `streams.json` 的 `setup`（核心不读它）。连接步可跳过。做完 → `today`。
@@ -251,7 +261,7 @@ frame-ancestors 'none'
 **实做差别（界面 B 主进程）**（11-03 主进程建方，以代码为准；契约原文不改）：
 
 - 参数检查（`bridge-methods.mjs`）：`getLibrary` / `searchLibrary` / `getGraph` 的 `filter` 可以是 `null`（= `{}`），键都可省，多出的键 → `bad_arguments`；`topics` ≤ 50 个、每个 ≤ 100 字；`days` 为 `null` 或正整数。`editNote` 的 `changes` 至少一个键，`title` 非空 ≤ 300 字，`topics` 非空字符串 ≤ 20 个，`body` ≤ 100 万字。id ≤ 200 字，名字 ≤ 100 字，url ≤ 2000 字；来源 / 主题对象、patch 写成 JSON ≤ 1 万字，`savePipeline` 的整份配置 ≤ 20 万字。`addDemand` 的 `question` 可为空串（≤ 500 字）；`answerFeedback` 的问题 ≤ 500 字、意见 ≤ 2000 字。
-- 核心错误码 → 桥：`bad-argument` · `bad-edit` · `invalid-note` · `not-editable` · `bad-source` · `bad-topic` · `bad-input` · `bad-url` · `bad-feedback` · `bad-question` · `bad-view` · `locked-node` · `bad-config` · `not-found` 与一切 `duplicate-*` → `bad_arguments`（`bridge-methods.mjs CORE_BAD_ARGUMENT_CODES`）；其余 → `internal`。核心还没有的函数（W5 未落地时）→ `internal`，日志写函数名。
+- 核心错误码 → 桥：`bad-argument` · `bad-edit` · `invalid-note` · `not-editable` · `bad-source` · `bad-topic` · `bad-input` · `bad-url` · `bad-feedback` · `bad-question` · `bad-view` · `locked-node` · `bad-config` · `not-found`（v2 包 A 加 `unknown-library`：登记表里没有的 id）与一切 `duplicate-*` → `bad_arguments`（`bridge-methods.mjs CORE_BAD_ARGUMENT_CODES`）；其余 → `internal`。核心还没有的函数（W5 未落地时）→ `internal`，日志写函数名。
 - 「库里已有」的核法：`readNote` / `editNote` / `openInObsidian` 的 id 在 `readIndex` 里；`previewNode` / `getVerdicts` 的 url 在 `replayLedger` 的 states 里；`updateSource` / `removeSource` / `setSourcePaused` 与 `updateTopic` / `removeTopic` 的名字先在 `streams.json` 里查一遍，没有 → `bad_arguments`。
 - `openInObsidian`：核心 `notePath` 给的路径必须在 `<库>/notes/` 之内（按文字核），否则 `internal`；`openExternal` 失败才 `openPath`，`openPath` 也失败 → `open_failed`。`openLogsFolder`：文件夹不在或 `openPath` 失败 → `open_failed`。hidden 下两者都只记日志、回 `null`。
 - `trySource`：只取来源对象里抓取器读的键（`name` `kind` `url` `query` `topic` `min_points` `max_results`）；`kind` 不在核心 `SOURCE_KINDS`、rss 没有 http(s) 地址、arXiv / HN 没有检索词 → `bad_arguments`，不发请求。`sample` 每项 `{ title, date }`，`http` 没有时为 `null`。
@@ -276,13 +286,14 @@ frame-ancestors 'none'
 <!-- events:begin -->
 | 主题 | `payload` | 什么时候发 | 谁在听 |
 |---|---|---|---|
-| `settings-changed` | `null` | 设置变了（语言、库、开关） | `app.js`：重读应用状态 |
+| `settings-changed` | `null`；某个库的定时变了时 `{ libraryId }` | 设置变了（语言、库、开关、定时） | `app.js`：重读应用状态 |
 | `open-screen` | `{ screen }` | 页面该去某一屏：点了应用的 Windows 通知（`services/notify.mjs`） | `app.js` |
 | `update` | `getUpdateState()` 的同一份数据 | 更新有了新东西：开始检查、检查完、下载进度、下完 / 失败 / 校验不过、开始启动安装 | 设置页「关于」（`lib/use-update.js`） |
-| `library-changed` | `{ path, name } \| null` | 打开 / 新建了库，或索引重建了（收藏之后） | `app.js`：重读应用状态；今日 |
+| `library-changed` | `{ libraryId, path, name } \| null`（当前库） | 打开 / 新建 / 切换 / 改名了当前库，或它的内容变了（索引重建、收藏、来源…） | `app.js`：重读应用状态；今日 |
+| `libraries-changed` | `{ libraryId }`（涉及的那个库） | **v2 包 A**：登记表变了（登记、移除、切换、改名字图标颜色） | 包 F 的左栏、库架；主进程自己：重设定时器 |
 | `connections-changed` | `null` | 连接的设置变了（选定、模型槽、key 存了或删了） | 设置、S1 |
-| `round-progress` | `{ roundId, phase, counts, calls, cap, done, result?, problems? }` | 一轮的每个阶段开始、每条打完分、跑完或停下 | 今日、S12 |
-| `inbox-changed` | `{ count }` | 待看变了（一轮写入、收藏、放弃） | 侧栏角标、待看、今日 |
+| `round-progress` | `{ roundId, libraryId, phase, counts, calls, cap, done, result?, problems? }` | 一轮的每个阶段开始、每条打完分、跑完或停下（哪个库的一轮都发，带它的 `libraryId`） | 今日（只认当前库的）、S12 |
+| `inbox-changed` | `{ libraryId, count }` | 某个库的待看变了（一轮写入、收藏、放弃） | 侧栏角标（只认当前库的 `count`）、待看、今日 |
 <!-- events:end -->
 
 **加一个主题**：`src/main/events.mjs` 的 `EVENT_TOPICS` 加一项、`src/preload/preload.cjs` 的 `EVENT_TOPICS` 加同名、上表加一行；少一处 `npm test` 就红。
@@ -291,16 +302,16 @@ frame-ancestors 'none'
 
 **托盘与定时（A2）**：
 - 应用启动后在系统托盘放一个图标（`assets/icon` 的那个），提示文字「流息 · n 条待看」（随 `inbox-changed` 更新），菜单：「打开流息」「现在跑一轮」「退出」（字放 `src/main/texts/app.js` 与 `texts-en/app.js`）。
-- **关窗口不退出**：`schedule.enabled` 为真时，点窗口的关闭按钮是把窗口藏起来、留在托盘；只有托盘菜单的「退出」或 `schedule.enabled` 为假时才真正退出（方案「想关就关软件」）。测试世界（hidden）里照这个规则走，但不建真托盘图标，改记日志（`tray: …`）。
-- **定时**：主进程按核心 `nextRunAt` 设一个定时器；到点时若打开着库、没有一轮在跑，就 `startRound()`；系统从睡眠醒来（`powerMonitor` 的 `resume`）时重算。
-- **补跑**：启动时（库打开之后）与醒来时，核心 `missedRun(schedule, {lastRoundAt: rounds.jsonl 最后一行的 startedAt, now})` 为真就跑**一轮**，不堆积。
-- **一轮跑完的提示**：`services/notify.mjs` 发一条「这一轮进来 n 条待看」（n = 这一轮写进待看的条数，0 条不发），点了打开待看。
+- **关窗口不退出**：`schedule.enabled` 为真时（v2 包 A：**任一个**能读的库的定时开着），点窗口的关闭按钮是把窗口藏起来、留在托盘；只有托盘菜单的「退出」或所有库的定时都关着时才真正退出（方案「想关就关软件」）。测试世界（hidden）里照这个规则走，但不建真托盘图标，改记日志（`tray: …`）。
+- **定时**：主进程按核心 `nextRunAt` 设一个定时器；到点时若打开着库、没有一轮在跑，就 `startRound()`；系统从睡眠醒来（`powerMonitor` 的 `resume`）时重算。v2 包 A 起逐库、经队列，见 §4.4。
+- **补跑**：启动时（库打开之后）与醒来时，核心 `missedRun(schedule, {lastRoundAt: rounds.jsonl 最后一行的 startedAt, now})` 为真就跑**一轮**，不堆积。v2 包 A 起逐库适用，见 §4.4。
+- **一轮跑完的提示**：`services/notify.mjs` 发一条「这一轮进来 n 条待看」（n = 这一轮写进待看的条数，0 条不发），点了打开待看。v2 包 A 起前面带库名：「<库名>：这一轮进来 n 条待看」（`texts/notify.js` / `texts-en/notify.js` 的 `newItems`）。
 - 开发与测试钩子：`STREAMS_DEV_NOW=<ISO 时间>` 代替「现在」（定时与补跑测试用）。
 
 | 桥方法（加进 §四表） | 参数 | 返回 | 谁用 |
 |---|---|---|---|
 | `getSchedule()` | 无 | `{ enabled, time, nextRunAt: ISO \| null, lastRoundAt: ISO \| null, missed: boolean }` | 设置「运行」、今日顶栏「下次运行」 |
-| `setSchedule(schedule)` | `{ enabled: boolean, time: 'HH:MM' }`（00:00–23:59） | 同上；写 `settings.json`；发 `settings-changed` | 设置「运行」、首次设置最后一步 |
+| `setSchedule(schedule)` | `{ enabled: boolean, time: 'HH:MM' }`（00:00–23:59） | 同上；写 `settings.json`（v2 包 A 起写当前库的 `streams.json`，§4.4）；发 `settings-changed` | 设置「运行」、首次设置最后一步 |
 | `applyHeader(file, header)` | `file` 在待规范里；`header` 是对象或 `null`（用拟好的） | 核心 `applyProposedHeader` 的返回；`not-proposable` / `bad-file-name` / `already-conforming` → `bad_arguments`；发 `library-changed` | S8 |
 | `applyAllHeaders()` | 无 | `{ written: [file…], skipped: [{file, code}] }`：对每个拟得出文件头的待规范文件按拟的写入 | S8「全部按拟的写入」 |
 
@@ -312,6 +323,32 @@ frame-ancestors 'none'
 - 今日顶栏「下次运行 明天 08:30」（`nextRunAt`；关着时「定时没开」）。
 - 资料库「待规范」分页（S8）：每个文件一张卡：问题（缺文件头 / 缺 source 和 date / …）、「流息拟的文件头（可改）」textarea（YAML，预填 `proposedHeader`）、「写入这一个」「跳过」；顶上「全部按拟的写入」；说明「这些文件已经在你的文件夹里，流息没有动它们。给它们加上文件头后才会进库。正文一个字不改。」；拟不出的、文件名不能当 id 的如实说明怎么办；`skippedDirs` 非空时说明子文件夹这一版不读。
 - 待看：J / K 移动时把**键盘焦点**也移到当前卡片（`card.focus()`），读屏跟得上（Richard 11-03 的观察）。
+
+### 4.4 §四补：库登记、每库定时、排队（v2 包 A，11-05）
+
+契约 `docs/checks/2026-11-05-wp-a/contract.md`；为什么是「当前库」而不是每个方法多一个 `libraryId`：`docs/design/v2/architecture.md` 第三节「桥」一行。
+
+**登记表与当前库**（`services/library.mjs`，核心 `registry`，`docs/core-api.md` 5.12）：
+- `<appData>\libraries.json`（`layout.librariesFile`）：`{ schema: 'streams.libraries/1', active, libraries: [{ id, path, name, icon, color, addedAt }] }`。读整份、逐字段核（坏字段 = 默认，坏的一行丢掉并记日志），写整份（临时文件 + rename）。
+- **当前库** = 登记表的 `active`。桥上原有的库相关方法签名不变，都作用于当前库；跨库的事用 §四表里的新方法、显式带 id。主进程自己（定时，以后的主 Agent 与提议卡）按库的文件夹直接调核心，不经桥。
+- 打开 / 新建 / 导入（`useChosenFolder`、`openRecentLibrary`、`addLibrary`）= 登记（已登记就不重复）并设为当前库。移除登记只是不再登记，绝不删文件夹里的任何东西。
+- **迁移**：启动时没有 `libraries.json`，就用 v1.0 `settings.json` 的 `libraryPath`（排第一、设为当前库）与 `recentLibraries`（其余按最近顺序）建一份；不存在的文件夹不登记（记日志）。`settings.json` 的这两个字段之后只读不写（留作迁移来源，不删）。已有 `libraries.json` 就不再迁移。
+- 开发钩子 `STREAMS_DEV_LIBRARY` 仍然优先：它指的文件夹登记过就是那个库；没登记就临时当作当前库（id `dev`，`listLibraries` 里 `temporary: true`），不写进登记表；打开或切到别的库后它就结束。
+- 和某个库有关的事件都带 `libraryId`：`round-progress`、`inbox-changed`、`library-changed`；登记表变了发新事件 `libraries-changed`。v1.0 的页面据此只认当前库的：侧栏角标（`lib/use-events.js useInboxCount`）与今日的进度框（`screens/today.js`）不理别的库的事件；页面结构不变。
+
+**每库定时**（`services/schedule.mjs`，核心 `src/library/schedule.mjs`）：
+- 定时在每个库的 `streams.json`：`schedule: { enabled, time }`（规则同 v1.0，坏值 = 默认 `{ enabled: true, time: '08:30' }`）。**迁移**：库的 `streams.json` 没有 `schedule` 时，第一次被定时读到（排定时器、补跑、`getSchedule`）就把 v1.0 `settings.json` 的 `schedule`（没有就是默认）写进去（核心 `ensureLibrarySchedule`，整份原子写法，其余字段原样）；已有就照读。
+- 每轮上限仍是库的 `pipeline.cap`（v1.0 `pipelineConfig`），桥上原有的方法照旧作用于当前库。
+- 定时对所有登记了、文件夹在、`streams.json` 读得出的库生效（开发钩子的临时库也算），各按自己的 `schedule`；读不了的库跳过，记一行日志（同一个库只记一次，好了再坏再记），别的库照跑。
+- 计时器规则照旧（一次最多等 `MAX_WAIT_MS`、每次重看时钟、触发过的时刻不再触发），逐库记；一个定时器等所有库里最早的那个时刻。登记表变了（`libraries-changed`）就重排。
+
+**排队**：
+- **同一时间只跑一轮**：一个全局队列，按到点先后；同一个库已在队列里或正在跑 → 不重复入队（记日志）。前一轮跑完（`onRoundDone`）才开下一个；没开起来的（自检失败）让下一个接着开。
+- **手动「现在跑一轮」（页面的 `startRound`、托盘菜单）也走这个队列，选的是「回『正在跑』的错误」**：队列空闲 → 当前库的一轮马上开（占住队列，期间到点的库排在它后面）；队列忙（任何库的一轮在跑、在开、或有库在排队）→ 页面的 `startRound` 照 v1.0 的规矩回 `bad_arguments`（「一轮在跑」），托盘只记一行日志；手动的从不排进队列。理由：v1.0 的页面已经会处理这个错误，排队则要页面能显示「排在第几」（包 F 的事）。
+- **补跑**（启动与睡醒时）：每个库按自己的 `schedule` 与自己 `rounds.jsonl` 最后一轮看欠不欠，欠就补**一轮**（三天没开也只补一轮）；几个库都欠就按各自欠的那个时刻先后依次排队。
+- **关窗口进托盘**：任一库的定时开着（v1.0 是「定时开着」）。
+- **通知**：一轮写进待看 n 条 → 「<库名>：这一轮进来 n 条待看」（`newItems`，中英两张表都有）；0 条不发。
+- 测试：`test/services-schedule.test.mjs`（v1.0 的单库规则）、`test/services-queue.test.mjs`（多库、队列、补跑、跳过、迁移、托盘条件、手动）、`test/services-registry.test.mjs`（登记表、迁移、新桥方法）。
 
 ## 五、界面写法
 

@@ -43,6 +43,8 @@ async function setup({ devConnection = 'fake', open = true, hidden = false } = {
     w.dialogAnswers.push(join(w.root, 'lib'))
     await library.handlers.chooseLibraryFolder()
     await library.handlers.useChosenFolder('test lib')
+    // v2 package A: the registry id of the library, carried by every event about it
+    w.libraryId = library.current().libraryId
   }
   return { w, library, connections, pipeline, dir: join(w.root, 'lib') }
 }
@@ -121,7 +123,7 @@ test('a round in the background under the fake, with progress, done and inbox-ch
   const last = events.at(-1)
   assert.deepEqual([last.phase, last.done, last.cap, last.result.started, last.result.counts.inbox], ['done', true, 120, true, 4])
   assert.ok(events.slice(0, -1).every(e => e.done === false))
-  assert.deepEqual(w.eventsOf('inbox-changed').at(-1).payload, { count: 4 })
+  assert.deepEqual(w.eventsOf('inbox-changed').at(-1).payload, { libraryId: w.libraryId, count: 4 })
   const state = h.getRoundState()
   assert.deepEqual([state.running, state.roundId, state.last.counts.inbox, state.lastProblems, state.progress.done], [false, started.roundId, 4, null, true])
   const home = h.getHome()
@@ -166,8 +168,8 @@ test('the inbox and the decisions: only a url in the inbox can be kept or dismis
   assert.ok(existsSync(join(dir, 'notes', kept.file)))
   assert.equal(readIndex(dir).length, 1)
   assert.deepEqual(w.events.slice(eventsBefore).map(e => e.topic), ['inbox-changed', 'library-changed'])
-  assert.deepEqual(w.events.at(-2).payload, { count: 1 })
-  assert.deepEqual(w.events.at(-1).payload, { path: dir, name: 'lib' })
+  assert.deepEqual(w.events.at(-2).payload, { libraryId: w.libraryId, count: 1 })
+  assert.deepEqual(w.events.at(-1).payload, { libraryId: w.libraryId, path: dir, name: 'lib' })
   await assert.rejects(async () => h.keepItem(a), err => err.code === 'bad_arguments', 'kept: no longer in the inbox')
   const home = h.getHome()
   assert.deepEqual([home.numbers.kept, home.numbers.inbox, home.library.count, home.recentKept.length, home.recentKept[0].id], [1, 1, 1, 1, kept.id])
@@ -179,7 +181,7 @@ test('the inbox and the decisions: only a url in the inbox can be kept or dismis
   assert.deepEqual(h.dismissItem(b, '  not relevant  '), { url: b })
   assert.equal(h.getInbox().items.length, 0)
   assert.deepEqual(h.getInbox().recentDismissReasons.map(r => r.reason), ['not relevant'])
-  assert.deepEqual(w.events.at(-1), { topic: 'inbox-changed', payload: { count: 0 } })
+  assert.deepEqual(w.events.at(-1), { topic: 'inbox-changed', payload: { libraryId: w.libraryId, count: 0 } })
   await assert.rejects(async () => h.openItemUrl(b), err => err.code === 'bad_arguments', 'dismissed: gone from the inbox, never in the index')
   // hidden: a known url is only logged
   const quiet = createPipelineService({ library: { require: () => dir, current: () => ({ path: dir, name: 'lib' }), dir: () => dir }, connections, emit: w.emit, log: w.log, hidden: true, shell: w.shell, locale: () => w.locale })
@@ -226,7 +228,7 @@ test('no connection chosen: startRound runs a scoreless round (everything fetche
   const inbox = h.getInbox().items
   assert.equal(inbox.length, 3)
   assert.ok(inbox.every(i => i.scoreless === true))
-  assert.deepEqual(w.eventsOf('inbox-changed').at(-1).payload, { count: 3 })
+  assert.deepEqual(w.eventsOf('inbox-changed').at(-1).payload, { libraryId: w.libraryId, count: 3 })
   assert.equal(usageLines(dir).length, 0, 'no model call, no probe')
   const home = h.getHome()
   assert.deepEqual([home.lastRound.scoreless, home.problem, home.connection], [true, null, null])
@@ -267,7 +269,7 @@ test('S4: getPipeline (config, last round, recent reasons, verdict failures per 
   assert.equal(pipelineConfig(dir).nodes.find(n => n.id === 'relevance').threshold, 0.5)
   assert.ok(saved.config.nodes.find(n => n.id === 'relevance').checklist.some(i => i.origin === 'streams'))
   assert.deepEqual(w.events.slice(before).map(e => e.topic), ['library-changed'])
-  assert.deepEqual(w.events.at(-1).payload, { path: dir, name: 'lib' })
+  assert.deepEqual(w.events.at(-1).payload, { libraryId: w.libraryId, path: dir, name: 'lib' })
   // refused, nothing written, no event: a fixed node changed (locked-node), a threshold out of 0–1 (bad-config)
   const disk = readFileSync(join(dir, 'streams.json'), 'utf8')
   const locked = structuredClone(saved.config)

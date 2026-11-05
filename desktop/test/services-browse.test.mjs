@@ -99,7 +99,7 @@ test('readNote and editNote: only an id in the index reaches the core; core shap
   const before = w.events.length
   assert.deepEqual(h.editNote(id, { title: '新标题', topics: ['评测'] }), { id, file: `${id}.md`, entry: { id } })
   assert.deepEqual(of('editNote')[0].slice(1), [dir, id, { title: '新标题', topics: ['评测'] }])
-  assert.deepEqual(w.events.slice(before), [{ topic: 'library-changed', payload: { path: dir, name: 'lib' } }])
+  assert.deepEqual(w.events.slice(before), [{ topic: 'library-changed', payload: { libraryId: library.current().libraryId, path: dir, name: 'lib' } }])
   // the core refuses: shape → bad_arguments, anything else → internal; no event either way
   const coded = code => () => { throw new realCore.StreamsError(code, `core: ${code}`) }
   for (const [code, want] of [['bad-edit', 'bad_arguments'], ['invalid-note', 'bad_arguments'], ['not-found', 'bad_arguments'], ['not-editable', 'bad_arguments'], ['id-conflict', 'internal'], ['bad-by', 'internal']]) {

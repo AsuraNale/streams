@@ -14,15 +14,17 @@ export const EVENT_CHANNEL = 'streams:event'
 
 /** topic → when it is sent (payload: see docs/desktop.md §四) */
 export const EVENT_TOPICS = Object.freeze({
-  'settings-changed': 'a setting changed (the language, the library folder, a switch): the page re-reads the app state',
+  'settings-changed': 'a setting changed (the language, the library folder, a switch, a schedule): the page re-reads the app state; null, or { libraryId } when it was the schedule of one library',
   'open-screen': 'the page goes to this screen: a click on a notification of the app, a second launch with an argument',
   // the update (update-wiring.mjs, docs/desktop.md§四)
   'update': 'the update has something new: a check started or ended, the download moved on, ended or failed, the setup program starts (the payload is what getUpdateState gives)',
   // the library, the connections and the pipeline (services/*.mjs; docs/desktop.md §4.1)
-  'library-changed': 'a library was opened or made, or its index was rebuilt (after a keep): the payload is { path, name } or null',
+  'library-changed': 'the current library changed (opened, made, switched to, renamed) or its contents did (its index rebuilt, a keep, a source…): { libraryId, path, name } or null',
+  // v2 package A (services/library.mjs): the registry
+  'libraries-changed': 'the registry changed (a library registered, removed, switched to, renamed): { libraryId } of the one concerned',
   'connections-changed': 'the connection settings changed (the active one, a model slot, a key stored or removed): null',
-  'round-progress': 'a round of the pipeline moved: { roundId, phase, counts, calls, cap, done, result?, problems? }; the last one has done: true',
-  'inbox-changed': 'the inbox changed (a round wrote into it, a keep, a dismiss): { count }',
+  'round-progress': 'a round of the pipeline moved: { roundId, libraryId, phase, counts, calls, cap, done, result?, problems? }; the last one has done: true',
+  'inbox-changed': 'the inbox of a library changed (a round wrote into it, a keep, a dismiss): { libraryId, count }',
 })
 
 /**

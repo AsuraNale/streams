@@ -4,6 +4,6 @@
 export const NOTIFY = Object.freeze({
   title: 'Streams',
   kinds: Object.freeze({
-    newItems: 'This round brought {n} into your Inbox.',
+    newItems: '{library}: this round brought {n} into your Inbox.',
   }),
 })

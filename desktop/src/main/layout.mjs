@@ -1,8 +1,8 @@
 /**
  * Where the app keeps things on disk (docs/desktop.md §三).
  *
- *   appData       the protected folder: %APPDATA%\Streams in the shipped app. Settings, the encrypted secrets
- *                 (API keys), logs, Chromium's own data. The first entry of `protectedDirs`: nothing a model
+ *   appData       the protected folder: %APPDATA%\Streams in the shipped app. Settings, the library registry, the
+ *                 encrypted secrets (API keys), logs, Chromium's own data. The first entry of `protectedDirs`: nothing a model
  *                 subprocess runs may reach it (the connections run with their working folder elsewhere).
  *   localData     %LOCALAPPDATA%\Streams: caches and generated things that need not roam (fetch caches, indexes of
  *                 the library once there is one). Outside appData on purpose, and never containing it.
@@ -61,6 +61,7 @@ export function resolveLayout({ isPackaged, roamingAppData, localAppData, env })
   const layout = {
     appData,
     settingsFile: join(appData, 'settings.json'), // settings.mjs
+    librariesFile: join(appData, 'libraries.json'), // the library registry (core registry; services/library.mjs, v2 package A)
     secretsDir: join(appData, 'secrets'), // secrets.mjs: API keys, safeStorage-encrypted
     logsDir: join(appData, 'logs'),
     chromiumDir: join(appData, 'electron'), // Electron userData / sessionData (caches, the safeStorage key)

@@ -12,7 +12,7 @@ import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
 import { dayText, fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
-import { useEvent } from '../lib/use-events.js'
+import { isOfLibrary, useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { AppFrame, AppSidebar, LinkButton, Main, Notice, TopBar } from '../kit/index.js'
 import { CONNECTIONS, DAY, ERRORS, FETCH_STATES, NEXT_WHEN, NODE_NAMES, ROUND_PHASES, SEP, WHEN } from '../texts/common.js'
@@ -164,8 +164,10 @@ function RecentKept({ items }) {
 }
 
 export function TodayScreen() {
-  const { navigate } = useApp()
+  const { navigate, appState } = useApp()
   const home = useLoad(() => call('getHome'), [])
+  // v2 package A: a round of another library (a timed one) is not this page's
+  const libraryId = appState?.data?.library?.libraryId ?? null
   const [progress, setProgress] = useState(null)
   const [showRun, setShowRun] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -177,12 +179,12 @@ export function TodayScreen() {
   // rounds already finished, so a startRound answer that lands after its own `done` event does not draw a progress box
   const finished = useRef(new Set())
   useEvent('round-progress', p => {
-    if (!p || typeof p !== 'object') return
+    if (!p || typeof p !== 'object' || !isOfLibrary(p, libraryId)) return
     if (p.done) { finished.current.add(p.roundId); setProgress(null); setStopping(false); home.reload() } else setProgress(p)
   })
   const began = r => { if (r?.started && !finished.current.has(r.roundId)) setProgress({ roundId: r.roundId, phase: 'self-check', calls: 0, cap: null }) }
   const data = home.data
-  const live = progress ?? (data?.roundState?.running ? { ...(data.roundState.progress ?? {}), roundId: data.roundState.roundId } : null)
+  const live = progress ?? (data?.roundState?.running && isOfLibrary(data.roundState, libraryId) ? { ...(data.roundState.progress ?? {}), roundId: data.roundState.roundId } : null)
   const numbers = data?.numbers ?? null
   const lastRound = data?.lastRound ?? numbers?.lastRound ?? null
   const retry = async () => {

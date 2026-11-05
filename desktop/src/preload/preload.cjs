@@ -69,6 +69,16 @@ const METHODS = [
   // the timed round
   'getSchedule',
   'setSchedule',
+  // the libraries the app knows (v2 package A)
+  'listLibraries',
+  'setActiveLibrary',
+  'addLibrary',
+  'removeLibrary',
+  'setLibraryMeta',
+  'getLibrariesOverview',
+  'getLibrarySchedule',
+  'setLibrarySchedule',
+  'getUsageTotal',
   // interface B: the library and reading
   'getLibrary',
   'searchLibrary',
@@ -112,6 +122,8 @@ const EVENT_TOPICS = [
   'update',
   // the library, the connections, the pipeline
   'library-changed',
+  // the registry changed (v2 package A)
+  'libraries-changed',
   'connections-changed',
   'round-progress',
   'inbox-changed',

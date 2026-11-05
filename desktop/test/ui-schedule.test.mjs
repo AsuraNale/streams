@@ -4,6 +4,9 @@
 // cannot hold → the page says so and writes nothing; 今日's top bar 「下次运行 …」 with the schedule on, 「定时没开」 with it off.
 // Session B, 首次设置 walked to its last screen (folder → skipped connection → blank pack → the first round): 「定时」 shows
 // every day at 08:30 in the tray; 完成 writes { enabled: true, time: '08:30' } (the world started with it off, the control).
+// v2 package A: the schedule is the library's own, in its streams.json — every 「→ settings.json」 below now reads the library's
+// streams.json (`scheduleOf`); settings.json's schedule is only what the library got written in the first time (the migration:
+// session B's control is that copy, off as the world's settings.json had it).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { mkdirSync, readFileSync } from 'node:fs'
@@ -17,7 +20,9 @@ import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
 
 const POLL = { polling: 100, timeout: 60_000 }
-const settingsOf = world => JSON.parse(readFileSync(join(world.appData, 'settings.json'), 'utf8'))
+// v2: the library's own schedule (streams.json), where setSchedule writes; and that file's bytes, for 「nothing written」
+const scheduleOf = dir => JSON.parse(readFileSync(join(dir, 'streams.json'), 'utf8')).schedule
+const configBytes = dir => readFileSync(join(dir, 'streams.json'), 'utf8')
 
 const s = worldSession({
   kind: 'seeded',
@@ -44,37 +49,37 @@ test('设置「运行」: the switch on, the time, the next run as getSchedule s
   for (const words of [SETTINGS.scheduleOn, SETTINGS.scheduleMissed, SETTINGS.scheduleClose]) assert.ok(text.includes(words), words)
 })
 
-test('a new time → settings.json and the next run move; 25:00 through the bridge is bad_arguments; a time the field cannot hold is refused on the page', async () => {
+test('a new time → the library streams.json (v1.0: settings.json) and the next run move; 25:00 through the bridge is bad_arguments; a time the field cannot hold is refused on the page', async () => {
   await s.page.fill('[data-part="run"] input[data-field="schedule-time"]', '21:15')
   await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-schedule-note]') !== null, null, POLL)
-  assert.deepEqual(settingsOf(s.world).schedule, { enabled: true, time: '21:15' })
+  assert.deepEqual(scheduleOf(s.world.library), { enabled: true, time: '21:15' })
   const sched = await schedule()
   assert.equal(new Date(sched.nextRunAt).getHours() * 60 + new Date(sched.nextRunAt).getMinutes(), 21 * 60 + 15)
   await s.page.waitForFunction(iso => document.querySelector('[data-part="run"] [data-next-run]')?.dataset.nextRun === iso, sched.nextRunAt, POLL)
   assert.equal((await run('[data-schedule-note]')).text, SETTINGS.scheduleSaved)
   // the bridge: 25:00, 24:00, a missing switch, an extra key — refused, nothing written
-  const before = readFileSync(join(s.world.appData, 'settings.json'), 'utf8')
+  const before = configBytes(s.world.library)
   for (const bad of [{ enabled: true, time: '25:00' }, { enabled: true, time: '24:00' }, { time: '07:00' }, { enabled: true, time: '07:00', every: 2 }]) {
     const r = await s.page.evaluate(v => window.streams.setSchedule(v), bad)
     assert.deepEqual(r, { ok: false, error: { code: 'bad_arguments' } }, JSON.stringify(bad))
   }
-  assert.equal(readFileSync(join(s.world.appData, 'settings.json'), 'utf8'), before, 'nothing written')
+  assert.equal(configBytes(s.world.library), before, 'nothing written')
   // the page: the field cannot hold 25:00 (an empty value), and the page writes nothing for it
   await s.page.evaluate(() => { const el = document.querySelector('[data-part="run"] input[data-field="schedule-time"]'); el.value = '25:00'; el.dispatchEvent(new Event('change', { bubbles: true })) })
   await s.page.waitForFunction(t => document.querySelector('[data-part="run"] [data-schedule-note]')?.textContent === t, SETTINGS.scheduleBad, POLL)
-  assert.equal(readFileSync(join(s.world.appData, 'settings.json'), 'utf8'), before, 'nothing written from the page either')
+  assert.equal(configBytes(s.world.library), before, 'nothing written from the page either')
 })
 
-test('the switch off → settings.json, 「定时没开」, the time field disabled; on again → back', async () => {
+test('the switch off → the library streams.json (v1.0: settings.json), 「定时没开」, the time field disabled; on again → back', async () => {
   await s.page.click('[data-part="run"] input[data-field="schedule-on"]')
   await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule === 'off', null, POLL)
-  assert.deepEqual(settingsOf(s.world).schedule, { enabled: false, time: '21:15' })
+  assert.deepEqual(scheduleOf(s.world.library), { enabled: false, time: '21:15' })
   assert.equal((await run('[data-next-run]')).text, SETTINGS.scheduleOff)
   assert.equal((await run('input[data-field="schedule-time"]')).disabled, true)
   assert.equal((await schedule()).nextRunAt, null)
   await s.page.click('[data-part="run"] input[data-field="schedule-on"]')
   await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule === 'on', null, POLL)
-  assert.deepEqual(settingsOf(s.world).schedule, { enabled: true, time: '21:15' })
+  assert.deepEqual(scheduleOf(s.world.library), { enabled: true, time: '21:15' })
 })
 
 test('今日\'s top bar: 「下次运行 …」 from getHome().nextRun with the schedule on; 「定时没开」 with it off', async () => {
@@ -140,11 +145,12 @@ test('首次设置: after the first round, 下一步 → the last screen 「定�
   assert.ok(rules.includes(FIRST_RUN.schedule.missed) && rules.includes(FIRST_RUN.schedule.close), rules)
 })
 
-test('首次设置 「定时」: 完成 = setSchedule with the default → settings.json { enabled: true, time: 08:30 }, then 待看', async () => {
-  assert.deepEqual(settingsOf(b.world).schedule, { enabled: false, time: '08:30' }, 'control: the world started with it off')
+test('首次设置 「定时」: 完成 = setSchedule with the default → the new library streams.json (v1.0: settings.json) { enabled: true, time: 08:30 }, then 待看', async () => {
+  const chosen = join(b.world.root, 'chosen')
+  assert.deepEqual(scheduleOf(chosen), { enabled: false, time: '08:30' }, 'control: the world started with it off (settings.json\'s, written into the new library)')
   await b.page.click('[data-action="go-inbox"] button')
   await ready(b.page, 'inbox')
-  assert.deepEqual(settingsOf(b.world).schedule, { enabled: true, time: '08:30' })
+  assert.deepEqual(scheduleOf(chosen), { enabled: true, time: '08:30' })
   assert.equal((await b.page.evaluate(() => window.streams.getSchedule())).data.enabled, true)
 })
 

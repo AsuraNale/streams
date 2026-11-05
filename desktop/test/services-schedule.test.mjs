@@ -4,6 +4,14 @@
 // one however many days were missed (the real pipeline service on a real library: the round it runs is the one
 // rounds.jsonl then holds); the timer fires at the slot once, never early, never twice; after a round with n > 0 new
 // cards one notification, none for 0; the pipeline's getHome().nextRun is the schedule's; the tray's hint and menu.
+//
+// v2 package A: these are v1.0's cases on one library, kept. What changed with the package (each marked `v2:` below):
+// the schedule is the library's own, in its streams.json (setSchedule writes it there, not settings.json; settings.json's
+// is only what a library without one gets the first time); the library is a real library service (here the development
+// library, id `dev`) and the pipeline stand-in has startRoundIn and says when a round ended (roundDone), as the real one
+// does; getSchedule's view carries `libraryId`; start / resumed / catchUp answer { owed, queued } (the libraries owing a
+// round, those put in the queue) instead of one round's answer; the notification names the library. Several libraries,
+// the queue, a library whose folder is gone: test/services-queue.test.mjs.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -17,7 +25,7 @@ import { createTray } from '../src/main/tray.mjs'
 import { APP } from '../src/main/texts/app.js'
 import { APP as APP_EN } from '../src/main/texts-en/app.js'
 import { NOTIFY } from '../src/main/texts/notify.js'
-import { createLibrary, listRounds } from '../src/main/core.mjs'
+import { createLibrary, listRounds, saveLibrarySchedule } from '../src/main/core.mjs'
 import { checkArgs } from '../src/main/bridge-methods.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { testWorld } from './support/services.mjs'
@@ -60,24 +68,33 @@ function libraryWithRounds(w, starts) {
   return dir
 }
 
-/** A pipeline stand-in: counts the rounds asked for; each one adds its line to rounds.jsonl as the core would. */
+/**
+ * A pipeline stand-in: counts the rounds asked for; each one adds its line to rounds.jsonl as the core would.
+ * v2: startRoundIn(library) instead of handlers.startRound(), and the end of each round told to the schedule (roundDone),
+ * as the real pipeline's onRoundDone does — at once, or when the test says (`hold`).
+ */
 function fakePipeline(dir, now) {
-  const p = { started: 0, running: false }
+  const p = { started: 0, running: false, runningLib: null, schedule: null, hold: false, held: [] }
   p.isRunning = () => p.running
-  p.handlers = {
-    async startRound() {
-      p.started++
-      if (dir) writeFileSync(join(dir, '_pipeline', 'rounds.jsonl'), `${JSON.stringify({ id: `s${p.started}`, startedAt: now().toISOString() })}\n`, { flag: 'a' })
-      return { started: true, roundId: `d-${p.started}` }
-    },
+  p.runningLibrary = () => p.runningLib
+  p.startRoundIn = async entry => {
+    p.started++
+    if (dir) writeFileSync(join(entry.path, '_pipeline', 'rounds.jsonl'), `${JSON.stringify({ id: `s${p.started}`, startedAt: now().toISOString() })}\n`, { flag: 'a' })
+    const done = { roundId: `d-${p.started}`, libraryId: entry.id, result: { started: true, counts: { inbox: 0 } } }
+    if (p.hold) p.held.push(done)
+    else queueMicrotask(() => p.schedule?.roundDone(done))
+    return { started: true, roundId: done.roundId }
   }
   return p
 }
 
 function service({ w, dir, time, pipeline, notifier = null, schedule = { enabled: true, time: '08:30' } }) {
   writeFileSync(w.settingsFile, `${JSON.stringify({ schedule })}\n`)
-  const library = { dir: () => dir }
-  return createScheduleService({ settingsFile: w.settingsFile, library, pipeline, notifier, emit: w.emit, log: w.log, now: time.now, timers: time.timers })
+  // v2: the real library service, `dir` as the development library (or no library at all)
+  const library = createLibraryService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, dialog: w.dialog, shell: w.shell, locale: () => w.locale, devLibrary: dir })
+  const s = createScheduleService({ settingsFile: w.settingsFile, library, pipeline, notifier, emit: w.emit, log: w.log, now: time.now, timers: time.timers })
+  pipeline.schedule = s
+  return s
 }
 
 test('getSchedule: the setting, the next slot, the last round, whether one is owed; off → no next slot, nothing owed', () => {
@@ -85,29 +102,34 @@ test('getSchedule: the setting, the next slot, the last round, whether one is ow
   const time = fakeTime(at(2026, 11, 4, 9, 0))
   const dir = libraryWithRounds(w, [at(2026, 11, 3, 9, 0)])
   const s = service({ w, dir, time, pipeline: fakePipeline(dir, time.now) })
-  assert.deepEqual(s.handlers.getSchedule(), { enabled: true, time: '08:30', nextRunAt: at(2026, 11, 5, 8, 30).toISOString(), lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: true })
+  assert.deepEqual(s.handlers.getSchedule(), { libraryId: 'dev', enabled: true, time: '08:30', nextRunAt: at(2026, 11, 5, 8, 30).toISOString(), lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: true })
   time.set(at(2026, 11, 4, 7, 0))
-  assert.deepEqual(s.handlers.getSchedule(), { enabled: true, time: '08:30', nextRunAt: at(2026, 11, 4, 8, 30).toISOString(), lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: false }, 'before today\'s slot: yesterday\'s round after its slot covers it')
-  writeFileSync(w.settingsFile, `${JSON.stringify({ schedule: { enabled: false, time: '08:30' } })}\n`)
-  assert.deepEqual(s.handlers.getSchedule(), { enabled: false, time: '08:30', nextRunAt: null, lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: false })
+  assert.deepEqual(s.handlers.getSchedule(), { libraryId: 'dev', enabled: true, time: '08:30', nextRunAt: at(2026, 11, 4, 8, 30).toISOString(), lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: false }, 'before today\'s slot: yesterday\'s round after its slot covers it')
+  // v2: the library's own schedule (its streams.json), not settings.json's
+  saveLibrarySchedule(dir, { enabled: false, time: '08:30' })
+  assert.deepEqual(s.handlers.getSchedule(), { libraryId: 'dev', enabled: false, time: '08:30', nextRunAt: null, lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: false })
   // no library open: nothing owed, no last round
   const none = service({ w, dir: null, time, pipeline: fakePipeline(null, time.now) })
-  assert.deepEqual(none.handlers.getSchedule(), { enabled: true, time: '08:30', nextRunAt: at(2026, 11, 4, 8, 30).toISOString(), lastRoundAt: null, missed: false })
+  assert.deepEqual(none.handlers.getSchedule(), { libraryId: null, enabled: true, time: '08:30', nextRunAt: at(2026, 11, 4, 8, 30).toISOString(), lastRoundAt: null, missed: false })
 })
 
-test('setSchedule: writes settings.json, says settings-changed, sets the timer again; 25:00 is refused and nothing is written', () => {
+test('setSchedule: writes the library\'s streams.json (v2; v1.0 wrote settings.json), says settings-changed, sets the timer again; 25:00 is refused and nothing is written', () => {
   const w = testWorld('st-schedule-'); worlds.push(w)
   const time = fakeTime(at(2026, 11, 4, 9, 0))
   const dir = libraryWithRounds(w, [at(2026, 11, 4, 9, 0)])
   const s = service({ w, dir, time, pipeline: fakePipeline(dir, time.now) })
+  const settingsBefore = readFileSync(w.settingsFile, 'utf8')
   const r = s.handlers.setSchedule({ enabled: true, time: '21:15' })
   assert.equal(r.nextRunAt, at(2026, 11, 4, 21, 15).toISOString())
-  assert.deepEqual(JSON.parse(readFileSync(w.settingsFile, 'utf8')).schedule, { enabled: true, time: '21:15' })
+  // v2: written into the library's streams.json; settings.json is not written any more
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, 'streams.json'), 'utf8')).schedule, { enabled: true, time: '21:15' })
+  assert.equal(readFileSync(w.settingsFile, 'utf8'), settingsBefore, 'settings.json untouched')
   assert.equal(w.eventsOf('settings-changed').length, 1)
+  assert.deepEqual(w.eventsOf('settings-changed')[0].payload, { libraryId: 'dev' })
   assert.equal(time.pending().length, 1, 'one timer')
-  const before = readFileSync(w.settingsFile, 'utf8')
+  const before = readFileSync(join(dir, 'streams.json'), 'utf8')
   assert.throws(() => s.handlers.setSchedule({ enabled: true, time: '25:00' }), err => err.code === 'bad_arguments')
-  assert.equal(readFileSync(w.settingsFile, 'utf8'), before, 'nothing written')
+  assert.equal(readFileSync(join(dir, 'streams.json'), 'utf8'), before, 'nothing written')
   assert.equal(w.eventsOf('settings-changed').length, 1, 'no event for a refused value')
   const off = s.handlers.setSchedule({ enabled: false, time: '21:15' })
   assert.equal(off.nextRunAt, null)
@@ -121,12 +143,14 @@ test('the catch-up: the last round before the last slot → one round; started a
   const dir = libraryWithRounds(w, [at(2026, 11, 4, 9, 0)])
   const p = fakePipeline(dir, time.now)
   const s = service({ w, dir, time, pipeline: p })
+  // v2: { owed, queued } — the library owing one, put in the queue, its round started at once (the queue was empty)
   const r = await s.start()
-  assert.equal(r.started, true)
+  assert.deepEqual(r, { owed: ['dev'], queued: ['dev'] })
   assert.equal(p.started, 1, 'three days away: one round')
+  await sleep(0)
   // the round it ran is in rounds.jsonl now: the next look (another start, a wake from sleep) owes nothing
-  assert.equal((await s.resumed()).reason, 'not-missed')
-  assert.equal((await s.catchUp('again')).reason, 'not-missed')
+  assert.deepEqual(await s.resumed(), { owed: [], queued: [] })
+  assert.deepEqual(await s.catchUp('again'), { owed: [], queued: [] })
   assert.equal(p.started, 1, 'still one')
   // control: the next morning after its slot, one more is owed
   time.set(at(2026, 11, 8, 9, 0))
@@ -140,21 +164,24 @@ test('the catch-up: none when the last round started after today\'s slot, none w
   const dir = libraryWithRounds(w, [at(2026, 11, 4, 8, 45)])
   const p = fakePipeline(dir, time.now)
   const s = service({ w, dir, time, pipeline: p })
-  assert.equal((await s.start()).reason, 'not-missed')
+  assert.deepEqual((await s.start()).owed, [])
   assert.equal(p.started, 0)
-  // a round before the slot: owed — but not while one runs
+  // a round before the slot: owed — but not while one of this library runs (v2: owed, not queued)
   writeFileSync(join(dir, '_pipeline', 'rounds.jsonl'), `${JSON.stringify({ id: 'old', startedAt: at(2026, 11, 4, 8, 0).toISOString() })}\n`)
   p.running = true
-  assert.equal((await s.catchUp('test')).reason, 'running')
+  p.runningLib = 'dev'
+  assert.deepEqual(await s.catchUp('test'), { owed: ['dev'], queued: [] })
   p.running = false
-  writeFileSync(w.settingsFile, `${JSON.stringify({ schedule: { enabled: false, time: '08:30' } })}\n`)
-  assert.equal((await s.catchUp('test')).reason, 'off')
+  p.runningLib = null
+  // v2: off in the library's own schedule
+  saveLibrarySchedule(dir, { enabled: false, time: '08:30' })
+  assert.deepEqual(await s.catchUp('test'), { owed: [], queued: [] })
   assert.equal(p.started, 0)
   const none = service({ w, dir: null, time, pipeline: p })
-  assert.equal((await none.catchUp('test')).reason, 'no-library')
+  assert.deepEqual(await none.catchUp('test'), { owed: [], queued: [] })
   // control: on again, the same file owes one
-  writeFileSync(w.settingsFile, `${JSON.stringify({ schedule: { enabled: true, time: '08:30' } })}\n`)
-  assert.equal((await s.catchUp('test')).started, true)
+  saveLibrarySchedule(dir, { enabled: true, time: '08:30' })
+  assert.deepEqual((await s.catchUp('test')).queued, ['dev'])
   assert.equal(p.started, 1)
 })
 
@@ -185,13 +212,14 @@ test('the timer: waits at most MAX_WAIT_MS at a time, fires at the slot once, no
   await sleep(0)
   assert.equal(p.started, 1, 'not twice')
   assert.equal(s.view().nextRunAt, at(2026, 11, 5, 8, 30).toISOString())
-  // a round running at the slot: none started on top of it
+  // a round running at the slot: none started on top of it (v2: a round of this library)
   p.running = true
+  p.runningLib = 'dev'
   time.set(at(2026, 11, 5, 8, 30))
   time.fire()
   await sleep(0)
   assert.equal(p.started, 1, 'a round was running: no second one')
-  assert.ok(w.lines.some(l => l.includes('a round is running, no second one')))
+  assert.ok(w.lines.some(l => l.includes('a round of this library is running, no second one')))
 })
 
 test('after a round: n > 0 new cards → one notification 「这一轮进来 n 条待看」 (written to notifications.jsonl in a test run); 0 → none', () => {
@@ -199,15 +227,18 @@ test('after a round: n > 0 new cards → one notification 「这一轮进来 n �
   const time = fakeTime(at(2026, 11, 4, 9, 0))
   const logFile = join(w.root, 'logs', 'notifications.jsonl')
   const notifier = createNotifier({ Notification: null, windows: () => [], bringToFront: () => true, emit: w.emit, log: w.log, logFile, clock: time.now })
-  const s = service({ w, dir: null, time, pipeline: fakePipeline(null, time.now), notifier })
-  assert.equal(s.roundDone({ roundId: 'd-1', result: { started: true, counts: { inbox: 0 } } }), false)
-  assert.equal(s.roundDone({ roundId: 'd-2', result: { started: false, problems: [] } }), false)
-  assert.equal(s.roundDone({ roundId: 'd-3', result: null }), false)
-  assert.equal(s.roundDone({ roundId: 'd-4', result: { started: true, counts: { inbox: 3 } } }), true)
+  // v2: a library, so the notification can name it
+  const dir = libraryWithRounds(w, [])
+  const s = service({ w, dir, time, pipeline: fakePipeline(dir, time.now), notifier })
+  assert.equal(s.roundDone({ roundId: 'd-1', libraryId: 'dev', result: { started: true, counts: { inbox: 0 } } }), false)
+  assert.equal(s.roundDone({ roundId: 'd-2', libraryId: 'dev', result: { started: false, problems: [] } }), false)
+  assert.equal(s.roundDone({ roundId: 'd-3', libraryId: 'dev', result: null }), false)
+  assert.equal(s.roundDone({ roundId: 'd-4', libraryId: 'dev', result: { started: true, counts: { inbox: 3 } } }), true)
   const lines = readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
   assert.equal(lines.length, 1, 'one notification, for the round with 3')
-  assert.deepEqual([lines[0].kind, lines[0].screen, lines[0].body], ['newItems', 'inbox', NOTIFY.kinds.newItems.replace('{n}', '3')])
-  assert.equal(lines[0].body, '这一轮进来 3 条待看。')
+  // v2: 「<库名>：这一轮进来 n 条待看」
+  assert.deepEqual([lines[0].kind, lines[0].screen, lines[0].body], ['newItems', 'inbox', NOTIFY.kinds.newItems.replace('{n}', '3').replace('{library}', 'lib')])
+  assert.equal(lines[0].body, 'lib：这一轮进来 3 条待看。')
 })
 
 test('the pipeline service: getHome().nextRun and getPipelineSettings().schedule are the schedule\'s; a round in the background reports its end', async () => {
@@ -218,7 +249,8 @@ test('the pipeline service: getHome().nextRun and getPipelineSettings().schedule
   const time = fakeTime(at(2026, 11, 4, 9, 0))
   let scheduler = null
   const done = []
-  const pipeline = createPipelineService({ library, connections, emit: w.emit, log: w.log, shell: w.shell, locale, now: time.now, fetchContext: { timeoutMs: 2000, sleep: async () => {} }, schedule: () => scheduler?.view() ?? null, onRoundDone: d => done.push(d) })
+  // v2: the end of a round goes to the schedule too (main.mjs wires onRoundDone the same way)
+  const pipeline = createPipelineService({ library, connections, emit: w.emit, log: w.log, shell: w.shell, locale, now: time.now, fetchContext: { timeoutMs: 2000, sleep: async () => {} }, schedule: () => scheduler?.view() ?? null, onRoundDone: d => { done.push(d); scheduler?.roundDone(d) } })
   w.dialogAnswers.push(join(w.root, 'lib'))
   await library.handlers.chooseLibraryFolder()
   await library.handlers.useChosenFolder('lib')
@@ -229,15 +261,16 @@ test('the pipeline service: getHome().nextRun and getPipelineSettings().schedule
   assert.equal(pipeline.handlers.getHome().nextRun, null, 'off: none')
   scheduler.handlers.setSchedule({ enabled: true, time: '08:30' })
   // the real catch-up on a library that never ran: one round, its start in rounds.jsonl at the app's clock, then none owed
+  const id = library.current().libraryId
   const r = await scheduler.start()
-  assert.equal(r.started, true)
+  assert.deepEqual(r, { owed: [id], queued: [id] })
   await until(() => done.length === 1)
-  assert.equal(done[0].roundId, r.roundId)
+  assert.equal(done[0].libraryId, id)
   assert.equal(done[0].result.started, true)
   const rounds = listRounds(join(w.root, 'lib'), 5)
   assert.equal(rounds.length, 1)
   assert.equal(rounds[0].startedAt, at(2026, 11, 4, 9, 0).toISOString(), 'the round ran on the app\'s clock')
-  assert.equal((await scheduler.resumed()).reason, 'not-missed')
+  assert.deepEqual((await scheduler.resumed()).owed, [])
   assert.equal(listRounds(join(w.root, 'lib'), 5).length, 1, 'only one')
 })
 

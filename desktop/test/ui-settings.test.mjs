@@ -2,7 +2,8 @@
 // library chosen on the page can replace it): the three connection rows with their state, the radio 打分用这一条 → the active
 // connection in settings.json, the main model chosen → written, 设置… → a key saved → secrets/key-<vendor>.bin appears and the
 // page shows only its last four characters, 删除 → the file is gone; 运行: the cap written; 库: the current path, 新建库 on the
-// folder the hook gives → the sidebar carries the new folder's name.
+// folder the hook gives → the sidebar carries the new folder's name. v2 package A: the library opened is the registry's
+// current one (libraries.json `active`), no longer settings.json's libraryPath.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
@@ -21,6 +22,8 @@ const s = worldSession({
 const POLL = { polling: 100, timeout: 60_000 }
 const click = sel => s.page.click(`${sel} button`)
 const settings = () => JSON.parse(readFileSync(join(s.world.appData, 'settings.json'), 'utf8'))
+// v2: the current library's folder in the registry
+const activeLibrary = () => { const r = JSON.parse(readFileSync(join(s.world.appData, 'libraries.json'), 'utf8')); return r.libraries.find(l => l.id === r.active)?.path ?? null }
 const rows = () => s.page.evaluate(() => [...document.querySelectorAll('[data-part="connections"] [data-connection]')].map(e => [e.dataset.connection, e.dataset.connState, e.dataset.active, e.querySelector('[data-conn-words]').textContent]))
 
 test('three rows, their names the fixed phrases, their states from the detection; the library part shows the current path', async () => {
@@ -92,7 +95,7 @@ test('库: 新建库 on the folder the hook gives → the sidebar and the librar
   await click('[data-part="library"] [data-action="new-library"]')
   await s.page.waitForFunction(name => document.querySelector('.st-sidebar__library-name')?.textContent === name, basename(another), POLL)
   assert.ok(existsSync(join(another, 'streams.json')), 'a library was made there')
-  assert.equal(settings().libraryPath, another)
+  assert.equal(activeLibrary(), another)
   await s.page.waitForFunction(p => document.querySelector('[data-part="library"] [data-library-path]')?.dataset.libraryPath === p, another, POLL)
 })
 

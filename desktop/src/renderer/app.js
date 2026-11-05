@@ -48,7 +48,7 @@ function App() {
   }, [appState.data?.theme])
   useEvent('settings-changed', () => appState.reload())
   useEvent('library-changed', () => appState.reload())
-  const inboxCount = useInboxCount(Boolean(appState.data?.library) && setup !== true)
+  const inboxCount = useInboxCount(Boolean(appState.data?.library) && setup !== true, appState.data?.library?.libraryId ?? null)
   const navigate = (screen, params = {}) => {
     if (!Object.hasOwn(screens, screen)) {
       console.warn(`navigate: no screen "${screen}" yet`)
