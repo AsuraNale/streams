@@ -1,0 +1,1029 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "流息 v2 架构（开工前的计划，还没有建）",
+    "locale": "zh-CN",
+    "output": "streams-v2-architecture.html",
+    "quality_profile": "showcase",
+    "legend": {
+      "entries": {
+        "frontend": {
+          "label": "页面（renderer）"
+        },
+        "backend": {
+          "label": "照搬 v1.0 的模块（小改）"
+        },
+        "cloud": {
+          "label": "新写的模块"
+        },
+        "database": {
+          "label": "磁盘上的文件（只有流息的代码写）"
+        },
+        "security": {
+          "label": "桥 / 把关"
+        },
+        "messagebus": {
+          "label": "模型角色（不能动手，只交结构化结果）"
+        },
+        "external": {
+          "label": "你 · 三种连接 · 网上来源"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "you",
+      "type": "external",
+      "icon": "person",
+      "label": "你",
+      "sublabel": "点 · 说 · 确认",
+      "pos": [
+        370,
+        20
+      ],
+      "size": [
+        120,
+        46
+      ]
+    },
+    {
+      "id": "nav",
+      "type": "frontend",
+      "label": "左栏 · 方案 B",
+      "sublabel": "库架 · 和主 Agent 聊（角标 = 等你定的事）· 我的库（待看数 · 琥珀点 = 有问题）· 新建库 · 设置",
+      "tag": "改造 AppFrame / AppSidebar · 组件 A / B 都能用",
+      "pos": [
+        30,
+        120
+      ],
+      "size": [
+        800,
+        60
+      ]
+    },
+    {
+      "id": "settings",
+      "type": "frontend",
+      "label": "设置 P9",
+      "sublabel": "用量合计 · 连接 · 主题",
+      "tag": "全部库本月用量合计 · 语言 · 关于",
+      "pos": [
+        30,
+        250
+      ],
+      "size": [
+        140,
+        70
+      ]
+    },
+    {
+      "id": "shelf",
+      "type": "frontend",
+      "label": "库架 P1",
+      "sublabel": "卡片墙 + 新建库卡",
+      "tag": "新写",
+      "pos": [
+        195,
+        250
+      ],
+      "size": [
+        140,
+        70
+      ]
+    },
+    {
+      "id": "chat",
+      "type": "frontend",
+      "label": "和主 Agent 聊 P2",
+      "sublabel": "对话 · 等你定的事",
+      "tag": "提议卡 / 建议卡组件 P8",
+      "pos": [
+        360,
+        250
+      ],
+      "size": [
+        140,
+        70
+      ]
+    },
+    {
+      "id": "libpage",
+      "type": "frontend",
+      "label": "库页 · 五个标签",
+      "sublabel": "概览 · 待看 · 资料库 · 问库 · 来源与要求（含关卡）",
+      "tag": "P3–P7 · 库头：图标 · 名字 · 在追",
+      "pos": [
+        525,
+        250
+      ],
+      "size": [
+        305,
+        70
+      ]
+    },
+    {
+      "id": "reader",
+      "type": "frontend",
+      "label": "阅读模式",
+      "sublabel": "mozilla/readability",
+      "tag": "抽不出就退回原网页",
+      "pos": [
+        1020,
+        250
+      ],
+      "size": [
+        140,
+        70
+      ]
+    },
+    {
+      "id": "bridge",
+      "type": "security",
+      "label": "桥 preload",
+      "sublabel": "方法表三处一致 · 库相关方法都带 libraryId · 新方法：库登记 / 主 Agent 对话 / 提议卡 确认·不要·改一下 / 建议卡 / 分流",
+      "pos": [
+        30,
+        400
+      ],
+      "size": [
+        1130,
+        52
+      ]
+    },
+    {
+      "id": "bridgesvc",
+      "type": "backend",
+      "label": "桥服务",
+      "sublabel": "按方法分派到主进程各模块与核心",
+      "pos": [
+        30,
+        510
+      ],
+      "size": [
+        1130,
+        48
+      ]
+    },
+    {
+      "id": "mprop",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "提议卡",
+      "sublabel": "只认「确认」才执行",
+      "tag": "确认 / 不要 / 改一下",
+      "pos": [
+        195,
+        630
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "msug",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "建议卡",
+      "sublabel": "规则型 · 一律要你点",
+      "tag": "不花模型 · 先不放权",
+      "pos": [
+        360,
+        630
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "sched",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "定时与排队",
+      "sublabel": "同一时间只跑一轮",
+      "tag": "每库定时 · 补跑不叠加",
+      "pos": [
+        525,
+        630
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "magent",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "主 Agent 对话",
+      "sublabel": "收发 · 校验 · 落盘",
+      "tag": "新写",
+      "pos": [
+        690,
+        630
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "mreg",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "库登记",
+      "sublabel": "多个库 · 不再只开一个",
+      "tag": "新写",
+      "pos": [
+        855,
+        630
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "proposals",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "proposals 提议卡",
+      "sublabel": "确认后由代码执行",
+      "tag": "schema 校验 · 试抓",
+      "pos": [
+        195,
+        790
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "suggest",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "suggest 建议卡",
+      "sublabel": "连续被拒 · 无产出 · 重合",
+      "tag": "规则型 · 不花模型",
+      "pos": [
+        360,
+        790
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "pipeline",
+      "type": "backend",
+      "label": "流水线 pipeline",
+      "sublabel": "两道关 · 摘要 · 每库上限",
+      "tag": "提示词加 brief",
+      "pos": [
+        525,
+        790
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "agent 主 Agent",
+      "sublabel": "对话正本 · 局面摘要",
+      "tag": "JSON 动作 · lookups ≤ 3 · 压缩",
+      "pos": [
+        690,
+        790
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "registry",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "registry 库登记",
+      "sublabel": "core/src/registry",
+      "tag": "新写",
+      "pos": [
+        855,
+        790
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "route",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "route 对话分流",
+      "sublabel": "提问 / 改动要求 / 拿不准",
+      "tag": "core/src/ask/route.mjs",
+      "pos": [
+        1020,
+        790
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "library",
+      "type": "backend",
+      "label": "库 · writeNoteFile",
+      "sublabel": "notes/ 唯一写入口",
+      "tag": "core/src/library",
+      "pos": [
+        30,
+        950
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "fetch",
+      "type": "backend",
+      "label": "抓取 fetch",
+      "sublabel": "五种状态 · fetch_log",
+      "tag": "不改",
+      "pos": [
+        360,
+        950
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "verify",
+      "type": "backend",
+      "label": "核验层 verify",
+      "sublabel": "加：写给 AI 的话",
+      "tag": "规则 + 判定 · 最多两轮",
+      "pos": [
+        525,
+        950
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "ask",
+      "type": "backend",
+      "label": "问库 ask",
+      "sublabel": "候选 · 出处核对 · demand",
+      "tag": "只答本库",
+      "pos": [
+        1020,
+        950
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "notes",
+      "type": "database",
+      "label": "notes\\",
+      "sublabel": "只经 writeNoteFile",
+      "tag": "收藏 · 编辑 · 导入写头",
+      "pos": [
+        30,
+        1110
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "streamsjson",
+      "type": "database",
+      "label": "streams.json",
+      "sublabel": "★ brief · schedule · cap",
+      "tag": "谁定的历史",
+      "pos": [
+        195,
+        1110
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "pipedir",
+      "type": "database",
+      "label": "_pipeline\\ 各 jsonl",
+      "sublabel": "ledger.jsonl · rounds …",
+      "tag": "★ proposals · ★ suggestions",
+      "pos": [
+        30,
+        1250
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "indexjsonl",
+      "type": "database",
+      "label": "index.jsonl",
+      "sublabel": "条目索引（v1.0）",
+      "pos": [
+        195,
+        1250
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "web",
+      "type": "external",
+      "label": "网上来源",
+      "sublabel": "RSS · arXiv · HN",
+      "pos": [
+        375,
+        1110
+      ],
+      "size": [
+        110,
+        64
+      ]
+    },
+    {
+      "id": "rolelib",
+      "type": "messagebus",
+      "label": "库 Agent",
+      "sublabel": "不能动手 · 不留会话",
+      "tag": "两道关 · 摘要 · 核验判定",
+      "pos": [
+        525,
+        1110
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "rolemain",
+      "type": "messagebus",
+      "label": "主 Agent（模型）",
+      "sublabel": "不能动手 · 只出提议卡",
+      "tag": "回 JSON 动作",
+      "pos": [
+        690,
+        1110
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "roleask",
+      "type": "messagebus",
+      "label": "问库（模型）",
+      "sublabel": "不能动手 · 不留会话",
+      "tag": "只用候选条目答",
+      "pos": [
+        1020,
+        1110
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "connect",
+      "type": "backend",
+      "label": "连接 connect",
+      "sublabel": "两个模型槽 · 登录检测 · 用量记账 · 会话模式只给主 Agent：Claude Code --resume / Codex exec resume",
+      "pos": [
+        525,
+        1250
+      ],
+      "size": [
+        635,
+        56
+      ]
+    },
+    {
+      "id": "claudecode",
+      "type": "external",
+      "label": "Claude Code",
+      "sublabel": "连接你电脑上的 · 零工具",
+      "tag": "会话接续 11-05 实测可用",
+      "pos": [
+        525,
+        1390
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "codex",
+      "type": "external",
+      "label": "Codex",
+      "sublabel": "连接你电脑上的 · 只读沙箱",
+      "tag": "会话接续 11-05 实测可用",
+      "pos": [
+        690,
+        1390
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "apikey",
+      "type": "external",
+      "label": "API key",
+      "sublabel": "HTTPS · 本来没有工具",
+      "tag": "会话 = 流息重放正本",
+      "pos": [
+        1020,
+        1390
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "settingsjson",
+      "type": "database",
+      "label": "settings.json",
+      "sublabel": "连接 · 主题 · 语言",
+      "pos": [
+        30,
+        1390
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "librariesjson",
+      "type": "database",
+      "label": "★ libraries.json",
+      "sublabel": "id · path · name · icon …",
+      "pos": [
+        195,
+        1390
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "agentdir",
+      "type": "database",
+      "label": "★ agent\\",
+      "sublabel": "正本 · 会话缓存 · 笔记",
+      "pos": [
+        30,
+        1520
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "tag": "transcript · session · notes"
+    },
+    {
+      "id": "proposalsjsonl",
+      "type": "database",
+      "label": "★ proposals.jsonl",
+      "sublabel": "所有提议卡与结果 · 只追加",
+      "pos": [
+        195,
+        1520
+      ],
+      "size": [
+        140,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "页面 renderer · Electron 44 + Preact / htm",
+      "wraps": [
+        "nav",
+        "settings",
+        "shelf",
+        "chat",
+        "libpage",
+        "reader"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "隔离 webview：不给 Node、不给桥",
+      "wraps": [
+        "reader"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "主进程 main · 流息的代码",
+      "wraps": [
+        "bridgesvc",
+        "mprop",
+        "msug",
+        "sched",
+        "magent",
+        "mreg"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "核心 core · 纯 Node 零依赖 · 流息的代码（全部写盘在这里）",
+      "wraps": [
+        "proposals",
+        "suggest",
+        "pipeline",
+        "agent",
+        "registry",
+        "route",
+        "library",
+        "fetch",
+        "verify",
+        "ask"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "每个库的文件夹（v1.0 格式，★ 新加）",
+      "wraps": [
+        "notes",
+        "streamsjson",
+        "pipedir",
+        "indexjsonl"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "模型角色 · 经「连接」调用",
+      "wraps": [
+        "rolelib",
+        "rolemain",
+        "roleask"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "核心 core · 连接（照搬，加会话模式）",
+      "wraps": [
+        "connect"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "命令行一律「不能动手」",
+      "wraps": [
+        "claudecode",
+        "codex"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "<应用数据>\\Streams\\",
+      "wraps": [
+        "settingsjson",
+        "librariesjson",
+        "agentdir",
+        "proposalsjsonl"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "you-nav",
+      "from": "you",
+      "to": "nav",
+      "label": "点 · 说 · 确认",
+      "variant": "emphasis"
+    },
+    {
+      "id": "nav-settings",
+      "from": "nav",
+      "to": "settings"
+    },
+    {
+      "id": "nav-shelf",
+      "from": "nav",
+      "to": "shelf"
+    },
+    {
+      "id": "nav-chat",
+      "from": "nav",
+      "to": "chat"
+    },
+    {
+      "id": "nav-libpage",
+      "from": "nav",
+      "to": "libpage"
+    },
+    {
+      "id": "libpage-reader",
+      "from": "libpage",
+      "to": "reader",
+      "label": "打开原文"
+    },
+    {
+      "id": "settings-bridge",
+      "from": "settings",
+      "to": "bridge"
+    },
+    {
+      "id": "shelf-bridge",
+      "from": "shelf",
+      "to": "bridge"
+    },
+    {
+      "id": "chat-bridge",
+      "from": "chat",
+      "to": "bridge",
+      "label": "对话 · 确认卡"
+    },
+    {
+      "id": "libpage-bridge",
+      "from": "libpage",
+      "to": "bridge",
+      "label": "带 libraryId"
+    },
+    {
+      "id": "bridge-svc",
+      "from": "bridge",
+      "to": "bridgesvc",
+      "label": "只经桥",
+      "variant": "security"
+    },
+    {
+      "id": "svc-library",
+      "from": "bridgesvc",
+      "to": "library",
+      "label": "收藏 · 编辑 · 导入写头"
+    },
+    {
+      "id": "svc-mprop",
+      "from": "bridgesvc",
+      "to": "mprop"
+    },
+    {
+      "id": "svc-msug",
+      "from": "bridgesvc",
+      "to": "msug"
+    },
+    {
+      "id": "svc-sched",
+      "from": "bridgesvc",
+      "to": "sched",
+      "label": "现在跑一轮"
+    },
+    {
+      "id": "svc-magent",
+      "from": "bridgesvc",
+      "to": "magent"
+    },
+    {
+      "id": "svc-mreg",
+      "from": "bridgesvc",
+      "to": "mreg"
+    },
+    {
+      "id": "svc-route",
+      "from": "bridgesvc",
+      "to": "route",
+      "label": "库内对话框一句话"
+    },
+    {
+      "id": "mprop-proposals",
+      "from": "mprop",
+      "to": "proposals",
+      "label": "你确认了才执行",
+      "variant": "security"
+    },
+    {
+      "id": "msug-suggest",
+      "from": "msug",
+      "to": "suggest",
+      "label": "规则检查"
+    },
+    {
+      "id": "sched-pipeline",
+      "from": "sched",
+      "to": "pipeline",
+      "label": "到点 · 一次一轮",
+      "variant": "emphasis"
+    },
+    {
+      "id": "magent-agent",
+      "from": "magent",
+      "to": "agent",
+      "label": "一轮对话"
+    },
+    {
+      "id": "mreg-registry",
+      "from": "mreg",
+      "to": "registry",
+      "label": "增删库"
+    },
+    {
+      "id": "route-ask",
+      "from": "route",
+      "to": "ask",
+      "label": "提问"
+    },
+    {
+      "id": "route-agent",
+      "from": "route",
+      "to": "agent",
+      "label": "改动要求 + 库 id"
+    },
+    {
+      "id": "agent-proposals",
+      "from": "agent",
+      "to": "proposals",
+      "label": "proposals[]"
+    },
+    {
+      "id": "pipeline-fetch",
+      "from": "pipeline",
+      "to": "fetch"
+    },
+    {
+      "id": "pipeline-verify",
+      "from": "pipeline",
+      "to": "verify"
+    },
+    {
+      "id": "verify-rolelib",
+      "from": "verify",
+      "to": "rolelib",
+      "label": "关卡 · 摘要 · 判定"
+    },
+    {
+      "id": "agent-rolemain",
+      "from": "agent",
+      "to": "rolemain",
+      "label": "局面摘要 + 你的话"
+    },
+    {
+      "id": "ask-roleask",
+      "from": "ask",
+      "to": "roleask",
+      "label": "候选条目"
+    },
+    {
+      "id": "rolelib-connect",
+      "from": "rolelib",
+      "to": "connect"
+    },
+    {
+      "id": "rolemain-connect",
+      "from": "rolemain",
+      "to": "connect"
+    },
+    {
+      "id": "roleask-connect",
+      "from": "roleask",
+      "to": "connect"
+    },
+    {
+      "id": "connect-cc",
+      "from": "connect",
+      "to": "claudecode",
+      "label": "子进程"
+    },
+    {
+      "id": "connect-codex",
+      "from": "connect",
+      "to": "codex",
+      "label": "子进程"
+    },
+    {
+      "id": "connect-api",
+      "from": "connect",
+      "to": "apikey",
+      "label": "HTTPS"
+    },
+    {
+      "id": "fetch-web",
+      "from": "fetch",
+      "to": "web",
+      "label": "抓取"
+    },
+    {
+      "id": "library-notes",
+      "from": "library",
+      "to": "notes",
+      "label": "唯一写入口",
+      "variant": "security"
+    },
+    {
+      "id": "proposals-streams",
+      "from": "proposals",
+      "to": "streamsjson",
+      "label": "确认后改配置",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "三层角色",
+      "items": [
+        "主 Agent：一个长对话；只能出提议卡，没有 shell、不能读写任意文件；它的工作区笔记也经代码写",
+        "库 Agent：两道关打分、摘要、核验判定；每条 / 每批一次「不能动手」的调用，不留会话（读的是网上内容）",
+        "问库：只答，不能动手、不留会话；判成「改动要求」的转给主 Agent",
+        "流息的代码：抓取、去重、账本、写盘、定时、试抓、执行已确认的提议、规则型建议；不调模型"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "权限",
+      "items": [
+        "命令行一律「不能动手」，API 连接本来就没工具；没有模型能执行命令或改你电脑上的东西",
+        "写 notes/ 只有你（收藏、编辑、导入写头），只经 writeNoteFile；Agent 不经点头写 notes/：先不能（维护者 11-05）",
+        "改库的配置：你直接改，或主 Agent 出提议卡、你确认后由代码改（schema 校验 + 只认「确认」）",
+        "主动做事：没有人。建议卡一律要你点，先不放权（维护者 11-05）",
+        "原网页在隔离 webview 里，不给 Node、不给桥"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "「不能动手」是什么意思",
+      "items": [
+        "Claude Code：用 --tools \"\" 等参数，一个工具都没有（零工具）",
+        "Codex：没有完全关掉工具的参数，用只读沙箱（不能写盘、默认不联网）+ 空的工作目录",
+        "API key：本来没有工具",
+        "三者都不能改你电脑上的任何东西"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "照搬 / 新写",
+      "items": [
+        "照搬 v1.0（小改）：库与 writeNoteFile、抓取、流水线、核验层、问库、连接、桥服务",
+        "新写：库登记 registry、定时与排队、主 Agent agent、提议卡 proposals、建议卡 suggest、对话分流 route、阅读模式",
+        "★ 是 v2 新加的文件或字段"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "谁写哪个文件（都是流息的代码）",
+      "items": [
+        "notes\\：只经 writeNoteFile（你收藏、编辑、导入写头时）",
+        "streams.json：你直接改，或提议卡确认后由 proposals 改；旁边记「主 Agent 提的 · 你确认的」",
+        "_pipeline\\：抓取写 fetch_log，流水线写 ledger.jsonl / rounds / verdicts 等，suggest 写 suggestions，proposals 写本库一份 proposals.jsonl",
+        "libraries.json ← registry；agent\\ ← agent（对话正本只追加，session 缓存丢了靠正本重建）；全局 proposals.jsonl ← proposals"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "开工前 · 未核实",
+      "items": [
+        "这是开工前给 维护者 过的计划图，图上的模块都还没有建",
+        "Claude Code 会话接续：11-05 本机实测可用（--session-id / --resume / --fork-session）",
+        "Codex 会话接续：11-05 实测可用（exec 开会话、exec resume 接着说）；分叉与长会话没测",
+        "主 Agent 用 JSON 动作的稳定性：未实测，包 C 第一天做真调用试验",
+        "「写给 AI 的话」规则会漏：规则 + 判定兜底；库 Agent 不能动手是根本防线",
+        "Codex 的只读沙箱不等于零工具：仍能执行只读命令、读本机文件；包 C / 包 A 实测能不能关掉命令执行"
+      ]
+    }
+  ]
+}

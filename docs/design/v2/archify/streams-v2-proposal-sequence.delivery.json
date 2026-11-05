@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "b58272e1-1c6c-4727-9615-af8dc96d476b",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\sequence.candidate.json",
+  "output": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\streams-v2-proposal-sequence.html",
+  "specification": {
+    "sha256": "1b3ac0ad960c20de2b2c5dcbfabda740a0b3434afe1b268305d5d034890b117c",
+    "bytes": 7385
+  },
+  "artifact": {
+    "sha256": "b1989e06aaa5688534e13507ccdc74403e3a0c3a659429eab15c35f524e06b3b",
+    "bytes": 850645
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\architecture.candidate.json",
+    "sha256": "67bab7e806183457d6e77755aa92b8c2533c09769cb4b28784a8417c1bca0c62",
+    "bytes": 21823
+  },
+  "artifact": {
+    "path": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\streams-v2-architecture.html",
+    "sha256": "693a4a20662fb8dde75d2c24d362ab037cd0c7051a8f5ff325c8cea684830b84",
+    "bytes": 933004
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\review-3\\streams-v2-architecture.finalize.json",
+    "summaryReceipt": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\review-3\\streams-v2-architecture.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\review-3\\streams-v2-architecture.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-11-05T17:56:49.440Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 5647,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  },
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "resolvedCrossovers": 2
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [
+        {
+          "left": {
+            "id": "agent-proposals",
+            "from": "agent",
+            "to": "proposals",
+            "label": "proposals[]",
+            "collectionIndex": 25,
+            "artifactIndex": 26
+          },
+          "right": {
+            "id": "pipeline-fetch",
+            "from": "pipeline",
+            "to": "fetch",
+            "label": "",
+            "collectionIndex": 26,
+            "artifactIndex": 27
+          },
+          "point": [
+            512.5,
+            878
+          ]
+        },
+        {
+          "left": {
+            "id": "agent-proposals",
+            "from": "agent",
+            "to": "proposals",
+            "label": "proposals[]",
+            "collectionIndex": 25,
+            "artifactIndex": 26
+          },
+          "right": {
+            "id": "pipeline-verify",
+            "from": "pipeline",
+            "to": "verify",
+            "label": "",
+            "collectionIndex": 27,
+            "artifactIndex": 28
+          },
+          "point": [
+            595,
+            878
+          ]
+        }
+      ],
+      "detours": [],
+      "truncated": false
+    },
+    "hints": [
+      "bridge has 3 relationships facing its left side, which fits 2 ports: make that side at least 60px, or move some of those neighbours so they face another side of bridge.",
+      "bridgesvc has 3 relationships facing its left side, which fits 2 ports: make that side at least 60px, or move some of those neighbours so they face another side of bridgesvc.",
+      "bridgesvc has 3 relationships facing its right side, which fits 2 ports: make that side at least 60px, or move some of those neighbours so they face another side of bridgesvc.",
+      "agent → proposals crosses pipeline → fetch: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor.",
+      "agent → proposals crosses pipeline → verify: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
+}

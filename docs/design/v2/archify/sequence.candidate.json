@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "流息 v2 · 提议卡怎么走（计划）",
+    "locale": "zh-CN",
+    "output": "streams-v2-proposal-sequence.html",
+    "quality_profile": "showcase",
+    "legend": {
+      "entries": {
+        "emphasis": {
+          "label": "主路"
+        },
+        "security": {
+          "label": "把关：校验 / 只认确认 / 改配置"
+        },
+        "dashed": {
+          "label": "代码查 / 代码记录（不调模型）"
+        },
+        "return": {
+          "label": "返回"
+        },
+        "default": {
+          "label": "普通消息"
+        }
+      }
+    }
+  },
+  "participants": [
+    {
+      "id": "you",
+      "type": "external",
+      "icon": "person",
+      "label": "你",
+      "sublabel": "库内对话框里说"
+    },
+    {
+      "id": "box",
+      "type": "frontend",
+      "label": "库内对话框",
+      "sublabel": "问库页 · 经桥"
+    },
+    {
+      "id": "route",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "route 分流",
+      "sublabel": "代码 + 模型判"
+    },
+    {
+      "id": "agent",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "agent",
+      "sublabel": "主 Agent 的代码"
+    },
+    {
+      "id": "model",
+      "type": "messagebus",
+      "label": "主 Agent（模型）",
+      "sublabel": "会话模式 · 不能动手"
+    },
+    {
+      "id": "proposals",
+      "type": "cloud",
+      "icon": "backend",
+      "label": "proposals",
+      "sublabel": "提议卡的代码"
+    },
+    {
+      "id": "fetch",
+      "type": "backend",
+      "label": "抓取",
+      "sublabel": "试抓"
+    },
+    {
+      "id": "disk",
+      "type": "database",
+      "label": "磁盘",
+      "sublabel": "库文件夹 · 应用数据"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 280,
+      "label": "分流"
+    },
+    {
+      "from": 288,
+      "to": 556,
+      "label": "主 Agent 出卡"
+    },
+    {
+      "from": 566,
+      "to": 712,
+      "label": "代码校验 · 试抓 · 出卡"
+    },
+    {
+      "from": 722,
+      "to": 930,
+      "label": "你确认 · 代码执行 · 记录"
+    }
+  ],
+  "messages": [
+    {
+      "id": "say",
+      "from": "you",
+      "to": "box",
+      "y": 165,
+      "label": "「以后也追踪港股服装公司的公告」",
+      "variant": "emphasis"
+    },
+    {
+      "id": "classify",
+      "from": "box",
+      "to": "route",
+      "y": 195,
+      "label": "这句话 + libraryId",
+      "note": "先用规则（以后 / 追踪 / 加 / 删 / 别再 / 改成）再交模型判，带置信度；拿不准就问你「这是要改库吗？」"
+    },
+    {
+      "id": "handoff",
+      "from": "route",
+      "to": "agent",
+      "y": 262,
+      "label": "改动要求 + 库 id",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ask-model",
+      "from": "agent",
+      "to": "model",
+      "y": 300,
+      "label": "局面摘要 + 你这句话",
+      "variant": "emphasis",
+      "note": "局面摘要：各库名字 / 要求 / 待看数 / 问题 / 待定的提议"
+    },
+    {
+      "id": "json1",
+      "from": "model",
+      "to": "agent",
+      "y": 370,
+      "label": "JSON：reply · ask? · proposals[] · lookups[]",
+      "variant": "return",
+      "note": "不合格式重试一次；再不行只显示 reply，不出卡"
+    },
+    {
+      "id": "lookup",
+      "from": "agent",
+      "to": "disk",
+      "y": 420,
+      "label": "lookups 由代码查（某库概况 / 抓取记录）",
+      "variant": "dashed"
+    },
+    {
+      "id": "lookup-back",
+      "from": "disk",
+      "to": "agent",
+      "y": 450,
+      "label": "查到的东西",
+      "variant": "return"
+    },
+    {
+      "id": "feed",
+      "from": "agent",
+      "to": "model",
+      "y": 480,
+      "label": "喂回去（最多 3 次）",
+      "note": "超过 3 次就照现有信息答"
+    },
+    {
+      "id": "json2",
+      "from": "model",
+      "to": "agent",
+      "y": 540,
+      "label": "proposals[]",
+      "variant": "return"
+    },
+    {
+      "id": "validate",
+      "from": "agent",
+      "to": "proposals",
+      "y": 578,
+      "label": "proposals[] 交代码校验",
+      "variant": "security",
+      "note": "schema 校验；状态：待定"
+    },
+    {
+      "id": "tryfetch",
+      "from": "proposals",
+      "to": "fetch",
+      "y": 630,
+      "label": "加来源先试抓一次"
+    },
+    {
+      "id": "tryfetch-back",
+      "from": "fetch",
+      "to": "proposals",
+      "y": 660,
+      "label": "试抓结果",
+      "variant": "return"
+    },
+    {
+      "id": "card",
+      "from": "proposals",
+      "to": "box",
+      "y": 695,
+      "label": "提议卡：改什么 · 为什么 · 改前 / 改后 · 试抓结果",
+      "variant": "emphasis"
+    },
+    {
+      "id": "confirm",
+      "from": "you",
+      "to": "box",
+      "y": 735,
+      "label": "确认（也可以 不要 / 改一下）",
+      "variant": "emphasis",
+      "note": "改一下 = 把你的话带回主 Agent 重出一张"
+    },
+    {
+      "id": "confirm-code",
+      "from": "box",
+      "to": "proposals",
+      "y": 790,
+      "label": "确认（只认这一个）",
+      "variant": "security"
+    },
+    {
+      "id": "write-config",
+      "from": "proposals",
+      "to": "disk",
+      "y": 825,
+      "label": "代码改 streams.json：加来源 · 加关键词",
+      "variant": "security",
+      "note": "旁边记「主 Agent 提的 · 你确认的 · 日期」"
+    },
+    {
+      "id": "write-log",
+      "from": "proposals",
+      "to": "disk",
+      "y": 880,
+      "label": "记 proposals.jsonl（全局一份 + 本库一份）",
+      "variant": "dashed"
+    },
+    {
+      "id": "done",
+      "from": "proposals",
+      "to": "box",
+      "y": 915,
+      "label": "已生效：来源与要求页可见",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "route",
+      "from": 190,
+      "to": 268,
+      "type": "cloud"
+    },
+    {
+      "participant": "agent",
+      "from": 257,
+      "to": 584,
+      "type": "cloud"
+    },
+    {
+      "participant": "model",
+      "from": 295,
+      "to": 546,
+      "type": "messagebus"
+    },
+    {
+      "participant": "proposals",
+      "from": 573,
+      "to": 921,
+      "type": "cloud"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "把关",
+      "items": [
+        "主 Agent 只能出提议卡：没有 shell，不能读写任意文件；命令行「不能动手」",
+        "只有「确认」由代码执行；不要 / 改一下都不改任何东西",
+        "Agent 不经点头写 notes/：先不能（维护者 11-05）"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "记录",
+      "items": [
+        "每张卡和结果记进 proposals.jsonl：<应用数据>\\Streams\\ 一份，相关库的 _pipeline\\ 一份",
+        "库的配置旁记「主 Agent 提的 · 你确认的 · 日期」，接上 v1.0 的「谁定的」"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "开工前 · 未核实",
+      "items": [
+        "这是开工前的计划，上面的模块都还没写",
+        "主 Agent 用 JSON 动作的稳定性未实测：包 C 第一天做真调用试验",
+        "会话接续：Claude Code 与 Codex 11-05 本机实测可用；API key 由流息重放对话正本"
+      ]
+    }
+  ]
+}

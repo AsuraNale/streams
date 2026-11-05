@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>流息 v2 架构图 · 总览</title>
+<style>
+  body { margin: 0; background: #f4f6f8; color: #1f2933; font-family: "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif; line-height: 1.7; }
+  main { max-width: 860px; margin: 48px auto; padding: 0 24px; }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  .lead { color: #52606d; margin: 0 0 28px; }
+  ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+  li { background: #fff; border: 1px solid #d9e2ec; border-radius: 10px; padding: 18px 22px; }
+  li a { font-size: 18px; font-weight: 600; color: #0b6e99; text-decoration: none; }
+  li a:hover { text-decoration: underline; }
+  li p { margin: 6px 0 0; color: #3e4c59; }
+  .note { margin-top: 28px; font-size: 14px; color: #52606d; }
+</style>
+</head>
+<body>
+<main>
+  <h1>流息 v2 架构图 · 总览</h1>
+  <p class="lead">开工前给 维护者 过目的计划图（依据 docs/design/v2/architecture.md），图上的模块都还没有建。</p>
+  <ol>
+    <li>
+      <a href="streams-v2-architecture.html">1. 架构大图</a>
+      <p>页面 → 桥 → 主进程 → 核心（照搬 / 新写分色）→ 模型角色与三种连接，加上应用数据和每个库文件夹两处存储，以及「不能动手」、只经 writeNoteFile、只认「确认」等权限边界。</p>
+    </li>
+    <li>
+      <a href="streams-v2-round-dataflow.html">2. 一轮怎么跑（数据流）</a>
+      <p>从定时到点 / 现在跑一轮 / 确认了开跑提议，到排队、抓取、去重、两道关、摘要、核验（含「写给 AI 的话」规则）、待看、规则型建议和左栏数字，标出哪步是代码、哪步是库 Agent 调用。</p>
+    </li>
+    <li>
+      <a href="streams-v2-proposal-sequence.html">3. 提议卡怎么走（时序）</a>
+      <p>你在库内对话框说一句改动 → 分流转给主 Agent → 主 Agent 回 JSON 并经代码查 lookups（最多 3 次）→ 代码校验、试抓、出卡 → 你确认 → 代码改配置并记 proposals.jsonl 与「主 Agent 提的 · 你确认的」。</p>
+    </li>
+  </ol>
+  <p class="note">每张图旁边的 *.candidate.json 是 archify 的输入；图由 archify 生成并通过它自己的校验。</p>
+</main>
+</body>
+</html>

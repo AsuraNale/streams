@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "dataflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\dataflow.candidate.json",
+    "sha256": "a9e274f880d225ee73b2be022869afa0efd3d77e8be97eb6203429e4359fe9a2",
+    "bytes": 7406
+  },
+  "artifact": {
+    "path": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\streams-v2-round-dataflow.html",
+    "sha256": "9e3e19ae53b96f02ce3dc71139ed19a7688d164f528e7669837089c6b6f1cdeb",
+    "bytes": 854656
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\review-2\\streams-v2-round-dataflow.finalize.json",
+    "summaryReceipt": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\review-2\\streams-v2-round-dataflow.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\review-2\\streams-v2-round-dataflow.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-11-05T17:56:49.440Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 4514,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

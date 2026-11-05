@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "6bbefb31-4240-44e9-84ca-53d481b64eb1",
+  "status": "current",
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\dataflow.candidate.json",
+  "output": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\streams-v2-round-dataflow.html",
+  "specification": {
+    "sha256": "24f7f3d1f56af63cc882efbfaf70756703979365ecf1324d567d0f4064480d84",
+    "bytes": 7428
+  },
+  "artifact": {
+    "sha256": "19ae11bf77a43d19a22e23e7af3f35f2d32568c1f21494f3952dabc20dd586a7",
+    "bytes": 854685
+  }
+}

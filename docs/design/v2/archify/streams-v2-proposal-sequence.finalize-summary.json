@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "sequence",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\sequence.candidate.json",
+    "sha256": "fb4e892149f27f795577954cc42dbb302c2d80d81f306383e40433bd6d4328d5",
+    "bytes": 6946
+  },
+  "artifact": {
+    "path": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\streams-v2-proposal-sequence.html",
+    "sha256": "c57d13ba86b4d34e97303982aed03bdee020735cc25a4d565d47b963716a93d0",
+    "bytes": 850566
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\streams-v2-proposal-sequence.finalize.json",
+    "summaryReceipt": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\streams-v2-proposal-sequence.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\streams-v2-proposal-sequence.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-11-05T17:56:49.440Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 4169,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

@@ -1,0 +1,321 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "流息 v2 · 一轮怎么跑（计划）",
+    "locale": "zh-CN",
+    "output": "streams-v2-round-dataflow.html",
+    "quality_profile": "showcase",
+    "legend": {
+      "entries": {
+        "default": {
+          "label": "触发 / 普通数据"
+        },
+        "emphasis": {
+          "label": "一轮的主路"
+        },
+        "database": {
+          "label": "库文件夹里的文件（代码写）"
+        }
+      }
+    }
+  },
+  "stages": [
+    {
+      "label": "触发"
+    },
+    {
+      "label": "排队 · 抓取（代码）"
+    },
+    {
+      "label": "去重 · 两道关"
+    },
+    {
+      "label": "摘要 · 核验 · 待看"
+    },
+    {
+      "label": "账本 · 建议 · 刷新"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "timer",
+      "type": "backend",
+      "label": "定时到点",
+      "sublabel": "代码 · 按库的 schedule",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "runnow",
+      "type": "external",
+      "icon": "person",
+      "label": "你点「现在跑一轮」",
+      "sublabel": "概览页",
+      "stage": 0,
+      "row": 1
+    },
+    {
+      "id": "runcard",
+      "type": "external",
+      "icon": "person",
+      "label": "你确认「开跑一轮」",
+      "sublabel": "主 Agent 的提议卡",
+      "stage": 0,
+      "row": 2
+    },
+    {
+      "id": "web",
+      "type": "external",
+      "label": "网上来源",
+      "sublabel": "RSS · arXiv · HN · 手动",
+      "stage": 1,
+      "row": 3
+    },
+    {
+      "id": "queue",
+      "type": "backend",
+      "label": "排队",
+      "sublabel": "代码 · 同一时间一轮",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "fetch",
+      "type": "backend",
+      "label": "抓取",
+      "sublabel": "代码 · 五种状态",
+      "stage": 1,
+      "row": 2
+    },
+    {
+      "id": "dedupe",
+      "type": "backend",
+      "label": "去重",
+      "sublabel": "代码 · 不调模型",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "pass1",
+      "type": "messagebus",
+      "label": "关卡① 相关度",
+      "sublabel": "库 Agent 调用",
+      "stage": 2,
+      "row": 1
+    },
+    {
+      "id": "pass2",
+      "type": "messagebus",
+      "label": "关卡② 实质",
+      "sublabel": "库 Agent 调用",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "summary",
+      "type": "messagebus",
+      "label": "摘要",
+      "sublabel": "库 Agent 调用",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "vrule",
+      "type": "security",
+      "label": "核验 · 规则项",
+      "sublabel": "代码 · 含写给 AI 的话",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "vcheck",
+      "type": "messagebus",
+      "label": "核验 · 判定项",
+      "sublabel": "库 Agent 调用 · 兜底",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "inbox",
+      "type": "backend",
+      "label": "待看",
+      "sublabel": "代码写账本",
+      "stage": 3,
+      "row": 3
+    },
+    {
+      "id": "waiting",
+      "type": "frontend",
+      "label": "等你定的事 · 概览",
+      "sublabel": "建议卡 · 要你点",
+      "stage": 4,
+      "row": 1
+    },
+    {
+      "id": "suggest",
+      "type": "backend",
+      "label": "规则型建议检查",
+      "sublabel": "代码 · 不花模型",
+      "stage": 4,
+      "row": 2
+    },
+    {
+      "id": "pipedir",
+      "type": "database",
+      "label": "_pipeline\\ 各 jsonl",
+      "sublabel": "ledger.jsonl · rounds …",
+      "stage": 4,
+      "row": 3
+    },
+    {
+      "id": "sidebar",
+      "type": "frontend",
+      "label": "左栏数字刷新",
+      "sublabel": "待看数 · 琥珀点",
+      "stage": 4,
+      "row": 4
+    }
+  ],
+  "flows": [
+    {
+      "id": "timer-queue",
+      "from": "timer",
+      "to": "queue",
+      "label": "到点"
+    },
+    {
+      "id": "runnow-queue",
+      "from": "runnow",
+      "to": "queue",
+      "label": "手动一轮"
+    },
+    {
+      "id": "runcard-queue",
+      "from": "runcard",
+      "to": "queue",
+      "label": "代码执行该卡"
+    },
+    {
+      "id": "queue-fetch",
+      "from": "queue",
+      "to": "fetch",
+      "label": "轮到这个库",
+      "variant": "emphasis"
+    },
+    {
+      "id": "web-fetch",
+      "from": "web",
+      "to": "fetch",
+      "label": "原文"
+    },
+    {
+      "id": "fetch-dedupe",
+      "from": "fetch",
+      "to": "dedupe",
+      "label": "新条目",
+      "variant": "emphasis"
+    },
+    {
+      "id": "dedupe-pass1",
+      "from": "dedupe",
+      "to": "pass1",
+      "label": "条目 + brief",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pass1-pass2",
+      "from": "pass1",
+      "to": "pass2",
+      "label": "过关的",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pass2-summary",
+      "from": "pass2",
+      "to": "summary",
+      "label": "过关的",
+      "variant": "emphasis"
+    },
+    {
+      "id": "summary-vrule",
+      "from": "summary",
+      "to": "vrule",
+      "label": "摘要 + 原文",
+      "variant": "emphasis"
+    },
+    {
+      "id": "vrule-vcheck",
+      "from": "vrule",
+      "to": "vcheck",
+      "label": "规则结果",
+      "variant": "emphasis"
+    },
+    {
+      "id": "vcheck-inbox",
+      "from": "vcheck",
+      "to": "inbox",
+      "label": "核验结论",
+      "variant": "emphasis"
+    },
+    {
+      "id": "inbox-pipedir",
+      "from": "inbox",
+      "to": "pipedir",
+      "label": "写账本",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pipedir-suggest",
+      "from": "pipedir",
+      "to": "suggest",
+      "label": "近几轮的数"
+    },
+    {
+      "id": "suggest-waiting",
+      "from": "suggest",
+      "to": "waiting",
+      "label": "有新建议"
+    },
+    {
+      "id": "pipedir-sidebar",
+      "from": "pipedir",
+      "to": "sidebar",
+      "label": "待看数"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "代码做的（不调模型）",
+      "items": [
+        "触发、排队（同一时间只跑一轮，错过补一轮不叠加）、抓取、去重、写账本、规则型建议检查",
+        "核验的规则项也是代码：固定模式找「忽略之前的要求」「你现在是…」这类写给 AI 的指令"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "库 Agent 调用",
+      "items": [
+        "关卡① 相关度、关卡② 实质、摘要、核验判定项：每条 / 每批一次「不能动手」的调用，不留会话，提示词带库的 brief",
+        "只交结构化结果（分数、理由、摘要、核验结论），由代码写账本"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "「写给 AI 的话」规则（v2 新加）",
+      "items": [
+        "规则项（固定模式）+ 判定项兜底；命中的条目在待看上标「这一条里有写给 AI 的话，已忽略」",
+        "给来源记一笔，规则型建议检查据此出「建议暂停这个来源」的建议卡；来源和库配置零改动",
+        "规则会漏：库 Agent 不能动手是根本防线，漏了也只影响那一条的分数"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "开工前",
+      "items": [
+        "这是开工前的计划：每轮上限改为按库算（cap），触发与排队、建议检查与「写给 AI 的话」规则都还没写"
+      ]
+    }
+  ]
+}

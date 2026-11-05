@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "0ad2ca36-f6e5-4744-8ba6-b67d9e0b0501",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\architecture.candidate.json",
+  "output": "C:\\Users\\you\\dev\\streams\\docs\\design\\v2\\archify\\streams-v2-architecture.html",
+  "specification": {
+    "sha256": "1b5b870d290e98a5c4f74b08ee91faf1e08fb69a2bd0f835bd716d8075f781b1",
+    "bytes": 22445
+  },
+  "artifact": {
+    "sha256": "0ef83597239ab6d5385c51820a7ad7d3af430d9b1937da69c8e52490ae133ab1",
+    "bytes": 933860
+  }
+}
