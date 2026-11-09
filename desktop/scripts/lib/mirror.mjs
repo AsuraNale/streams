@@ -2,6 +2,7 @@
 // copy, never the original.
 //   <M>/desktop                a copy of desktop/ (no node_modules, no .work); its node_modules holds links to the real packages
 //   <M>/installer, <M>/wording   links (the pinned Electron; the wording scanner the tests import)
+//   <M>/core                   a link (the main process and the tests import the core from the repository: desktop/src/main/core.mjs)
 //   <M>/docs/desktop.md        a copy (the bridge and event tables the tests read)
 // Remove it with removeTree (links first).
 import { cpSync, existsSync, mkdirSync, symlinkSync } from 'node:fs'
@@ -19,6 +20,7 @@ export async function makeMirror({ root }) {
   mkdirSync(root, { recursive: true })
   link(join(REPO_DIR, 'installer'), join(root, 'installer'))
   link(join(REPO_DIR, 'wording'), join(root, 'wording'))
+  link(join(REPO_DIR, 'core'), join(root, 'core'))
   mkdirSync(join(root, 'docs'), { recursive: true })
   for (const doc of ['desktop.md', 'tokens.md']) {
     if (existsSync(join(REPO_DIR, 'docs', doc))) cpSync(join(REPO_DIR, 'docs', doc), join(root, 'docs', doc))

@@ -34,7 +34,7 @@ import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { BridgeError, bridgeErrorOf } from '../bridge-methods.mjs'
 import {
   CONFIG_FILE, NO_OUTPUT_ROUNDS, REGISTRY_FILE, countFirstLevelMd, createLibrary, defaultIcon, homeNumbers, importFolder, libraryAt,
-  libraryOf, migrateRegistry, readConfig, readRegistry, readSetup, rebuildIndex, recordSetupStep, usageTotal, withActive, withLibrary,
+  libraryOf, migrateRegistry, readBrief, readConfig, readRegistry, readSetup, rebuildIndex, recordSetupStep, usageTotal, withActive, withLibrary,
   withMeta, withoutLibrary, writeRegistry,
 } from '../core.mjs'
 import { readSettings } from '../settings.mjs'
@@ -81,8 +81,10 @@ function usable(path) {
  * @param {() => Date} [o.now]
  * @param {string|null} [o.devLibrary] - STREAMS_DEV_LIBRARY
  * @param {string|null} [o.devChooseFolder] - STREAMS_DEV_CHOOSE_FOLDER
+ * @param {string|null} [o.agentUsageFile] - the main agent's usage.jsonl (v2 package C: <appData>/agent/usage.jsonl), counted in
+ *   getUsageTotal on its own line (`agent`) and in the total
  */
-export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null }) {
+export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null, agentUsageFile = null }) {
   // the folder the last chooseLibraryFolder gave: the only path useChosenFolder and addLibrary act on
   let chosen = null
 
@@ -169,14 +171,23 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
     return open(path)
   }
 
-  /** getLibrariesOverview's line for one library (the numbers from homeNumbers; a folder that cannot be read: missing). */
+  /**
+   * getLibrariesOverview's line for one library (the numbers from homeNumbers; a folder that cannot be read: missing).
+   * v2 package F: also what the shelf's card and the library page's head show — the brief (null without one), the topics'
+   * names, how many sources, how many rounds in a row put nothing into 待看.
+   */
   const overviewOf = l => {
-    const base = { id: l.id, name: l.name, icon: l.icon, color: l.color, inbox: 0, lastRoundAt: null, problem: null }
+    const base = { id: l.id, name: l.name, icon: l.icon, color: l.color, inbox: 0, lastRoundAt: null, problem: null, brief: null, topics: [], sources: 0, noOutputStreak: 0 }
     if (!usable(l.path)) return { ...base, problem: 'missing' }
     let n
     try { n = homeNumbers(l.path, { now }) } catch (err) { log(`library: ${l.id}: numbers unreadable: ${String(err?.message ?? err)}`); return { ...base, problem: 'missing' } }
     const problem = n.sources?.level === 'blocked' || n.sources?.level === 'warning' ? 'sources' : n.noOutputStreak >= NO_OUTPUT_ROUNDS ? 'no-output' : null
-    return { ...base, inbox: n.inbox, lastRoundAt: n.lastRound?.startedAt ?? null, problem }
+    const cfg = readConfig(l.path).config ?? {}
+    let brief = null
+    try { brief = readBrief(l.path) } catch (err) { log(`library: ${l.id}: brief unreadable: ${String(err?.message ?? err)}`) }
+    const topics = (Array.isArray(cfg.topics) ? cfg.topics : []).map(t => t?.name).filter(x => typeof x === 'string' && x !== '')
+    const sources = Array.isArray(cfg.sources) ? cfg.sources.length : 0
+    return { ...base, inbox: n.inbox, lastRoundAt: n.lastRound?.startedAt ?? null, problem, brief, topics, sources, noOutputStreak: n.noOutputStreak ?? 0 }
   }
 
   const handlers = {
@@ -308,14 +319,18 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
     getLibrariesOverview() {
       return entries().map(overviewOf)
     },
-    /** 设置「全部库本月用量合计」 (维护者 11-05): core usageTotal over every library this month (UTC, the app's clock). */
+    /**
+     * 设置「全部库本月用量合计」 (维护者 11-05): core usageTotal over every library this month (UTC, the app's clock); v2 package C:
+     * the main agent's calls on their own line (`agent`, 「主 Agent」) and in the total.
+     */
     getUsageTotal() {
       const list = entries()
-      const t = usageTotal(list.map(l => l.path), { month: now().toISOString().slice(0, 7) })
+      const t = usageTotal(list.map(l => l.path), { month: now().toISOString().slice(0, 7), ...(agentUsageFile ? { agentFile: agentUsageFile } : {}) })
       const callsOf = new Map(t.libraries.map(l => [l.dir, l.calls]))
       return {
         month: t.month, calls: t.calls, inputTokens: t.inputTokens, outputTokens: t.outputTokens, costUsd: t.costUsd, byKind: t.byKind,
         libraries: list.map(l => ({ id: l.id, name: l.name, calls: callsOf.get(l.path) ?? 0, missing: !callsOf.has(l.path) })),
+        agent: t.agent ? { calls: t.agent.calls, inputTokens: t.agent.inputTokens, outputTokens: t.agent.outputTokens, costUsd: t.agent.costUsd } : { calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 },
       }
     },
   }

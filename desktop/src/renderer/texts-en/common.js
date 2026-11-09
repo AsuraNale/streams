@@ -12,14 +12,8 @@ export const BRAND = Object.freeze({
 export const SIDEBAR = Object.freeze({
   label: 'Navigation',
   entries: Object.freeze({
-    today: 'Today',
-    inbox: 'Inbox',
-    library: 'Library',
-    graph: 'Graph',
-    ask: 'Ask',
-    pipeline: 'Pipeline',
-    sources: 'Sources & Topics',
-    status: 'Status',
+    shelf: 'Shelf',
+    chat: 'Chat with the main Agent',
   }),
   settings: 'Settings',
   noLibrary: 'No library open',

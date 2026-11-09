@@ -7,6 +7,9 @@
 // v2 package A: the schedule is the library's own, in its streams.json — every 「→ settings.json」 below now reads the library's
 // streams.json (`scheduleOf`); settings.json's schedule is only what the library got written in the first time (the migration:
 // session B's control is that copy, off as the world's settings.json had it).
+// v2 package F: the schedule is changed on the library's own 来源与要求 now (its part 「定时与每轮上限」, [data-part="run"], the same
+// hooks as 设置「运行」 had; 设置 only lists every library's schedule): session A opens 来源与要求 instead of 设置, and 今日's top
+// bar is the library's head on 概览 ([data-part="next-run"]); 待看 and 概览 are tabs ([data-tab]). The assertions are v1.0's.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { mkdirSync, readFileSync } from 'node:fs'
@@ -26,14 +29,14 @@ const configBytes = dir => readFileSync(join(dir, 'streams.json'), 'utf8')
 
 const s = worldSession({
   kind: 'seeded',
-  waitFor: 'settings',
+  waitFor: 'sources',
   settings: { schedule: { enabled: true, time: '08:30' } },
-  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'settings' }),
+  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'sources' }),
 })
 const run = sel => s.page.evaluate(q => { const el = document.querySelector(`[data-part="run"] ${q}`); return el ? { text: el.textContent, disabled: el.disabled, checked: el.checked, value: el.value, data: { ...el.dataset } } : null }, sel)
 const schedule = async () => (await s.page.evaluate(() => window.streams.getSchedule())).data
 
-test('设置「运行」: the switch on, the time, the next run as getSchedule says, the rules for a missed round and the close button', async () => {
+test('来源与要求「定时与每轮上限」 (v1.0: 设置「运行」): the switch on, the time, the next run as getSchedule says, the rules for a missed round and the close button', async () => {
   await s.page.waitForSelector('[data-part="run"] [data-schedule]', { timeout: 60_000 })
   const sched = await schedule()
   assert.deepEqual([sched.enabled, sched.time, sched.missed], [true, '08:30', false], JSON.stringify(sched))
@@ -83,22 +86,22 @@ test('the switch off → the library streams.json (v1.0: settings.json), 「定�
 })
 
 test('今日\'s top bar: 「下次运行 …」 from getHome().nextRun with the schedule on; 「定时没开」 with it off', async () => {
-  await s.page.click('[data-nav="today"]')
-  await ready(s.page, 'today')
+  await s.page.click('.st-lib-tabs [data-tab="overview"]')
+  await ready(s.page, 'overview')
   const home = (await s.page.evaluate(() => window.streams.getHome())).data
   const sched = await schedule()
   assert.equal(home.nextRun, sched.nextRunAt, 'getHome().nextRun is getSchedule().nextRunAt')
-  const subtitle = () => s.page.evaluate(() => document.querySelector('main[data-screen="today"] .st-topbar__subtitle')?.textContent ?? '')
+  const subtitle = () => s.page.evaluate(() => document.querySelector('main[data-screen="overview"]') ? document.querySelector('[data-part="next-run"]')?.textContent ?? '' : '')
   const on = await subtitle()
   const want = fmt(TODAY.nextRun.at, { when: nextText(sched.nextRunAt, NEXT_WHEN) })
   assert.ok(on.includes(want), `${on} has ${want}`)
   assert.equal(on.includes(TODAY.nextRun.none), false, 'control: not 「定时没开」')
   assert.equal((await s.page.evaluate(() => window.streams.setSchedule({ enabled: false, time: '21:15' }))).ok, true)
   // the screen reads its data when it opens: away and back
-  await s.page.click('[data-nav="inbox"]')
+  await s.page.click('.st-lib-tabs [data-tab="inbox"]')
   await ready(s.page, 'inbox')
-  await s.page.click('[data-nav="today"]')
-  await ready(s.page, 'today')
+  await s.page.click('.st-lib-tabs [data-tab="overview"]')
+  await ready(s.page, 'overview')
   const off = await subtitle()
   assert.ok(off.includes(TODAY.nextRun.none), off)
   assert.equal(off.includes(fmt(TODAY.nextRun.at, { when: '' }).trim()), false, 'control: no 「下次运行」')

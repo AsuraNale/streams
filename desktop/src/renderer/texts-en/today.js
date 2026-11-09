@@ -30,7 +30,7 @@ export const TODAY = Object.freeze({
     failed: '{n} of {total} source{total?|s} failed for now: {names}. They are tried again next round; no address to fix.',
     gap: '{n} of {total} source{total?|s} with an address problem: {names}. Fix the address, or remove the source.',
     blocked: '{n} of {total} source{total?|s} blocked by the site: {names}. Use another source.',
-    go: 'See sources and topics',
+    go: 'See sources and brief',
   }),
 
   problem: Object.freeze({

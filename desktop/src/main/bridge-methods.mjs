@@ -58,6 +58,14 @@ export const PROPOSAL_STATUSES = Object.freeze(['pending', 'confirmed', 'decline
 const proposalId = nonEmptyShort(80)
 const proposalFilter = f => f === null || (isObject(f) && onlyKeys(f, ['status', 'libraryId']) && optional(f, 'status', v => PROPOSAL_STATUSES.includes(v)) && optional(f, 'libraryId', v => v === null || libraryId(v)))
 const libraryMeta = m => isObject(m) && Object.keys(m).length > 0 && onlyKeys(m, ['name', 'icon', 'color']) && Object.values(m).every(v => typeof v === 'string' && v.length <= 200)
+// v2 package C: the main agent and the suggestion cards. A trailing argument the page may leave out is `undefined` (or null)
+const absent = v => v === undefined || v === null
+const agentText = v => nonEmpty(v) && [...v.trim()].length <= 4000
+const agentSendOptions = o => absent(o) || (isObject(o) && onlyKeys(o, ['libraryId']) && optional(o, 'libraryId', v => v === null || libraryId(v)))
+const transcriptQuery = q => absent(q) || (isObject(q) && onlyKeys(q, ['limit', 'before'])
+  && optional(q, 'limit', v => Number.isInteger(v) && v >= 1 && v <= 500) && optional(q, 'before', v => v === null || (Number.isInteger(v) && v >= 1)))
+const suggestionFilter = f => absent(f) || (isObject(f) && onlyKeys(f, ['libraryId']) && optional(f, 'libraryId', v => v === null || libraryId(v)))
+const suggestionKey = nonEmptyShort(300)
 
 /** name → how many arguments it takes, and a check for them. */
 export const BRIDGE_METHODS = Object.freeze({
@@ -139,6 +147,16 @@ export const BRIDGE_METHODS = Object.freeze({
   declineProposal: Object.freeze({ args: 1, check: ([id]) => proposalId(id) }),
   reviseProposal: Object.freeze({ args: 2, check: ([id, text]) => proposalId(id) && nonEmptyShort(2000)(text) }),
   getWhoDecided: Object.freeze({ args: 0 }),
+  // the main agent (v2 package C; services/agent.mjs; docs/desktop.md §4.6): one sentence → one turn (one at a time: a second
+  // waits for the first); the conversation's record; the state. `optional` = how many trailing arguments may be left out
+  agentSend: Object.freeze({ args: 2, optional: 1, check: ([text, o]) => agentText(text) && agentSendOptions(o) }),
+  getAgentTranscript: Object.freeze({ args: 1, optional: 1, check: ([q]) => transcriptQuery(q) }),
+  getAgentStatus: Object.freeze({ args: 0 }),
+  // the suggestion cards (v2 package D's, wired by package C): the open ones; 「不要」; 「要」 = recorded and handed to the main
+  // agent as a note for one turn (it decides whether to propose a card) — nothing else changes
+  listSuggestions: Object.freeze({ args: 1, optional: 1, check: ([f]) => suggestionFilter(f) }),
+  dismissSuggestion: Object.freeze({ args: 3, optional: 1, check: ([id, key, reason]) => libraryId(id) && suggestionKey(key) && (absent(reason) || shortString(500)(reason)) }),
+  acceptSuggestion: Object.freeze({ args: 2, check: ([id, key]) => libraryId(id) && suggestionKey(key) }),
   // interface B (docs/desktop.md §4.2). The library and reading (services/browse.mjs): an id must be in the index
   getLibrary: Object.freeze({ args: 2, check: ([view, filter]) => LIBRARY_VIEWS.includes(view) && libraryFilter(filter) }),
   searchLibrary: Object.freeze({ args: 2, check: ([q, filter]) => shortString(200)(q) && searchFilter(filter) }),
@@ -160,6 +178,9 @@ export const BRIDGE_METHODS = Object.freeze({
   addTopic: Object.freeze({ args: 1, check: ([topic]) => smallObject(topic, 10_000) && name100(topic.name) }),
   updateTopic: Object.freeze({ args: 2, check: ([name, patch]) => name100(name) && smallObject(patch, 10_000) }),
   removeTopic: Object.freeze({ args: 1, check: ([name]) => name100(name) }),
+  // the library's 「要求」 (v2 package F, services/sources.mjs): the text the user typed; the core trims it and judges its length
+  getBrief: Object.freeze({ args: 0 }),
+  setBrief: Object.freeze({ args: 1, check: ([text]) => shortString(8000)(text) }),
   // the pipeline's nodes (services/pipeline.mjs): the whole configuration back; a url to try must be in the ledger
   getPipeline: Object.freeze({ args: 0 }),
   savePipeline: Object.freeze({ args: 1, check: ([cfg]) => smallObject(cfg, 200_000) }),
@@ -208,6 +229,8 @@ export const CORE_BAD_ARGUMENT_CODES = Object.freeze([
   'unknown-library',
   // a proposal card that does not fit (core draftProposal / reviseProposal), one that is not pending any more (v2 package B)
   'bad-proposal', 'not-pending',
+  // a suggestion card that is not open (core dismissSuggestion / acceptSuggestion; v2 package D, wired by C)
+  'not-open',
 ])
 
 /** A core error as the bridge's: shape errors (and every `duplicate-*`) → bad_arguments, the rest → internal. */
@@ -244,7 +267,8 @@ export function methodNames() {
 export function checkArgs(name, args) {
   const spec = Object.hasOwn(BRIDGE_METHODS, name) ? BRIDGE_METHODS[name] : null
   if (!spec) throw new BridgeError('internal', `no bridge method ${name}`)
-  if (!Array.isArray(args) || args.length !== spec.args) throw new BridgeError('bad_arguments')
+  const fewest = spec.args - (Number.isInteger(spec.optional) ? spec.optional : 0)
+  if (!Array.isArray(args) || args.length > spec.args || args.length < fewest) throw new BridgeError('bad_arguments')
   if (typeof spec.check === 'function' && spec.check(args) !== true) throw new BridgeError('bad_arguments')
 }
 

@@ -23,6 +23,7 @@ import { fmt } from '../src/renderer/lib/format.js'
 import { headerText, parseHeaderText } from '../src/renderer/lib/header-text.js'
 import { ready } from './support/app.mjs'
 import { IMPORT_FILES, seedImportFolder, worldSession } from './support/seed.mjs'
+// v2 package F: 资料库 and 今日 (概览) are tabs of the library's page, reached through it, not v1.0's sidebar entries; the assertions are v1.0's
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
 const POLL = { polling: 100, timeout: 60_000 }
@@ -64,7 +65,12 @@ const bodyHash = file => core.bodyHashOf(readFileSync(join(vault, file)))
 const untouched = files => { const now = hashTree(vault); for (const f of files) assert.equal(now[f], before[f], `${f} is byte for byte what it was`) }
 
 async function openPending() {
-  await page().click('[data-nav="library"]')
+  // v2 package F: 资料库 is a tab of the library's page (from 设置: the library's line first)
+  if (await page().evaluate(() => document.querySelector('.st-lib-tabs') === null)) {
+    await page().click('[data-library-row][data-active="true"]')
+    await until(() => document.querySelector('.st-lib-tabs') !== null)
+  }
+  await page().click('.st-lib-tabs [data-tab="library"]')
   await ready(page(), 'library')
   await page().click('[data-view="pending"]')
   await until(() => document.querySelector('[data-part="tidy"]') !== null && document.querySelectorAll('[data-card]').length > 0)
@@ -131,8 +137,8 @@ test('「跳过」 writes nothing and hides the card; opened again, the card is 
   assert.equal(await page().evaluate(() => document.querySelector('[data-part="skipped-line"]').dataset.count), '1')
   untouched(['untitled.md'])
   // away and back: the page forgets the skip, the file is still to tidy
-  await page().click('[data-nav="today"]')
-  await ready(page(), 'today')
+  await page().click('.st-lib-tabs [data-tab="overview"]')
+  await ready(page(), 'overview')
   await openPending()
   assert.ok((await cards()).includes('untitled.md'))
   untouched(['untitled.md'])

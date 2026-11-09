@@ -59,7 +59,7 @@ export const SETTINGS = Object.freeze({
   capBad: '上限要是一个正整数。',
   thresholds: '默认过关线',
   thresholdsValue: '相关度 {relevance} · 实质 {substance}',
-  thresholdsHint: '要改的话去流水线页',
+  thresholdsHint: '要改的话去库的「来源与要求」',
 
   // 库
   library: '库',

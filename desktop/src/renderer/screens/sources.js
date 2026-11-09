@@ -1,3 +1,8 @@
+// v2 package F: the 来源与要求 tab of a library's page (screens/library-frame.js; design P7): v1.0's 来源与主题 below, plus 「要求」 (getBrief /
+// setBrief, the user's own: changes.jsonl by you), this library's schedule and cap (getLibrarySchedule / setLibrarySchedule,
+// getPipelineSettings / setRoundCap; v1.0 had them on 设置), 「关卡」 (screens/pipeline.js GatesSection) and 「谁定的」 beside each part
+// (getWhoDecided: WhoLine). Hooks of the new parts: [data-part=brief|run|gates], [data-who=<field>][data-by], [data-action=edit-brief|
+// save-brief|cancel-brief|save-cap], textarea[data-field="brief"], input[data-field=schedule-on|schedule-time|cap].
 // 来源与主题 (mockup S5; docs/desktop.md §4.2). One row per source: its name, its kind and address (or search words), its
 // state from the last round in the five words with the count or the rounds in a row, and what to do about it (the
 // core's hint code → texts/common.js FETCH_HINTS); its topic; 「试抓」 (trySource: nothing written), 「暂停 / 恢复」,
@@ -9,17 +14,24 @@
 // Test hooks: main[data-screen="sources"][data-state], [data-part=sources|topics], [data-row=<name>][data-state][data-paused],
 // [data-hint=<code>], [data-tried=<name>][data-state], [data-topic-row=<name>], dialogs [data-dialog=add-source|add-link|
 // edit-source|remove-source|remove-topic] with input / select [data-field=…] and [data-action=…].
-import { html, useState } from '../lib/html.js'
+import { html, useEffect, useState } from '../lib/html.js'
+import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
-import { fmt } from '../lib/format.js'
+import { dayText, fmt, nextText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, Dialog, LinkButton, Main, TopBar } from '../kit/index.js'
-import { ERRORS, FETCH_HINTS, FETCH_STATES, SEP, SOURCE_KINDS, SOURCE_STATES } from '../texts/common.js'
+import { Dialog, LinkButton, TopBar } from '../kit/index.js'
+import { DAY, ERRORS, FETCH_HINTS, FETCH_STATES, NEXT_WHEN, SEP, SOURCE_KINDS, SOURCE_STATES } from '../texts/common.js'
 import { SOURCES as T } from '../texts/sources.js'
+import { SETTINGS as S } from '../texts/settings.js'
+import { SHELL } from '../texts/shell.js'
+import { LibraryFrame } from './library-frame.js'
+import { GatesSection } from './pipeline.js'
 
 const KINDS = ['rss', 'arxiv', 'hn']
+// the longest brief the core takes (core BRIEF_MAX, in characters once trimmed); the core judges it again
+const BRIEF_MAX = 2000
 const ADDABLE = ['ok', 'empty', 'failed']
 const kindWord = k => (Object.hasOwn(SOURCE_KINDS, k) ? SOURCE_KINDS[k] : String(k ?? ''))
 const stateWord = s => (Object.hasOwn(FETCH_STATES, s) ? FETCH_STATES[s] : Object.hasOwn(SOURCE_STATES, s) ? SOURCE_STATES[s] : String(s ?? ''))
@@ -259,9 +271,133 @@ function TopicRow({ t, busy, onSave, onRemove }) {
   </tr>`
 }
 
-export function SourcesScreen() {
+/**
+ * 「谁定的」 of one field (getWhoDecided; docs/desktop.md §4.5): 你改的 · date, 主 Agent 提的 · 你确认的 · date, or 首次设置 when
+ * nothing has changed it since (no record).
+ */
+export function WhoLine({ who, field }) {
+  const w = who?.[field] ?? null
+  const date = w?.at ? dayText(w.at, DAY) ?? String(w.at).slice(0, 10) : ''
+  const text = !w ? SHELL.who.setup : w.by === 'agent-confirmed' ? fmt(SHELL.who.agent, { date }) : fmt(SHELL.who.you, { date })
+  return html`<span class="src-who st-t-tiny" data-who=${field} data-by=${w?.by ?? 'setup'} title=${SHELL.who.label}>${text}</span>`
+}
+
+/** 「要求」: the brief (getBrief), 「改要求」 → a text box, 「保存」 (setBrief: the user's own, changes.jsonl by 'you'). */
+function BriefPart({ who, onSaved }) {
+  const brief = useLoad(() => call('getBrief'), [])
+  useEvent('library-changed', () => brief.reload())
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null)
+  const current = brief.data?.brief ?? null
+  const start = () => { setText(current ?? ''); setNote(null); setEditing(true) }
+  const save = async () => {
+    const t = text.trim()
+    if ([...t].length < 1 || [...t].length > BRIEF_MAX) { setNote({ kind: 'error', text: SHELL.sources.briefBad }); return }
+    setBusy(true)
+    setNote(null)
+    try {
+      const r = await call('setBrief', t)
+      brief.mutate(() => ({ brief: r?.brief ?? t }))
+      setEditing(false)
+      setNote({ kind: 'saved', text: SHELL.sources.briefSaved })
+      onSaved?.()
+    } catch (err) {
+      setNote({ kind: 'error', text: err?.code === 'bad_arguments' ? SHELL.sources.briefBad : SHELL.sources.briefFailed })
+    } finally { setBusy(false) }
+  }
+  return html`<section class="src-part" data-part="brief" data-state=${brief.data ? 'ready' : brief.status} aria-labelledby="src-brief">
+    <div class="src-part__head">
+      <h2 class="st-t-small st-t-sub st-t-strong" id="src-brief">${SHELL.sources.brief}</h2>
+      ${editing ? null : html`<${Act} name="edit-brief" disabled=${!brief.data} onClick=${start}>${SHELL.sources.briefEdit}<//>`}
+    </div>
+    ${brief.status === 'error' && !brief.data ? html`<div class="src-error" role="alert">${T.loadFailed}</div>` : null}
+    ${editing ? html`<div class="src-brief__edit">
+        <textarea class="src-brief__text" data-field="brief" rows="5" maxlength=${BRIEF_MAX} aria-label=${SHELL.sources.briefLabel} value=${text}
+          onInput=${e => setText(e.currentTarget.value)}></textarea>
+        <div class="src-dialog__row">
+          <${Act} name="save-brief" variant="primary" disabled=${busy} onClick=${save}>${SHELL.sources.briefSave}<//>
+          <${Act} name="cancel-brief" disabled=${busy} onClick=${() => { setEditing(false); setNote(null) }}>${SHELL.sources.briefCancel}<//>
+        </div>
+      </div>`
+      : brief.data ? html`<div class=${current ? 'src-brief' : 'src-brief src-brief--none st-t-muted'} data-part="brief-text" data-has-brief=${String(Boolean(current))}>${current ?? SHELL.sources.briefNone}</div>` : null}
+    <div><${WhoLine} who=${who} field="brief" /></div>
+    ${note ? html`<div class=${note.kind === 'saved' ? 'st-t-small st-t-done' : 'src-error'} role=${note.kind === 'saved' ? 'status' : 'alert'} data-part="brief-note" data-kind=${note.kind}>${note.text}</div>` : null}
+  </section>`
+}
+
+/**
+ * This library's schedule (getLibrarySchedule / setLibrarySchedule of package A: the switch and the time, saved at once) and
+ * its cap per round (getPipelineSettings / setRoundCap), each with 「谁定的」. v1.0 had both on 设置.
+ */
+function RunPart({ libraryId, who, onSaved }) {
+  const sched = useLoad(() => (libraryId ? call('getLibrarySchedule', libraryId) : null), [libraryId])
+  const run = useLoad(() => call('getPipelineSettings'), [])
+  useEvent('settings-changed', p => { if (!p || p.libraryId === undefined || p.libraryId === libraryId) sched.reload() })
+  const [time, setTime] = useState('')
+  const [cap, setCap] = useState('')
+  const [note, setNote] = useState(null)
+  const [capNote, setCapNote] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const d = sched.data
+  useEffect(() => { if (d) setTime(d.time) }, [d?.time])
+  useEffect(() => { if (run.data) setCap(String(run.data.cap ?? '')) }, [run.data?.cap])
+  const saveSchedule = async (enabled, value) => {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) { setNote(S.scheduleBad); return }
+    setBusy(true)
+    setNote(null)
+    try { const r = await call('setLibrarySchedule', libraryId, { enabled, time: value }); sched.mutate(() => r); setNote(S.scheduleSaved); onSaved?.() } catch { setNote(S.scheduleBad) } finally { setBusy(false) }
+  }
+  const saveCap = async () => {
+    const n = Number(cap)
+    if (!/^\d+$/.test(cap.trim()) || !Number.isInteger(n) || n <= 0) { setCapNote(S.capBad); return }
+    setBusy(true)
+    setCapNote(null)
+    try { await call('setRoundCap', n); setCapNote(S.capSaved); run.reload(); onSaved?.() } catch { setCapNote(S.capBad) } finally { setBusy(false) }
+  }
+  return html`<section class="src-part" data-part="run" aria-labelledby="src-run">
+    <div class="src-part__head">
+      <h2 class="st-t-small st-t-sub st-t-strong" id="src-run">${SHELL.sources.run}</h2>
+      <span class="st-t-tiny st-t-muted">${SHELL.sources.runHint}</span>
+    </div>
+    ${sched.status === 'error' && !d ? html`<div class="src-error">${S.scheduleFailed}</div>` : null}
+    ${d ? html`<div class="src-run" data-schedule=${d.enabled ? 'on' : 'off'}>
+      <div class="src-run__row">
+        <span class="src-check">
+          <input type="checkbox" id="src-schedule-on" data-field="schedule-on" checked=${d.enabled} disabled=${busy} onChange=${e => saveSchedule(e.currentTarget.checked, d.time)} />
+          <label for="src-schedule-on">${S.scheduleOn}</label>
+        </span>
+        <label class="st-t-small st-t-sub" for="src-schedule-time">${S.scheduleTime}</label>
+        <input id="src-schedule-time" class="src-input src-input--short" type="time" step="60" data-field="schedule-time" value=${time} disabled=${busy || !d.enabled}
+          onInput=${e => setTime(e.currentTarget.value)} onChange=${e => saveSchedule(d.enabled, e.currentTarget.value)} />
+        ${note ? html`<span class=${note === S.scheduleSaved ? 'st-t-small st-t-done' : 'src-error'} role="status" data-schedule-note>${note}</span>` : null}
+      </div>
+      <div class="st-t-small" data-next-run=${d.nextRunAt ?? ''}>${d.nextRunAt ? fmt(S.scheduleNext, { when: nextText(d.nextRunAt, NEXT_WHEN) ?? d.nextRunAt }) : S.scheduleOff}</div>
+      <div class="st-t-tiny st-t-sub">${S.scheduleMissed}</div>
+      <div class="st-t-tiny st-t-sub">${S.scheduleClose}</div>
+      <div><${WhoLine} who=${who} field="schedule" /></div>
+    </div>` : null}
+    <div class="src-run__row">
+      <label class="st-t-small st-t-sub" for="src-cap">${S.cap}</label>
+      <input id="src-cap" class="src-input src-input--short" type="number" min="1" step="1" data-field="cap" value=${cap} disabled=${!run.data || busy}
+        onInput=${e => setCap(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); saveCap() } }} />
+      <span class="st-t-small st-t-sub">${S.capUnit}</span>
+      <${Act} name="save-cap" disabled=${!run.data || busy} onClick=${saveCap}>${S.capSave}<//>
+      ${capNote ? html`<span class=${capNote === S.capSaved ? 'st-t-small st-t-done' : 'src-error'} role="status" data-cap-note>${capNote}</span>` : null}
+    </div>
+    <div><${WhoLine} who=${who} field="cap" /></div>
+    ${run.status === 'error' && !run.data ? html`<div class="src-error">${S.runFailed}</div>` : null}
+  </section>`
+}
+
+export function SourcesScreen({ params = {} }) {
+  const { appState } = useApp()
+  const libraryId = appState?.data?.library?.libraryId ?? null
   const view = useLoad(() => call('getSources'), [])
-  useEvent('library-changed', () => view.reload())
+  const who = useLoad(() => call('getWhoDecided'), [])
+  useEvent('library-changed', () => { view.reload(); who.reload() })
+  useEvent('settings-changed', () => who.reload())
   const [tried, setTried] = useState({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -270,13 +406,14 @@ export function SourcesScreen() {
   const [newKeywords, setNewKeywords] = useState('')
   const [topicError, setTopicError] = useState(null)
   const d = view.data
+  const w = who.data
   const sources = Array.isArray(d?.sources) ? d.sources : []
   const topics = Array.isArray(d?.topics) ? d.topics : []
   const topicNames = topics.map(t => t.name)
   const act = async (fn, after) => {
     setBusy(true)
     setError(null)
-    try { await fn(); after?.(); return true } catch { setError(T.failed); return false } finally { setBusy(false); view.reload() }
+    try { await fn(); after?.(); return true } catch { setError(T.failed); return false } finally { setBusy(false); view.reload(); who.reload() }
   }
   const tryOne = async s => {
     setTried(m => ({ ...m, [s.name]: { status: 'trying' } }))
@@ -284,7 +421,7 @@ export function SourcesScreen() {
   }
   const saveKeywords = async (t, keywords) => {
     setTopicError(null)
-    try { await call('updateTopic', t.name, { keywords }); view.reload(); return true } catch { setTopicError(T.topics.bad); return false }
+    try { await call('updateTopic', t.name, { keywords }); view.reload(); who.reload(); return true } catch { setTopicError(T.topics.bad); return false }
   }
   const addTopic = async () => {
     if (!newTopic.trim()) { setTopicError(T.topics.bad); return }
@@ -294,55 +431,70 @@ export function SourcesScreen() {
       setNewTopic('')
       setNewKeywords('')
       view.reload()
+      who.reload()
     } catch { setTopicError(T.topics.bad) }
   }
   const close = () => setDialog(null)
+  const changed = () => { view.reload(); who.reload() }
   const title = d ? fmt(T.title, { sources: d.counts?.sources ?? sources.length, topics: d.counts?.topics ?? topics.length }) : T.titlePlain
   const actions = html`<div class="src-actions">
     <${Act} name="add-link" disabled=${!d} onClick=${() => setDialog({ kind: 'add-link' })}>${T.addLink}<//>
     <${Act} name="add-source" variant="primary" icon="plus" disabled=${!d} onClick=${() => setDialog({ kind: 'add-source' })}>${T.addSource}<//>
   </div>`
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="sources" />`}>
-    <${Main} screen="sources" state=${d ? 'ready' : view.status} labelledby="sources-title">
-      <${TopBar} title=${title} titleTag="h1" titleId="sources-title" actions=${actions} />
+  return html`<${LibraryFrame} tab="sources" state=${d ? 'ready' : view.status} labelledby="sources-title" actions=${actions} section=${params.section}>
+      <${TopBar} title=${title} titleTag="h2" titleId="sources-title" />
       <div class="st-main__body src-body">
         ${view.status === 'error' && !d ? html`<div class="src-error" role="alert">${view.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}<${LinkButton} onClick=${() => view.reload()}>${ERRORS.retry}<//></div>` : null}
         ${error ? html`<div class="src-error" role="alert">${error}</div>` : null}
         ${d ? html`
-          <section class="src-part" data-part="sources" aria-labelledby="src-sources">
-            <h2 class="st-t-small st-t-sub st-t-strong" id="src-sources">${T.sourcesHeading}</h2>
-            ${sources.length ? html`<ul class="src-list">
-              ${sources.map(s => html`<${SourceRow} key=${s.name} s=${s} tried=${tried[s.name]} busy=${busy}
-                onTry=${() => tryOne(s)}
-                onPause=${() => act(() => call('setSourcePaused', s.name, !s.paused))}
-                onEdit=${() => setDialog({ kind: 'edit-source', source: s })}
-                onRemove=${() => setDialog({ kind: 'remove-source', source: s })} />`)}
-            </ul>` : html`<p class="st-t-small st-t-muted" data-part="sources-none">${T.none}</p>`}
-          </section>
-          <section class="src-part" data-part="topics" aria-labelledby="src-topics">
-            <h2 class="st-t-small st-t-sub st-t-strong" id="src-topics">${T.topics.heading}</h2>
-            ${topics.length ? html`<table class="src-topics">
-              <thead><tr><th scope="col">${T.topics.name}</th><th scope="col">${T.topics.keywords}</th><th scope="col">${T.topics.kept}</th><th scope="col"></th></tr></thead>
-              <tbody>${topics.map(t => html`<${TopicRow} key=${t.name} t=${t} busy=${busy} onSave=${k => saveKeywords(t, k)} onRemove=${() => setDialog({ kind: 'remove-topic', topic: t })} />`)}</tbody>
-            </table>` : html`<p class="st-t-small st-t-muted">${T.topics.none}</p>`}
-            <div class="src-topics__add" data-part="add-topic">
-              <input class="src-topics__input" data-field="topic-name" aria-label=${T.topics.addName} placeholder=${T.topics.addName} value=${newTopic} onInput=${e => setNewTopic(e.currentTarget.value)} />
-              <input class="src-topics__input src-topics__input--wide" data-field="topic-keywords" aria-label=${T.topics.addKeywords} placeholder=${T.topics.addKeywords} value=${newKeywords} onInput=${e => setNewKeywords(e.currentTarget.value)} />
-              <${Act} name="add-topic" disabled=${busy || !newTopic.trim()} onClick=${addTopic}>${T.topics.add}<//>
+          <div class="src-columns">
+            <div class="src-columns__col">
+              <${BriefPart} who=${w} onSaved=${() => who.reload()} />
+              <section class="src-part" data-part="topics" aria-labelledby="src-topics">
+                <div class="src-part__head">
+                  <h2 class="st-t-small st-t-sub st-t-strong" id="src-topics">${T.topics.heading}</h2>
+                  <${WhoLine} who=${w} field="topics" />
+                </div>
+                ${topics.length ? html`<table class="src-topics">
+                  <thead><tr><th scope="col">${T.topics.name}</th><th scope="col">${T.topics.keywords}</th><th scope="col">${T.topics.kept}</th><th scope="col"></th></tr></thead>
+                  <tbody>${topics.map(t => html`<${TopicRow} key=${t.name} t=${t} busy=${busy} onSave=${k => saveKeywords(t, k)} onRemove=${() => setDialog({ kind: 'remove-topic', topic: t })} />`)}</tbody>
+                </table>` : html`<p class="st-t-small st-t-muted">${T.topics.none}</p>`}
+                <div class="src-topics__add" data-part="add-topic">
+                  <input class="src-topics__input" data-field="topic-name" aria-label=${T.topics.addName} placeholder=${T.topics.addName} value=${newTopic} onInput=${e => setNewTopic(e.currentTarget.value)} />
+                  <input class="src-topics__input src-topics__input--wide" data-field="topic-keywords" aria-label=${T.topics.addKeywords} placeholder=${T.topics.addKeywords} value=${newKeywords} onInput=${e => setNewKeywords(e.currentTarget.value)} />
+                  <${Act} name="add-topic" disabled=${busy || !newTopic.trim()} onClick=${addTopic}>${T.topics.add}<//>
+                </div>
+                ${topicError ? html`<div class="src-error" role="alert" data-part="topic-error">${topicError}</div>` : null}
+              </section>
+              <${RunPart} libraryId=${libraryId} who=${w} onSaved=${() => who.reload()} />
             </div>
-            ${topicError ? html`<div class="src-error" role="alert" data-part="topic-error">${topicError}</div>` : null}
-          </section>
+            <div class="src-columns__col">
+              <section class="src-part" data-part="sources" aria-labelledby="src-sources">
+                <div class="src-part__head">
+                  <h2 class="st-t-small st-t-sub st-t-strong" id="src-sources">${T.sourcesHeading}</h2>
+                  <${WhoLine} who=${w} field="sources" />
+                </div>
+                ${sources.length ? html`<ul class="src-list">
+                  ${sources.map(s => html`<${SourceRow} key=${s.name} s=${s} tried=${tried[s.name]} busy=${busy}
+                    onTry=${() => tryOne(s)}
+                    onPause=${() => act(() => call('setSourcePaused', s.name, !s.paused))}
+                    onEdit=${() => setDialog({ kind: 'edit-source', source: s })}
+                    onRemove=${() => setDialog({ kind: 'remove-source', source: s })} />`)}
+                </ul>` : html`<p class="st-t-small st-t-muted" data-part="sources-none">${T.none}</p>`}
+              </section>
+            </div>
+          </div>
+          <${GatesSection} who=${html`<${WhoLine} who=${w} field="thresholds" />`} />
         ` : null}
       </div>
-    <//>
-    ${dialog?.kind === 'add-source' ? html`<${AddSourceDialog} topics=${topicNames} onClose=${close} onAdded=${() => { close(); view.reload() }} />` : null}
+    ${dialog?.kind === 'add-source' ? html`<${AddSourceDialog} topics=${topicNames} onClose=${close} onAdded=${() => { close(); changed() }} />` : null}
     ${dialog?.kind === 'add-link' ? html`<${AddLinkDialog} onClose=${close} />` : null}
-    ${dialog?.kind === 'edit-source' ? html`<${EditSourceDialog} source=${dialog.source} onClose=${close} onSaved=${() => { close(); view.reload() }} />` : null}
+    ${dialog?.kind === 'edit-source' ? html`<${EditSourceDialog} source=${dialog.source} onClose=${close} onSaved=${() => { close(); changed() }} />` : null}
     ${dialog?.kind === 'remove-source' ? html`<${ConfirmDialog} name="remove-source" title=${fmt(T.removeDialog.title, { name: dialog.source.name })} text=${T.removeDialog.text}
       confirm=${T.removeDialog.confirm} cancel=${T.removeDialog.cancel} onClose=${close}
-      onConfirm=${async () => { await call('removeSource', dialog.source.name); close(); view.reload() }} />` : null}
+      onConfirm=${async () => { await call('removeSource', dialog.source.name); close(); changed() }} />` : null}
     ${dialog?.kind === 'remove-topic' ? html`<${ConfirmDialog} name="remove-topic" title=${fmt(T.removeTopicDialog.title, { name: dialog.topic.name })} text=${T.removeTopicDialog.text}
       confirm=${T.removeTopicDialog.confirm} cancel=${T.removeTopicDialog.cancel} onClose=${close}
-      onConfirm=${async () => { await call('removeTopic', dialog.topic.name); close(); view.reload() }} />` : null}
+      onConfirm=${async () => { await call('removeTopic', dialog.topic.name); close(); changed() }} />` : null}
   <//>`
 }

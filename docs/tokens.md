@@ -103,6 +103,18 @@
 | `--st-chart-4` | `#A6C4D1`（自算） | 同河蓝 | `#3C5C6B`（60%，自算） | `--yz-chart-4` | 第四序列 |
 | `--st-chart-5` | `#D3E1E8`（自算） | 同河蓝 | `#2A3D49`（80%，自算） | `--yz-chart-5` | 第五序列 |
 
+## 库的颜色（v2 包 F，11-05）
+
+每个库在登记表里有一个颜色名（包 A，核心 `LIBRARY_COLORS`：`river` · `violet` · `green` · `muted`，只存名字不存值）；界面把它画成库的图标方块（左栏「我的库」、库架的卡片、库头：`kit/library-sections.js LibraryMark`，class `st-lib-mark--<名>`），方块上的字用 `--st-on-lib`。河蓝与素灰用方案的四个色、白字；夜间用暗色板里浅的那四个、暗色 river-ink 字（同主按钮的做法）。方块上的字三套都 ≥ 4.5（`desktop/test/theme.test.mjs`「库的颜色」一条从 `tokens.css` 重算，也核四个名和核心的 `LIBRARY_COLORS` 一致）。
+
+| token 名 | 河蓝 river（默认） | 素灰 paper | 夜间 night | 云织里对应的名 | 用在哪 |
+|---|---|---|---|---|---|
+| `--st-lib-river` | `#1F6E8C`（river） | 同河蓝 | `#74B7D3`（river 暗色） | —（新） | 颜色为 `river` 的库的图标方块；白字 5.73，夜间暗字 8.22 |
+| `--st-lib-violet` | `#5B4FA8`（violet） | 同河蓝 | `#A79BE8`（violet 暗色） | —（新） | `violet` 的库；6.71 / 7.38 |
+| `--st-lib-green` | `#237A5B`（green） | 同河蓝 | `#6CC9A6`（green 暗色） | —（新） | `green` 的库；5.24 / 9.16 |
+| `--st-lib-muted` | `#56646F`（muted） | 同河蓝 | `#9CAAB5`（muted 暗色） | —（新） | `muted` 的库；6.09 / 7.67 |
+| `--st-on-lib` | `#FFFFFF`（river-ink） | 同河蓝 | `#0F161B`（river-ink 暗色） | —（新） | 库图标方块上的字 |
+
 ## 衬底与阴影
 
 | token 名 | 河蓝 river（默认） | 素灰 paper | 夜间 night | 云织里对应的名 | 用在哪 |

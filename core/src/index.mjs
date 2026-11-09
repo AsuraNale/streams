@@ -39,3 +39,5 @@ export { readBrief, saveBrief, isBrief, BRIEF_MAX } from './library/brief.mjs';
 export * from './proposals/index.mjs';
 // v2 package D: rule-based suggestion cards (core-api 5.14, 2026-11-05). 「写给 AI 的话」 is exported with verify/ above.
 export * from './suggest/index.mjs';
+// v2 package C: the main agent (core-api 5.15, 2026-11-05); its session mode is exported with connect/ above.
+export * from './agent/index.mjs';

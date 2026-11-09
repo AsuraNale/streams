@@ -5,6 +5,9 @@
 // and removed again; a too-short item is refused (control). 「试一条看结果」 with no connection chosen says so and offers 设置;
 // with one, it shows a result and writes nothing to the record, the inbox or the checks (hashed). The right panel is the
 // core's last round, recent reasons and recent check failures.
+// v2 package F: 流水线 is the 「关卡」 part of a library's 来源与要求 now ([data-part="gates"] in main[data-screen="sources"]; v1.0's
+// right panel beside the editor). STREAMS_START_SCREEN 'pipeline' is v1.0's id and leads there; the session waits for 来源与要求
+// and then for the part's own data (it loads on its own). Every assertion below is v1.0's.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -19,7 +22,7 @@ import { seedPlanB, worldSession } from './support/seed.mjs'
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
 const s = worldSession({
   kind: 'seeded',
-  waitFor: 'pipeline',
+  waitFor: 'sources',
   prepare: async world => { await seedPlanB(world) },
   env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'pipeline' }),
 })
@@ -37,6 +40,7 @@ const settle = () => s.page.waitForFunction(() => document.querySelector('[data-
 const relevance = () => core.pipelineConfig(dir()).nodes.find(n => n.id === 'relevance')
 
 test('the strip is the core\'s steps in order; fixed steps are locked and show no settings (control); relevance opens first', async () => {
+  await s.page.waitForFunction(() => document.querySelector('main[data-screen="sources"] [data-part="gates"][data-state="ready"] [data-part="editor"]') !== null, null, POLL)
   const cfg = core.pipelineConfig(dir())
   const strip = await s.page.evaluate(() => [...document.querySelectorAll('[data-flow-node]')].map(e => [e.dataset.flowNode, e.dataset.kind, e.dataset.locked]))
   assert.deepEqual(strip, cfg.nodes.map(n => [n.id, n.kind, String(n.kind === 'fixed')]))

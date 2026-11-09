@@ -1,5 +1,6 @@
 // The English interface on the running app (docs/desktop.md��). Session A starts with `language: 'en'` in settings.json:
-// the sidebar's nine entries, the window title, <html lang> and the settings page come from the English tables; switching
+// the sidebar's entries (v2 package F: plan B's 库架 and 和主 Agent 聊, the library's line, the five tabs of its page; v1.0
+// checked the nine entries and 今日's title — the same checks, on the words that took their place), the window title, <html lang> and the settings page come from the English tables; switching
 // to Chinese on the settings page reloads the page there in Chinese and writes the setting; switching to 跟随系统 on a
 // Chinese system (the tests pin it) changes nothing and does not reload. Session B: no setting, the system's languages
 // English and French → English, `auto` resolved to `en`.
@@ -8,11 +9,11 @@ import { test } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { SIDEBAR as SIDEBAR_EN } from '../src/renderer/texts-en/common.js'
-import { SCREENS as SCREENS_EN } from '../src/renderer/texts-en/screens.js'
 import { SETTINGS as SETTINGS_EN } from '../src/renderer/texts-en/settings.js'
 import { SIDEBAR } from '../src/renderer/texts/common.js'
-import { SCREENS } from '../src/renderer/texts/screens.js'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
+import { SHELL } from '../src/renderer/texts/shell.js'
+import { SHELL as SHELL_EN } from '../src/renderer/texts-en/shell.js'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { tempDir } from '../scripts/lib/temp.mjs'
 import { makeWorld } from '../scripts/lib/world.mjs'
@@ -24,15 +25,20 @@ const s = appSession({ settings: { language: 'en' } })
 const settings = () => JSON.parse(readFileSync(join(s.run.appData, 'settings.json'), 'utf8'))
 const until = (fn, arg) => s.page.waitForFunction(fn, arg, { polling: 100, timeout: 60_000 })
 const navWords = page => page.evaluate(() => [...document.querySelectorAll('[data-nav]')].map(a => a.textContent.trim()))
+// v2 package F: the first screen is the current library's 概览: its tab (the page's h1 is the library's name now)
+const currentTab = page => page.evaluate(() => document.querySelector('.st-lib-tabs [aria-current]')?.textContent.trim() ?? null)
+const tabWords = page => page.evaluate(() => [...document.querySelectorAll('.st-lib-tabs [data-tab]')].map(b => b.textContent.trim()))
 
 test('the first screen and the sidebar in English; <html lang> and the window title follow the words; the app state says so', async () => {
-  assert.equal(await s.page.evaluate(() => document.querySelector('main h1').textContent), SCREENS_EN.titles.today)
-  assert.notEqual(SCREENS_EN.titles.today, SCREENS.titles.today, 'control: the two titles differ')
+  assert.equal(await currentTab(s.page), SHELL_EN.tabs.overview)
+  assert.notEqual(SHELL_EN.tabs.overview, SHELL.tabs.overview, 'control: the two words differ')
+  assert.deepEqual(await tabWords(s.page), ['overview', 'inbox', 'library', 'ask', 'sources'].map(k => SHELL_EN.tabs[k]))
   assert.deepEqual(await navWords(s.page), Object.values(SIDEBAR_EN.entries))
   assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar__footer-button').textContent), SIDEBAR_EN.settings)
-  // a test world opens its empty library (test/support/app.mjs): the folder's name, not the English 「未打开库」
-  assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar__library-name').textContent), 'library')
-  assert.notEqual(SIDEBAR_EN.noLibrary, 'library', 'control: the two words differ')
+  assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar__group').textContent), SHELL_EN.sidebar.mine)
+  // a test world opens its empty library (test/support/app.mjs): its line in 我的库 is the folder's name, not an English word
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-library-row] .st-sidebar__lib-name').textContent), 'library')
+  assert.equal(await s.page.evaluate(() => document.querySelector('main h1, #lib-head-name').textContent), 'library')
   assert.equal(await s.page.evaluate(() => [document.documentElement.lang, document.title].join()), 'en,Streams')
   assert.equal(await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle()), 'Streams')
   const state = await s.page.evaluate(() => window.streams.getAppState())
@@ -75,9 +81,12 @@ test('跟随系统 on a Chinese system (the tests pin it) changes nothing: the s
   await s.page.click('label[for="settings-language-en"]')
   await until(want => document.querySelector('main[data-screen="settings"][data-state="ready"] h1')?.textContent === want, SETTINGS_EN.title)
   assert.equal(settings().language, 'en')
-  await s.page.click('[data-nav="today"]')
-  await ready(s.page, 'today')
-  assert.equal(await s.page.evaluate(() => document.querySelector('main h1').textContent), SCREENS_EN.titles.today)
+  await s.page.click('[data-library-row]')
+  // (the page was loaded again for the language: nothing remembered, so the library opens on its 待看; then its 概览 tab)
+  await ready(s.page, 'inbox')
+  await s.page.click('.st-lib-tabs [data-tab="overview"]')
+  await ready(s.page, 'overview')
+  assert.equal(await currentTab(s.page), SHELL_EN.tabs.overview)
 })
 
 test('no setting and a system without Chinese: English, auto resolved to en (session B)', async t => {
@@ -92,8 +101,8 @@ test('no setting and a system without Chinese: English, auto resolved to en (ses
   const started = await launch(run, { env: { STREAMS_DEV_SYSTEM_LANGUAGES: 'en-US,fr' } })
   app = started.app
   const page = started.page
-  await ready(page, 'today')
-  assert.equal(await page.evaluate(() => document.querySelector('main h1').textContent), SCREENS_EN.titles.today)
+  await ready(page, 'overview')
+  assert.equal(await currentTab(page), SHELL_EN.tabs.overview)
   const state = await page.evaluate(() => window.streams.getAppState())
   assert.deepEqual(state.data.language, { setting: 'auto', resolved: 'en' })
   assert.equal(await page.evaluate(() => document.documentElement.lang), 'en')
@@ -102,8 +111,8 @@ test('no setting and a system without Chinese: English, auto resolved to en (ses
   app = null
   const zh = await launch(run, {})
   app = zh.app
-  await ready(zh.page, 'today')
-  assert.equal(await zh.page.evaluate(() => document.querySelector('main h1').textContent), SCREENS.titles.today)
+  await ready(zh.page, 'overview')
+  assert.equal(await currentTab(zh.page), SHELL.tabs.overview)
   assert.deepEqual((await zh.page.evaluate(() => window.streams.getAppState())).data.language, { setting: 'auto', resolved: 'zh-CN' })
 })
 
@@ -111,13 +120,17 @@ test('no page errors', () => {
   assert.deepEqual(s.errors, [])
 })
 
-// 2026-11-02 验方缺口：上面的中文断言拿字典自己当标准，字典改了测试照样绿。这里把方案 S2 的九个入口写死：
-// 改字典里任何一个词都必须红。（英文九词同样写死。）
-test('the nine entries of the sidebar are the words of the product spec, in both languages (literal, not the table)', () => {
-  assert.deepEqual(Object.values(SIDEBAR.entries), ['今日', '待看', '资料库', '图谱', '问库', '流水线', '来源与主题', '运行状态'])
+// 2026-11-02 验方缺口：上面的中文断言拿字典自己当标准，字典改了测试照样绿。这里把方案的入口写死：改字典里任何一个词都必须红。
+// v2 package F: the words are the v2 design's now (docs/design/v2/streams-v2-design.html 导航: 库架 · 和主 Agent 聊 · 我的库 ·
+// 新建库 · 设置, a library's five tabs); v1.0's nine entries (今日 … 运行状态) are no sidebar entries any more.
+test('the sidebar\'s entries and a library\'s five tabs are the words of the design, in both languages (literal, not the table)', () => {
+  assert.deepEqual(Object.values(SIDEBAR.entries), ['库架', '和主 Agent 聊'])
+  assert.deepEqual([SHELL.sidebar.mine, SHELL.sidebar.newLibrary], ['我的库', '新建库'])
+  assert.deepEqual(['overview', 'inbox', 'library', 'ask', 'sources'].map(k => SHELL.tabs[k]), ['概览', '待看', '资料库', '问库', '来源与要求'])
   assert.equal(SIDEBAR.settings, '设置')
   assert.equal(SIDEBAR.noLibrary, '未打开库')
-  assert.deepEqual(Object.values(SIDEBAR_EN.entries), ['Today', 'Inbox', 'Library', 'Graph', 'Ask', 'Pipeline', 'Sources & Topics', 'Status'])
+  assert.deepEqual(Object.values(SIDEBAR_EN.entries), ['Shelf', 'Chat with the main Agent'])
+  assert.deepEqual(['overview', 'inbox', 'library', 'ask', 'sources'].map(k => SHELL_EN.tabs[k]), ['Overview', 'Inbox', 'Library', 'Ask', 'Sources & Brief'])
   assert.equal(SIDEBAR_EN.settings, 'Settings')
   assert.deepEqual(Object.keys(SIDEBAR.entries), Object.keys(SIDEBAR_EN.entries), 'both tables key the same entries')
 })

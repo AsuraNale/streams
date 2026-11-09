@@ -1,5 +1,5 @@
 /* 流水线 (screens/pipeline.js): the strip of steps, the settings of one model step, 「试一条看结果」, the right panel. */
-[data-screen='pipeline'] .st-topbar { padding-left: 24px; padding-right: 24px; }
+/* (no screen of its own since v2 package F: the 「关卡」 part of 来源与要求) */
 .pl-actions { display: flex; align-items: center; gap: 8px; }
 .pl-body { padding: 14px 24px 24px; display: flex; flex-direction: column; gap: 12px; }
 .pl-error { display: flex; align-items: center; gap: 10px; color: var(--st-danger); font-weight: 700; }

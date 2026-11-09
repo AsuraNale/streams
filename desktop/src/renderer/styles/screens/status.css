@@ -1,5 +1,5 @@
 /* 运行状态 (screens/status.js): the four numbers, the connection rows (with the login loop of settings.js), the sources. */
-[data-screen='status'] .st-topbar { padding-left: 24px; padding-right: 24px; }
+/* (no screen of its own since v2 package F: the 「运行状态」 part of 概览) */
 .stat-actions { display: flex; align-items: center; gap: 8px; }
 .stat-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 18px; max-width: 1040px; }
 .stat-error { display: flex; align-items: center; gap: 10px; color: var(--st-danger); font-weight: 700; }

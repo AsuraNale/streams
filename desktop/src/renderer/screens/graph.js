@@ -1,3 +1,5 @@
+// v2 package F: the graph view of a library's 资料库 tab (screens/library-frame.js: tab library, screen graph; ViewSwitch back to the
+// list), otherwise as v1.0 had it.
 // 图谱 (mockup S9; docs/desktop.md §4.2). The filters in the top bar: 最近 30 天 / 全部, 只看已收藏 / 全部条目, 显示 [[链接]].
 // An SVG of three rows — topics · sources · items — where every node sits where the core's graph puts it: x and y are its
 // `col` and `row` times a fixed spacing (no force layout, no animation), so the same data draws the same picture every
@@ -16,7 +18,8 @@ import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, LinkButton, Main, TopBar } from '../kit/index.js'
+import { LinkButton, TopBar } from '../kit/index.js'
+import { LibraryFrame, ViewSwitch } from './library-frame.js'
 import { ERRORS, NOTE_STATUS } from '../texts/common.js'
 import { GRAPH as T } from '../texts/graph.js'
 
@@ -135,9 +138,9 @@ export function GraphScreen() {
     </span>
     <label class="gr-check"><input type="checkbox" data-filter="links" data-value=${String(links)} checked=${links} onChange=${e => setLinks(e.currentTarget.checked)} />${T.links}</label>
   </div>`
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="graph" />`}>
-    <${Main} screen="graph" state=${g ? 'ready' : graph.status} labelledby="graph-title">
-      <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h1" titleId="graph-title" actions=${actions} />
+  return html`<${LibraryFrame} tab="library" screen="graph" state=${g ? 'ready' : graph.status} labelledby="graph-title">
+      <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h2" titleId="graph-title"
+        actions=${html`${actions}<${ViewSwitch} current="graph" onSelect=${v => { if (v === 'list') navigate('library') }} />`} />
       <div class="st-main__body gr-body">
         ${graph.status === 'error' && !g ? html`<div class="gr-error" role="alert">${graph.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}<${LinkButton} onClick=${() => graph.reload()}>${ERRORS.retry}<//></div>` : null}
         ${g && items.length > shownItems.length ? html`<div class="st-t-small st-t-wait" data-part="limited" data-shown=${shownItems.length} data-total=${items.length}>${fmt(T.limited, { n: shownItems.length, total: items.length })}</div>` : null}
@@ -152,6 +155,5 @@ export function GraphScreen() {
         <p class="st-t-tiny st-t-muted gr-legend">${T.legend}</p>` : null}
         ${pickedNode ? html`<${Detail} key=${pickedNode.id} node=${pickedNode} graph=${{ nodes, edges }} onOpen=${id => navigate('library', { id })} onClose=${() => setPicked(null)} />` : null}
       </div>
-    <//>
   <//>`
 }

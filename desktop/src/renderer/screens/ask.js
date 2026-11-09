@@ -1,3 +1,5 @@
+// v2 package F: the 问库 tab of a library's page (screens/library-frame.js; design P6; its tab has the speech-bubble icon),
+// otherwise as v1.0 had it.
 // 问库 (mockup S10; docs/desktop.md §4.2). The top bar says the answer only uses the library, and over what (已收藏 n 条 ·
 // 我写的 n 条: getLibrary's counts). The conversation: each question, then the answer the core's ask gives (askLibrary):
 // every sentence followed by its numbered sources as superscripts; a click on a number marks that source in the list
@@ -18,7 +20,8 @@ import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, Main, Panel, Tag, TopBar } from '../kit/index.js'
+import { Panel, Tag, TopBar } from '../kit/index.js'
+import { LibraryFrame } from './library-frame.js'
 import { BRAND, CONNECTIONS, NO_CONNECTION } from '../texts/common.js'
 import { ASK as T } from '../texts/ask.js'
 
@@ -171,9 +174,8 @@ export function AskScreen() {
       </section>
     </div>
   <//>`
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="ask" />`} panel=${panel}>
-    <${Main} screen="ask" state=${c ? 'ready' : counts.status} labelledby="ask-title">
-      <${TopBar} title=${T.title} titleTag="h1" titleId="ask-title" subtitle=${c ? fmt(T.scope, { kept: c.kept ?? 0, authored: c.authored ?? 0 }) : null} />
+  return html`<${LibraryFrame} tab="ask" state=${c ? 'ready' : counts.status} labelledby="ask-title" panel=${panel}>
+      <${TopBar} title=${T.title} titleTag="h2" titleId="ask-title" subtitle=${c ? fmt(T.scope, { kept: c.kept ?? 0, authored: c.authored ?? 0 }) : null} />
       <div class="st-main__body ask-body">
         <div class="ask-list" data-part="conversation" ref=${listRef}>
           ${turns.length ? null : html`<p class="st-t-small st-t-muted ask-empty">${T.empty}</p>`}
@@ -195,6 +197,5 @@ export function AskScreen() {
         ${running ? html`<div class="st-t-small st-t-sub ask-status" data-part="asking-bar" role="status">${T.asking}</div>` : null}
         ${note ? html`<div class="st-t-small st-t-wait" role="alert">${note}</div>` : null}
       </div>
-    <//>
   <//>`
 }

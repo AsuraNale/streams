@@ -31,15 +31,16 @@ const POLL = { polling: 100, timeout: 60_000 }
 const NAMES = { river: '河蓝 River', paper: '素灰 Paper', night: '夜间 Night' }
 // each screen: its id on the page, its name in index.html, what the picture needs once the screen is ready
 const SCREENS = [
-  { id: 'today', name: '今日', start: 'today' },
+  // v2 package F: 今日 and 运行状态 are 概览 (the second scrolled to 「运行状态」), 来源与主题 is 来源与要求: `screen` is the page's data-screen
+  { id: 'today', name: '概览（v1.0 今日）', start: 'today', screen: 'overview' },
   { id: 'inbox', name: '待看', start: 'inbox' },
   { id: 'library', name: '资料库 · 读一条', start: 'library', then: async (page, world) => {
     const id = world.planB.memgpt.id
     await page.click(`[data-part="list"] [data-row="${id}"] a`)
     await page.waitForFunction(i => document.querySelector(`[data-part="note-panel"][data-id="${i}"]`) !== null, id, POLL)
   } },
-  { id: 'sources', name: '来源与主题', start: 'sources' },
-  { id: 'status', name: '运行状态', start: 'status' },
+  { id: 'sources', name: '来源与要求', start: 'sources' },
+  { id: 'status', name: '概览 · 运行状态', start: 'status', screen: 'overview' },
   { id: 'settings', name: '设置', start: 'settings' },
   { id: 'first-run', name: '首次设置 · 第一步', start: 'first-run' },
   { id: 'ask', name: '问库', start: 'ask', then: async (page, world) => {
@@ -71,14 +72,14 @@ for (const theme of themes) {
     const page = started.page
     const errors = []
     page.on('pageerror', err => errors.push(err.message))
-    await ready(page, 'today')
+    await ready(page, 'overview')
     const size = await page.evaluate(() => [innerWidth, innerHeight])
     if (size[0] !== W || size[1] !== H) throw new Error(`the window's content is ${size.join('×')}, not ${W}×${H}`)
     mkdirSync(join(OUT, theme), { recursive: true })
     for (const s of screens) {
       // each screen opened the way a development run opens one (the hash), the page loaded afresh
       await page.evaluate(id => { location.hash = id; location.reload() }, s.start)
-      await ready(page, s.start)
+      await ready(page, s.screen ?? s.start)
       if (s.then) await s.then(page, world)
       const seen = await page.evaluate(() => ({ theme: document.documentElement.dataset.theme ?? null, page: getComputedStyle(document.body).backgroundColor }))
       if (seen.theme !== theme) throw new Error(`${s.id}: the page is ${seen.theme}, not ${theme}`)

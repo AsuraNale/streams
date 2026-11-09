@@ -464,7 +464,83 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 **没有「自动执行」**：`src/suggest/` 的任何函数都不改来源、主题、要求、定时、上限或任何配置，也不写 `notes/`；它们只写 `suggestions.jsonl`（测试：调全部函数前后 `streams.json` 的 sha256 相同，库里除 `suggestions.jsonl` 外每个文件字节不变，另一个库只读）。也没有「以后这类直接做」。
 
-桌面怎么用（接线在合并后另做）：每轮跑完（architecture 2.4「规则型建议检查」）`recordSuggestions(dir, suggestFor(dir, {otherLibraries}))`；概览和「等你定的事」读 `openSuggestions`；「不要」→ `dismissSuggestion`，「要」→ `acceptSuggestion`（或交给主 Agent 出提议卡后带 `proposalId`）。
+桌面怎么用（**包 C 接上了**，`docs/desktop.md` §4.6）：每轮跑完（architecture 2.4「规则型建议检查」）`recordSuggestions(dir, suggestFor(dir, {otherLibraries}))`；概览和「等你定的事」读 `openSuggestions`；「不要」→ `dismissSuggestion`，「要」→ `acceptSuggestion`（或交给主 Agent 出提议卡后带 `proposalId`）。
+
+## 5.15 主 Agent `agent` 与会话模式（v2 包 C）· 有（11-05）
+
+契约 `docs/checks/2026-11-05-wp-c/contract.md`；architecture 第一节（三层、「不能动手」、为什么用 JSON 动作）、2.2、2.3、第〇节实测、第六节。代码 `src/agent/`（`store.mjs` 文件、`situation.mjs` 局面摘要、`protocol.mjs` 提示与校验、`lookups.mjs` 只读查询、`turn.mjs` 一轮与压缩、`fake.mjs` 假连接）与 `src/connect/session.mjs`（会话模式）。桌面怎么接：`docs/desktop.md` §4.6。不碰任何库文件夹的写（lookups 只读；出卡交给调用方给的 `createProposal`，即包 B）；不碰 `notes/`（V2）。
+
+### 5.15.1 文件（`agentDir` = 桌面的 `<appData>\agent`）
+
+| 文件 | 内容 |
+|---|---|
+| `transcript.jsonl` | 对话正本，只追加：`{ at, turn, role: 'you' \| 'agent' \| 'lookup' \| 'note' \| 'summary', text, data? }`。`turn` 从 1 数，一轮里的每行同号；`data`：你这句话从哪个库来（`{ libraryId }`）、主 Agent 的 `ask` / `proposalIds` / `note`、lookup 的 `{ request, result, round }`、note 的原因（坏回答、没出的卡、会话接不上、连接错）、summary 的 `{ from, through, chars }`。读：坏行（不是 JSON、形状不对）跳过并计数；断了的最后一行在下一次追加前先补换行 |
+| `session.json` | 会话缓存（只是加速，丢了不要紧）：`{ <连接种类>: { sessionId \| null, startedAt, turns, summarizedThrough } }`；不在、读不出、形状不对 → `{}`；整份经临时文件 + rename 写 |
+| `notes.jsonl` | 主 Agent 的笔记（它的 `note` 动作，由代码写）：`{ at, turn, text }`，`text` 去首尾空白、截到 `NOTE_MAX` = 1000 字；局面摘要带最近 5 条 |
+| `usage.jsonl` | 主 Agent 每次调用一行，格式同库的 `_pipeline/usage.jsonl`（`purpose`：`agent` / `agent-summary`）；`usageTotal(dirs, { agentFile })` 单列成 `agent` 并算进合计（`src/connect/usage.mjs`：新加 `createUsageRecorder(file)`、`readUsageFile(file)`，`createUsageCounter` / `readUsage` 改成调它们，行为不变） |
+| （不在这里）| Claude Code / Codex 给主 Agent 跑的空文件夹是 `AGENT_CWD` = `<系统临时目录>\streams-agent-cwd`（`agentCwd(tmp)`；下面 5.15.6）。契约 C3 写的是 `agent\cwd\`；**实做改为临时目录**（玄翎 11-09），理由：保持 `layout.mjs` 的受保护目录约定——模型子进程碰不到应用数据 |
+
+常量：`AGENT_CWD` · `AGENT_CWD_NAME`（`agentPaths` 里没有工作目录）。函数：`appendTranscript(agentDir, { turn, role, text, data? }, { now })` · `readTranscript(agentDir)` → `{ rows, skipped }` · `nextTurn(rows)` · `lastSummary(rows)` · `summarizedThrough(rows)` · `readSessions(agentDir)` · `writeSession(agentDir, kind, value \| null)` · `appendAgentNote(agentDir, text, { turn, now })` · `readAgentNotes(agentDir, { limit })` · `agentPaths(agentDir)`。
+
+### 5.15.2 局面摘要 `situation(registry, { now, proposals, notes, agentUsageFile, maxChars })` → `{ text, truncated, chars, libraries: [{ id, shown: 'detail' \| 'short' \| 'gone' }] }`
+
+只读。`registry` = `{ libraries: [{ id, path, name, addedAt? }] }`。每个库（`libraryFacts`）：名字与 id、「要求」的前 200 字、每个主题和它的关键词数、来源数与五种状态（按每个来源最近一次抓取：ok / empty / gap / failed / blocked）的计数外加暂停的、还没抓过的、待看数、上一轮（时间、进待看几条）、问题（`missing` 文件夹读不出 · `sources` 来源出问题 · `no-output` 连续 3 轮以上没产出）、未处理的建议卡（key）、待定的提议卡（id 与 kind）；之后是待定的建库卡、**全部库本月用量合计**（含主 Agent 的、单独说出）、主 Agent 最近的笔记。上限 `SITUATION_MAX` = 6000 字（按码点）；超了：先把**登记最早**的库一个个缩成一行（名字、id、待看数、问题），还超再从最早的起整个去掉（注明「另有 N 个较早登记的库没有列出」），末尾写 `（已截短）`（`TRUNCATED_MARK`）；没截不写。
+
+### 5.15.3 提示与回答（`protocol.mjs`）
+
+`AGENT_SYSTEM`：你是流息的主 Agent；**只按一个 JSON 对象回**（不加别的字、不加代码块）；**不能动手**（没有工具、不能执行命令、不能读写文件）——改任何东西只能出提议卡，只有用户的「确认」让流息自己的代码去做，所以不许说「改了 / 加了 / 建了」，只能说「提议了、等你确认」；一次最多问一个问题（`ask` 一个对象，回复里也别再问）；不说做了没做的事、不编来源和数字；回答用用户这句话的语言；`lookups` 怎么用（每轮最多 3 次）；`note` 是什么；十种卡的 `params` 与来源的形状。
+
+回的 JSON：`{ reply: string, ask?: { question, options: string[2..4] }, proposals?: [{ kind, params, why }], lookups?: [{ what, libraryId?, name?, query? }], note?: string }`。`checkAnswer(result, { lookupsAllowed })` → `{ ok, answer }` 或 `{ ok: false, errors, replyText }`；**整个回答不合格**（要重试）的情况：不是一个 JSON 对象；有 `ANSWER_KEYS` 以外的键；`"ask"` 出现两次（按原文数顶层键 `topLevelKeys`，因为 `JSON.parse` 只留最后一个）；`ask` 是数组或不是 `{ question, options }`、`options` 不是 2–4 个 1–100 字且不重复的字符串、`question` 不是 1–500 字；没有 `reply`（只有带 `lookups` 时可以空）或超过 8000 字；`proposals` 不是数组或超过 5 张；`lookups` 不是非空数组、超过 5 个、有不是对象的项，或这次不许再查（`lookupsAllowed: false`）；`note` 不是字符串。单张卡的形状不在这里判（不合格的卡由一轮丢掉，不重试）；单个 lookup 的字段也不在这里判（它的结果里说哪儿不对）。`replyTextOf(text)`：坏回答里还能读出来的 `reply`（整段能解析就取 `reply`；否则按 `"reply": "…"` 抠），读不出 → null。`acceptedSuggestionNote({ libraryName, libraryId, kind, subject, evidence }, lang)`：你在建议卡上点了「要」时交给主 Agent 的那段话（中文；`lang` 为 `en` 时英文），桌面 `acceptSuggestion` 用它。
+
+### 5.15.4 只读查询 `runLookup(item, { registry, proposals, now })` → `{ what, ok: true, result }` / `{ what, ok: false, error }`
+
+| `what` | 要的字段 | 结果 |
+|---|---|---|
+| `library` | `libraryId` | 名字、完整的「要求」、主题与全部关键词、每个来源（种类、地址或查询、主题、暂停没、最近一次抓取的状态 / 连续次数 / 时间 / 信息）、两道关的过关线、每轮上限、定时、待看、上一轮、问题、未处理的建议卡、待定的提议卡 |
+| `source_log` | `libraryId`、`name` | 这个来源最近 10 行 `fetch_log`（新的在前：时间、状态、http、条数、新条数、信息） |
+| `proposals` | `libraryId?` | 那个库（或全部）最近 20 张卡的简况（id、kind、状态、why、时间、`reviseText` / `reason`） |
+| `suggestions` | `libraryId?` | 那个库（或每个库）打开着的建议卡 |
+| `notes_search` | `libraryId`、`query` | 已收藏条目（`index.jsonl` 里 `status: kept`）里**标题**含查询每个词（不分大小写）的，最多 10 条，只给 `{ title, date }`（不给正文）与 `more`（还有几条） |
+
+错误：`unknown-what` · `missing-field` · `unknown-library` · `library-unreadable` · `unknown-source`。结果写出来超过 6000 字就截断（`{ truncated: true, text }`）。不写任何文件（测试：查前查后整棵目录的 sha256 相同）。
+
+### 5.15.5 一轮 `agentTurn({ text, libraryId?, as? }, ctx)` → `{ turn, reply, ask, proposalIds, notice?, calls, lookupRounds, compressed? }`
+
+`ctx` = `{ agentDir, connector, registry（或返回它的函数）, proposals（卡，或函数）, createProposal(kind, params, why, { by }), now, log, situationMax? }`；`text` 1–4000 字（`bad-argument`）；`as`：`'you'`（默认，写 `you` 行）或 `'note'`（流息转来的一件事，例如你点了「要」的建议卡，写 `note` 行，提示里说明这不是用户打的字）。
+
+1. 先从正本读出这一轮之前的行，算出 `turn`，写你这句话；拼提示：`AGENT_SYSTEM`（Claude Code 走 `--system-prompt`，Codex 在第一次的输入前面，API 走 `system`）+ **局面摘要** + 「这一轮」（从哪个库的对话框来就写明）。**上下文**（最新的摘要 + 最近 `RECENT_TURNS` = 6 轮，最多 12000 字，`historyBlock`）只在连接没有它时带：API 每次都带（重放）；Claude Code / Codex 只在开新会话时带（第一轮、`session.json` 丢了或坏了、resume 接不上、压缩之后）。接着的会话只送这一轮新的东西。
+2. 调用（`connector.send`）。resume 回 `sessionLost` → 正本写一行 note、放掉缓存、用「上下文 + 这一轮」开新会话再调一次（`notice: session-rebuilt`）。新会话的 id 记进 `session.json`。连接出错（不是坏格式）→ 写 note、`reply: null`、`notice: [{ code: 'connection', connection }]`，不重试。
+3. `checkAnswer`：不合格 → 写 note（原因与原文）、带上「你上一个回答不能用：<原因>」**重试一次**；还不合格 → `reply` = `replyTextOf` 或 `NOT_UNDERSTOOD`（「这次没有听懂模型的回答」/ 英文句，按你这句话有没有汉字选），写 note 与 agent 行，**不出卡、不查、不记笔记**，`notice: [{ code: 'not-understood' }]`。
+4. 带 `lookups` 的回答是中间回答（别的字段不用）：逐个 `runLookup`，每个写一行 `lookup`（`data.round`），把结果送回去再调一次。`MAX_LOOKUP_ROUNDS` = 3 轮；第 3 轮之后的那次调用提示里写明「已经查了 3 次」、`lookupsAllowed: false`——它再要 lookups 就是不合格（按 3. 重试一次，再要就按 3. 收尾），第 4 轮从不执行。
+5. 最终回答：每张 `proposals` 先看是不是恰好 `{ kind, params, why }`（`why` 非空、`params` 是对象）；从某库来的这句话、库类卡没给 `params.libraryId` → 补上那个库；交给 `createProposal(kind, params, why, { by: 'agent' })`。形状不对或包 B 拒绝（`bad-proposal` 等）→ 不出卡，原因写 note，回复末尾加「有 N 张提议没出（格式不对）」（英文同义句），`notice: [{ code: 'proposals-dropped', count }]`。`note` → `appendAgentNote`。写 agent 行（`data`：`ask`、`proposalIds`、`note`）。
+6. 每次调用记一行 `usage.jsonl`（`purpose: 'agent'`）。`session.json` 里这个连接的 `turns` + 1。
+7. `compressIfNeeded`：正本自上次摘要以来（不算 summary 行）的字数 **超过** `COMPRESS_THRESHOLD` = 40000（等于不算）→ 一次**不留会话**的调用（`connector.complete`，v1.0 那套；坏格式重试一次）把旧摘要 + 这一段缩成 `{ summary }`，截到 `AGENT_SUMMARY_MAX` = 2000 字，写一行 `summary`（`data: { from, through: 这一轮, chars }`，原文行都还在）；每个连接的缓存 `summarizedThrough` = 这一轮、`sessionId: null`（下一轮开新会话）。模型没给出摘要 → 这次不压，下一轮结束时再试。
+
+`languageOf(text)`（有汉字 → `zh`）· `droppedSentence(n, lang)` · `historyBlock(rows)` · `charsSinceSummary(rows)` · `NOTICE_CODES`。
+
+### 5.15.6 会话模式 `createSessionConnector(connection, deps, { cwd })`（`src/connect/session.mjs`）
+
+在 `createConnector` 之上多 `sessionful`、`cwd` 与 `send(req, { sessionId? })` → `complete()` 的结果 + `{ sessionId, resumed, sessionLost?, leftover? }`；`complete` 照旧是 v1.0 的一问一答（压缩用）。**只给主 Agent 用**：库 Agent、问库照旧 `createConnector`、不留会话。
+
+| 连接 | 第一次 | 之后 | 「不能动手」 |
+|---|---|---|---|
+| Claude Code | `CLAUDE_SESSION_ARGS`（= v1.0 `CLAUDE_FIXED_ARGS` 去掉 `--no-session-persistence`：`-p --output-format json --safe-mode --restricted --tools "" --strict-mcp-config --disable-slash-commands --permission-prompts none`）+ `--session-id <新 uuid>` [`--model`] [`--system-prompt`] | 同上，`--resume <id>` 代替 `--session-id` | 一个工具都没有；提示走 stdin |
+| Codex | `CODEX_SESSION_ARGS`（= v1.0 `CODEX_FIXED_ARGS` 去掉 `--ephemeral`：`exec --json --sandbox read-only --skip-git-repo-check --ignore-user-config --ignore-rules --color never`）+ `-C <cwd> -o <旁边的文件> [-m] -`；会话 id = `thread.started` 的 `thread_id` | `CODEX_RESUME_ARGS`：`exec resume --json -c sandbox_mode="read-only" --skip-git-repo-check --ignore-user-config --ignore-rules` + `-o <文件> [-m] <id> -`（`exec resume` 不认 `--sandbox` / `-C` / `--color`，0.166.0-alpha.6 的 `--help` 核过） | 只读沙箱；`-o` 的文件在 `cwd` 之外的临时文件夹 |
+| API key | `complete()` | 同左（会话由 `agentTurn` 重放） | 请求里没有 `tools` 等字段 |
+
+- `cwd`（绝对路径）：每次调用前 `emptyFolder`（不在就建；里面有东西就删掉，记日志——这个文件夹是应用自己的），调用后再看，有东西就记在 `leftover` 并清掉。
+- resume 失败、错误码**不是**连接本身的（`CONNECTION_CODES`：not-installed · not-logged-in · login-expired · bad-key · rate-limited · network · timeout · refused · bad-format · bad-model）→ `sessionLost: true`。11-05 本机实测：Claude Code「No conversation found with session ID: …」（exit 1）、Codex「thread/resume failed: no rollout found for thread id …」（exit 1），都归到这里。
+- 超时 `AGENT_TIMEOUT_MS` = 240 s（`deps.timeoutMs` 可改）。
+- 用量：Claude Code 会话模式下 `total_cost_usd` 是单次还是会话累计未核实；用量合计以调用次数为准，`costUsd` 可能多算（`usage.jsonl` 记的是 CLI 报的数，代码先不改）。
+- 函数：`claudeSessionArgv({ model, system, sessionId \| resume })` · `codexSessionArgv({ model, cwd, lastMessageFile })` · `codexResumeArgv({ model, sessionId, lastMessageFile })` · `threadIdOf(stdout)` · `emptyFolder(dir)`。
+
+### 5.15.7 假连接 `scriptedAgentConnector({ answers, sessionful = true, kind = 'fake', summary })`
+
+不起进程、不联网。`answers` 是数组（按调用顺序）或函数 `(req, n, { sessionId }) => 一个`：对象 = 模型的 JSON 回答；`{ $text }` = 模型回了这段原文（像连接那样解析，不是 JSON 就是坏格式）；`{ $fail: '<码>' }` = 连接失败；`{ $lost: true }` = resume 接不上（只在带 sessionId 时）。用完了回 `{ reply: OUT_OF_SCRIPT }`。`sessionful` 为真时像 Claude Code / Codex 一样给会话 id（`fake-session-<n>`）。`complete()` 回 `{ summary }`。`calls` 记每次调用（`mode`、`prompt`、`system`、`sessionId`）。
+
+### 5.15.8 真调用试验
+
+`core/scripts/agent-trial.mjs`（`--claude-only` / `--codex-only` / `--dry` / `--lost`），结果在 `docs/design/v2/agent-trial-2026-11-05.md`。
 
 ## 六、桌面桥（desktop 主进程 → 页面）
 

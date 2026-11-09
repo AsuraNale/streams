@@ -106,6 +106,29 @@ test('the twelve word / ground pairs: at least 4.5 : 1 in paper and night; river
   assert.deepEqual(below(sets.river), RIVER_BELOW, 'river: only the two pairs the plan\'s palette already had under 4.5')
 })
 
+// v2 package F: a library's colour (core LIBRARY_COLORS, the names only) → --st-lib-<name>, the words on its mark --st-on-lib
+test('the library colours: every name of core LIBRARY_COLORS has its token in all three sets, the words on it at least 4.5 : 1', async () => {
+  const { LIBRARY_COLORS } = await import('../src/main/core.mjs')
+  const { LIBRARY_COLOR_NAMES } = await import('../src/renderer/kit/library-sections.js')
+  assert.deepEqual([...LIBRARY_COLOR_NAMES], [...LIBRARY_COLORS], 'the page knows the core\'s colour names')
+  const sets = tokenSets(TOKENS)
+  const report = {}
+  for (const id of THEME_IDS) {
+    for (const c of LIBRARY_COLORS) {
+      const bg = sets[id][`--st-lib-${c}`]
+      assert.ok(bg, `${id}: --st-lib-${c}`)
+      report[`${id}/${c}`] = Math.round(contrast(sets[id]['--st-on-lib'], bg) * 100) / 100
+    }
+  }
+  process.stdout.write(`# library colours ${JSON.stringify(report)}\n`)
+  assert.deepEqual(Object.entries(report).filter(([, r]) => r < 4.5), [])
+  // control: the check fails on a pair under 4.5 (river's square with the night's dark words)
+  assert.ok(contrast(sets.night['--st-on-lib'], sets.river['--st-lib-river']) < 4.5)
+  // every name has its class in kit.css
+  const kit = readFileSync(join(DESKTOP_DIR, 'src', 'renderer', 'styles', 'kit.css'), 'utf8')
+  for (const c of LIBRARY_COLORS) assert.match(kit, new RegExp(`\\.st-lib-mark--${c} \\{ background: var\\(--st-lib-${c}\\); \\}`))
+})
+
 test('index.html as served: data-theme on its one <html> tag, before any script; an unknown id is the default; nothing else changes', () => {
   assert.equal(/data-theme/.test(INDEX), false, 'control: the file itself names no theme')
   for (const id of THEME_IDS) {

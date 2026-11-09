@@ -17,6 +17,7 @@ import { contentSecurityPolicy, importMapOf, metaPolicy, scriptHash } from '../s
 import { DESKTOP_DIR } from '../scripts/lib/paths.mjs'
 import { bridgeTable } from './support/docs.mjs'
 import { appSession, ready } from './support/app.mjs'
+// v2 package F: 今日 is the 概览 tab of a library's page now (screen 'overview', the screen the app opens on); this file's assertions are v1.0's, only the screen id changed
 
 const REAL_APP_DATA = process.env.APPDATA ? join(process.env.APPDATA, 'Streams') : null
 const realAppDataBefore = REAL_APP_DATA ? existsSync(REAL_APP_DATA) : false
@@ -37,7 +38,7 @@ after(async () => {
 })
 
 test('the page starts without errors', async () => {
-  await ready(s.page, 'today')
+  await ready(s.page, 'overview')
   assert.deepEqual(s.errors, [])
 })
 

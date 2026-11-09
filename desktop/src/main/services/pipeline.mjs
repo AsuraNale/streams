@@ -66,8 +66,10 @@ export function withFirstProbe(connector, result) {
  *   that ran in the background, once it ended (services/schedule.mjs: the notification, the next one in the queue)
  * @param {(() => Promise<object>)|null} [o.roundGate] - the page's startRound goes through this when given
  *   (services/schedule.mjs startCurrent: `{ started: false, reason: 'running' }` while the queue is busy)
+ * @param {(r: {dir: string, libraryId: string|null, roundId: string}) => void} [o.afterRound] - after every round that ran in
+ *   the background, before inbox-changed (v2 package C: services/agent.mjs records the library's rule-based suggestion cards)
  */
-export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {}, schedule = () => null, onRoundDone = () => {}, roundGate = null }) {
+export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {}, schedule = () => null, onRoundDone = () => {}, roundGate = null, afterRound = () => {} }) {
   // the round in the background, if one runs; what the last one gave; the problems the last self-check found
   let running = null
   let last = null
@@ -121,6 +123,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       running = null
       progress({ ...base, phase: 'done', counts: null, calls: 0, done: true, result: null, problems })
     }
+    // the rule-based suggestion check of architecture 2.4 (「规则型建议检查」), whatever the round came to
+    try { afterRound({ dir, libraryId, roundId }) } catch (err) { log(`pipeline: after round ${roundId}, the suggestion check failed: ${String(err?.stack ?? err)}`) }
     emit('inbox-changed', { libraryId, count: inboxCount(dir) })
     try { onRoundDone({ roundId, libraryId, result: last?.roundId === roundId ? last.result : null }) } catch (err) { log(`pipeline: after round ${roundId}: ${String(err?.stack ?? err)}`) }
   }

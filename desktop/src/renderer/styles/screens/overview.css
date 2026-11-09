@@ -1,5 +1,5 @@
-/* 今日 (screens/today.js): the banner, the problem card (S13), the four numbers, the last round / the running one, the recent. */
-[data-screen='today'] .st-topbar { padding-left: 24px; padding-right: 24px; }
+/* 概览 (screens/overview.js; v1.0's 今日): the banner, the problem card (S13), the four numbers, the last round / the running one, the recent. */
+/* (概览 has no top bar of its own: the library's head is above it) */
 .today-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 16px; max-width: 980px; }
 .today-error { display: flex; align-items: center; gap: 10px; color: var(--st-danger); font-weight: 700; }
 

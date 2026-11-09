@@ -13,6 +13,7 @@ import { SETTINGS } from '../src/renderer/texts/settings.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
+// v2 package F: 「完成，去今日」 ends on 概览 now (今日 is the 概览 tab of a library's page); the assertions are v1.0's
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
 const POLL = { polling: 100, timeout: 60_000 }
@@ -68,7 +69,7 @@ test('the blank pack left as it is → pack chose blank, sources default; the ro
   await stepIs('schedule')
   assert.equal(setup().trial.by, 'skipped')
   await click('[data-action="go-today"]')
-  await ready(a.page, 'today')
+  await ready(a.page, 'overview')
   const s = setup()
   assert.deepEqual(Object.keys(s).sort(), [...STEPS].sort())
   assert.deepEqual(STEPS.map(k => s[k].by), ['chose', 'chose', 'chose', 'default', 'skipped', 'default'])

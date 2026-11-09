@@ -13,6 +13,7 @@ import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { FETCH_HINTS } from '../src/renderer/texts/common.js'
 import { SOURCES } from '../src/renderer/texts/sources.js'
 import { seedPlanB, startFeed, worldSession } from './support/seed.mjs'
+// v2 package F: 来源与主题 is the 来源与要求 tab of the library's page: the page's h1 is the library's name, the counts line is the tab's own heading (#sources-title); the assertions are v1.0's
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
 let feed = null
@@ -41,7 +42,7 @@ test('one row per source as sourcesView gives it: the state, the rounds in a row
   assert.deepEqual(old, { n: '4', hint: 'fix-address-or-remove', words: FETCH_HINTS['fix-address-or-remove'], state: '地址有问题 · HTTP 404 · 连续 4 轮' })
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-row="mcp-news"] [data-hint]')?.dataset.hint), 'retry-next-round')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-row="letta-blog"] [data-hint]')), null)
-  const title = await s.page.evaluate(() => document.querySelector('main h1').textContent)
+  const title = await s.page.evaluate(() => document.querySelector('main #sources-title').textContent)
   assert.equal(title, `${view.counts.sources} 个来源 · ${view.counts.topics} 个主题`)
 })
 

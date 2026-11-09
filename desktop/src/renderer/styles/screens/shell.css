@@ -1,0 +1,126 @@
+/* The v2 shell (package F, plan B): a library's page (screens/library-frame.js) — its head, the tabs (kit.css), the screen and
+   its right panel inside one card; 库架 (screens/shelf.js); 和主 Agent 聊's empty page (screens/chat.js); 「新建库」
+   (screens/new-library.js); the parts package F added to 概览, 来源与要求 and 设置. Colours only via tokens. */
+
+/* ---- a library's page: one card right of the sidebar ---------------------------------------------- */
+.lib-page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: var(--st-gutter);
+  background: var(--st-surface);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius);
+  overflow: hidden;
+}
+.lib-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: var(--st-card-head);
+  border-bottom: 1px solid var(--st-border);
+}
+.lib-head__text { flex-grow: 1; min-width: 0; }
+.lib-head__name { margin: 0; font-size: var(--st-fs-title); font-weight: 700; overflow-wrap: anywhere; }
+.lib-head__tracking { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-head__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.lib-page__content { flex-grow: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+.lib-page__content--panel { grid-template-columns: minmax(0, 1fr) var(--st-col-panel); }
+/* inside the card the screen and its panel lose their own frames: one card, one line between them */
+.lib-page .st-main,
+.lib-page .st-panel { margin: 0; border: 0; border-radius: 0; }
+.lib-page .st-panel { border-left: 1px solid var(--st-border); }
+.lib-page .st-main > .st-topbar { background: var(--st-surface); padding-top: 8px; padding-bottom: 8px; }
+.lib-page .st-main > .st-topbar .st-topbar__title { font-size: var(--st-fs-body); }
+
+/* 资料库's two views */
+.lib-mode { display: inline-flex; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-s); overflow: hidden; }
+.lib-mode__button { height: 30px; padding: 0 12px; border: 0; background: var(--st-surface); color: var(--st-text-2); cursor: pointer; }
+.lib-mode__button + .lib-mode__button { border-left: 1px solid var(--st-control-border); }
+.lib-mode__button[aria-pressed='true'] { background: var(--st-active-fill); color: var(--st-accent); font-weight: 700; }
+
+/* ---- 库架 ----------------------------------------------------------------------------------------- */
+[data-screen='shelf'] .st-topbar, [data-screen='chat'] .st-topbar { padding-left: 24px; padding-right: 24px; }
+.shelf-body { padding: 16px 24px 24px; }
+.shelf-error { display: flex; align-items: center; gap: 10px; color: var(--st-danger); font-weight: 700; }
+.shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.shelf-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius);
+  background: var(--st-surface);
+  color: var(--st-text);
+  text-align: left;
+  cursor: pointer;
+}
+.shelf-card:hover { border-color: var(--st-accent); }
+.shelf-card__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.shelf-card__name { font-size: var(--st-fs-title); overflow-wrap: anywhere; }
+.shelf-card__tracking { overflow-wrap: anywhere; }
+.shelf-card__problem { display: inline-flex; align-items: center; gap: 6px; }
+.shelf-card__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-wait); }
+.shelf-card__inbox { display: flex; flex-direction: column; align-items: flex-end; }
+.shelf-card__count { font-size: 26px; font-weight: 700; line-height: 1.1; color: var(--st-wait); }
+.shelf-card__inbox[data-value='0'] .shelf-card__count { color: var(--st-text-3); }
+.shelf-card--new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+  border-style: dashed;
+  color: var(--st-text-2);
+}
+.shelf-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 560px; }
+.shelf-empty__actions { display: flex; gap: 8px; }
+
+/* ---- 和主 Agent 聊 (package G fills it) ---------------------------------------------------------- */
+.chat-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ---- 「新建库」 ------------------------------------------------------------------------------------ */
+.st-dialog[data-dialog='new-library'] { width: min(560px, 100%); }
+.newlib__field { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+.newlib__input { height: 34px; padding: 0 10px; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-s); background: var(--st-surface); }
+.newlib__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+
+/* ---- 概览: the head's next run, the suggestions, the 「运行状态」 part ---------------------------------- */
+.ov-next { max-width: 360px; text-align: right; }
+.ov-suggestions { display: flex; flex-direction: column; gap: 6px; }
+.ov-suggestions__list { margin: 0; padding: 10px 14px 10px 28px; border: 1px solid var(--st-border); border-left: 3px solid var(--st-wait); border-radius: var(--st-radius); }
+.stat-part__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.stat-kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.stat-kv__row { display: flex; flex-direction: column-reverse; gap: 2px; padding: 10px 14px; border: 1px solid var(--st-border); border-radius: var(--st-radius); background: var(--st-surface-2); }
+.stat-kv__value { margin: 0; }
+.stat-kv__label { margin: 0; }
+
+/* ---- 来源与要求: two columns, then 关卡 ---------------------------------------------------------------- */
+.src-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; max-width: 1200px; }
+.src-columns__col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.src-columns .src-part { max-width: none; }
+.src-part__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.src-part__head > h2 { margin-right: auto; }
+.src-who { padding: 1px 6px; border: 1px solid var(--st-divider); border-radius: var(--st-radius-xs); color: var(--st-text-2); background: var(--st-surface); white-space: nowrap; }
+.src-who[data-by='agent-confirmed'] { border-color: var(--st-accent-alt); color: var(--st-accent-alt); }
+.src-brief { padding: 10px 12px; border: 1px solid var(--st-border); border-radius: var(--st-radius); background: var(--st-surface-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.src-brief__edit { display: flex; flex-direction: column; gap: 8px; }
+.src-brief__text { width: 100%; padding: 8px 10px; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-s); background: var(--st-surface); resize: vertical; line-height: var(--st-lh); }
+.src-run { display: flex; flex-direction: column; gap: 4px; }
+.src-run__row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.src-check { display: inline-flex; align-items: center; gap: 6px; }
+.src-input { height: 32px; padding: 0 8px; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-s); background: var(--st-surface); }
+.src-input--short { width: 110px; }
+.pl-section { max-width: 1200px; padding-top: 16px; border-top: 1px solid var(--st-divider); }
+.pl-columns { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.pl-columns__side { border: 1px solid var(--st-border); border-radius: var(--st-radius); background: var(--st-surface); }
+
+/* ---- 设置: 定时一览, 用量合计 ------------------------------------------------------------------------ */
+.settings__schedules { width: 100%; max-width: 640px; border-collapse: collapse; border: 1px solid var(--st-border); }
+.settings__schedules th, .settings__schedules td { padding: 7px 12px; border-bottom: 1px solid var(--st-divider-soft); text-align: left; }
+.settings__schedules thead th { background: var(--st-table-head); font-size: var(--st-fs-small); color: var(--st-text-2); }
+.settings__usage { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }

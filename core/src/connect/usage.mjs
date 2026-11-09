@@ -9,8 +9,12 @@
 //   every library's readUsage added up (v2 package A: the settings page's 「全部库本月用量合计」, 维护者 11-05):
 //   byKind = calls per connection (claude-code · codex · api · …), the totals beside it; libraries = [{ dir, calls }] in
 //   the order given; a folder that is not there is skipped and listed in `missing` (no error).
+//   v2 package C: `{ agentFile }` (the desktop: <appData>/agent/usage.jsonl, the main agent's calls, the same line format)
+//   adds `agent: { calls, inputTokens, outputTokens, costUsd, byKind }` (「主 Agent」 on its own line) and counts it in the
+//   totals and in byKind.
+// createUsageRecorder(file, { now }) / readUsageFile(file, { month }): the same two on a usage file anywhere (the main agent's).
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
 
 export const USAGE_FILE = join('_pipeline', 'usage.jsonl');
@@ -25,7 +29,12 @@ export function monthOf(ts) {
 
 export function createUsageCounter(libraryDir, { now = () => new Date() } = {}) {
   if (typeof libraryDir !== 'string' || libraryDir === '') throw new StreamsError('bad-library-dir', 'libraryDir is required');
-  const path = usagePath(libraryDir);
+  return createUsageRecorder(usagePath(libraryDir), { now });
+}
+
+// The counter on any usage file (the main agent's): the same lines, the same wrap.
+export function createUsageRecorder(path, { now = () => new Date() } = {}) {
+  if (typeof path !== 'string' || path === '') throw new StreamsError('bad-usage', 'a usage file is required');
 
   function record(entry) {
     if (!entry || typeof entry !== 'object') throw new StreamsError('bad-usage', 'entry must be an object');
@@ -44,7 +53,7 @@ export function createUsageCounter(libraryDir, { now = () => new Date() } = {}) 
     line.purpose = entry.purpose;
     if (typeof entry.ok === 'boolean') line.ok = entry.ok;
     if (typeof entry.code === 'string') line.code = entry.code;
-    mkdirSync(join(libraryDir, '_pipeline'), { recursive: true });
+    mkdirSync(dirname(path), { recursive: true });
     appendFileSync(path, JSON.stringify(line) + '\n', 'utf8');
     return line;
   }
@@ -76,10 +85,13 @@ export function createUsageCounter(libraryDir, { now = () => new Date() } = {}) 
 }
 
 export function readUsage(libraryDir, { month } = {}) {
+  return readUsageFile(usagePath(libraryDir), { month });
+}
+
+export function readUsageFile(path, { month } = {}) {
   const m = month ?? monthOf(new Date().toISOString());
   const out = { month: m, calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, byKind: {}, byPurpose: {}, byModel: {}, skipped: [] };
-  const path = usagePath(libraryDir);
-  if (!existsSync(path)) return out;
+  if (typeof path !== 'string' || path === '' || !existsSync(path)) return out;
   const lines = readFileSync(path, 'utf8').split('\n');
   lines.forEach((raw, i) => {
     if (raw.trim() === '') return;
@@ -99,7 +111,7 @@ export function readUsage(libraryDir, { month } = {}) {
   return out;
 }
 
-export function usageTotal(libraryDirs, { month } = {}) {
+export function usageTotal(libraryDirs, { month, agentFile } = {}) {
   const m = month ?? monthOf(new Date().toISOString());
   const out = { month: m, calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, byKind: {}, libraries: [], missing: [] };
   for (const dir of Array.isArray(libraryDirs) ? libraryDirs : []) {
@@ -111,6 +123,15 @@ export function usageTotal(libraryDirs, { month } = {}) {
     out.costUsd += u.costUsd;
     for (const [kind, n] of Object.entries(u.byKind)) bump(out.byKind, kind, n);
     out.libraries.push({ dir, calls: u.calls });
+  }
+  if (typeof agentFile === 'string' && agentFile !== '') {
+    const a = readUsageFile(agentFile, { month: m });
+    out.agent = { calls: a.calls, inputTokens: a.inputTokens, outputTokens: a.outputTokens, costUsd: a.costUsd, byKind: a.byKind };
+    out.calls += a.calls;
+    out.inputTokens += a.inputTokens;
+    out.outputTokens += a.outputTokens;
+    out.costUsd += a.costUsd;
+    for (const [kind, n] of Object.entries(a.byKind)) bump(out.byKind, kind, n);
   }
   return out;
 }

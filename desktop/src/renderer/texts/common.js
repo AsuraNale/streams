@@ -11,18 +11,14 @@ export const BRAND = Object.freeze({
   htmlLang: 'zh-CN',
 })
 
-// the sidebar: the nine entries (plan 4.9; their screens: screens/index.js), the library line, the settings button
+// the sidebar (v2 package F, plan B: the same whatever library is open): its two entries above 「我的库」 (their screens:
+// screens/index.js), the settings button; the rest of its words (我的库, 新建库, the badges): texts/shell.js SHELL.sidebar.
+// v1.0's nine entries are the five tabs of a library's page now (SHELL.tabs).
 export const SIDEBAR = Object.freeze({
   label: '导航',
   entries: Object.freeze({
-    today: '今日',
-    inbox: '待看',
-    library: '资料库',
-    graph: '图谱',
-    ask: '问库',
-    pipeline: '流水线',
-    sources: '来源与主题',
-    status: '运行状态',
+    shelf: '库架',
+    chat: '和主 Agent 聊',
   }),
   settings: '设置',
   // the library the app has open: its folder name, or this while none is

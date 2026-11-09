@@ -24,6 +24,6 @@ export const RUN = Object.freeze({
   capLabel: 'Calls per round at most',
   saveCap: 'Save',
   capBad: 'The limit must be a whole number above zero.',
-  note: 'You can close the window after starting; the progress is on Today. Items that fail midway stay in the queue for next time.',
+  note: 'You can close the window after starting; the progress is on the Overview of this library. Items that fail midway stay in the queue for next time.',
   failed: 'Could not start.',
 })

@@ -4,6 +4,10 @@
 // appended to the ledger by hand and the page read again → the inbox number and the badge go down by one. Plan C8: rounds
 // without output appended to rounds.jsonl by hand → at two no banner, at three (the core's NO_OUTPUT_ROUNDS) the amber
 // 「连续 3 轮没有产出」 with its link to 运行状态; a round with output after them starts the count again.
+// v2 package F: 今日 is the 概览 tab of a library's page (screens/overview.js, screen 'overview'); the next run and the connection
+// are in the library's head ([data-part="next-run"], v1.0: the top bar's subtitle); the badge after 待看 is on the 待看 tab
+// ([data-tab-badge="inbox"]) and on the library's line of the sidebar ([data-library-badge]); 运行状态 is a part of the same page,
+// so 「看运行状态」 brings that part into view (v1.0: went to the 运行状态 screen). The numbers and the counts are checked as before.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { appendFileSync } from 'node:fs'
@@ -16,7 +20,7 @@ import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
-const s = worldSession({ kind: 'seeded', waitFor: 'today', env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake' }) })
+const s = worldSession({ kind: 'seeded', waitFor: 'overview', env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake' }) })
 const POLL = { polling: 100, timeout: 60_000 }
 const numbersOnPage = () => s.page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-num]')].map(e => [e.dataset.num, Number(e.dataset.value)])))
 const expected = () => {
@@ -41,9 +45,10 @@ test('the banner names the source that failed; the last round\'s lines; the kept
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="round"]').dataset.round), s.world.seed.round.id)
   const kept = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="recent"] [data-kept]')].map(e => e.dataset.kept))
   assert.deepEqual(kept, [s.world.seed.kept.id])
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-badge="inbox"]')?.textContent ?? null), '4')
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-tab-badge="inbox"]')?.textContent ?? null), '4')
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-library-badge]')?.textContent ?? null), '4')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="problem"]')), null, 'no problem card: nothing failed')
-  const subtitle = await s.page.evaluate(() => document.querySelector('.st-topbar__subtitle').textContent)
+  const subtitle = await s.page.evaluate(() => document.querySelector('[data-part="next-run"]').textContent)
   assert.ok(subtitle.includes(TODAY.nextRun.none), subtitle)
 })
 
@@ -53,10 +58,11 @@ test('control: a dismissed event appended by hand, the page read again → 待�
   const want = expected()
   assert.equal(want.inbox, 3)
   await s.page.evaluate(() => { location.hash = 'today'; location.reload() })
-  await ready(s.page, 'today')
+  await ready(s.page, 'overview')
   await s.page.waitForFunction(n => document.querySelector('[data-num="inbox"]')?.dataset.value === String(n), want.inbox, POLL)
   assert.deepEqual(await numbersOnPage(), want)
-  await s.page.waitForFunction(() => document.querySelector('[data-badge="inbox"]')?.textContent === '3', null, POLL)
+  await s.page.waitForFunction(() => document.querySelector('[data-tab-badge="inbox"]')?.textContent === '3', null, POLL)
+  await s.page.waitForFunction(() => document.querySelector('[data-library-badge]')?.textContent === '3', null, POLL)
 })
 
 // plan C8: rounds appended to rounds.jsonl by hand (the shape runRound writes), the page read again each time
@@ -69,7 +75,7 @@ const appendRound = inbox => {
 }
 const reloadToday = async () => {
   await s.page.evaluate(() => { location.hash = 'today'; location.reload() })
-  await ready(s.page, 'today')
+  await ready(s.page, 'overview')
 }
 const banner = () => s.page.evaluate(() => { const el = document.querySelector('[data-part="no-output"]'); return el ? { streak: el.dataset.streak, text: el.querySelector('[data-no-output-text]')?.textContent ?? null, link: el.querySelector('[data-action="go-status"] button')?.textContent ?? null } : null })
 
@@ -91,7 +97,12 @@ test('「连续 N 轮没有产出」: two rounds without output → no banner; t
   assert.ok((await s.page.evaluate(() => document.querySelector('[data-part="no-output"]').textContent)).includes(TODAY.noOutput.hint), 'where to look')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="no-output"] .st-notice--wait') !== null), true, 'amber')
   await s.page.click('[data-part="no-output"] [data-action="go-status"] button')
-  await ready(s.page, 'status')
+  // the 「运行状态」 part of this page in view: its top within the scrolled body
+  await s.page.waitForFunction(() => {
+    const body = document.querySelector('main[data-screen="overview"] .st-main__body').getBoundingClientRect()
+    const part = document.querySelector('main[data-screen="overview"] [data-part="run"]')?.getBoundingClientRect()
+    return part && part.top >= body.top - 1 && part.top < body.bottom
+  }, null, POLL)
 })
 
 test('a round with output after them → the count starts again and the banner goes', async () => {

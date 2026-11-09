@@ -146,7 +146,7 @@ export async function seedLibrary(dir, { now = () => new Date() } = {}) {
 }
 
 // ---- a session on a world of a given kind (the counterpart of test/support/app.mjs appSession, which makes an empty world) ----
-//   const s = worldSession({ kind: 'seeded', env: world => ({ STREAMS_DEV_LIBRARY: world.library }), waitFor: 'today' })
+//   const s = worldSession({ kind: 'seeded', env: world => ({ STREAMS_DEV_LIBRARY: world.library }), waitFor: 'overview' })
 //   … s.world (the folders + `seed`) · s.app · s.page · s.errors
 // `env` may be an object or a function of the world (the library folder is only known once the world exists); `prepare(world)`
 // runs before the app starts (to put a file somewhere, to start a server) and may return a function run after the app closes.
@@ -158,7 +158,8 @@ import { makeWorld } from '../../scripts/lib/world.mjs'
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-export function worldSession({ kind = 'seeded', env = {}, settings = null, waitFor = 'today', prepare = null } = {}) {
+// (v2 package F: by default it waits for 概览, the screen the app opens on; v1.0 waited for 今日)
+export function worldSession({ kind = 'seeded', env = {}, settings = null, waitFor = 'overview', prepare = null } = {}) {
   const s = { world: null, run: null, app: null, page: null, errors: [] }
   const folders = []
   let cleanup = null
@@ -315,4 +316,42 @@ export function seedImportFolder(dir) {
     skippedDirs: ['旧笔记'],
     mdCount: 6,
   }
+}
+
+// ---- three registered libraries (v2 package F: the sidebar of plan B, the shelf, switching between libraries) ----
+//   const shelf = await seedShelf(world)   (in a worldSession's `prepare`, on a seeded world; start the app with STREAMS_DEV_LIBRARY: '')
+// What it writes: the world's seeded library gets a brief (core saveBrief) and stays the current one; two more libraries next
+// to it, made by the core — 「电动车」 with a brief and two topics, nothing run yet; 「时尚」 with no brief, no topics and three
+// rounds without output in its rounds.jsonl (its problem: no-output) — and <appData>\libraries.json (core writeRegistry)
+// with the three, in that order, each its own colour. Returns { ids: [seeded, ev, fashion], dirs, names, briefs }.
+export const SHELF = Object.freeze({
+  names: Object.freeze(['AI Agent 记忆', '中国电动车行业', '中国时尚上市公司']),
+  briefs: Object.freeze(['追踪 agent 记忆方案、MCP 生态和评测的新动态。不要营销稿。', '追踪中国电动车行业：整车销量、电池和充电。不要二手车。', null]),
+  colors: Object.freeze(['river', 'green', 'violet']),
+  icons: Object.freeze(['A', '车', '衣']),
+})
+
+export async function seedShelf(world) {
+  const core = await import(CORE)
+  const ev = join(world.root, 'world', 'ev')
+  const fashion = join(world.root, 'world', 'fashion')
+  core.createLibrary(ev, { name: 'ev' })
+  core.addTopic(ev, { name: '整车销量', keywords: ['月销', '交付'] })
+  core.addTopic(ev, { name: '电池', keywords: ['装机量'] })
+  core.createLibrary(fashion, { name: 'fashion' })
+  const at = i => new Date(Date.now() - (4 - i) * 3_600_000).toISOString()
+  writeFileSync(join(fashion, '_pipeline', 'rounds.jsonl'), [1, 2, 3].map(i => `${JSON.stringify({ id: `dry-${i}`, startedAt: at(i), finishedAt: at(i), counts: { fetched: 2, new: 0, maybeDuplicates: 0, summarized: 0, inbox: 0 }, gates: {}, calls: 0 })}\n`).join(''), 'utf8')
+  core.saveBrief(world.library, SHELF.briefs[0])
+  core.saveBrief(ev, SHELF.briefs[1])
+  const dirs = [world.library, ev, fashion]
+  let reg = core.emptyRegistry()
+  const ids = []
+  for (const [i, dir] of dirs.entries()) {
+    const r = core.withLibrary(reg, dir, { name: SHELF.names[i] })
+    reg = core.withMeta(r.registry, r.entry.id, { icon: SHELF.icons[i], color: SHELF.colors[i] })
+    ids.push(r.entry.id)
+  }
+  reg = core.withActive(reg, ids[0])
+  core.writeRegistry(join(world.appData, 'libraries.json'), reg)
+  return { ids, dirs, names: SHELF.names, briefs: SHELF.briefs }
 }

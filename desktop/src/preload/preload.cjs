@@ -85,6 +85,13 @@ const METHODS = [
   'declineProposal',
   'reviseProposal',
   'getWhoDecided',
+  // the main agent and the suggestion cards (v2 package C)
+  'agentSend',
+  'getAgentTranscript',
+  'getAgentStatus',
+  'listSuggestions',
+  'dismissSuggestion',
+  'acceptSuggestion',
   // interface B: the library and reading
   'getLibrary',
   'searchLibrary',
@@ -106,6 +113,9 @@ const METHODS = [
   'addTopic',
   'updateTopic',
   'removeTopic',
+  // the 「要求」 of the current library (v2 package F)
+  'getBrief',
+  'setBrief',
   // interface B: the nodes of the pipeline
   'getPipeline',
   'savePipeline',
@@ -135,6 +145,8 @@ const EVENT_TOPICS = [
   'inbox-changed',
   // a proposal card made or decided (v2 package B)
   'proposals-changed',
+  // a turn of the main agent started or ended (v2 package C)
+  'agent-changed',
 ]
 const EVENT_CHANNEL = 'streams:event'
 

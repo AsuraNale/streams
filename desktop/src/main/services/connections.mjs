@@ -16,7 +16,7 @@
  */
 
 import { BridgeError } from '../bridge-methods.mjs'
-import { VENDORS, VENDOR_IDS, createConnector, fakeConnector, modelsFor, resolveModel, scriptedConnector } from '../core.mjs'
+import { VENDORS, VENDOR_IDS, createConnector, createSessionConnector, fakeConnector, modelsFor, resolveModel, scriptedConnector } from '../core.mjs'
 import { keyHint } from '../secrets.mjs'
 import { CONNECTION_KINDS, readSettings, writeSettings } from '../settings.mjs'
 import { APP } from '../texts/app.js'
@@ -67,6 +67,16 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
     if (devConnection === 'fake') return scriptedConnector()
     if (devConnection) return fakeConnector({ mode: devConnection })
     return createConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref) })
+  }
+
+  /**
+   * The main agent's connector for a kind (v2 package C; core createSessionConnector): the same connection and key, in the
+   * session mode — Claude Code / Codex keep one conversation and run in `cwd` (still 「不能动手」), the API replays it.
+   * The development stand-ins are the agent service's own (services/agent.mjs), not made here.
+   */
+  const sessionConnector = (kind, { cwd, log: sessionLog = log } = {}) => {
+    checkKind(kind)
+    return createSessionConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref), log: line => sessionLog(`agent connection: ${line}`) }, { cwd })
   }
 
   const keyState = () => {
@@ -257,5 +267,5 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
     return lines
   }
 
-  return { handlers, active, connector, connection, probeConnector, diagnosticLines, devConnection }
+  return { handlers, active, connector, sessionConnector, connection, probeConnector, diagnosticLines, devConnection }
 }

@@ -1,3 +1,4 @@
+// v2 package F: the 待看 tab of a library's page (screens/library-frame.js; design P4), otherwise as v1.0 had it.
 // 待看 (mockup S3): the cards waiting for a decision, in getInbox().items order (the core sorts by score); a right panel with
 // the recent reasons for letting go. Keys: J / K move, C keeps, D opens the dialog, L = later. A decision takes the card off
 // the page at once (useLoad mutate) and the list is read again; the main process says `inbox-changed` as well. Words:
@@ -14,10 +15,11 @@ import { dayText, fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, Dialog, LinkButton, Main, Panel, Tag, TopBar } from '../kit/index.js'
+import { Dialog, LinkButton, Panel, Tag, TopBar } from '../kit/index.js'
 import { DAY, ERRORS, NODE_NAMES, SEP } from '../texts/common.js'
 import { INBOX as T } from '../texts/inbox.js'
 import { VerdictDialog } from './verdict-dialog.js'
+import { LibraryFrame } from './library-frame.js'
 
 const LONG_WAIT = 14
 const nodeName = id => (Object.hasOwn(NODE_NAMES, id) ? NODE_NAMES[id] : id)
@@ -173,9 +175,8 @@ export function InboxScreen() {
     </div>
   <//>`
   const state = inbox.data ? 'ready' : inbox.status
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="inbox" />`} panel=${panel}>
-    <${Main} screen="inbox" state=${state} labelledby="inbox-title">
-      <${TopBar} title=${inbox.data ? `${T.title}${SEP}${fmt(T.count, { n: items.length })}` : T.title} subtitle=${T.subtitle} titleTag="h1" titleId="inbox-title"
+  return html`<${LibraryFrame} tab="inbox" state=${state} labelledby="inbox-title" panel=${panel}>
+      <${TopBar} title=${inbox.data ? `${T.title}${SEP}${fmt(T.count, { n: items.length })}` : T.title} subtitle=${T.subtitle} titleTag="h2" titleId="inbox-title"
         actions=${html`<span class="inbox-keys st-t-small st-t-muted" data-part="keys">${T.keys}</span>`} />
       <div class="st-main__body inbox-body" ref=${listRef} data-count=${items.length}>
         ${inbox.status === 'error' && !inbox.data ? html`<div class="inbox-error" role="alert">${inbox.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}<${LinkButton} onClick=${() => inbox.reload()}>${ERRORS.retry}<//></div>` : null}
@@ -184,7 +185,6 @@ export function InboxScreen() {
         ${items.map((item, i) => html`<${Card} key=${item.url} item=${item} isCurrent=${i === current} busy=${busy}
           onKeep=${() => { setCurrent(i); keep(item) }} onDismiss=${() => { setCurrent(i); openDismiss(item) }} onLater=${() => { setCurrent(i); later(item) }} onOpen=${() => open(item)} onRecord=${() => { setCurrent(i); setRecord({ url: item.url, title: item.title }) }} />`)}
       </div>
-    <//>
     ${record !== null ? html`<${VerdictDialog} url=${record.url} title=${record.title} onClose=${() => setRecord(null)} />` : null}
     ${dismissing !== null ? html`<${DismissDialog} reason=${reason} setReason=${setReason} busy=${busy} onConfirm=${confirmDismiss} onCancel=${() => { setDismissing(null); setReason('') }} />` : null}
   <//>`

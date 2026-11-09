@@ -166,6 +166,74 @@
 .st-sidebar__project[aria-current] .st-sidebar__badge { background: transparent; padding: 0; }
 .st-sidebar :focus-visible { outline-color: var(--st-surface); }
 
+/* v2 (package F, plan B): 「我的库」 — one line per library (its mark, its name, an amber dot, its 待看 count), 「+ 新建库」 */
+.st-sidebar__nav .st-sidebar__nav-text { flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-sidebar__libs { display: flex; flex-direction: column; gap: 2px; }
+.st-sidebar__lib {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border-radius: var(--st-radius);
+  color: var(--st-sidebar-text);
+  text-decoration: none;
+}
+.st-sidebar__lib-name { flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-sidebar__lib[aria-current] { background: var(--st-surface); color: var(--st-sidebar-selected-title); font-weight: 700; }
+.st-sidebar__lib:hover:not([aria-current]), .st-sidebar__nav:hover:not([aria-current]), .st-sidebar__add:hover { background: var(--st-sidebar-button); color: var(--st-sidebar-text); }
+.st-sidebar__lib .st-lib-mark { box-shadow: 0 0 0 1px var(--st-sidebar-button-border); }
+.st-sidebar__dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--st-wait-border); box-shadow: 0 0 0 1px var(--st-wait); }
+.st-sidebar__add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--st-radius);
+  color: var(--st-sidebar-text-2);
+  text-decoration: none;
+}
+.st-sidebar__footer-button { display: flex; align-items: center; gap: 8px; }
+
+/* a library's mark: its one or two characters on a square of its colour (kit/library-sections.js LibraryMark) */
+.st-lib-mark {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--st-radius);
+  color: var(--st-on-lib);
+  background: var(--st-lib-river);
+  font-weight: 700;
+  line-height: 1;
+}
+.st-lib-mark--river { background: var(--st-lib-river); }
+.st-lib-mark--violet { background: var(--st-lib-violet); }
+.st-lib-mark--green { background: var(--st-lib-green); }
+.st-lib-mark--muted { background: var(--st-lib-muted); }
+.st-lib-mark--s { width: 20px; height: 20px; font-size: var(--st-fs-tiny); border-radius: var(--st-radius-s); }
+.st-lib-mark--m { width: 30px; height: 30px; font-size: var(--st-fs-title); }
+.st-lib-mark--l { width: 40px; height: 40px; font-size: 18px; }
+
+/* a library's five parts as tabs across its page (plan B; kit/library-sections.js LibrarySections layout="tabs") */
+.st-lib-tabs { display: flex; align-items: stretch; gap: 4px; padding: 0 14px; border-bottom: 1px solid var(--st-border); background: var(--st-surface); }
+.st-lib-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--st-text-2);
+  cursor: pointer;
+}
+.st-lib-tabs__tab:hover { color: var(--st-text); }
+.st-lib-tabs__tab[aria-current] { color: var(--st-accent); border-bottom-color: var(--st-accent); font-weight: 700; }
+.st-lib-tabs__badge { color: var(--st-wait); background: var(--st-wait-bg); border-radius: var(--st-radius-xs); padding: 0 5px; font-size: var(--st-fs-tiny); font-weight: 700; }
+
 /* ---- top bar --------------------------------------------------------------------------------------- */
 .st-topbar {
   display: flex;

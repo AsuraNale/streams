@@ -4,12 +4,17 @@
 // page shows only its last four characters, 删除 → the file is gone; 运行: the cap written; 库: the current path, 新建库 on the
 // folder the hook gives → the sidebar carries the new folder's name. v2 package A: the library opened is the registry's
 // current one (libraries.json `active`), no longer settings.json's libraryPath.
+// v2 package F: 设置 has no 「运行」 part any more — the cap (and the schedule) are each library's own, on its 来源与要求: the cap
+// test checks that 设置 has nothing to change there, then writes the cap on the library's page (the same hooks, the same
+// values); the pass lines are read off 关卡 there (v1.0: 设置 showed them read only). The sidebar has no line with the open
+// folder's name any more: the new library is the current line of 「我的库」.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { CONNECTIONS } from '../src/renderer/texts/common.js'
 import { worldSession } from './support/seed.mjs'
+import { ready } from './support/app.mjs'
 
 const KEY = 'sk-test-ui-settings-key-0000-ab12'
 const s = worldSession({
@@ -37,7 +42,7 @@ test('three rows, their names the fixed phrases, their states from the detection
   const names = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="connections"] [data-connection] b')].map(e => e.textContent))
   assert.deepEqual(names, Object.values(CONNECTIONS.names))
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="library"] [data-library-path]').dataset.libraryPath), s.world.library)
-  assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar__library-name').textContent), basename(s.world.library))
+  await s.page.waitForFunction(name => document.querySelector('[data-library-row][data-active="true"] .st-sidebar__lib-name')?.textContent === name, basename(s.world.library), POLL)
 })
 
 test('打分用这一条 on codex → settings.json; the main model chosen → written; the page says 当前使用', async () => {
@@ -78,22 +83,30 @@ test('设置… on the API row: a key saved → secrets/key-<vendor>.bin, the pa
   assert.equal(existsSync(file), false, 'the key file is gone')
 })
 
-test('运行: the cap written to streams.json; control: 0 refused', async () => {
+test('运行 (v2: on the library\'s 来源与要求, not 设置): the cap written to streams.json; control: 0 refused', async () => {
+  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="settings"] [data-part="run"], main[data-screen="settings"] [data-field="cap"]')), null, '设置 has no cap to change')
+  await s.page.click('[data-library-row][data-active="true"]')
+  await s.page.waitForFunction(() => document.querySelector('main[data-state="ready"]') !== null && document.querySelector('.st-lib-tabs') !== null, null, POLL)
+  await s.page.click('.st-lib-tabs [data-tab="sources"]')
+  await ready(s.page, 'sources')
   await s.page.fill('[data-part="run"] [data-field="cap"]', '0')
   await click('[data-part="run"] [data-action="save-cap"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] .settings__error') !== null, null, POLL)
+  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-cap-note].src-error') !== null, null, POLL)
   assert.equal(JSON.parse(readFileSync(join(s.world.library, 'streams.json'), 'utf8')).pipeline.cap, 120)
   await s.page.fill('[data-part="run"] [data-field="cap"]', '42')
   await click('[data-part="run"] [data-action="save-cap"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] .st-t-done') !== null, null, POLL)
+  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-cap-note].st-t-done') !== null, null, POLL)
   assert.equal(JSON.parse(readFileSync(join(s.world.library, 'streams.json'), 'utf8')).pipeline.cap, 42)
-  assert.ok((await s.page.evaluate(() => document.querySelector('[data-thresholds]').textContent)).includes('0.7'))
+  await s.page.waitForFunction(() => document.querySelector('[data-part="gates"] input[data-field="threshold"]') !== null, null, POLL)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="gates"] input[data-field="threshold"]').value), '0.7')
+  await s.page.click('.st-sidebar__footer-button')
+  await ready(s.page, 'settings')
 })
 
 test('库: 新建库 on the folder the hook gives → the sidebar and the library part carry the new name', async () => {
   const another = join(s.world.root, 'another')
   await click('[data-part="library"] [data-action="new-library"]')
-  await s.page.waitForFunction(name => document.querySelector('.st-sidebar__library-name')?.textContent === name, basename(another), POLL)
+  await s.page.waitForFunction(name => document.querySelector('[data-library-row][data-active="true"] .st-sidebar__lib-name')?.textContent === name, basename(another), POLL)
   assert.ok(existsSync(join(another, 'streams.json')), 'a library was made there')
   assert.equal(activeLibrary(), another)
   await s.page.waitForFunction(p => document.querySelector('[data-part="library"] [data-library-path]')?.dataset.libraryPath === p, another, POLL)

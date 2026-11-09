@@ -56,7 +56,7 @@ export const SETTINGS = Object.freeze({
   capBad: 'The limit must be a whole number above zero.',
   thresholds: 'Default pass lines',
   thresholdsValue: 'Relevance {relevance} · Substance {substance}',
-  thresholdsHint: 'Change them on the Pipeline page',
+  thresholdsHint: 'Change them on the library\'s Sources & Brief',
 
   library: 'Library',
   libraryHint: 'The current library, other libraries, the index',

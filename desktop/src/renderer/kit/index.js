@@ -2,7 +2,8 @@
 //   import { AppFrame, Main, TopBar, Button, … } from '../kit/index.js'
 // Every component and its props: docs/desktop.md §五; a live gallery in development: `npm start -- --screen kit`.
 export { AppFrame, Main, Panel } from './frame.js'
-export { AppSidebar, Sidebar, SidebarFooterButton, SidebarGroup, SidebarLibrary, SidebarNav, SidebarNote, SidebarSpacer } from './sidebar.js'
+export { AppSidebar, Sidebar, SidebarAdd, SidebarFooterButton, SidebarGroup, SidebarLibrary, SidebarLibraryItem, SidebarNav, SidebarNote, SidebarSpacer } from './sidebar.js'
+export { LIBRARY_COLOR_NAMES, LIBRARY_ROUTES, LIBRARY_SECTIONS, LibraryMark, LibrarySections, TAB_OF } from './library-sections.js'
 export { TopBar } from './topbar.js'
 export { Button, LinkButton } from './button.js'
 export { PanelTabs } from './tabs.js'

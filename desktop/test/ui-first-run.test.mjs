@@ -14,6 +14,7 @@ import { CONNECTIONS } from '../src/renderer/texts/common.js'
 import { FIRST_RUN } from '../src/renderer/texts/first-run.js'
 import { ready } from './support/app.mjs'
 import { startFeed, worldSession } from './support/seed.mjs'
+// v2 package F: 「完成，去今日」 ends on 概览 now, and the library chosen is the current line of 「我的库」 (no folder line in the sidebar); the rest is v1.0's
 
 const POLL = { polling: 100, timeout: 60_000 }
 const RSS_NAME = 'local-feed'
@@ -137,7 +138,7 @@ test('step 4: the estimate, 开始, the progress to done with the counts; _pipel
   await until(a.page, () => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === 'schedule')
   assert.deepEqual(setupOnDisk().trial, { by: 'chose' }, 'the round ran: chose')
   await click(a.page, '[data-action="go-today"]')
-  await ready(a.page, 'today')
+  await ready(a.page, 'overview')
   assert.deepEqual(setupOnDisk(), {
     library: { by: 'chose', detail: 'empty' },
     connection: { by: 'chose', detail: 'claude-code' },
@@ -146,7 +147,8 @@ test('step 4: the estimate, 开始, the progress to done with the counts; _pipel
     trial: { by: 'chose' },
     schedule: { by: 'default', detail: { enabled: true, time: '08:30' } },
   }, 'six records; the schedule taken as shown')
-  assert.equal(await text(a.page, '.st-sidebar__library-name'), basename(chosenDir()))
+  // v2 package F: the sidebar has no line of the open library's folder any more: the new library is the current line of 我的库
+  await a.page.waitForFunction(n => document.querySelector('[data-library-row][data-active="true"] .st-sidebar__lib-name')?.textContent === n, basename(chosenDir()), { polling: 100, timeout: 60_000 })
   assert.equal(await a.page.evaluate(() => document.querySelector('[data-num="inbox"]').dataset.value), String(inboxFiles.length))
 })
 

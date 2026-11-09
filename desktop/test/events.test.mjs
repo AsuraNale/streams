@@ -4,6 +4,9 @@
 // and unsubscribes with the function onEvent returns. The documented example end to end: a setting changes
 // (setLanguage through the bridge) → settings-changed → the page re-reads the app state, and open-screen → the page
 // goes to the screen named. Also (D9): the sidebar keeps its 232px whatever the words are.
+// v2 package F: the app opens on the library's 概览 (v1.0: 今日); open-screen names a v1.0 id ('status') that leads to 概览 now
+// and 'shelf', which is a sidebar entry; the sidebar has two entries above 「我的库」 (v1.0: eight), and the main area is the
+// library page's card (its left edge where v1.0's <main> was).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { EVENT_CHANNEL, EVENT_TOPICS, createEmitter } from '../src/main/events.mjs'
@@ -22,8 +25,9 @@ test('emit (main): a listed topic only, to the app\'s own pages that are still o
   assert.deepEqual(sent, [['app://ui/index.html', 'streams:event', { topic: 'settings-changed', payload: null }]])
   assert.throws(() => emit('made-up-topic', {}), /no event topic/)
   assert.throws(() => emit('toString'), /no event topic/)
-  // v2 package A: libraries-changed (the registry changed); v2 package B: proposals-changed (a proposal card made or decided)
-  assert.deepEqual(Object.keys(EVENT_TOPICS).sort(), ['connections-changed', 'inbox-changed', 'libraries-changed', 'library-changed', 'open-screen', 'proposals-changed', 'round-progress', 'settings-changed', 'update'])
+  // v2 package A: libraries-changed (the registry changed); v2 package B: proposals-changed (a proposal card made or decided);
+  // v2 package C: agent-changed (a turn of the main agent started or ended)
+  assert.deepEqual(Object.keys(EVENT_TOPICS).sort(), ['agent-changed', 'connections-changed', 'inbox-changed', 'libraries-changed', 'library-changed', 'open-screen', 'proposals-changed', 'round-progress', 'settings-changed', 'update'])
 })
 
 test('onEvent (page): only a listed topic and a function; the payload alone arrives; the returned function unsubscribes', async () => {
@@ -48,11 +52,11 @@ test('onEvent (page): only a listed topic and a function; the payload alone arri
   await send({ topic: 'settings-changed', payload: { n: 2 } })
   await sleep(600)
   assert.deepEqual(await s.page.evaluate(() => window.__got), [[{ n: 1 }]], 'nothing after unsubscribing')
-  await ready(s.page, 'today')
+  await ready(s.page, 'overview')
 })
 
 test('a setting changed through the bridge → settings-changed → the page re-reads the app state, no reload', async () => {
-  await ready(s.page, 'today')
+  await ready(s.page, 'overview')
   await s.page.evaluate(() => { window.__sameDocument = true; window.__events = []; window.streams.onEvent('settings-changed', p => window.__events.push(p)) })
   // the developer switch: a change the page can see in the app state (the sidebar does not show it, so the test reads the state)
   const r = await s.page.evaluate(() => window.streams.setShowDeveloperInfo(true))
@@ -67,22 +71,27 @@ test('a setting changed through the bridge → settings-changed → the page re-
 })
 
 test('open-screen → the page goes to the screen named (an unknown screen is ignored)', async () => {
-  await send({ topic: 'open-screen', payload: { screen: 'status' } })
-  await ready(s.page, 'status')
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-nav="status"]').getAttribute('aria-current')), 'page')
+  await send({ topic: 'open-screen', payload: { screen: 'shelf' } })
+  await ready(s.page, 'shelf')
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-nav="shelf"]').getAttribute('aria-current')), 'page')
   await send({ topic: 'open-screen', payload: { screen: 'no-such-screen' } })
   await sleep(500)
-  await ready(s.page, 'status')
+  await ready(s.page, 'shelf')
+  // v1.0's 运行状态 is a part of 概览 now
+  await send({ topic: 'open-screen', payload: { screen: 'status' } })
+  await ready(s.page, 'overview')
+  await send({ topic: 'open-screen', payload: { screen: 'inbox' } })
+  await ready(s.page, 'inbox')
   await send({ topic: 'open-screen', payload: { screen: 'today' } })
-  await ready(s.page, 'today')
+  await ready(s.page, 'overview')
 })
 
 test('D9 · the sidebar keeps its 232px and the main area starts at 244px; nothing overflows the page', async () => {
-  await ready(s.page, 'today')
+  await ready(s.page, 'overview')
   const m = await s.page.evaluate(() => {
     const r = el => el.getBoundingClientRect()
     const side = document.querySelector('.st-sidebar')
-    const main = document.querySelector('main')
+    const main = document.querySelector('.lib-page') ?? document.querySelector('main')
     return {
       sidebar: r(side).width,
       sidebarOverflow: side.scrollWidth - side.clientWidth,
@@ -91,7 +100,7 @@ test('D9 · the sidebar keeps its 232px and the main area starts at 244px; nothi
       pageOverflow: document.documentElement.scrollWidth - innerWidth,
     }
   })
-  assert.deepEqual(m, { sidebar: 232, sidebarOverflow: 0, entries: 8, mainLeft: 244, pageOverflow: 0 })
+  assert.deepEqual(m, { sidebar: 232, sidebarOverflow: 0, entries: 2, mainLeft: 244, pageOverflow: 0 })
 })
 
 test('no page errors', () => {

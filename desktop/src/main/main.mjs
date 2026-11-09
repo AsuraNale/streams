@@ -31,7 +31,7 @@ import { createBrowseService } from './services/browse.mjs'
 import { createSourcesService } from './services/sources.mjs'
 import { createAskService } from './services/ask.mjs'
 import { createStatusService } from './services/status.mjs'
-import { createUsageCounter } from './core.mjs'
+import { AGENT_DIR, agentPaths, createUsageCounter } from './core.mjs'
 import { createNotifier } from './services/notify.mjs'
 import { wireUpdate } from './update-wiring.mjs'
 import { appVersion } from './version.mjs'
@@ -40,6 +40,7 @@ import { APP_USER_MODEL_ID, TOAST_ACTIVATOR_CLSID } from './app-id.mjs'
 import { iconPath } from './icon.mjs'
 import { createScheduleService } from './services/schedule.mjs'
 import { createProposalsService } from './services/proposals.mjs'
+import { createAgentService } from './services/agent.mjs'
 import { createTray } from './tray.mjs'
 import { listInbox } from './core.mjs'
 import { nativeSource, windowColour } from './theme.mjs'
@@ -81,6 +82,10 @@ const DEV_NOW = !app.isPackaged && typeof process.env.STREAMS_DEV_NOW === 'strin
 // its own app data). A packaged app ignores both: its cards come from the main agent, its default place is Documents\Streams
 const DEV_PROPOSALS = !app.isPackaged && typeof process.env.STREAMS_DEV_PROPOSALS === 'string' && isAbsolute(process.env.STREAMS_DEV_PROPOSALS) ? process.env.STREAMS_DEV_PROPOSALS : null
 const DEV_LIBRARY_ROOT = !app.isPackaged && typeof process.env.STREAMS_DEV_LIBRARY_ROOT === 'string' && isAbsolute(process.env.STREAMS_DEV_LIBRARY_ROOT) ? process.env.STREAMS_DEV_LIBRARY_ROOT : null
+// the main agent (services/agent.mjs; docs/desktop.md §4.6), development and tests only: with STREAMS_DEV_CONNECTION=fake the
+// agent's scripted answers, a JSON file (for the page's tests and package G). A packaged app ignores it: its agent talks to the
+// chosen connection
+const DEV_AGENT_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_AGENT_SCRIPT === 'string' && isAbsolute(process.env.STREAMS_DEV_AGENT_SCRIPT) ? process.env.STREAMS_DEV_AGENT_SCRIPT : null
 const STARTED_AT = Date.now()
 const clock = DEV_NOW === null ? () => new Date() : () => new Date(DEV_NOW + (Date.now() - STARTED_AT))
 // the app's own version (version.mjs): release.json's — packaged through resources/app/package.json, in development read from it
@@ -214,7 +219,11 @@ app.whenReady().then(() => {
   const secrets = createSecretStore({ dir: layout.secretsDir, safeStorage })
   const currentLocale = () => locale.current()
   // the libraries the app knows (v2 package A): the registry in layout.librariesFile, made from settings.json the first time
-  const library = createLibraryService({ settingsFile: layout.settingsFile, registryFile: layout.librariesFile, emit, log, hidden: HIDDEN, dialog, shell, locale: currentLocale, now: clock, devLibrary: DEV_LIBRARY, devChooseFolder: DEV_CHOOSE_FOLDER })
+  const library = createLibraryService({
+    settingsFile: layout.settingsFile, registryFile: layout.librariesFile, emit, log, hidden: HIDDEN, dialog, shell, locale: currentLocale, now: clock, devLibrary: DEV_LIBRARY, devChooseFolder: DEV_CHOOSE_FOLDER,
+    // the main agent's calls count in 「全部库本月用量合计」 on their own line (v2 package C)
+    agentUsageFile: agentPaths(join(layout.appData, AGENT_DIR)).usage,
+  })
   const connections = createConnectionsService({
     settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION,
     // a probe made from the page counts in the open library's usage (core createUsageCounter), under `probe`
@@ -223,10 +232,13 @@ app.whenReady().then(() => {
   // the schedule and the queue (services/schedule.mjs) are made below; the pipeline reaches them through these three
   // (getHome's nextRun; the end of a round: the notification, the next one in the queue; the page's startRound: the queue)
   let scheduler = null
+  // the main agent (made below): after every round it records the library's rule-based suggestion cards (v2 package C)
+  let agent = null
   const pipeline = createPipelineService({
     library, connections, emit, log, hidden: HIDDEN, shell, locale: currentLocale, now: clock,
     schedule: () => scheduler?.view() ?? null, onRoundDone: done => scheduler?.roundDone(done),
     roundGate: () => scheduler.startCurrent('the page'),
+    afterRound: r => agent?.afterRound(r),
   })
   // interface B (docs/desktop.md §4.2): reading and editing, the sources and topics, asking the library, the run status
   const browse = createBrowseService({ library, emit, log, hidden: HIDDEN, shell })
@@ -256,6 +268,9 @@ app.whenReady().then(() => {
     fallbackSchedule: () => readSettings(layout.settingsFile).schedule,
     devProposals: DEV_PROPOSALS,
   })
+  // the main agent (v2 package C): one conversation, one turn at a time; its cards go through createProposal above, so only
+  // the user's 「确认」 changes anything
+  agent = createAgentService({ appDataDir: layout.appData, library, connections, proposals, emit, log, now: clock, locale: currentLocale, devScript: DEV_AGENT_SCRIPT })
   // the tray's count is the current library's
   const inboxNow = () => { const d = library.dir(); if (!d) return 0; try { return listInbox(d).length } catch { return 0 } }
   const tray = createTray({
@@ -302,6 +317,7 @@ app.whenReady().then(() => {
       ...status.handlers,
       ...scheduler.handlers,
       ...proposals.handlers,
+      ...agent.handlers,
     },
   })
 

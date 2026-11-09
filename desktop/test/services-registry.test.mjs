@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { DEV_LIBRARY_ID, createLibraryService } from '../src/main/services/library.mjs'
 import { createScheduleService } from '../src/main/services/schedule.mjs'
 import { BRIDGE_METHODS, checkArgs, runHandler } from '../src/main/bridge-methods.mjs'
-import { createLibrary, createUsageCounter, readRegistry } from '../src/main/core.mjs'
+import { createLibrary, createUsageCounter, readRegistry, saveBrief } from '../src/main/core.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { testWorld } from './support/services.mjs'
 import { seedLibrary } from './support/seed.mjs'
@@ -196,13 +196,19 @@ test('getLibrariesOverview: 待看 from homeNumbers, the last round, one problem
   const [is, iq, id, ig] = s.entries().map(l => l.id)
   const o = s.handlers.getLibrariesOverview()
   assert.deepEqual(o.map(l => l.id), [is, iq, id, ig])
-  assert.deepEqual(Object.keys(o[0]).sort(), ['color', 'icon', 'id', 'inbox', 'lastRoundAt', 'name', 'problem'])
+  // v2 package F: four keys more — the brief, the topics' names, how many sources, the rounds in a row without output (the
+  // shelf's card and the library page's head need them); the seven of package A as they were
+  assert.deepEqual(Object.keys(o[0]).sort(), ['brief', 'color', 'icon', 'id', 'inbox', 'lastRoundAt', 'name', 'noOutputStreak', 'problem', 'sources', 'topics'])
   // the seed: four cards waiting, its round, its dead source
   assert.deepEqual([o[0].inbox, o[0].problem], [seed.inbox.length, 'sources'])
   assert.ok(o[0].lastRoundAt, 'the seed\'s round')
+  assert.deepEqual([o[0].brief, o[0].topics, o[0].sources, o[0].noOutputStreak], [null, ['agent 记忆', 'MCP 生态', '评测'], 2, 0], 'the seed: no brief, its three topics, its two sources')
   assert.deepEqual([o[1].inbox, o[1].lastRoundAt, o[1].problem], [0, null, null], 'a fresh library: nothing wrong')
-  assert.deepEqual([o[2].lastRoundAt, o[2].problem], ['2026-11-03T08:30:00.000Z', 'no-output'])
-  assert.deepEqual([o[3].inbox, o[3].problem], [0, 'missing'])
+  assert.deepEqual([o[2].lastRoundAt, o[2].problem, o[2].noOutputStreak], ['2026-11-03T08:30:00.000Z', 'no-output', 3])
+  assert.deepEqual([o[3].inbox, o[3].problem, o[3].brief, o[3].topics, o[3].sources], [0, 'missing', null, [], 0])
+  // the brief is streams.json's (core saveBrief), read again each time
+  saveBrief(quiet, '追踪一件事。不要别的。')
+  assert.equal(s.handlers.getLibrariesOverview()[1].brief, '追踪一件事。不要别的。')
   // control: two rounds without output are not three
   writeFileSync(join(dry, '_pipeline', 'rounds.jsonl'), [1, 2].map(i => `${JSON.stringify({ id: `r${i}`, startedAt: `2026-11-0${i}T08:30:00.000Z`, counts: { inbox: 0 } })}\n`).join(''))
   assert.equal(s.handlers.getLibrariesOverview()[2].problem, null)

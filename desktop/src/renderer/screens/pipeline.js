@@ -1,4 +1,5 @@
-// 流水线 (mockup S4; docs/desktop.md §4.2). The strip of steps, joined by arrows: fixed (a lock and one line on what it
+// 流水线 (mockup S4; docs/desktop.md §4.2) — v2 package F: no screen of its own any more, the 「关卡」 part of a library's 来源与要求
+// (GatesSection, drawn by screens/sources.js; v1.0's right panel sits beside the editor). The strip of steps, joined by arrows: fixed (a lock and one line on what it
 // does) · script · model steps · the summary · fixed. A model step chosen: its requirement (a textarea), its output form
 // (read-only: the software parses it), the pass line (a number from 0 to 1: anything else is refused before sending, and
 // the core refuses it too), the material (title and summary only / the body), the tools (fixed: none), the checklist (the
@@ -7,7 +8,7 @@
 // checks), 「保存」 (savePipeline with the whole configuration as getPipeline gave it, edited), 「恢复默认」. The right panel:
 // the last round per step (getPipeline().lastRound), the recent reasons for letting go, the recent reasons a check did not
 // pass (per step). Words: texts/pipeline.js; the scores' names: texts/common.js NODE_NAMES.
-// Test hooks: main[data-screen="pipeline"][data-state], [data-flow-node=<id>][data-kind][data-locked][aria-pressed],
+// Test hooks: [data-part="gates"][data-state] (inside main[data-screen="sources"]), [data-flow-node=<id>][data-kind][data-locked][aria-pressed],
 // [data-part=editor|locked|preview|preview-result|round|reasons|failures], textarea[data-field="requirement"],
 // input[data-field="threshold"], input[data-field="material"][value], [data-check=<id>][data-origin] with
 // [data-action="remove-check"], input[data-field="check-desc"], select[data-field="preview-url"],
@@ -19,9 +20,10 @@ import { dayText, fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, Dialog, Icon, LinkButton, Main, Panel, Tag, TopBar } from '../kit/index.js'
+import { Dialog, Icon, LinkButton, Tag } from '../kit/index.js'
 import { CONNECTIONS, DAY, ERRORS, FETCH_STATES, NODE_NAMES, NO_CONNECTION, SEP } from '../texts/common.js'
 import { PIPELINE as T } from '../texts/pipeline.js'
+import { SHELL } from '../texts/shell.js'
 
 const MODEL_KINDS = ['gate', 'summary']
 const MIN_CHECK = 6
@@ -157,7 +159,7 @@ function Preview({ node, dirty, caught, onSettings }) {
 function Editor({ node, nodes, thresholdText, onThreshold, onChange, dirty, caught, onSettings }) {
   const title = node.kind === 'gate' ? gateTitle(node, nodes) : nodeName(node.id)
   return html`<section class="pl-editor" data-part="editor" data-node-id=${node.id} aria-labelledby="pl-editor-title">
-    <h2 class="pl-editor__title st-t-title" id="pl-editor-title">${title}</h2>
+    <h3 class="pl-editor__title st-t-title" id="pl-editor-title">${title}</h3>
     <label class="pl-field">
       <span class="pl-field__label">${T.editor.requirement}</span>
       <textarea class="pl-textarea" data-field="requirement" rows="6" value=${node.requirement ?? ''} onInput=${e => onChange({ requirement: e.currentTarget.value })}></textarea>
@@ -213,7 +215,8 @@ function RoundPanel({ round, nodes }) {
   return html`<dl class="pl-kv">${rows}</dl><p class="st-t-tiny st-t-muted">${T.panel.caughtNote}</p>`
 }
 
-export function PipelineScreen() {
+/** The 关卡 part of 来源与要求. `who`: 「谁定的」 of the pass lines (sources.js WhoLine), drawn under the heading. */
+export function GatesSection({ who = null }) {
   const { navigate } = useApp()
   const data = useLoad(() => call('getPipeline'), [])
   const caught = useLoad(() => call('getLibrary', 'caught', { topics: [], days: null }).then(r => (r?.items ?? []).slice(0, 30)).catch(() => []), [])
@@ -278,17 +281,16 @@ export function PipelineScreen() {
   const reasons = Array.isArray(data.data?.dismissReasons) ? data.data.dismissReasons : []
   const failures = data.data?.verdictFailures && typeof data.data.verdictFailures === 'object' ? data.data.verdictFailures : {}
   const failureNodes = Object.keys(failures).filter(k => Array.isArray(failures[k]) && failures[k].length)
-  const panel = html`<${Panel} label=${T.panel.round}>
-    <div class="pl-panel">
-      <section class="pl-panel__block" data-part="round" aria-labelledby="pl-round"><h2 class="st-t-small st-t-sub st-t-strong" id="pl-round">${T.panel.round}</h2>
+  const panel = html`<div class="pl-panel">
+      <section class="pl-panel__block" data-part="round" aria-labelledby="pl-round"><h3 class="st-t-small st-t-sub st-t-strong" id="pl-round">${T.panel.round}</h3>
         ${data.data ? html`<${RoundPanel} round=${data.data.lastRound} nodes=${config?.nodes ?? []} />` : null}
       </section>
-      <section class="pl-panel__block" data-part="reasons" aria-labelledby="pl-reasons"><h2 class="st-t-small st-t-sub st-t-strong" id="pl-reasons">${T.panel.reasons}</h2>
+      <section class="pl-panel__block" data-part="reasons" aria-labelledby="pl-reasons"><h3 class="st-t-small st-t-sub st-t-strong" id="pl-reasons">${T.panel.reasons}</h3>
         <span class="st-t-tiny st-t-muted">${T.panel.reasonsHint}</span>
         ${reasons.length ? html`<ul class="pl-panel__list">${reasons.map((r, i) => html`<li key=${i} data-reason=${r.reason} title=${r.title ?? ''}>${r.reason}<span class="st-t-tiny st-t-muted">${SEP}${dayText(r.ts, DAY) ?? ''}</span></li>`)}</ul>`
           : html`<p class="st-t-small st-t-muted">${T.panel.reasonsNone}</p>`}
       </section>
-      <section class="pl-panel__block" data-part="failures" aria-labelledby="pl-failures"><h2 class="st-t-small st-t-sub st-t-strong" id="pl-failures">${T.panel.failures}</h2>
+      <section class="pl-panel__block" data-part="failures" aria-labelledby="pl-failures"><h3 class="st-t-small st-t-sub st-t-strong" id="pl-failures">${T.panel.failures}</h3>
         ${failureNodes.length ? failureNodes.map(id => {
           const n = (config?.nodes ?? []).find(x => x.id === id)
           const descOf = item => (n?.checklist ?? []).find(c => c.id === item)?.desc ?? item
@@ -298,37 +300,42 @@ export function PipelineScreen() {
           </div>`
         }) : html`<p class="st-t-small st-t-muted">${T.panel.failuresNone}</p>`}
       </section>
-    </div>
-  <//>`
+    </div>`
   const actions = html`<div class="pl-actions">
     ${dirty ? html`<span class="st-t-small st-t-wait" data-part="unsaved">${T.unsaved}</span>` : null}
     <span title=${defaults ? null : T.resetUnavailable}><${Act} name="reset" disabled=${busy || !config || !defaults} onClick=${() => setResetting(true)}>${T.reset}<//></span>
     <${Act} name="save" variant="primary" disabled=${busy || !dirty} onClick=${() => save()}>${busy ? T.saving : T.save}<//>
   </div>`
   const state = data.data && draft ? 'ready' : data.status === 'error' ? 'error' : 'loading'
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="pipeline" />`} panel=${panel}>
-    <${Main} screen="pipeline" state=${state} labelledby="pipeline-title">
-      <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h1" titleId="pipeline-title" actions=${actions} />
-      <div class="st-main__body pl-body">
-        ${data.status === 'error' && !data.data ? html`<div class="pl-error" role="alert">${data.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}<${LinkButton} onClick=${() => data.reload()}>${ERRORS.retry}<//></div>` : null}
-        ${note ? html`<div class=${note.kind === 'saved' ? 'pl-note st-t-small st-t-done' : 'pl-error st-t-small'} role=${note.kind === 'saved' ? 'status' : 'alert'} data-part="save-note" data-kind=${note.kind}>${note.text}</div>` : null}
-        ${draft ? html`
-          <${Strip} nodes=${nodes} current=${current} onSelect=${id => setCurrent(id)} />
-          <p class="st-t-tiny st-t-muted pl-legend">${T.legend}</p>
+  return html`<section class="src-part pl-section" data-part="gates" data-state=${state} aria-labelledby="pipeline-title">
+    <div class="src-part__head">
+      <h2 class="st-t-small st-t-sub st-t-strong" id="pipeline-title">${SHELL.sources.gates}</h2>
+      ${who}
+      ${actions}
+    </div>
+    <p class="st-t-tiny st-t-muted">${SHELL.sources.gatesHint}</p>
+    ${data.status === 'error' && !data.data ? html`<div class="pl-error" role="alert">${data.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}<${LinkButton} onClick=${() => data.reload()}>${ERRORS.retry}<//></div>` : null}
+    ${note ? html`<div class=${note.kind === 'saved' ? 'pl-note st-t-small st-t-done' : 'pl-error st-t-small'} role=${note.kind === 'saved' ? 'status' : 'alert'} data-part="save-note" data-kind=${note.kind}>${note.text}</div>` : null}
+    ${draft ? html`
+      <${Strip} nodes=${nodes} current=${current} onSelect=${id => setCurrent(id)} />
+      <p class="st-t-tiny st-t-muted pl-legend">${T.legend}</p>
+      <div class="pl-columns">
+        <div class="pl-columns__main">
           ${node && MODEL_KINDS.includes(node.kind)
             ? html`<${Editor} node=${node} nodes=${nodes} thresholdText=${texts[node.id] ?? ''} onThreshold=${v => setTexts(m => ({ ...m, [node.id]: v }))}
                 onChange=${change} dirty=${dirty} caught=${caught.data} onSettings=${() => navigate('settings')} />`
             : node ? html`<section class="pl-locked" data-part="locked" data-node-id=${node.id}>
-                <h2 class="st-t-title">${nodeName(node.id)}</h2>
+                <h3 class="st-t-title">${nodeName(node.id)}</h3>
                 <p class="st-t-small st-t-sub">${T.about[node.id] ?? ''}</p>
                 <p class="st-t-small st-t-wait">${node.kind === 'fixed' ? T.locked : ''}</p>
               </section>` : null}
-        ` : null}
+        </div>
+        <aside class="pl-columns__side" aria-label=${T.panel.round}>${panel}</aside>
       </div>
-    <//>
+    ` : null}
     ${resetting ? html`<${Dialog} name="reset-pipeline" title=${T.resetDialog.title} onCancel=${() => setResetting(false)}
       actions=${html`<${Act} name="cancel-reset" onClick=${() => setResetting(false)}>${T.resetDialog.cancel}<//><${Act} name="confirm-reset" variant="primary" onClick=${reset}>${T.resetDialog.confirm}<//>`}>
       <p class="st-dialog__text">${T.resetDialog.text}</p>
     <//>` : null}
-  <//>`
+  </section>`
 }

@@ -3,13 +3,24 @@
 // The app state is read again whenever the main process says a setting changed (event `settings-changed`) or the
 // library changed (`library-changed`). While no library is open the app shows 首次设置 (screens/first-run.js) in place
 // of the sidebar's entries, until the wizard says it is done (docs/desktop.md §4.1「首次设置」).
-import { html, render, useEffect, useState } from './lib/html.js'
+//
+// v2 package F (plan B; docs/desktop.md §五「界面结构」): the sidebar does not change with the library — 库架 ('shelf'),
+// 和主 Agent 聊 ('chat'), one line per library, 「新建库」, 设置. A library's page is five tabs, each a route of LIBRARY_ROUTES
+// (kit/library-sections.js): overview · inbox · library (and its graph view, 'graph') · ask · sources; they all work on the
+// current library (package A's 「当前库」). v1.0's ids still lead somewhere (ALIASES: 今日 and 运行状态 are 概览 now, 流水线 is
+// the 关卡 part of 来源与要求). Each library remembers, in memory, the route you were on and how far its page was scrolled
+// (`memory`): a click on a library (openLibrary) makes it the current one (setActiveLibrary) and goes back to that route,
+// or to its 待看 the first time.
+import { html, render, useEffect, useRef, useState } from './lib/html.js'
 import { AppContext } from './lib/app-context.js'
 import { call } from './lib/bridge.js'
-import { useEvent, useInboxCount } from './lib/use-events.js'
+import { useEvent } from './lib/use-events.js'
 import { useLoad } from './lib/use-load.js'
-import { FIRST_SCREEN, SCREENS } from './screens/index.js'
+import { useLibraries, useWaiting } from './lib/libraries.js'
+import { ALIASES, FIRST_SCREEN, LIBRARY_FIRST_SCREEN, SCREENS } from './screens/index.js'
 import { FirstRunScreen } from './screens/first-run.js'
+import { NewLibraryDialog } from './screens/new-library.js'
+import { LIBRARY_ROUTES } from './kit/index.js'
 import { BRAND } from './texts/common.js'
 
 // the page's language and title come from the brand table (docs/desktop.md §六): in English the main process serves
@@ -24,15 +35,24 @@ if (location.hash === '#kit') {
   try { screens.kit = (await import('./screens/kit.js')).KitScreen } catch { /* not served: no gallery */ }
 }
 
-// the main process may open another screen first in development (`npm start -- --screen <id>`)
-const first = () => {
-  const id = decodeURIComponent(location.hash.slice(1))
-  return Object.hasOwn(screens, id) ? id : FIRST_SCREEN
+/** A screen id (or one of v1.0's, ALIASES) → the route it is: { screen, params }, or null when there is no such screen. */
+function routeOf(id, params = {}) {
+  if (Object.hasOwn(ALIASES, id)) {
+    const [screen, extra] = ALIASES[id]
+    return { screen, params: { ...extra, ...params } }
+  }
+  return Object.hasOwn(screens, id) ? { screen: id, params } : null
 }
+
+// the main process may open another screen first in development (`npm start -- --screen <id>`)
+const first = () => routeOf(decodeURIComponent(location.hash.slice(1))) ?? { screen: FIRST_SCREEN, params: {} }
 
 function App() {
   const appState = useLoad(() => call('getAppState'), [])
-  const [route, setRoute] = useState({ screen: first(), params: {} })
+  const [route, setRoute] = useState(first)
+  const [adding, setAdding] = useState(false)
+  // per library (its registry id): the last route of its page, and how far each of its screens was scrolled
+  const memory = useRef({ routes: new Map(), scroll: new Map() })
   // first-time setup: decided once, when the app state first arrives without a library; the wizard ends it
   const [setup, setSetup] = useState(null)
   useEffect(() => {
@@ -48,27 +68,58 @@ function App() {
   }, [appState.data?.theme])
   useEvent('settings-changed', () => appState.reload())
   useEvent('library-changed', () => appState.reload())
-  const inboxCount = useInboxCount(Boolean(appState.data?.library) && setup !== true, appState.data?.library?.libraryId ?? null)
+  const shell = setup === false
+  const libraries = useLibraries(shell)
+  const waiting = useWaiting(shell)
+  const libraryId = appState.data?.library?.libraryId ?? null
+  // the route of a library's page is that library's to remember
+  useEffect(() => {
+    if (libraryId && LIBRARY_ROUTES.includes(route.screen)) memory.current.routes.set(libraryId, route)
+  }, [route, libraryId])
+
   const navigate = (screen, params = {}) => {
-    if (!Object.hasOwn(screens, screen)) {
+    const next = routeOf(screen, params)
+    if (!next) {
       console.warn(`navigate: no screen "${screen}" yet`)
       return
     }
-    setRoute({ screen, params })
+    setRoute(next)
+  }
+  /** A library of the sidebar or the shelf: the current one from now on, then its page where you left it (else 待看). */
+  const openLibrary = async id => {
+    const back = () => setRoute(memory.current.routes.get(id) ?? { screen: LIBRARY_FIRST_SCREEN, params: {} })
+    if (id === libraryId) { back(); return true }
+    try {
+      const lib = await call('setActiveLibrary', id)
+      appState.mutate(d => ({ ...d, library: lib }))
+      back()
+      return true
+    } catch (err) {
+      console.warn(`setActiveLibrary(${id}): ${err?.code ?? err}`)
+      libraries.reload()
+      return false
+    }
   }
   // a click on a notification of the app (the main process brought the window to the front): the screen it names
   useEvent('open-screen', p => { if (typeof p?.screen === 'string') navigate(p.screen) })
-  const has = id => Object.hasOwn(screens, id)
-  const value = { route, navigate, has, appState, inboxCount }
+  const has = id => routeOf(id) !== null
+  const value = {
+    route, navigate, has, appState, libraries, waiting, openLibrary, memory: memory.current,
+    newLibrary: () => setAdding(true),
+  }
   if (setup === null) return null
   if (setup === true) {
     return html`<${AppContext.Provider} value=${value}>
-      <${FirstRunScreen} onDone=${screen => { setSetup(false); appState.reload(); navigate(screen ?? 'today') }} />
+      <${FirstRunScreen} onDone=${screen => { setSetup(false); appState.reload(); navigate(screen ?? FIRST_SCREEN) }} />
     <//>`
   }
   const Screen = screens[route.screen]
+  // a library's page starts afresh for another library (nothing of the one before stays on it)
+  const key = LIBRARY_ROUTES.includes(route.screen) ? `${libraryId ?? 'none'}:${route.screen}` : route.screen
   return html`<${AppContext.Provider} value=${value}>
-    <${Screen} params=${route.params} />
+    <${Screen} key=${key} params=${route.params} />
+    ${adding ? html`<${NewLibraryDialog} onClose=${() => setAdding(false)}
+      onOpened=${lib => { setAdding(false); appState.mutate(d => ({ ...d, library: lib })); appState.reload(); libraries.reload(); setRoute({ screen: 'overview', params: {} }) }} />` : null}
   <//>`
 }
 

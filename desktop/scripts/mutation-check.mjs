@@ -115,6 +115,40 @@ const MUTANTS = [
     edits: [['src/renderer/texts-en/screens.js', "    status: 'Status',\n  }),\n  about:", "  }),\n  about:"]],
     test: ['test/texts-en.test.mjs', '--test-name-pattern=key parity'],
   },
+  // v2 package F (the shell of plan B)
+  {
+    id: 'f-sidebar-any-library',
+    what: 'the sidebar takes an inbox-changed for every library line, whatever library the event names',
+    edits: [['src/renderer/lib/libraries.js', 'rows.map(r => (r.id === payload.libraryId ? { ...r, inbox: payload.count } : r))', 'rows.map(r => ({ ...r, inbox: payload.count }))']],
+    test: ['test/ui-shell.test.mjs', '--test-name-pattern=inbox-changed with a libraryId'],
+  },
+  {
+    id: 'f-brief-not-yours',
+    what: 'saving the brief from 来源与要求 does not record it as the user\'s (no changes.jsonl line by you)',
+    edits: [['src/main/services/sources.mjs', "const r = byYou(dir, ['brief'], () => call('saveBrief', dir, text), { log, now })", "const r = call('saveBrief', dir, text)"]],
+    test: ['test/services-sources.test.mjs', '--test-name-pattern=getBrief / setBrief'],
+  },
+  {
+    id: 'f-brief-not-yours-ui',
+    what: 'the same, seen on the running app (streams.json and changes.jsonl read after 「保存」)',
+    edits: [['src/main/services/sources.mjs', "const r = byYou(dir, ['brief'], () => call('saveBrief', dir, text), { log, now })", "const r = call('saveBrief', dir, text)"]],
+    test: ['test/ui-shell.test.mjs', '--test-name-pattern=the brief saved'],
+  },
+  {
+    id: 'f-tabs-one-memory',
+    what: 'the page a library was left on is remembered once for all libraries, not per library',
+    edits: [
+      ['src/renderer/app.js', 'memory.current.routes.set(libraryId, route)', "memory.current.routes.set('all', route)"],
+      ['src/renderer/app.js', 'memory.current.routes.get(id)', "memory.current.routes.get('all')"],
+    ],
+    test: ['test/ui-shell.test.mjs', '--test-name-pattern=a click on a library|each library remembers'],
+  },
+  {
+    id: 'f-scroll-one-memory',
+    what: 'how far a page was scrolled is remembered per screen only, not per library',
+    edits: [['src/renderer/screens/library-frame.js', 'const scrollKey = `${id ?? \'\'}:${screen}`', 'const scrollKey = screen']],
+    test: ['test/ui-shell.test.mjs', '--test-name-pattern=a click on a library|each library remembers'],
+  },
 ]
 
 function runTest(desktop, test) {

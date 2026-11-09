@@ -10,6 +10,10 @@
  *
  * v2 package B: each change of the sources or the topics is the user's own — one line by 'you' in the library's
  * changes.jsonl for each of the two fields that changed (services/changes.mjs byYou).
+ *
+ * v2 package F: the library's 「要求」 (streams.json `brief`, core readBrief / saveBrief) on 来源与要求 — `getBrief` reads it,
+ * `setBrief` writes what the user typed (the core trims it and refuses an empty or a too long one: bad_arguments) and records
+ * it as the user's (one line by 'you' in changes.jsonl when it changed), then sends `library-changed`.
  * @module desktop/main/services/sources
  */
 
@@ -116,6 +120,16 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
       const dir = library.require()
       knownTopic(dir, name)
       return changed(`topic removed ${name}`, yours(dir, () => call('removeTopic', dir, name)))
+    },
+    /** 「要求」: { brief } — the text, or null when the library has none. */
+    getBrief() {
+      return { brief: call('readBrief', library.require()) }
+    },
+    /** 「要求」 saved from 来源与要求: the user's own words (changes.jsonl by 'you'). */
+    setBrief(text) {
+      const dir = library.require()
+      const r = byYou(dir, ['brief'], () => call('saveBrief', dir, text), { log, now })
+      return changed('brief saved', r)
     },
   }
 

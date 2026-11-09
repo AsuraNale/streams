@@ -11,6 +11,7 @@
 | Claude Code 的结构化输出 | 有 `--json-schema <schema>` | `claude --help` |
 | Codex 命令行的接续（`codex exec resume`） | **能**：PATH 上没有 `codex`，但 Codex 桌面版自带的 `codex.exe`（v1.0 连接器本来就会找它，0.166.0-alpha.6）第一次 `exec` 拿到会话 id，换一个空文件夹再 `exec resume <id>` 记得上一句的暗号。注意：`exec resume` 不认 `--sandbox`，只读要用 `-c sandbox_mode="read-only"` 传；分叉没测 | 11-05 两次真调用（脚本在玄翎的 scratchpad：codex-resume-spike.mjs） |
 | v1.0 调 Claude Code 的方式 | 零工具 + `--no-session-persistence`（每次一问一答、不留会话） | `core/src/connect/claude-code.mjs` 第 34–41 行 |
+| 主 Agent 的 JSON 动作在真模型上稳不稳（包 C 试验） | **稳**：Claude Code 5 轮 6 次调用、Codex 2 轮 2 次调用，8 次全是合格 JSON、一次过校验、0 次重试；4 张卡全部出成；会话用产品里的参数（零工具 / 只读）真的接得上；resume 一个不存在的会话两边都在本机被拒、归为「会话丢了」 | `core/scripts/agent-trial.mjs`，结果 `docs/design/v2/agent-trial-2026-11-05.md`（共 12 次 CLI 调用） |
 
 ## 一、总图：三层 + 两个进程
 
@@ -61,7 +62,7 @@
 |---|---|---|---|
 | 库登记 `registry` | `core/src/registry/` + 主进程 | 应用知道有哪些库（id、文件夹、显示名、图标、颜色、排序），不再「一次只开一个」 | 登记表在 `<应用数据>\Streams\libraries.json`；库文件夹仍是自包含的（换电脑拷文件夹再「添加已有库」即可） |
 | 定时与排队 `scheduler` | 主进程（用 v1.0 的 `nextRunAt / lastDueAt / missedRun`） | 每个库按自己的时间跑；错过的补一轮不叠加（v1.0 规则）；**同一时间只跑一轮**（一个队列，按到点先后），避免几个库同时打满连接 | 用量：每轮上限按库算；设置页显示全部库本月用量合计（维护者 11-05 定） |
-| 主 Agent `agent` | `core/src/agent/` | 对话记录（`agent/transcript.jsonl`，正本）、局面摘要（所有库的名字 / 要求 / 待看数 / 问题 / 待定的提议）、一轮对话（发 → 收 JSON → 校验 → lookups 循环 → 落盘）、长对话压缩（超过阈值时让模型把旧对话缩成摘要，原文仍留在 jsonl） | 一次只问你一个问题（`ask` 字段只能一个，带快捷回答）；JSON 不合格式重试一次，再不行就只显示 `reply` 文本、不出卡 |
+| 主 Agent `agent` | `core/src/agent/` | 对话记录（`agent/transcript.jsonl`，正本）、局面摘要（所有库的名字 / 要求 / 待看数 / 问题 / 待定的提议）、一轮对话（发 → 收 JSON → 校验 → lookups 循环 → 落盘）、长对话压缩（超过阈值时让模型把旧对话缩成摘要，原文仍留在 jsonl） | 一次只问你一个问题（`ask` 字段只能一个，带快捷回答）；JSON 不合格式重试一次，再不行就只显示 `reply` 文本、不出卡。**包 C 实做（11-05）与上面的差别**：回的 JSON 还可以带 `note`（主 Agent 的笔记，由代码写进 `agent/notes.jsonl`，局面摘要带最近 5 条）；带 `lookups` 的回答是中间回答（别的字段不用），查询五种：`library` · `source_log` · `proposals` · `suggestions` · `notes_search`（只给已收藏条目的标题与日期）；第 3 轮查询之后那次调用不许再查，再要就算不合格（重试一次，再要就收尾）；坏回答两次之后**也不查、不记笔记**；会话缓存 `agent/session.json` 丢了、坏了或 resume 报「找不到会话」→ 开新会话、用「最新摘要 + 最近 6 轮」重建；压缩阈值 40000 字、摘要 ≤ 2000 字（不留会话的一次调用），压缩后放掉命令行会话、下一轮开新的（不让命令行那边的上下文无限长）；主 Agent 的用量记 `agent/usage.jsonl`，设置的合计里单列；Claude Code / Codex 给主 Agent 跑的空文件夹是系统临时目录下的 `%TEMP%\streams-agent-cwd`（每次调用前确认是空的；契约写的 `agent\cwd\` 实做改为临时目录，理由：保持 layout 的受保护目录约定，玄翎 11-09）。细节：`docs/core-api.md` 5.15、`docs/desktop.md` §4.6 |
 | 提议卡 `proposals` | `core/src/proposals/` | 卡的种类：建库、加来源、删 / 暂停来源、改主题与关键词、改要求、改过关线、改定时 / 上限、开跑一轮；每张卡：改什么、为什么、改前 / 改后、试抓结果（加来源时代码先试抓一次） | 状态：待定 → 确认 / 不要 / 改一下（改一下 = 把你的话带回主 Agent 重出一张）；**只有「确认」由代码执行**；每张卡和结果记进 `proposals.jsonl`（全局一份 + 相关库里一份）；执行后在库的配置旁记「主 Agent 提的 · 你确认的 · 日期」。**包 B 实做（11-05）与上面的差别**：十种 `kind`（定时与上限分成 `edit_schedule` / `edit_cap` 两种）；状态多两种：`stale`（出卡后相关配置变了，确认被拒、要重出）、`failed`（生效时出错，回滚或写明到哪一步）；建库卡也先试抓每个来源，被拒 / 地址有问题的默认不勾；改前 / 改后由代码在副本上真跑一遍算出，不信出卡方；「配置旁的记录」落在库的 `_pipeline\changes.jsonl`（每次改动一行：`agent-confirmed` 带卡的 id，你在界面上直接改的记 `you`），`getWhoDecided` 读它；出卡的 `createProposal` 只在主进程、不上桥。细节：`docs/core-api.md` 5.13、`docs/desktop.md` §4.5 |
 | 建议卡 `suggest` | `core/src/suggest/` | **规则型**、不花模型：来源连续 N 轮被拒 / 失败、连续三轮没有产出（v1.0 已有的数）、来源出现过写给 AI 的指令、两个库的主题关键词高度重合 | 维护者 11-05 定「先不放权」：建议卡一律要你点，没有「以后这类直接做」按钮（设计稿 UC2 第 4 步那个按钮去掉）；主 Agent 可以把建议卡变成提议卡（例如替你挑一个替代来源并试抓） |
 | 对话分流 `route` | `core/src/ask/route.mjs` | 库内对话框一句话 → 提问 / 改动要求 / 拿不准 | 改动要求连同库 id 交给主 Agent，提议卡回到同一个对话框里显示 |
@@ -76,6 +77,7 @@
   ★ agent\transcript.jsonl   主 Agent 对话正本（只追加）
   ★ agent\session.json   各连接的会话 id 缓存（丢了不要紧，靠正本重建）
   ★ agent\notes.jsonl    主 Agent 的工作区笔记（经代码写）
+  ★ agent\usage.jsonl    主 Agent 每次调用一行（与库的 usage 同格式；包 C）
   ★ proposals.jsonl      所有提议卡与结果（只追加）
 <每个库的文件夹>\
   notes\  index.jsonl  streams.json（★ brief / schedule / cap / setup 里多「谁定的」历史）
@@ -123,6 +125,16 @@
 | 首次打开 | 选连接（v1.0 第 2 步）→ 进「和主 Agent 聊」：「告诉我你想追踪什么」；也能点「新建库」手动建（v1.0 起步包流程保留为手动路径） | 改 |
 | 桥 | ~~所有库相关方法多一个 `libraryId` 参数~~ **包 A 实做（11-05）：桥里有「当前库」**（`setActiveLibrary(id)`），原有的约 70 个库相关方法签名不变、作用于当前库；跨库的事用新方法、显式带 id（`listLibraries` · `addLibrary` · `removeLibrary` · `setLibraryMeta` · `getLibrariesOverview` · `getLibrarySchedule(id)` / `setLibrarySchedule(id, …)` · `getUsageTotal`）。理由：方案 B 一次只显示一个库的页面，切库 = 换当前库；不用改 70 个方法的签名和 v1.0 全部界面测试；后台（定时、以后的主 Agent 与提议卡）在主进程里直接按库的文件夹调核心，不经桥。代价与防护：主进程发出的、和某个库有关的事件（一轮的 `round-progress`、`inbox-changed`、`library-changed`、新的 `libraries-changed`）都带 `libraryId`，页面据此决定刷不刷新。新方法：库登记（包 A）、主 Agent 对话、提议卡确认 / 不要 / 改一下、建议卡、分流 | 三张方法表一致的规矩不变 |
 
+**包 F 实做（11-05）与上表的差别**（详见 `docs/desktop.md` §五「界面结构」）：
+
+- 外壳：照表做；组件 `LibrarySections` 一个 `layout` 参数出两种排法（`tabs` = 方案 B，`sidebar` = 方案 A），本包只用 B。应用启动停在当前库的「概览」（v1.0 启动在今日）；从左栏 / 库架第一次进一个库停在「待看」（UC2），之后回到这个库上次停的标签和滚动位置（内存里，按库各记各的）。
+- 概览：今日 + 流水线的「上一轮」+ 运行状态（数、来源状态一览、复制诊断、打开运行记录）；「下次运行」与「现在跑一轮」在库头右边。**运行状态里的三条连接不放进库页**（连接不是哪个库的，留在设置）。建议卡一块：桥上有 `listSuggestions` 才列标题，卡片组件归包 G。
+- 来源与要求：左列要求 · 主题 · 本库定时与每轮上限，右列来源，下面整宽一节「关卡」（v1.0 流水线页整块，右栏挪到编辑区右边）；每块旁边「谁定的」。设计稿 P7 只画了左右两列，关卡与定时 / 上限是契约加的。
+- 桥：加 `getBrief` / `setBrief` 两个方法（`setBrief` 记 `by: 'you'`）；`getLibrariesOverview` 每行多四个字段 `brief` · `topics` · `sources` · `noOutputStreak`（库架卡片的「在追」「N 个来源」「连续 N 轮没有产出」要用）。
+- 设置：照契约 F4 只做最小改动——定时与上限的编辑拿掉，加「定时一览」（只读，点名字进那个库的来源与要求）和「全部库本月用量合计」。设计稿 P9 里还画着「每轮上限」，按契约挪进了各库。
+- 新建库：左栏「+ 新建库」与库架「手动新建」打开一个对话框，走 v1.0 的建库 / 打开已有文件夹（`chooseLibraryFolder` → `useChosenFolder`），建好后包 A 登记并设为当前库。「新建库 · 和主 Agent 聊着建」卡进「和主 Agent 聊」，那一页本包只放路由和空壳。
+- 库的颜色：`--st-lib-river` · `--st-lib-violet` · `--st-lib-green` · `--st-lib-muted` + 方块上的字 `--st-on-lib`，三套主题都有值（`docs/tokens.md`）。
+
 ## 四、做的顺序（工作包）
 
 | 包 | 内容 | 依赖 | 估计 |
@@ -157,9 +169,10 @@ v1.0 的 V1–V12 大多照用（V2 只有收藏写 notes、V3 五种抓取状�
 
 | 事 | 状态 | 怎么办 |
 |---|---|---|
-| Codex 命令行接续会话 | 11-05 实测可用（桌面版自带的 codex.exe）；分叉、长会话没测 | 包 C 再测分叉与长会话；不行就和 API 一样走「流息重放对话正本」，不影响架构 |
-| 主 Agent 用 JSON 动作的稳定性 | 未实测 | 包 C 第一天做真调用试验；坏格式重试一次、再坏只显示文字（不出卡、不执行） |
-| 长对话的用量 | 要定 | 压缩阈值与摘要策略在包 C 定，设置里可看主 Agent 的用量 |
+| Codex 命令行接续会话 | 11-05 实测可用（桌面版自带的 codex.exe）；包 C 试验又用产品参数（`exec` 去掉 `--ephemeral`、`exec resume -c sandbox_mode="read-only"`）接了 2 轮；分叉（本包不用）、长会话没测 | 接不上时归为「会话丢了」，开新会话从正本重建（包 C 实做）；长会话的数据等真用起来再看 |
+| 主 Agent 用 JSON 动作的稳定性 | 包 C 11-05 实测：8 / 8 次合格、0 次重试（`agent-trial-2026-11-05.md`）；样本小，只有中文、两条连接 | 坏格式重试一次、再坏只显示文字（不出卡、不执行），照做了 |
+| 长对话的用量 | 包 C 定了：40000 字压一次、摘要 ≤ 2000 字、压后开新会话；试验里 Codex 会话第二轮输入 token 就翻倍（它自己的系统提示大） | 设置的用量合计单列主 Agent（`getUsageTotal().agent`）；阈值要不要按连接分开，等真实长会话的数据 |
+| 主 Agent 的费用数 | Claude Code 会话模式下 `total_cost_usd` 是单次还是会话累计未核实；用量合计以调用次数为准，`costUsd` 可能多算 | 代码先不改；要核的话看同一会话连续两次调用报的数差多少 |
 | 阅读模式抓原网页 | 有些站抽不出正文 | 退回原网页；原网页在隔离 webview 里 |
 | 「写给 AI 的话」规则会漏 | 规则 + 判定兜底，仍可能漏 | 库 Agent 不能动手是根本防线：漏了也只会影响那一条的分数 |
 | Codex 的只读沙箱不等于零工具 | Codex 在只读沙箱里仍能执行只读命令、读本机文件（不能写、默认不联网）；读到的东西可能被写进它的回答 | 工作目录是空文件夹（v1.0 原样）；包 C / 包 A 实测 Codex 能不能关掉命令执行，能就关；不能就在设置的连接说明里写明，并把它列给 维护者 |

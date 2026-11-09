@@ -33,7 +33,7 @@ export const TODAY = Object.freeze({
     failed: '{n}/{total} 个来源暂时失败：{names}。下一轮会再试，不需要你改地址。',
     gap: '{n}/{total} 个来源地址有问题：{names}。改地址，或删掉这个来源。',
     blocked: '{n}/{total} 个来源被拒绝：{names}。换一个来源。',
-    go: '看来源与主题',
+    go: '看来源与要求',
   }),
 
   // S13: what broke, what is not lost, how to fix it (problem.code · problem.connectionCode)

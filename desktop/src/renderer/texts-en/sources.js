@@ -2,7 +2,7 @@
 
 export const SOURCES = Object.freeze({
   title: '{sources} source{sources?|s} · {topics} topic{topics?|s}',
-  titlePlain: 'Sources & Topics',
+  titlePlain: 'Sources & Brief',
   loadFailed: 'The sources and topics could not be read.',
   addLink: 'Put a link into the inbox',
   addSource: 'Add a source',

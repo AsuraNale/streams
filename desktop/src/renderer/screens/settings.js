@@ -1,5 +1,5 @@
-// 设置 (mockup S14): four parts — 连接方式 (getConnections and the connection methods), 运行 (getPipelineSettings, setRoundCap),
-// 库 (the app state's library, chooseLibraryFolder / useChosenFolder, openRecentLibrary, rebuildIndex), and the software part
+// 设置 (mockup S14): four parts — 连接方式 (getConnections and the connection methods), 运行, 库 (the app state's library,
+// chooseLibraryFolder / useChosenFolder, openRecentLibrary, rebuildIndex), and the software part
 // (the language, the developer switch, the diagnostics, 「关于」 with the update: screens/settings-update.js). Data: the app
 // state (useApp) and the bridge (lib/bridge.js); words: texts/settings.js and texts/common.js CONNECTIONS. The pieces of a
 // connection row that 首次设置 and the problem card of 今日 draw too are exported from here (detectWords, connectionState,
@@ -7,8 +7,11 @@
 // Test hooks: [data-part="…"] on each part; [data-connection=<kind>][data-conn-state] rows with input[data-field="active"],
 // select[data-field="model"|"verify-model"], [data-action=probe|login|login-again|setup-key]; the key dialog [data-dialog="api-key"]
 // with select[data-field="vendor"], input[data-field="base-url"|"key"], [data-action=save-key|remove-key|cancel-key];
-// [data-part="run"] input[data-field="cap"] + [data-action="save-cap"], [data-schedule="on"|"off"] with input[data-field="schedule-on"|
-// "schedule-time"], [data-next-run], [data-schedule-note]; [data-part="library"] [data-library-path],
+// v2 package F (design P9; docs/desktop.md §4.4): the schedule and the cap per round are each library's own now and are changed
+// on its 来源与要求 (screens/sources.js); 运行 shows 「定时一览」 — one line per library: its name (a click: that library's
+// 来源与要求), on or off, the time, the next run (getLibrarySchedule), read only — and 「全部库本月用量合计」 (getUsageTotal).
+// [data-part="schedules"] [data-schedule-row=<id>][data-schedule=on|off|unknown] with [data-action="go-library"],
+// [data-part="usage"][data-calls] with [data-usage-library=<id>]; [data-part="library"] [data-library-path],
 // [data-action=new-library|open-folder|rebuild], [data-recent=<path>], [data-part="setup"][data-setup="none"|"recorded"] with
 // [data-setup-step=<step>][data-by=<by>]; the language radios' ids `settings-language-<setting>`; [data-part="theme"]
 // select[data-field="theme"] (setTheme, docs/desktop.md §五「主题」); [data-action="licenses"] → [data-dialog="licenses"] with
@@ -23,6 +26,7 @@ import { Act } from '../lib/action.js'
 import { AppFrame, AppSidebar, Button, Dialog, LinkButton, Main, TopBar } from '../kit/index.js'
 import { CONNECTIONS, NEXT_WHEN, SEP } from '../texts/common.js'
 import { SETTINGS as T } from '../texts/settings.js'
+import { SHELL } from '../texts/shell.js'
 import { AboutUpdate } from './settings-update.js'
 import { THEME_IDS } from '../../shared/themes.mjs'
 
@@ -207,70 +211,43 @@ function ConnectionsPart() {
   <//>`
 }
 
-/** 定时 (docs/desktop.md §4.3): the switch and the time (setSchedule at once), what a missed round and the close button do, the next run. */
-function ScheduleRows() {
-  const sched = useLoad(() => call('getSchedule'), [])
-  const [time, setTime] = useState('')
-  const [note, setNote] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const d = sched.data
-  useEffect(() => { if (d) setTime(d.time) }, [d?.time])
-  const save = async (enabled, value) => {
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) { setNote(T.scheduleBad); return }
-    setBusy(true)
-    setNote(null)
-    try { const r = await call('setSchedule', { enabled, time: value }); sched.mutate(() => r); setNote(T.scheduleSaved) } catch { setNote(T.scheduleBad) } finally { setBusy(false) }
-  }
-  if (!d) return html`<span class="st-t-small st-t-sub">${T.schedule}</span><span>${sched.status === 'error' ? html`<span class="settings__error">${T.scheduleFailed}</span>` : null}</span>`
-  return html`<span class="st-t-small st-t-sub settings__schedule-name">${T.schedule}</span>
-    <span class="settings__schedule" data-schedule=${d.enabled ? 'on' : 'off'}>
-      <span class="settings__row">
-        <span class="settings__check">
-          <input type="checkbox" id="settings-schedule-on" data-field="schedule-on" checked=${d.enabled} disabled=${busy} onChange=${e => save(e.currentTarget.checked, d.time)} />
-          <label class="settings__check-name" for="settings-schedule-on">${T.scheduleOn}</label>
-        </span>
-        <label class="st-t-small st-t-sub" for="settings-schedule-time">${T.scheduleTime}</label>
-        <input id="settings-schedule-time" class="settings__field settings__field--edit settings__field--short" type="time" step="60" data-field="schedule-time" value=${time} disabled=${busy || !d.enabled}
-          onInput=${e => setTime(e.currentTarget.value)} onChange=${e => save(d.enabled, e.currentTarget.value)} />
-        ${note ? html`<span class=${note === T.scheduleSaved ? 'st-t-small st-t-done' : 'settings__error'} role="status" data-schedule-note>${note}</span>` : null}
-      </span>
-      <span class="st-t-small" data-next-run=${d.nextRunAt ?? ''}>${d.nextRunAt ? fmt(T.scheduleNext, { when: nextText(d.nextRunAt, NEXT_WHEN) ?? d.nextRunAt }) : T.scheduleOff}</span>
-      <span class="st-t-small st-t-sub">${T.scheduleMissed}</span>
-      <span class="st-t-small st-t-sub">${T.scheduleClose}</span>
-    </span>`
+/** 「定时一览」: every library's schedule, read only; a click on a name: that library's 来源与要求, where it is changed. */
+function SchedulesPart() {
+  const { libraries, openLibrary, navigate } = useApp()
+  const rows = Array.isArray(libraries?.data) ? libraries.data : []
+  const ids = rows.map(r => r.id).join(',')
+  const scheds = useLoad(() => Promise.all(rows.map(r => call('getLibrarySchedule', r.id).then(s => [r.id, s], () => [r.id, null]))).then(Object.fromEntries), [ids])
+  useEvent('settings-changed', () => scheds.reload())
+  const go = async id => { if (await openLibrary(id)) navigate('sources', { section: 'run' }) }
+  return html`<${Part} id="schedules" name=${SHELL.settings.schedules} hint=${SHELL.settings.schedulesHint}>
+    ${rows.length ? html`<table class="settings__schedules">
+      <thead><tr><th scope="col">${SHELL.settings.library}</th><th scope="col">${SHELL.settings.on}</th><th scope="col">${SHELL.settings.next}</th></tr></thead>
+      <tbody>${rows.map(r => {
+        const s = scheds.data?.[r.id] ?? null
+        return html`<tr key=${r.id} data-schedule-row=${r.id} data-schedule=${s ? (s.enabled ? 'on' : 'off') : 'unknown'}>
+          <td><a href="#" class="settings__link" data-action="go-library" onClick=${e => { e.preventDefault(); go(r.id) }}>${r.name}</a></td>
+          <td>${s ? (s.enabled ? s.time : SHELL.settings.off) : scheds.data ? html`<span class="st-t-small st-t-muted">${SHELL.settings.schedulesFailed}</span>` : ''}</td>
+          <td class="st-t-small st-t-sub">${s?.nextRunAt ? nextText(s.nextRunAt, NEXT_WHEN) ?? s.nextRunAt : s ? T.scheduleOff : ''}</td>
+        </tr>`
+      })}</tbody>
+    </table>` : html`<span class="st-t-small st-t-muted">${SHELL.settings.schedulesNone}</span>`}
+    <div class="st-t-small st-t-sub">${T.scheduleMissed}</div>
+    <div class="st-t-small st-t-sub">${T.scheduleClose}</div>
+  <//>`
 }
 
-function RunPart() {
-  const run = useLoad(() => call('getPipelineSettings'), [])
-  const [cap, setCap] = useState('')
-  const [note, setNote] = useState(null)
-  const [busy, setBusy] = useState(false)
-  useEffect(() => { if (run.data) setCap(String(run.data.cap ?? '')) }, [run.data?.cap])
-  const save = async () => {
-    const n = Number(cap)
-    if (!/^\d+$/.test(cap.trim()) || !Number.isInteger(n) || n <= 0) { setNote(T.capBad); return }
-    setBusy(true)
-    setNote(null)
-    try { await call('setRoundCap', n); setNote(T.capSaved); run.reload() } catch { setNote(T.capBad) } finally { setBusy(false) }
-  }
-  const d = run.data
-  return html`<${Part} id="run" name=${T.run} hint=${T.runHint}>
-    ${!d && run.status === 'error' ? html`<div class="settings__error">${T.runFailed}</div>` : null}
-    <div class="settings__kv">
-      <${ScheduleRows} />
-      <label class="st-t-small st-t-sub" for="settings-cap">${T.cap}</label>
-      <span class="settings__row">
-        <input id="settings-cap" class="settings__field settings__field--edit settings__field--short" type="number" min="1" step="1" data-field="cap" value=${cap} disabled=${!d || busy} onInput=${e => setCap(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); save() } }} />
-        <span class="st-t-small st-t-sub">${T.capUnit}</span>
-        <${Act} name="save-cap" disabled=${!d || busy} onClick=${save}>${T.capSave}<//>
-        ${note ? html`<span class=${note === T.capSaved ? 'st-t-small st-t-done' : 'settings__error'} role="status">${note}</span>` : null}
-      </span>
-      <span class="st-t-small st-t-sub">${T.thresholds}</span>
-      <span>
-        <span data-thresholds>${d ? fmt(T.thresholdsValue, { relevance: d.thresholds?.relevance ?? '', substance: d.thresholds?.substance ?? '' }) : ''}</span>
-        <span class="st-t-small st-t-muted settings__help">${T.thresholdsHint}</span>
-      </span>
-    </div>
+/** 「全部库本月用量合计」 (维护者 11-05): getUsageTotal — the calls and the tokens of every library this month, and each one's calls. */
+function UsagePart() {
+  const usage = useLoad(() => call('getUsageTotal'), [])
+  useEvent('inbox-changed', () => usage.reload())
+  useEvent('libraries-changed', () => usage.reload())
+  const u = usage.data
+  return html`<${Part} id="usage" name=${SHELL.settings.usage} hint=${SHELL.settings.usageHint}>
+    ${!u && usage.status === 'error' ? html`<div class="settings__error">${SHELL.settings.usageFailed}</div>` : null}
+    ${u ? html`<div data-calls=${u.calls} data-month=${u.month}>
+      <div class="st-t-strong">${fmt(SHELL.settings.usageLine, { calls: u.calls, input: u.inputTokens, output: u.outputTokens })}</div>
+      <ul class="settings__usage">${(u.libraries ?? []).map(l => html`<li key=${l.id} class="st-t-small st-t-sub" data-usage-library=${l.id} data-calls=${l.calls}>${l.missing ? fmt(SHELL.settings.usageMissing, { name: l.name }) : fmt(SHELL.settings.usageLibrary, { name: l.name, calls: l.calls })}</li>`)}</ul>
+    </div>` : null}
   <//>`
 }
 
@@ -460,7 +437,7 @@ export function SettingsScreen() {
       <div class="st-main__body settings__body">
         <div class="settings__list">
           ${data ? html`<${ConnectionsPart} />` : null}
-          ${data?.library ? html`<${RunPart} />` : null}
+          ${data ? html`<${SchedulesPart} /><${UsagePart} />` : null}
           <${LibraryPart} appState=${appState} />
           <${LanguagePart} language=${data?.language} onChange=${changeLanguage} />
           ${data ? html`<${ThemePart} theme=${data.theme} failed=${themeFailed} onChange=${changeTheme} />` : null}

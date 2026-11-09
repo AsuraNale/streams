@@ -1,11 +1,15 @@
-// 今日 (mockup S2) with the card for what went wrong (S13). Everything on the page comes from getHome (docs/desktop.md §4.1
-// 「今日」): the next run, the connection, the source banner (numbers.sources.lines, only failed / gap / blocked), the problem
-// of the last startRound, the four numbers, the last round (lastRound: a roundLog line) or the round running now
-// (round-progress events), the three most recently kept. The page computes no number. 「现在跑一轮」 opens the dialog of
-// screens/run-dialog.js. Words: texts/today.js, texts/common.js.
-// The amber banner 「连续 N 轮没有产出」 (plan C8): numbers.noOutputStreak at getHome().noOutputRounds (the core's NO_OUTPUT_ROUNDS) or more,
-// with where to look and a link to 运行状态.
-// Test hooks: [data-part=sources|no-output|problem|numbers|round|progress|recent], [data-part="no-output"][data-streak], [data-num=inbox|caught|passed|kept],
+// 概览 (v2 package F; design P3): a library's first tab, v1.0's 今日 (mockup S2, with the card for what went wrong, S13) and
+// 运行状态 (S11) on one page; 流水线's numbers of the last round are 今日's round lines. Everything of 今日 comes from getHome
+// (docs/desktop.md §4.1 「今日」): the next run and the connection (in the library's head now, beside 「现在跑一轮」), the source
+// banner (numbers.sources.lines, only failed / gap / blocked), the problem of the last startRound (a sign-in that expired
+// included), the four numbers, the last round (lastRound: a roundLog line) or the round running now (round-progress events),
+// the three most recently kept. The page computes no number. 「现在跑一轮」 opens the dialog of screens/run-dialog.js.
+// The amber banner 「连续 N 轮没有产出」 (plan C8): numbers.noOutputStreak at getHome().noOutputRounds (the core's
+// NO_OUTPUT_ROUNDS) or more, with where to look and a link to 「运行状态」 — the part of this page (screens/status.js RunStatus:
+// getStatus' numbers and the sources of the last round). 「主 Agent 给这个库的建议」: kept for package G (Suggestions: the
+// titles once the bridge has listSuggestions, else nothing). Words: texts/today.js, texts/status.js, texts/shell.js.
+// Test hooks: main[data-screen="overview"][data-state], [data-part=sources|no-output|problem|numbers|round|progress|recent|
+// suggestions|run|next-run], [data-part="no-output"][data-streak], [data-num=inbox|caught|passed|kept],
 // [data-part="problem"][data-code][data-connection-code], [data-action=run|cancel-round|retry|change|copy|login|login-again].
 import { html, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
@@ -14,11 +18,14 @@ import { dayText, fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { isOfLibrary, useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, LinkButton, Main, Notice, TopBar } from '../kit/index.js'
+import { LinkButton, Notice } from '../kit/index.js'
 import { CONNECTIONS, DAY, ERRORS, FETCH_STATES, NEXT_WHEN, NODE_NAMES, ROUND_PHASES, SEP, WHEN } from '../texts/common.js'
 import { TODAY as T } from '../texts/today.js'
+import { SHELL } from '../texts/shell.js'
+import { LibraryFrame } from './library-frame.js'
 import { RunDialog } from './run-dialog.js'
 import { LoginLoop } from './settings.js'
+import { RunStatus } from './status.js'
 
 const LINE = /^(ok|empty|gap|failed|blocked|paused|no-fetch-yet)(?: (\d+)(?:\/(\d+))?(?: (\S*))?(?: hint=(\S+))?)?$/
 const LOUD = ['failed', 'gap', 'blocked']
@@ -163,7 +170,23 @@ function RecentKept({ items }) {
   </section>`
 }
 
-export function TodayScreen() {
+/**
+ * 「主 Agent 给这个库的建议」: the suggestion cards' titles, once the bridge has a listSuggestions (package C / G draw the
+ * cards themselves); without it, nothing is shown.
+ */
+function Suggestions() {
+  const there = typeof globalThis.streams?.listSuggestions === 'function'
+  const list = useLoad(() => (there ? call('listSuggestions', null).catch(() => []) : []), [there])
+  const items = (Array.isArray(list.data) ? list.data : []).filter(s => s && (s.status === undefined || s.status === 'open'))
+  if (!there || !items.length) return null
+  const kinds = SHELL.overview.suggestionKinds
+  return html`<section class="ov-suggestions" data-part="suggestions" aria-labelledby="ov-suggestions">
+    <h2 class="st-t-small st-t-sub st-t-strong" id="ov-suggestions">${SHELL.overview.suggestions}</h2>
+    <ul class="ov-suggestions__list">${items.map((s, i) => html`<li key=${s.key ?? i} data-suggestion=${s.key ?? ''}>${Object.hasOwn(kinds, s.kind) ? fmt(kinds[s.kind], { subject: s.subject ?? '' }) : String(s.kind ?? '')}</li>`)}</ul>
+  </section>`
+}
+
+export function OverviewScreen({ params }) {
   const { navigate, appState } = useApp()
   const home = useLoad(() => call('getHome'), [])
   // v2 package A: a round of another library (a timed one) is not this page's
@@ -211,22 +234,24 @@ export function TodayScreen() {
   // the next timed round (getHome().nextRun = getSchedule().nextRunAt): 「下次运行 明天 08:30」, or 「定时没开」
   const nextRun = data?.nextRun ? fmt(T.nextRun.at, { when: nextText(data.nextRun, NEXT_WHEN) ?? data.nextRun }) : T.nextRun.none
   const state = data ? 'ready' : home.status
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="today" />`}>
-    <${Main} screen="today" state=${state} labelledby="today-title">
-      <${TopBar} title=${T.title} subtitle=${data ? `${nextRun}${SEP}${connLine}` : null} titleTag="h1" titleId="today-title"
-        actions=${html`<${Act} name="run" variant="primary" disabled=${!data || Boolean(live) || busy} onClick=${() => setShowRun(true)}>${T.runNow}<//>`} />
+  // v1.0 sent 「连续 N 轮没有产出」 to 运行状态: that is the 「运行状态」 part of this page now
+  const toRun = () => document.querySelector('main[data-screen="overview"] [data-part="run"]')?.scrollIntoView({ block: 'start' })
+  const actions = html`<span class="ov-next st-t-small st-t-sub" data-part="next-run" data-next-run=${data?.nextRun ?? ''}>${data ? `${nextRun}${SEP}${connLine}` : ''}</span>
+    <${Act} name="run" variant="primary" icon="play" disabled=${!data || Boolean(live) || busy} onClick=${() => setShowRun(true)}>${T.runNow}<//>`
+  return html`<${LibraryFrame} tab="overview" state=${state} label=${SHELL.overview.title} actions=${actions} section=${params?.section}>
       <div class="st-main__body today-body">
         ${home.status === 'error' && !data ? html`<div class="today-error" role="alert">${home.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}<${LinkButton} onClick=${() => home.reload()}>${ERRORS.retry}<//></div>` : null}
         ${data ? html`
           <${SourceBanner} sources=${numbers?.sources} onGo=${() => navigate('sources')} />
-          <${NoOutputBanner} streak=${numbers?.noOutputStreak} threshold=${data.noOutputRounds} onGo=${() => navigate('status')} />
+          <${NoOutputBanner} streak=${numbers?.noOutputStreak} threshold=${data.noOutputRounds} onGo=${toRun} />
           <${ProblemCard} problem=${data.problem} busy=${busy} copied=${copied} onRetry=${retry} onChange=${() => navigate('settings')} onCopy=${copy} onRedetect=${redetect} />
           <${Numbers} numbers=${numbers} lastRound=${lastRound} />
           ${live ? html`<${Progress} progress=${live} stopping=${stopping} onStop=${stop} />` : html`<${LastRound} round=${lastRound} />`}
+          <${Suggestions} />
           <${RecentKept} items=${data.recentKept} />
+          <${RunStatus} />
         ` : null}
       </div>
-    <//>
     ${showRun ? html`<${RunDialog} onClose=${() => setShowRun(false)}
       onStarted=${r => { began(r); home.reload() }}
       onNotStarted=${() => home.reload()} />` : null}

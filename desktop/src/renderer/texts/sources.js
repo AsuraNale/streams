@@ -5,7 +5,7 @@
 
 export const SOURCES = Object.freeze({
   title: '{sources} 个来源 · {topics} 个主题',
-  titlePlain: '来源与主题',
+  titlePlain: '来源与要求',
   loadFailed: '没能读出来源与主题。',
   addLink: '贴一个链接进待看',
   addSource: '加来源',

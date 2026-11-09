@@ -27,6 +27,8 @@ export const EVENT_TOPICS = Object.freeze({
   'inbox-changed': 'the inbox of a library changed (a round wrote into it, a keep, a dismiss): { libraryId, count }',
   // v2 package B (services/proposals.mjs): the proposal cards
   'proposals-changed': 'a proposal card was made or decided (confirmed, declined, sent back, stale, failed): { libraryId, id, status }; libraryId null for a create_library card',
+  // v2 package C (services/agent.mjs): the main agent
+  'agent-changed': 'a turn of the main agent started or ended: { phase: "started" | "done", turn, libraryId }; the page re-reads getAgentTranscript / getAgentStatus',
 })
 
 /**

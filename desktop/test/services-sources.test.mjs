@@ -152,3 +152,26 @@ test('the real core W5: the view, a guess, a source added / changed / paused / r
   assert.equal(changedEvents(w, n).length, 6, 'one event per change')
   assert.ok(existsSync(join(dir, 'streams.json')))
 })
+
+// v2 package F: 「要求」 on 来源与要求 (getBrief / setBrief): the core's readBrief / saveBrief, the user's own (changes.jsonl by 'you')
+test('getBrief / setBrief: streams.json\'s brief read and written (trimmed), one changes.jsonl line by you, library-changed; refused → nothing written', async () => {
+  const { w, dir, h } = await world()
+  const changes = () => (existsSync(join(dir, '_pipeline', 'changes.jsonl')) ? readFileSync(join(dir, '_pipeline', 'changes.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : [])
+  assert.deepEqual(h.getBrief(), { brief: null }, 'the seed has none')
+  const before = readFileSync(join(dir, 'streams.json'), 'utf8')
+  // control: what the core refuses writes nothing and records nothing
+  for (const bad of ['   ', 'x'.repeat(2001)]) assert.throws(() => h.setBrief(bad), err => err.code === 'bad_arguments')
+  assert.equal(readFileSync(join(dir, 'streams.json'), 'utf8'), before)
+  assert.deepEqual(changes(), [])
+  const n = w.events.length
+  assert.deepEqual(h.setBrief('  追踪 agent 记忆。不要营销稿。 '), { brief: '追踪 agent 记忆。不要营销稿。' })
+  assert.equal(configOf(dir).brief, '追踪 agent 记忆。不要营销稿。')
+  assert.deepEqual(h.getBrief(), { brief: '追踪 agent 记忆。不要营销稿。' })
+  const lines = changes()
+  assert.deepEqual(lines.map(l => [l.field, l.by, l.before, l.after]), [['brief', 'you', null, '追踪 agent 记忆。不要营销稿。']])
+  assert.equal(changedEvents(w, n).length, 1)
+  assert.deepEqual(realCore.whoDecided(dir).brief?.by, 'you')
+  // the same text again changes nothing: no second line
+  h.setBrief('追踪 agent 记忆。不要营销稿。')
+  assert.equal(changes().length, 1)
+})

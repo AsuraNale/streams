@@ -13,9 +13,10 @@ import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { CONNECTIONS } from '../src/renderer/texts/common.js'
 import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
+// v2 package F: 今日 is the 概览 tab of a library's page now (screen 'overview', the screen the app opens on); this file's assertions are v1.0's, only the screen id changed
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
-const s = worldSession({ kind: 'seeded', waitFor: 'today', settings: { connections: { active: 'claude-code' } }, env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'login-expired' }) })
+const s = worldSession({ kind: 'seeded', waitFor: 'overview', settings: { connections: { active: 'claude-code' } }, env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'login-expired' }) })
 const POLL = { polling: 100, timeout: 60_000 }
 const click = sel => s.page.click(`${sel} button`)
 
@@ -43,7 +44,7 @@ test('开始 with an expired sign-in → the card: the sentence with 没丢 and 
   await click('[data-action="run"]')
   await s.page.waitForFunction(() => document.querySelector('[data-dialog="run"] [data-row="cap"]') !== null, null, POLL)
   await click('[data-dialog="run"] [data-action="start"]')
-  await s.page.waitForFunction(() => document.querySelector('main[data-screen="today"] [data-part="problem"]') !== null, null, POLL)
+  await s.page.waitForFunction(() => document.querySelector('main[data-screen="overview"] [data-part="problem"]') !== null, null, POLL)
   const card = await s.page.evaluate(() => {
     const c = document.querySelector('[data-part="problem"]')
     return { code: c.dataset.code, connectionCode: c.dataset.connectionCode, kind: c.dataset.kind, text: c.querySelector('.today-problem__text').textContent, actions: [...c.querySelectorAll('[data-action]')].map(e => e.dataset.action), login: c.querySelector('[data-part="login"]')?.textContent ?? null }

@@ -9,10 +9,11 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { worldSession } from './support/seed.mjs'
+// v2 package F: 今日 is the 概览 tab of a library's page now (screen 'overview', the screen the app opens on); this file's assertions are v1.0's, only the screen id changed
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
 // the seed chose no connection: the round runs on the fake one, chosen in settings.json as a user would in 设置
-const s = worldSession({ kind: 'seeded', waitFor: 'today', settings: { connections: { active: 'claude-code' } }, env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake' }) })
+const s = worldSession({ kind: 'seeded', waitFor: 'overview', settings: { connections: { active: 'claude-code' } }, env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake' }) })
 const POLL = { polling: 100, timeout: 90_000 }
 const click = sel => s.page.click(`${sel} button`)
 const cap = () => JSON.parse(readFileSync(join(s.world.library, 'streams.json'), 'utf8')).pipeline.cap

@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { COL_GAP, MAX_ITEMS, PAD_X, PAD_Y, ROW_GAP, drawnItems } from '../src/renderer/screens/graph.js'
 import { seedPlanB, worldSession } from './support/seed.mjs'
+// v2 package F: 图谱 is a view of the library's 资料库 tab ([data-mode="graph"]; its <main> is still data-screen="graph") and 今日 is 概览: away and back goes through the tabs, not v1.0's sidebar entries; the assertions are v1.0's
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
 const s = worldSession({
@@ -45,9 +46,11 @@ test('every node at the core\'s row and col times the fixed spacing; the edges a
 
 test('the same data opened twice: every node at the same place; a filter that changes the data changes the picture (control)', async () => {
   const first = await nodes()
-  await s.page.click('[data-nav="today"]')
-  await s.page.waitForFunction(() => document.querySelector('main[data-screen="today"][data-state="ready"]') !== null, null, POLL)
-  await s.page.click('[data-nav="graph"]')
+  await s.page.click('.st-lib-tabs [data-tab="overview"]')
+  await s.page.waitForFunction(() => document.querySelector('main[data-screen="overview"][data-state="ready"]') !== null, null, POLL)
+  await s.page.click('.st-lib-tabs [data-tab="library"]')
+  await s.page.waitForFunction(() => document.querySelector('main[data-screen="library"][data-state="ready"]') !== null, null, POLL)
+  await s.page.click('[data-mode="graph"]')
   await settled()
   assert.deepEqual(await nodes(), first)
   await filter('status', 'kept')

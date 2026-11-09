@@ -63,7 +63,7 @@ async function startRoundFromToday(page) {
 
 describe('V6 desktop: login expired', () => {
   const s = worldSession({
-    kind: 'seeded', waitFor: 'today', settings: { connections: { active: 'claude-code' } },
+    kind: 'seeded', waitFor: 'overview', settings: { connections: { active: 'claude-code' } },
     env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'login-expired' }),
   })
 
@@ -73,9 +73,9 @@ describe('V6 desktop: login expired', () => {
     assert.ok(Object.keys(before).length >= 6, 'control: the seeded library has its files')
     assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="problem"]')), null, 'no card before the round')
     await startRoundFromToday(s.page)
-    await s.page.waitForFunction(() => document.querySelector('main[data-screen="today"] [data-part="problem"]') !== null, null, POLL)
+    await s.page.waitForFunction(() => document.querySelector('main[data-screen="overview"] [data-part="problem"]') !== null, null, POLL)
     const card = await s.page.evaluate(() => {
-      const c = document.querySelector('main[data-screen="today"] [data-part="problem"]')
+      const c = document.querySelector('main[data-screen="overview"] [data-part="problem"]')
       return { code: c.dataset.code, connectionCode: c.dataset.connectionCode, text: c.textContent, head: c.querySelector('.today-problem__text')?.textContent ?? '', actions: [...c.querySelectorAll('[data-action]')].map(e => e.dataset.action) }
     })
     assert.equal(card.code, 'connection')
@@ -103,7 +103,7 @@ describe('V6 desktop: login expired', () => {
 
 describe('V6 desktop, reverse: a working (fake) connection', () => {
   const s = worldSession({
-    kind: 'seeded', waitFor: 'today', settings: { connections: { active: 'claude-code' } },
+    kind: 'seeded', waitFor: 'overview', settings: { connections: { active: 'claude-code' } },
     env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake' }),
   })
 

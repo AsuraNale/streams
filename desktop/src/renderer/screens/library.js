@@ -1,3 +1,5 @@
+// v2 package F: the 资料库 tab of a library's page (screens/library-frame.js; design P5): its actions in the library's head, the
+// list / graph switch (ViewSwitch) on its heading line; otherwise as v1.0 had it.
 // 资料库与阅读 (mockup S6; docs/desktop.md §4.2). Three columns: the list (the search box on top, four tabs with their
 // counts, the topic and 「最近 30 天」 filters) · the reader (the note's Markdown cut into elements by lib/markdown.js;
 // a [[link]] that names a note in the library opens it) · the right panel (this note: topics, source, the scores with
@@ -17,6 +19,7 @@
 // 待规范: [data-part=tidy|skipped-dirs|apply-all-result|written|skipped-line], [data-card=<file>][data-name-ok][data-proposable]
 // with textarea[data-field="header"], [data-card-error], [data-card-why], [data-action=apply|skip|apply-all|show-skipped].
 import { html, useEffect, useMemo, useState } from '../lib/html.js'
+import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
@@ -24,11 +27,12 @@ import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { renderMarkdown } from '../lib/markdown.js'
 import { headerText, parseHeaderText } from '../lib/header-text.js'
-import { AppFrame, AppSidebar, LinkButton, Main, Panel, Tag, TopBar } from '../kit/index.js'
+import { LinkButton, Panel, Tag, TopBar } from '../kit/index.js'
 import { ERRORS, NODE_NAMES, NOTE_STATUS, SEP } from '../texts/common.js'
 import { LIBRARY as T } from '../texts/library.js'
 import { EditDialog } from './edit-dialog.js'
 import { VerdictDialog } from './verdict-dialog.js'
+import { LibraryFrame, ViewSwitch } from './library-frame.js'
 
 const VIEWS = ['kept', 'authored', 'caught', 'pending']
 const RECENT_DAYS = 30
@@ -281,6 +285,7 @@ function NotePanel({ note, onSelect, onVerdicts }) {
 }
 
 export function LibraryScreen({ params = {} }) {
+  const { navigate } = useApp()
   const [view, setView] = useState(VIEWS.includes(params.view) ? params.view : 'kept')
   const [topics, setTopics] = useState([])
   const [days, setDays] = useState(null)
@@ -381,10 +386,10 @@ export function LibraryScreen({ params = {} }) {
     ${showNote ? html`<${NotePanel} note=${n} onSelect=${choose} onVerdicts=${() => setVerdictsFor({ url: entry.source, title: entry.title })} />` : html`<div class="lib-panel" data-part="note-panel"><p class="st-t-small st-t-muted">${T.panel.none}</p></div>`}
   <//>`
   const state = lib.data ? 'ready' : lib.status
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="library" />`} panel=${panel}>
-    <${Main} screen="library" state=${state} labelledby="library-title">
-      <${TopBar} title=${T.title} titleTag="h1" titleId="library-title"
-        subtitle=${showNote && entry ? NOTE_STATUS[entry.status] ?? '' : caughtItem ? T.views.caught : null} actions=${actions} />
+  return html`<${LibraryFrame} tab="library" state=${state} labelledby="library-title" panel=${panel} actions=${actions}>
+      <${TopBar} title=${T.title} titleTag="h2" titleId="library-title"
+        subtitle=${showNote && entry ? NOTE_STATUS[entry.status] ?? '' : caughtItem ? T.views.caught : null}
+        actions=${html`<${ViewSwitch} current="list" onSelect=${v => { if (v === 'graph') navigate('graph') }} />`} />
       <div class="st-main__body lib-body">
         <section class="lib-list" data-part="list" aria-label=${T.views[view]}>
           <div class="lib-list__head">
@@ -401,7 +406,6 @@ export function LibraryScreen({ params = {} }) {
           ${reader}
         </section>
       </div>
-    <//>
     ${editing && n ? html`<${EditDialog} note=${n} topics=${topicNames} onClose=${() => setEditing(false)}
       onSaved=${() => { setEditing(false); note.reload(); lib.reload(); names.reload() }} />` : null}
     ${verdictsFor ? html`<${VerdictDialog} url=${verdictsFor.url} title=${verdictsFor.title} onClose=${() => setVerdictsFor(null)} />` : null}
