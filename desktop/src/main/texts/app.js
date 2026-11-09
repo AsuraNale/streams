@@ -11,4 +11,17 @@ export const APP = Object.freeze({
     runNow: '现在跑一轮',
     quit: '退出',
   }),
+  // the reading window (reader.mjs; docs/desktop.md §4.9): its bar and the reading page it makes
+  reader: Object.freeze({
+    windowTitle: '流息 · 阅读',
+    lang: 'zh-CN',
+    back: '回到条目',
+    reading: '阅读模式',
+    original: '原网页',
+    browser: '在浏览器里打开',
+    modes: '阅读模式或原网页',
+    loading: '正在抽正文……',
+    fallback: '这一页抽不出正文，显示的是原网页',
+    readingNote: '阅读模式：只留正文，去掉了导航和广告',
+  }),
 })

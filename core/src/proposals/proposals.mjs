@@ -12,8 +12,10 @@
 //   are before / after / trial / baseHash inside params). A change that would change nothing is bad-proposal 'no-change'.
 //   add_source and create_library try each source once (v1.0's trial: fetch fetchSource, nothing written) and put the
 //   result on the card; a source of a new library whose trial is blocked or gap starts unticked (include: false).
-//   `baseHash` = a hash of the part of the configuration the card is about (create_library: its folder and whether it is
-//   free). opts: libraryDir (every kind but create_library; the caller resolves libraryId) · libraryRoot (create_library's
+//   `baseHash` = a hash of the part of the configuration the card itself changes (HASH_FIELDS: a source card the sources,
+//   edit_topics the topics, each other kind its one field, run_round none — only that the library is still there;
+//   create_library: its folder and whether it is free). Two cards of one turn about different parts (add a source, add a
+//   keyword) do not make each other stale (v2 package G, UC3). opts: libraryDir (every kind but create_library; the caller resolves libraryId) · libraryRoot (create_library's
 //   default place: libraryRoot\<libraryFolderName(name)>) · fallbackSchedule (what a new library's schedule is when the
 //   card gives none) · language · ctx (fetch context overrides) · now · scratchRoot (default os.tmpdir()) · id
 // confirmProposal(card, opts) -> the card after it                                                           sync
@@ -75,6 +77,21 @@ export const KIND_FIELDS = Object.freeze({
   edit_cap: ['cap'],
   run_round: [],
 });
+// the part of streams.json each kind's baseHash covers: only what that kind changes (the PM, 11-09: an add_source and an
+// edit_topics card of the same turn must both be confirmable; KIND_FIELDS above stays what the card shows and records)
+export const HASH_FIELDS = Object.freeze({
+  add_source: ['sources'],
+  remove_source: ['sources'],
+  pause_source: ['sources'],
+  edit_topics: ['topics'],
+  edit_brief: ['brief'],
+  edit_thresholds: ['thresholds'],
+  edit_schedule: ['schedule'],
+  edit_cap: ['cap'],
+  run_round: [],
+});
+/** The baseHash of a library kind's card, from the library as it is now. */
+export const baseHashOf = (libraryDir, kind) => hashOf(snapshot(libraryDir, HASH_FIELDS[kind]));
 // the changes.jsonl fields a new library's card decides
 const CREATE_FIELDS = ['brief', 'topics', 'sources', 'thresholds', 'schedule'];
 // what a refusal of the real functions (on the copy) means: the card does not fit the library → bad-proposal
@@ -297,7 +314,7 @@ export async function draftProposal(input, { libraryDir = null, libraryRoot = nu
   const beforeSnap = snapshot(libraryDir, fields);
   if (kind === 'run_round') {
     const cap = pipelineConfig(libraryDir).cap;
-    return card({ ...base, params, before: { lastRoundAt: listRounds(libraryDir, 1)[0]?.startedAt ?? null, cap }, after: { queued: true, cap }, baseHash: hashOf(beforeSnap) });
+    return card({ ...base, params, before: { lastRoundAt: listRounds(libraryDir, 1)[0]?.startedAt ?? null, cap }, after: { queued: true, cap }, baseHash: baseHashOf(libraryDir, kind) });
   }
   // the change for real, on a copy of streams.json: what it would be, and whether the real functions take it
   const { afterSnap, answer } = withScratch(scratchRoot, (scratch) => {
@@ -307,7 +324,7 @@ export async function draftProposal(input, { libraryDir = null, libraryRoot = nu
     return { afterSnap: snapshot(scratch, fields), answer: a };
   });
   if (JSON.stringify(afterSnap) === JSON.stringify(beforeSnap)) throw badProposal(`${kind}: nothing would change`, { reason: 'no-change' });
-  const c = { ...base, params, before: viewOf(kind, beforeSnap), after: viewOf(kind, afterSnap), baseHash: hashOf(beforeSnap) };
+  const c = { ...base, params, before: viewOf(kind, beforeSnap), after: viewOf(kind, afterSnap), baseHash: baseHashOf(libraryDir, kind) };
   if (kind === 'add_source') {
     c.params = { ...params, source: answer };
     c.trial = await trialOf(answer, { ...ctx, now });
@@ -387,7 +404,7 @@ export function confirmProposal(c, { libraryDir = null, hooks = {}, language = '
   if (!usableLibrary(libraryDir)) return stale(c, at, 'library-gone');
   const fields = KIND_FIELDS[c.kind];
   const beforeSnap = snapshot(libraryDir, fields);
-  if (hashOf(beforeSnap) !== c.baseHash) return stale(c, at, 'changed');
+  if (baseHashOf(libraryDir, c.kind) !== c.baseHash) return stale(c, at, 'changed');
   if (c.kind === 'run_round') {
     let r;
     try {

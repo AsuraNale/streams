@@ -46,6 +46,7 @@ export const LIBRARY = Object.freeze({
       inbox: '在待看里等你拍板',
     }),
     stoppedOther: '停在 {step}',
+    inInbox: '{caught} · 进了待看',
     title: '抓到的这一条',
     note: '没过关的留在这里，随时能捞回：调过关线或要求后，下一轮会重新打分。',
     source: '来源 {source} · 发布 {date}',
@@ -95,12 +96,23 @@ export const LIBRARY = Object.freeze({
     date: '发布 {date}',
     kept: '收藏 {date}',
     missingLink: '库里没有这一条',
+    // v2 package H: the mark of an item kept from this page just now
+    keptNow: '已收藏 · 进了 notes/',
+    what: '这是什么：',
   }),
 
+  // the head's buttons (v2 package H, design P5 / UC4): only for the item chosen; 「更多」 is a menu
   actions: Object.freeze({
     edit: '编辑',
     obsidian: '用 Obsidian 打开',
     source: '打开原文',
+    keep: '收藏',
+    keeping: '正在收藏……',
+    more: '更多',
+    moreLabel: '这一条的更多操作',
+    folder: '在资源管理器中显示',
+    browser: '在浏览器里打开',
+    keepOnlyInbox: '只有在待看里等你拍板的条目能收藏；这一条停在了半路。',
     failed: '没有成功，可以再试一次。',
   }),
 
@@ -166,4 +178,12 @@ export const VERDICTS = Object.freeze({
   resultFailed: '未通过',
   close: '关闭',
   open: '这一条的记录',
+  // v2 package H: 「写给 AI 的话」 found in the material (core verify: the mark on the verdict lines)
+  ai: Object.freeze({
+    title: '这一条里有写给 AI 的话，已忽略',
+    note: '材料里有写给 AI 的指令，没有照做：来源和库的设置都没有被改动。',
+    rule: '规则命中的原句',
+    judge: '判定找到的',
+    none: '记录里没有留下原句。',
+  }),
 })

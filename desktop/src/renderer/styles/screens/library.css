@@ -58,6 +58,10 @@
 .lib-reader { min-height: 0; overflow: auto; padding: 18px 26px 28px; }
 .lib-reader__note { display: flex; flex-direction: column; gap: 8px; max-width: 760px; }
 .lib-reader__status { display: flex; }
+/* v2 package H: a caught item's summary (what 待看 shows), the 「更多」 button's arrow after its words */
+.lib-reader__what { margin: 0; overflow-wrap: anywhere; }
+.lib-reader__points { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
+.lib-more .st-button { gap: 4px; }
 .lib-reader__title { overflow-wrap: anywhere; }
 .lib-reader__meta { overflow-wrap: anywhere; padding-bottom: 8px; border-bottom: 1px solid var(--st-divider-soft); }
 
@@ -152,3 +156,7 @@
 .vd-back { padding: 4px 8px; border-radius: var(--st-radius-s); background: var(--st-surface-2); }
 .vd-result { padding: 8px 10px; border: 1px solid var(--st-danger); border-radius: var(--st-radius-s); background: var(--st-danger-bg); color: var(--st-danger); font-weight: 700; }
 .vd-result--pass { border-color: var(--st-done-border); background: var(--st-done-bg); color: var(--st-done); }
+/* v2 package H: the 「写给 AI 的话」 found in the material, on top of the record */
+.vd-ai { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--st-wait-border); border-radius: var(--st-radius-s); background: var(--st-wait-bg); }
+.vd-ai__title { margin: 0; color: var(--st-wait); }
+.vd-ai__list ul { margin: 2px 0 0; padding-left: 20px; overflow-wrap: anywhere; }

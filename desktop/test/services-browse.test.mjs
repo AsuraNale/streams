@@ -111,6 +111,29 @@ test('readNote and editNote: only an id in the index reaches the core; core shap
   }
 })
 
+test('showNoteInFolder (v2 package H): the file the core gives, selected in its folder; an id not in the index or a path outside notes/ → nothing shown; hidden only logs', async () => {
+  const { w, dir, seed, library } = shared
+  const id = seed.kept.id
+  const path = join(dir, 'notes', `${id}.md`)
+  const shown = []
+  const shell = { ...w.shell, showItemInFolder: p => { shown.push(p) } }
+  const { core } = standIn()
+  const h = createBrowseService({ library, emit: w.emit, log: w.log, shell, core }).handlers
+  assert.equal(h.showNoteInFolder(id), null)
+  assert.deepEqual(shown, [path])
+  assert.throws(() => h.showNoteInFolder('2099-01-01-not-there'), err => err.code === 'bad_arguments')
+  for (const bad of [join(dir, 'streams.json'), 'notes/x.md', join(dir, '..', 'elsewhere.md')]) {
+    const s = standIn({ notePath: () => bad })
+    const hh = createBrowseService({ library, emit: w.emit, log: w.log, shell, core: s.core }).handlers
+    assert.throws(() => hh.showNoteInFolder(id), err => err.code === 'internal', bad)
+  }
+  assert.deepEqual(shown, [path], 'only the one good call showed anything')
+  const quiet = createBrowseService({ library, emit: w.emit, log: w.log, hidden: true, shell, core }).handlers
+  assert.equal(quiet.showNoteInFolder(id), null)
+  assert.deepEqual(shown, [path])
+  assert.ok(w.lines.includes(`not opened in a test run: folder ${path}`))
+})
+
 test('openInObsidian: the obsidian:// address of the path the core gives; openPath when that fails; outside notes/ → internal; hidden only logs', async () => {
   const { w, dir, seed, library } = shared
   const id = seed.kept.id

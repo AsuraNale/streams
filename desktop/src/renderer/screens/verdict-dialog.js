@@ -9,6 +9,8 @@
 // Words: texts/library.js VERDICTS; the steps' names: texts/common.js NODE_NAMES.
 // Test hooks: [data-dialog="verdicts"][data-state], [data-verdict-node=<node>], [data-round=<n>] inside it,
 // [data-check=<item>][data-passed][data-kind], [data-said-not-done=<item>], [data-part="verdict-result"][data-passed].
+// v2 package H: a group the core marked with 「写给 AI 的话」 (verdictsFor's aiInstruction) puts one block on top:
+// [data-part="ai-instruction"] with [data-ai-kind=rule|judge] lists of [data-ai-phrase] — the sentences found.
 import { html } from '../lib/html.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
@@ -19,6 +21,33 @@ import { NODE_NAMES } from '../texts/common.js'
 import { VERDICTS as T } from '../texts/library.js'
 
 const nodeName = id => (Object.hasOwn(T.nodes, id) ? T.nodes[id] : Object.hasOwn(NODE_NAMES, id) ? NODE_NAMES[id] : id)
+
+/** The sentences of a 「写给 AI 的话」 mark (core aiInstructionMark): the rule's matched phrases, or the model check's evidence. */
+export function aiPhrases(mark) {
+  if (!mark || typeof mark !== 'object') return []
+  const fromRule = Array.isArray(mark.matches) ? mark.matches.map(m => (typeof m?.phrase === 'string' ? m.phrase.trim() : '')).filter(Boolean) : []
+  if (fromRule.length) return [...new Set(fromRule)]
+  return typeof mark.evidence === 'string' && mark.evidence.trim() ? [mark.evidence.trim()] : []
+}
+
+/** The marks of the record (one per step that found something), their sentences together. */
+function AiMarks({ groups }) {
+  const marks = (Array.isArray(groups) ? groups : []).map(g => g?.aiInstruction).filter(m => m && typeof m === 'object')
+  if (!marks.length) return null
+  const rule = [...new Set(marks.filter(m => m.source === 'rule').flatMap(aiPhrases))]
+  const judge = [...new Set(marks.filter(m => m.source !== 'rule').flatMap(aiPhrases))]
+  const list = (kind, label, phrases) => (phrases.length ? html`<div class="vd-ai__list" data-ai-kind=${kind}>
+    <div class="st-t-small st-t-sub">${label}</div>
+    <ul>${phrases.map((p, i) => html`<li key=${i} data-ai-phrase=${p}>${p}</li>`)}</ul>
+  </div>` : null)
+  return html`<section class="vd-ai" data-part="ai-instruction" aria-labelledby="vd-ai-title">
+    <h3 class="vd-ai__title st-t-strong" id="vd-ai-title">${T.ai.title}</h3>
+    <p class="st-t-small st-t-sub">${T.ai.note}</p>
+    ${list('rule', T.ai.rule, rule)}
+    ${list('judge', T.ai.judge, judge)}
+    ${rule.length || judge.length ? null : html`<p class="st-t-small st-t-muted">${T.ai.none}</p>`}
+  </section>`
+}
 /** 「说做了其实没做」 as the core marks it (verdictsFor: claimedNotDone = claimed and not passed). */
 const saidNotDone = it => it.claimedNotDone === true
 
@@ -82,6 +111,7 @@ export function VerdictDialog({ url, title, onClose }) {
       ${data.status === 'loading' && !data.data ? html`<p class="st-t-small st-t-muted">${T.loading}</p>` : null}
       ${data.status === 'error' && !data.data ? html`<p class="st-t-small st-t-wait" role="alert">${data.error?.code === 'bad_arguments' ? T.none : T.failed}</p>` : null}
       ${data.data && !nodes.size ? html`<p class="st-t-small st-t-muted" data-part="verdicts-none">${T.none}</p>` : null}
+      ${data.data ? html`<${AiMarks} groups=${data.data} />` : null}
       ${[...nodes.entries()].map(([node, groups]) => {
         const last = groups[groups.length - 1]
         const passed = (last.items ?? []).every(i => i.passed === true)

@@ -6,8 +6,9 @@
 // the three most recently kept. The page computes no number. 「现在跑一轮」 opens the dialog of screens/run-dialog.js.
 // The amber banner 「连续 N 轮没有产出」 (plan C8): numbers.noOutputStreak at getHome().noOutputRounds (the core's
 // NO_OUTPUT_ROUNDS) or more, with where to look and a link to 「运行状态」 — the part of this page (screens/status.js RunStatus:
-// getStatus' numbers and the sources of the last round). 「主 Agent 给这个库的建议」: kept for package G (Suggestions: the
-// titles once the bridge has listSuggestions, else nothing). Words: texts/today.js, texts/status.js, texts/shell.js.
+// getStatus' numbers and the sources of the last round). 「主 Agent 给这个库的建议」 (v2 package G; design P3, UC2 step 4): this
+// library's suggestion cards (screens/suggestion-card.js LibrarySuggestions: 交给主 Agent / 不要, no switch that does it by
+// itself later), or a line that there is none. Words: texts/today.js, texts/status.js, texts/shell.js, texts/agent.js.
 // Test hooks: main[data-screen="overview"][data-state], [data-part=sources|no-output|problem|numbers|round|progress|recent|
 // suggestions|run|next-run], [data-part="no-output"][data-streak], [data-num=inbox|caught|passed|kept],
 // [data-part="problem"][data-code][data-connection-code], [data-action=run|cancel-round|retry|change|copy|login|login-again].
@@ -26,6 +27,7 @@ import { LibraryFrame } from './library-frame.js'
 import { RunDialog } from './run-dialog.js'
 import { LoginLoop } from './settings.js'
 import { RunStatus } from './status.js'
+import { LibrarySuggestions } from './suggestion-card.js'
 
 const LINE = /^(ok|empty|gap|failed|blocked|paused|no-fetch-yet)(?: (\d+)(?:\/(\d+))?(?: (\S*))?(?: hint=(\S+))?)?$/
 const LOUD = ['failed', 'gap', 'blocked']
@@ -170,22 +172,6 @@ function RecentKept({ items }) {
   </section>`
 }
 
-/**
- * 「主 Agent 给这个库的建议」: the suggestion cards' titles, once the bridge has a listSuggestions (package C / G draw the
- * cards themselves); without it, nothing is shown.
- */
-function Suggestions() {
-  const there = typeof globalThis.streams?.listSuggestions === 'function'
-  const list = useLoad(() => (there ? call('listSuggestions', null).catch(() => []) : []), [there])
-  const items = (Array.isArray(list.data) ? list.data : []).filter(s => s && (s.status === undefined || s.status === 'open'))
-  if (!there || !items.length) return null
-  const kinds = SHELL.overview.suggestionKinds
-  return html`<section class="ov-suggestions" data-part="suggestions" aria-labelledby="ov-suggestions">
-    <h2 class="st-t-small st-t-sub st-t-strong" id="ov-suggestions">${SHELL.overview.suggestions}</h2>
-    <ul class="ov-suggestions__list">${items.map((s, i) => html`<li key=${s.key ?? i} data-suggestion=${s.key ?? ''}>${Object.hasOwn(kinds, s.kind) ? fmt(kinds[s.kind], { subject: s.subject ?? '' }) : String(s.kind ?? '')}</li>`)}</ul>
-  </section>`
-}
-
 export function OverviewScreen({ params }) {
   const { navigate, appState } = useApp()
   const home = useLoad(() => call('getHome'), [])
@@ -247,7 +233,7 @@ export function OverviewScreen({ params }) {
           <${ProblemCard} problem=${data.problem} busy=${busy} copied=${copied} onRetry=${retry} onChange=${() => navigate('settings')} onCopy=${copy} onRedetect=${redetect} />
           <${Numbers} numbers=${numbers} lastRound=${lastRound} />
           ${live ? html`<${Progress} progress=${live} stopping=${stopping} onStop=${stop} />` : html`<${LastRound} round=${lastRound} />`}
-          <${Suggestions} />
+          <${LibrarySuggestions} libraryId=${libraryId} />
           <${RecentKept} items=${data.recentKept} />
           <${RunStatus} />
         ` : null}

@@ -28,6 +28,12 @@ export const INBOX = Object.freeze({
     later: '稍后',
     record: '这一条的记录',
     failed: '没有成功，可以再试一次。',
+    // v2 package H (design UC5 step 3): the material had 「写给 AI 的话」 (core: the card's aiInstruction); hovering shows what
+    // was found (the card's check record), 「这一条的记录」 has it too
+    aiInstruction: '这一条里有写给 AI 的话，已忽略',
+    aiInstructionHint: '命中的原句：{phrases}',
+    aiInstructionPhrase: '「{phrase}」',
+    aiInstructionNoPhrase: '命中的原句在「这一条的记录」里。',
   }),
 
   dialog: Object.freeze({

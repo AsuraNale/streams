@@ -45,12 +45,6 @@ export const SHELL = Object.freeze({
     loadFailed: 'The list of libraries could not be read.',
   }),
 
-  chat: Object.freeze({
-    title: 'Chat with the main Agent',
-    subtitle: 'Anything about any library can be said here',
-    waiting: 'For you to decide: {n}',
-    shell: 'This page is still being made: next, the main Agent talks with you here and puts its suggested changes here for you to confirm.',
-  }),
 
   newLibrary: Object.freeze({
     title: 'New library',
@@ -77,13 +71,6 @@ export const SHELL = Object.freeze({
 
   overview: Object.freeze({
     title: 'Overview',
-    suggestions: 'Suggestions from the main Agent for this library',
-    suggestionKinds: Object.freeze({
-      'source-failing': 'The source "{subject}" has failed several rounds in a row',
-      'no-output': 'This library had nothing new several rounds in a row',
-      'ai-instruction': 'Articles of the source "{subject}" hold words written to an AI',
-      'topic-overlap': 'Its topics overlap a lot with another library',
-    }),
     run: 'Run status',
   }),
 

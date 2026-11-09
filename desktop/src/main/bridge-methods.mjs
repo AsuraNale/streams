@@ -163,6 +163,10 @@ export const BRIDGE_METHODS = Object.freeze({
   readNote: Object.freeze({ args: 1, check: ([id]) => id200(id) }),
   editNote: Object.freeze({ args: 2, check: ([id, changes]) => id200(id) && noteChanges(changes) }),
   openInObsidian: Object.freeze({ args: 1, check: ([id]) => id200(id) }),
+  // v2 package H (docs/desktop.md §4.9): a note's file in the file manager (an id of the index; the path is the core's);
+  // 「打开原文」 in the reading window or the system browser (an http(s) item of the library)
+  showNoteInFolder: Object.freeze({ args: 1, check: ([id]) => id200(id) }),
+  openReader: Object.freeze({ args: 2, check: ([url, how]) => httpUrl(url) && (how === 'reader' || how === 'browser') }),
   // 待规范 (docs/desktop.md §4.3, S8): a file name the core lists as needing a header; the header the page edited, or null
   applyHeader: Object.freeze({ args: 2, check: ([file, header]) => nonEmptyShort(300)(file) && (header === null || smallObject(header, 20_000)) }),
   applyAllHeaders: Object.freeze({ args: 0 }),

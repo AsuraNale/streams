@@ -98,6 +98,9 @@ const METHODS = [
   'readNote',
   'editNote',
   'openInObsidian',
+  // v2 package H: the file of a note in the file manager, the original in the reading window
+  'showNoteInFolder',
+  'openReader',
   // 待规范 (S8): writing headers onto the files of an imported folder
   'applyHeader',
   'applyAllHeaders',

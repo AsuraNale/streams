@@ -21,10 +21,17 @@
 //       settings-setup   设置 scrolled to 「库」 with 「首次设置」: six records written by the core before the start (plan A1, 11-04)
 //       no-output        概览 with 「连续 3 轮没有产出」: three rounds without output appended to rounds.jsonl (plan C8, 11-04)
 //       licenses         设置 with the 许可证与致谢 dialog open (S14, 11-04)
+//   v2 package H (11-09), on a library with nothing kept whose items are pages of a site on this machine (any --world;
+//   test/support/reader-site.mjs):
+//       library-empty    资料库 opened on 抓到的, nothing chosen (no button in the head)
+//       library-more     an item kept from 抓到的, the note open (「已收藏 · 进了 notes/」), 「更多」 open
+//       reader-reading   the reading window in 阅读模式 (its bar and its page laid one above the other by the script)
+//       reader-fallback  the reading window on a page with no text: the original page and the line saying so
+//       inbox-ai         待看 with the 「写给 AI 的话」 mark on one card
 //   --theme river | paper | night   the theme settings.json starts with (default: the app's default)
 //   --lang en      the app in English            --out <file.png>   where the picture goes
 // The app runs on a world under the OS temp folder, removed after; the process tree is ended (scripts/lib/close-app.mjs).
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { closeApp } from './lib/close-app.mjs'
 import { REPO_DIR } from './lib/paths.mjs'
@@ -34,6 +41,7 @@ import { makeWorld } from './lib/world.mjs'
 import { launch, ready } from '../test/support/app.mjs'
 import { seedPlanB, seedShelf } from '../test/support/seed.mjs'
 import { seedImportFolder } from '../test/support/seed.mjs'
+import { seedReaderLibrary, startReaderSite } from '../test/support/reader-site.mjs'
 import { pathToFileURL } from 'node:url'
 
 const args = process.argv.slice(2)
@@ -78,14 +86,26 @@ const PLAN = {
   'lib-ask': { start: 'ask', connection: 'fake', planB: true, shelf: true },
   'lib-sources': { start: 'sources', connection: 'fake', planB: true, shelf: true },
   licenses: { start: 'settings', connection: 'fake' },
+  // v2 package H (11-09): a library with nothing kept whose items are pages of a site on this machine (test/support/reader-site.mjs)
+  'library-empty': { start: 'library', connection: 'fake', reader: true },
+  'library-more': { start: 'library', connection: 'fake', reader: true },
+  'reader-reading': { start: 'library', connection: 'fake', reader: true },
+  'reader-fallback': { start: 'library', connection: 'fake', reader: true },
+  'inbox-ai': { start: 'inbox', connection: 'fake', reader: true },
 }
 const theme = value('--theme')
 const plan = PLAN[screen] ?? { start: screen, connection: kind === 'seeded' ? 'fake' : null }
 
 const root = tempDir('st-desktop-shot-')
 let app = null
+let site = null
+let readerDone = false
 try {
-  const world = await makeWorld({ root, kind })
+  const world = await makeWorld({ root, kind: plan.reader ? 'empty' : kind })
+  if (plan.reader) {
+    site = await startReaderSite()
+    await seedReaderLibrary(world.library, site)
+  }
   if (plan.planB && kind === 'seeded') await seedPlanB(world)
   if (plan.shelf && kind === 'seeded') await seedShelf(world)
   const imported = plan.importFolder ? join(root, 'vault') : null
@@ -120,7 +140,7 @@ try {
     ...(lang ? { STREAMS_DEV_SYSTEM_LANGUAGES: lang === 'en' ? 'en-US' : lang === 'zh' ? 'zh-CN' : lang } : {}),
   }
   // the seeded world has no connection chosen; the shots show the fake one chosen, as a user would in 设置
-  const settings = { ...(kind === 'seeded' && !plan.noLibrary ? { connections: { active: 'claude-code' } } : {}), ...(theme ? { theme } : {}) }
+  const settings = { ...((kind === 'seeded' || plan.reader) && !plan.noLibrary ? { connections: { active: 'claude-code' } } : {}), ...(theme ? { theme } : {}) }
   const started = await launch(world, { env, settings: Object.keys(settings).length ? settings : null })
   app = started.app
   const page = started.page
@@ -205,6 +225,51 @@ try {
   } else if (screen === 'lib-sources') {
     await ready(page, 'sources')
     await page.waitForFunction(() => document.querySelector('[data-part="gates"][data-state="ready"]') !== null && document.querySelector('[data-who="brief"]') !== null, null, POLL)
+  } else if (screen === 'library-empty') {
+    await ready(page, 'library')
+    await page.waitForFunction(() => document.querySelector('[data-view="caught"]')?.getAttribute('aria-current') === 'true' && document.querySelector('[data-part="pick-one"]') !== null, null, POLL)
+  } else if (screen === 'library-more') {
+    await ready(page, 'library')
+    await page.click(`[data-part="list"] [data-row="${site.urls.article}"] a`)
+    await page.waitForFunction(() => document.querySelector('[data-part="library-head"] [data-action="keep"] button:not([disabled])') !== null, null, POLL)
+    await page.click('[data-part="library-head"] [data-action="keep"] button')
+    await page.waitForFunction(() => document.querySelector('[data-kept-now="true"]') !== null && document.querySelector('[data-part="library-head"] [data-action="more"]') !== null, null, POLL)
+    await page.click('[data-part="library-head"] [data-action="more"] button')
+    await page.waitForFunction(() => document.querySelector('[data-menu]') !== null, null, POLL)
+  } else if (screen === 'reader-reading' || screen === 'reader-fallback') {
+    await ready(page, 'library')
+    const url = screen === 'reader-reading' ? site.urls.article : site.urls.plain
+    await page.click(`[data-part="list"] [data-row="${url}"] a`)
+    await page.waitForFunction(() => document.querySelector('[data-part="library-head"] [data-action="source"]') !== null, null, POLL)
+    // the reading window: its bar and its page, each taken by Electron and laid one above the other (the page is a view of
+    // the window, not part of the window's own web contents)
+    await page.evaluate(u => window.streams.openReader(u, 'reader'), url)
+    await page.waitForTimeout(1500)
+    const shot = await app.evaluate(async ({ BrowserWindow, nativeImage, session }) => {
+      const win = BrowserWindow.getAllWindows().find(w => w.webContents.session === session.fromPartition('streams-reader'))
+      const view = win.contentView.children[0]
+      const bar = await win.webContents.capturePage()
+      const body = await view.webContents.capturePage()
+      // the bar's web contents is the whole window under the view: only its top rows, down to where the view starts
+      const top = view.getBounds().y
+      const a = bar.getSize()
+      const b = body.getSize()
+      const width = Math.min(a.width, b.width)
+      const rows = []
+      for (const [img, size, height] of [[bar, a, top], [body, b, b.height]]) {
+        const bmp = img.toBitmap()
+        for (let y = 0; y < height; y++) rows.push(bmp.subarray(y * size.width * 4, y * size.width * 4 + width * 4))
+      }
+      const out = nativeImage.createFromBitmap(Buffer.concat(rows), { width, height: top + b.height })
+      return { png: out.toPNG().toString('base64'), size: [width, top + b.height], title: win.getTitle(), content: win.getContentSize(), view: view.getBounds() }
+    })
+    mkdirSync(dirname(out), { recursive: true })
+    writeFileSync(out, Buffer.from(shot.png, 'base64'))
+    process.stdout.write(`${JSON.stringify({ out, screen, world: 'reader', size: shot.size, windowTitle: shot.title }, null, 2)}\n`)
+    readerDone = true
+  } else if (screen === 'inbox-ai') {
+    await ready(page, 'inbox')
+    await page.waitForFunction(() => document.querySelector('[data-card] [data-ai-instruction]') !== null, null, POLL)
   } else if (screen === 'lib-library') {
     await ready(page, 'library')
     const id = world.planB?.memgpt.id
@@ -215,19 +280,22 @@ try {
   } else {
     await ready(page, plan.start)
   }
-  // the shell's own data (the libraries of the sidebar) before the picture
-  if (plan.shelf) await page.waitForFunction(() => document.querySelectorAll('[data-library-row]').length === 3, null, POLL)
-  const size = await page.evaluate(() => [innerWidth, innerHeight])
-  if (size[0] !== W || size[1] !== H) throw new Error(`the window's content is ${size.join('×')}, not ${W}×${H}`)
-  const title = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle())
-  // no caret or focus ring in the picture
-  await page.evaluate(() => document.activeElement?.blur())
-  await page.waitForTimeout(300)
-  mkdirSync(dirname(out), { recursive: true })
-  await page.screenshot({ path: out })
-  const nav = await page.evaluate(() => [...document.querySelectorAll('[data-nav], [data-library-row], [data-step]')].map(a => a.textContent.trim()))
-  process.stdout.write(`${JSON.stringify({ out, screen, world: kind, windowTitle: title, size, sidebar: nav }, null, 2)}\n`)
+  if (!readerDone) {
+    // the shell's own data (the libraries of the sidebar) before the picture
+    if (plan.shelf) await page.waitForFunction(() => document.querySelectorAll('[data-library-row]').length === 3, null, POLL)
+    const size = await page.evaluate(() => [innerWidth, innerHeight])
+    if (size[0] !== W || size[1] !== H) throw new Error(`the window's content is ${size.join('×')}, not ${W}×${H}`)
+    const title = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle())
+    // no caret or focus ring in the picture
+    await page.evaluate(() => document.activeElement?.blur())
+    await page.waitForTimeout(300)
+    mkdirSync(dirname(out), { recursive: true })
+    await page.screenshot({ path: out })
+    const nav = await page.evaluate(() => [...document.querySelectorAll('[data-nav], [data-library-row], [data-step]')].map(a => a.textContent.trim()))
+    process.stdout.write(`${JSON.stringify({ out, screen, world: kind, windowTitle: title, size, sidebar: nav }, null, 2)}\n`)
+  }
 } finally {
   if (app) await closeApp(app, { userDataDir: join(root, 'world', 'app-data', 'electron') })
+  if (site) await site.close()
   removeTree(root, { waitMs: 10_000 })
 }

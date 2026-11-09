@@ -3,9 +3,10 @@
 export const ASK = Object.freeze({
   title: 'Answers from the library only',
   scope: 'Over: {kept} kept · {authored} yours',
-  empty: 'Ask something about what is in the library. Every sentence of the answer carries numbers; press one to see which item it came from.',
-  inputLabel: 'Ask the library',
-  inputPlaceholder: 'Ask the library…',
+  empty: 'Ask something about what is in the library. Every sentence of the answer carries numbers; press one to see which item it came from. To change this library, just say so here too.',
+  inputLabel: 'Ask this library, or say how you want to change it',
+  inputPlaceholder: 'Ask this library, or say how you want to change it…',
+  inputHint: 'Answers use only the items of this library · to change its sources, topics or brief, just say so: it goes to the main Agent, which makes a proposal',
   send: 'Send',
   asking: 'Looking through the library…',
   you: 'You asked',
@@ -13,6 +14,14 @@ export const ASK = Object.freeze({
   busy: 'The last question is still running; ask again once it is answered.',
   failed: 'Not answered: {reason}',
   failedOther: 'Not answered. You can ask again.',
+
+  route: Object.freeze({
+    routed: 'Passed to the main Agent',
+    handing: 'Passing it to the main Agent…',
+    unsure: 'Is this meant to change this library?',
+    yes: 'Yes, change this library',
+    no: 'No, it is a question',
+  }),
 
   answer: Object.freeze({
     citeLabel: 'Source {n}',

@@ -1,5 +1,12 @@
 // v2 package F: the 问库 tab of a library's page (screens/library-frame.js; design P6; its tab has the speech-bubble icon),
 // otherwise as v1.0 had it.
+// v2 package G (contract G4; design P6, UC3): the box sends sendLibraryMessage instead of askLibrary (placeholder 「问这个库，
+// 或者说说想怎么改它…」, and under it what the box does). The main process routes the sentence (docs/desktop.md §4.7):
+//   question → the answer below, as v1.0 drew it (askLibrary's same path);
+//   change   → 「这句转给主 Agent」 beside your words, then the main Agent's reply and its proposal cards (screens/proposal-card.js)
+//              in the same conversation (its question's quick answers and a card's 改一下 go to it with this library's id);
+//   unsure   → 「这是要改这个库吗？」 with 「是，改这个库」 / 「不是，问问题」 → resolveLibraryMessage(text, 'change' | 'question').
+// The turns handed over are in the main Agent's record too, so 和主 Agent 聊 shows them.
 // 问库 (mockup S10; docs/desktop.md §4.2). The top bar says the answer only uses the library, and over what (已收藏 n 条 ·
 // 我写的 n 条: getLibrary's counts). The conversation: each question, then the answer the core's ask gives (askLibrary):
 // every sentence followed by its numbered sources as superscripts; a click on a number marks that source in the list
@@ -10,7 +17,8 @@
 // connection chosen → 「还没选连接方式」 with 「去设置」. The right panel: what this answer used (hits · used · calls · the
 // connection · no tools, no network) and the topics you want more of (getDemands; 3 asks or more → 「建议加成主题」).
 // Test hooks: main[data-screen="ask"][data-state], textarea[data-field="question"], [data-action=send|open-cite|add-demand|
-// feedback|send-feedback|go-settings], [data-turn=<i>][data-state], [data-sentence=<i>], [data-cite=<n>],
+// feedback|send-feedback|go-settings|route-change|route-question], [data-turn=<i>][data-state][data-route][data-by],
+// [data-part=routed|unsure|handing|input-hint], [data-sentence=<i>], [data-cite=<n>],
 // [data-source-n=<n>][data-highlight], [data-part=asking|removed-cites|removed-sentences|not-in-library|missing|used|demands],
 // input[data-field="demand-topic"], textarea[data-field="feedback"], [data-demand=<topic>][data-count][data-suggest].
 import { html, useRef, useState } from '../lib/html.js'
@@ -20,8 +28,11 @@ import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
+import { useProposals } from '../lib/agent.js'
 import { Panel, Tag, TopBar } from '../kit/index.js'
 import { LibraryFrame } from './library-frame.js'
+import { AgentBubble, Notice } from './chat.js'
+import { AGENT } from '../texts/agent.js'
 import { BRAND, CONNECTIONS, NO_CONNECTION } from '../texts/common.js'
 import { ASK as T } from '../texts/ask.js'
 
@@ -125,11 +136,24 @@ function UsedPanel({ result, connection }) {
   </div>`
 }
 
+/** 「这是要改这个库吗？」 under a sentence the routing could not tell (route unsure): you choose. */
+export function RouteChoice({ busy, onChoose }) {
+  return html`<div class="ask-unsure" data-part="unsure" role="group" aria-label=${T.route.unsure}>
+    <span class="st-t-strong">${T.route.unsure}</span>
+    <div class="ask-row">
+      <${Act} name="route-change" variant="primary" disabled=${busy} onClick=${() => onChoose('change')}>${T.route.yes}<//>
+      <${Act} name="route-question" disabled=${busy} onClick=${() => onChoose('question')}>${T.route.no}<//>
+    </div>
+  </div>`
+}
+
 export function AskScreen() {
-  const { navigate } = useApp()
+  const { navigate, appState } = useApp()
+  const libraryId = appState?.data?.library?.libraryId ?? null
   const counts = useLoad(() => call('getLibrary', 'kept', { topics: [], days: null }).then(r => r?.counts ?? null), [])
   const demands = useLoad(() => call('getDemands'), [])
   const conns = useLoad(() => call('getConnections').catch(() => null), [])
+  const proposals = useProposals()
   useEvent('library-changed', () => { counts.reload(); demands.reload() })
   useEvent('connections-changed', () => conns.reload())
   const [question, setQuestion] = useState('')
@@ -137,24 +161,55 @@ export function AskScreen() {
   const [highlight, setHighlight] = useState(null)
   const [note, setNote] = useState(null)
   const listRef = useRef(null)
+  // a choice in 「这是要改这个库吗？」 is taken once (a second press before the page draws again does nothing)
+  const chosen = useRef(new Set())
   const running = turns.some(t => t.status === 'asking')
+  const toEnd = () => requestAnimationFrame(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight })
+  // each turn has its own id (a card's 改一下 can add a turn long after the one it belongs to)
+  const seq = useRef(0)
+  const addTurn = turn => { const id = ++seq.current; setTurns(list => [...list, { id, ...turn }]); return id }
+  const patch = (id, p) => setTurns(list => list.map(t => (t.id === id ? { ...t, ...p } : t)))
+  /** A sentence of the box, routed by the main process (sendLibraryMessage): answered here, handed to the main Agent, or unsure. */
   const send = async () => {
     const q = question.trim()
     if (!q || running) return
     if ([...q].length > MAX_CHARS) { setNote(T.tooLong); return }
     setNote(null)
-    const index = turns.length
-    setTurns(list => [...list, { question: q, status: 'asking' }])
+    const index = addTurn({ question: q, status: 'asking', route: null })
     setQuestion('')
-    const done = patch => setTurns(list => list.map((t, i) => (i === index ? { ...t, ...patch } : t)))
     try {
-      const r = await call('askLibrary', q)
-      done({ status: 'done', result: r })
-      demands.reload()
-    } catch (err) { done({ status: 'error', code: err?.code ?? null }) }
-    requestAnimationFrame(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight })
+      const r = await call('sendLibraryMessage', q)
+      if (r?.route === 'unsure') patch(index, { status: 'unsure', route: 'unsure', by: r.by })
+      else patch(index, { status: 'done', route: r?.route ?? 'question', by: r?.by, result: r?.result ?? null })
+      if (r?.route === 'question') demands.reload()
+    } catch (err) { patch(index, { status: 'error', code: err?.code ?? null }) }
+    toEnd()
   }
-  const latest = [...turns].reverse().find(t => t.status === 'done')?.result ?? null
+  /** Your answer to 「这是要改这个库吗？」: resolveLibraryMessage with the route you chose. */
+  const choose = async (index, route) => {
+    const turn = turns.find(t => t.id === index)
+    if (!turn || turn.status !== 'unsure' || running || chosen.current.has(index)) return
+    chosen.current.add(index)
+    patch(index, { status: 'asking', route, by: 'you' })
+    try {
+      const r = await call('resolveLibraryMessage', turn.question, route)
+      patch(index, { status: 'done', route: r?.route ?? route, by: 'you', result: r?.result ?? null })
+      if (route === 'question') demands.reload()
+    } catch (err) { patch(index, { status: 'error', route, code: err?.code ?? null }) }
+    toEnd()
+  }
+  /** Words for the main Agent straight from this box: a quick answer to its question, or the sentence of 改一下. */
+  const toAgent = async text => {
+    const t = String(text ?? '').trim()
+    if (!t) return
+    const index = addTurn({ question: t, status: 'asking', route: 'change', via: 'agent' })
+    try {
+      const r = await call('agentSend', t, libraryId ? { libraryId } : null)
+      patch(index, { status: 'done', result: r })
+    } catch (err) { patch(index, { status: 'error', code: err?.code ?? null }) }
+    toEnd()
+  }
+  const latest = [...turns].reverse().find(t => t.status === 'done' && t.route === 'question')?.result ?? null
   const c = counts.data
   const list = Array.isArray(demands.data) ? demands.data : []
   const panel = html`<${Panel} label=${T.panel.used}>
@@ -174,24 +229,43 @@ export function AskScreen() {
       </section>
     </div>
   <//>`
+  const cardsOf = r => (Array.isArray(r?.proposalIds) ? r.proposalIds.map(id => proposals.byId.get(id)).filter(Boolean) : [])
+  const reply = (t, i) => {
+    if (t.status === 'unsure') return html`<${RouteChoice} busy=${running} onChoose=${route => choose(t.id, route)} />`
+    if (t.route === 'change' && t.status === 'asking') return html`<div class="ask-answer st-t-sub" data-part="handing" role="status">${T.route.handing}</div>`
+    if (t.route === 'change' && t.status === 'done') {
+      const r = t.result ?? {}
+      return html`<${AgentBubble} turn=${null} text=${r.reply ?? ''} ask=${r.ask ?? null} askOpen=${i === turns.length - 1} busy=${running}
+        onQuick=${o => toAgent(o)} cards=${cardsOf(r)} onSend=${toAgent} onChanged=${card => proposals.put(card)}>
+        ${(Array.isArray(r.notice) ? r.notice : []).map(n => html`<${Notice} key=${n.code} notice=${n} onSettings=${() => navigate('settings')} />`)}
+      <//>`
+    }
+    return html`<div class="ask-a">
+      <span class="ask-a__mark" aria-hidden="true">${BRAND.mark}</span>
+      <${Answer} turn=${t} index=${i} highlight=${highlight} onCite=${n => setHighlight({ turn: i, n })}
+        onOpen=${id => navigate('library', { id })} onDemand=${() => demands.reload()} onSettings=${() => navigate('settings')} />
+    </div>`
+  }
   return html`<${LibraryFrame} tab="ask" state=${c ? 'ready' : counts.status} labelledby="ask-title" panel=${panel}>
       <${TopBar} title=${T.title} titleTag="h2" titleId="ask-title" subtitle=${c ? fmt(T.scope, { kept: c.kept ?? 0, authored: c.authored ?? 0 }) : null} />
       <div class="st-main__body ask-body">
         <div class="ask-list" data-part="conversation" ref=${listRef}>
           ${turns.length ? null : html`<p class="st-t-small st-t-muted ask-empty">${T.empty}</p>`}
-          ${turns.map((t, i) => html`<section key=${i} class="ask-turn" data-turn=${i} data-state=${t.status}>
-            <div class="ask-q"><span class="ask-q__who st-t-tiny st-t-muted">${T.you}</span><span class="ask-q__text">${t.question}</span></div>
-            <div class="ask-a">
-              <span class="ask-a__mark" aria-hidden="true">${BRAND.mark}</span>
-              <${Answer} turn=${t} index=${i} highlight=${highlight} onCite=${n => setHighlight({ turn: i, n })}
-                onOpen=${id => navigate('library', { id })} onDemand=${() => demands.reload()} onSettings=${() => navigate('settings')} />
+          ${turns.map((t, i) => html`<section key=${t.id} class="ask-turn" data-turn=${i} data-state=${t.status} data-route=${t.route ?? ''} data-by=${t.by ?? ''}>
+            <div class="ask-q-row">
+              ${t.route === 'change' && t.via !== 'agent' ? html`<span class="ask-routed st-t-tiny" data-part="routed">${T.route.routed}</span>` : null}
+              <div class="ask-q"><span class="ask-q__who st-t-tiny st-t-muted">${t.route === 'question' || t.route === null ? T.you : AGENT.you}</span><span class="ask-q__text">${t.question}</span></div>
             </div>
+            ${reply(t, i)}
           </section>`)}
         </div>
         <div class="ask-compose">
-          <textarea class="ask-textarea" data-field="question" rows="2" aria-label=${T.inputLabel} placeholder=${T.inputPlaceholder} maxlength=${MAX_CHARS}
-            value=${question} disabled=${running} onInput=${e => setQuestion(e.currentTarget.value)}
-            onKeyDown=${e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send() } }}></textarea>
+          <div class="ask-compose__field">
+            <textarea class="ask-textarea" data-field="question" rows="2" aria-label=${T.inputLabel} placeholder=${T.inputPlaceholder} maxlength=${MAX_CHARS}
+              value=${question} disabled=${running} onInput=${e => setQuestion(e.currentTarget.value)}
+              onKeyDown=${e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send() } }}></textarea>
+            <span class="st-t-tiny st-t-muted" data-part="input-hint">${T.inputHint}</span>
+          </div>
           <${Act} name="send" variant="primary" disabled=${running || !question.trim()} onClick=${send}>${T.send}<//>
         </div>
         ${running ? html`<div class="st-t-small st-t-sub ask-status" data-part="asking-bar" role="status">${T.asking}</div>` : null}

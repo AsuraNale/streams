@@ -8,12 +8,14 @@
 //     count; an event without a libraryId: the whole list read again).
 //   useWaiting(enabled)    → how many things wait for you in 和主 Agent 聊: the pending proposal cards (listProposals) plus the
 //     suggestion cards not handled — 0 until the bridge has a `listSuggestions` (package C / G); read again on
-//     `proposals-changed`.
+//     `proposals-changed`, when a turn of the main Agent ends (`agent-changed` done: 「交给主 Agent」 ran one) and when a
+//     suggestion card was handled on the page (package G: lib/agent.js suggestionsChanged).
 //   tracking(row)          → what the library follows, for 「在追：…」: the brief's first sentence, else its topics' names; null
 //   firstSentence(text)    → the text up to its first full stop (。！？.!? or a line end), trimmed
 import { call } from './bridge.js'
 import { useEvent } from './use-events.js'
 import { useLoad } from './use-load.js'
+import { SUGGESTIONS_EVENT, usePageEvent } from './agent.js'
 
 const SENTENCE_END = /[。！？!?\n]|\.(?=\s|$)/
 
@@ -81,5 +83,7 @@ export function useWaiting(enabled) {
     return (Array.isArray(cards) ? cards.length : 0) + suggestions
   }, [enabled])
   useEvent('proposals-changed', () => { if (enabled) count.reload() }, [enabled])
+  useEvent('agent-changed', p => { if (enabled && p?.phase === 'done') count.reload() }, [enabled])
+  usePageEvent(SUGGESTIONS_EVENT, () => { if (enabled) count.reload() }, [enabled])
   return typeof count.data === 'number' ? count.data : 0
 }

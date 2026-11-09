@@ -39,6 +39,9 @@ test('the four tabs carry the core\'s counts; 已收藏 lists the core\'s kept n
   const shown = await s.page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-view]')].map(e => [e.dataset.view, Number(e.dataset.count)])))
   assert.deepEqual(shown, counts)
   const kept = core.listLibrary(dir(), { view: 'kept' }).items.map(i => i.id)
+  // v2 package H: with notes kept the page opens on 已收藏 (with none it opens on 抓到的: test/ui-library-reader.test.mjs)
+  await s.page.waitForFunction(() => document.querySelector('[data-view="kept"]')?.getAttribute('aria-current') === 'true', null, POLL)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-view="caught"]').getAttribute('aria-current')), null)
   assert.deepEqual(await rows(), kept)
   await waitReader(kept[0])
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-row][data-current="true"]').dataset.row), kept[0])
@@ -165,12 +168,21 @@ test('核验记录: the evals note\'s summary over two rounds, 「说做了其�
   await s.page.waitForFunction(() => document.querySelector('[data-dialog="verdicts"]') === null, null, POLL)
 })
 
-test('用 Obsidian 打开 and 打开原文 go through the bridge (a test run only writes the log)', async () => {
+// v2 package H: 用 Obsidian 打开 is in 「更多」 now (a note with a file); 打开原文 opens the reading window (test/ui-reader.test.mjs,
+// on a site on this machine — this world's sources are example.org addresses, so here only 「在浏览器里打开」 is clicked, which a
+// test run only logs)
+test('更多 → 用 Obsidian 打开 / 在浏览器里打开 go through the bridge (a test run only writes the log); 打开原文 is there for a web source', async () => {
   const B = s.world.planB
-  await s.page.click('[data-action="obsidian"] button')
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="item-actions"]')?.dataset.id), B.evals.id)
+  assert.ok(await s.page.evaluate(() => document.querySelector('[data-part="library-head"] [data-action="source"] button') !== null))
+  await s.page.click('[data-part="library-head"] [data-action="more"] button')
+  await s.page.waitForFunction(() => document.querySelector('[data-menu]') !== null, null, { polling: 100, timeout: 20_000 })
+  assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-menu-item]')].map(e => e.dataset.menuItem)), ['obsidian', 'folder', 'browser'])
+  await s.page.click('[data-menu-item="obsidian"]')
   const path = join(dir(), 'notes', `${B.evals.id}.md`)
   await waitFor(() => log().includes(`not opened in a test run: obsidian ${path}`))
-  await s.page.click('[data-action="source"] button')
+  await s.page.click('[data-part="library-head"] [data-action="more"] button')
+  await s.page.click('[data-menu-item="browser"]')
   await waitFor(() => log().includes(`not opened in a test run: ${B.evals.source}`))
 })
 

@@ -1,6 +1,6 @@
 // The v2 shell (package F; docs/design/v2/streams-v2-design.html 导航, P1, P3, P7, P9): the sidebar of plan B (库架 · 和主
-// Agent 聊 · 我的库 · 新建库 · 设置), the shelf, a library's page (its head, the five tabs, the list / graph switch), the empty
-// page of 和主 Agent 聊 (package G fills it), 「新建库」, 「谁定的」, 「要求」, 关卡 and this library's schedule on 来源与要求,
+// Agent 聊 · 我的库 · 新建库 · 设置), the shelf, a library's page (its head, the five tabs, the list / graph switch), 「新建库」
+// (和主 Agent 聊's words are package G's: texts/agent.js), 「谁定的」, 「要求」, 关卡 and this library's schedule on 来源与要求,
 // the schedules and the month's use of every library on 设置. Placeholders: {name}, filled by fmt (lib/format.js).
 
 export const SHELL = Object.freeze({
@@ -53,12 +53,6 @@ export const SHELL = Object.freeze({
     loadFailed: '没能读出库的列表。',
   }),
 
-  chat: Object.freeze({
-    title: '和主 Agent 聊',
-    subtitle: '所有库的事都可以在这里说',
-    waiting: '等你定的事：{n} 件',
-    shell: '这一页还在做：下一步，主 Agent 会在这里和你聊，把要改库的提议放在这里等你确认。',
-  }),
 
   // 「新建库」 (the sidebar, the shelf): v1.0's two ways — a new library in an empty folder, or a folder that already holds
   // one (or your own .md files)
@@ -88,13 +82,6 @@ export const SHELL = Object.freeze({
 
   overview: Object.freeze({
     title: '概览',
-    suggestions: '主 Agent 给这个库的建议',
-    suggestionKinds: Object.freeze({
-      'source-failing': '来源「{subject}」连续几轮没抓到',
-      'no-output': '这个库连续几轮没有产出',
-      'ai-instruction': '来源「{subject}」的文章里有写给 AI 的话',
-      'topic-overlap': '和另一个库的主题重合很多',
-    }),
     run: '运行状态',
   }),
 

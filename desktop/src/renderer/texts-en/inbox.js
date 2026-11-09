@@ -26,6 +26,10 @@ export const INBOX = Object.freeze({
     later: 'Later',
     record: 'The check record of this item',
     failed: 'That did not work. You can try again.',
+    aiInstruction: 'Words for the AI in this item, ignored',
+    aiInstructionHint: 'Found: {phrases}',
+    aiInstructionPhrase: '"{phrase}"',
+    aiInstructionNoPhrase: 'The sentences found are in the check record of this item.',
   }),
 
   dialog: Object.freeze({

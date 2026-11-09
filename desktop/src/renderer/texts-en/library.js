@@ -42,6 +42,7 @@ export const LIBRARY = Object.freeze({
       inbox: 'In the inbox, waiting for you',
     }),
     stoppedOther: 'Stopped at {step}',
+    inInbox: '{caught} · in the Inbox',
     title: 'This caught item',
     note: 'What did not pass stays here and can always come back: change a pass line or a requirement, and the next round scores it again.',
     source: 'Source {source} · published {date}',
@@ -90,12 +91,21 @@ export const LIBRARY = Object.freeze({
     date: 'published {date}',
     kept: 'kept {date}',
     missingLink: 'No such item in the library',
+    keptNow: 'Kept · now in notes/',
+    what: 'What it is: ',
   }),
 
   actions: Object.freeze({
     edit: 'Edit',
     obsidian: 'Open in Obsidian',
     source: 'Open the original',
+    keep: 'Keep',
+    keeping: 'Keeping…',
+    more: 'More',
+    moreLabel: 'More for this item',
+    folder: 'Show in File Explorer',
+    browser: 'Open in the browser',
+    keepOnlyInbox: 'Only an item waiting in the Inbox can be kept; this one stopped on the way.',
     failed: 'That did not work. You can try again.',
   }),
 
@@ -158,4 +168,12 @@ export const VERDICTS = Object.freeze({
   resultFailed: 'not passed',
   close: 'Close',
   open: 'The checks of this item',
+  // v2 package H: the words for the AI found in the material (core verify: the mark on the verdict lines)
+  ai: Object.freeze({
+    title: 'Words for the AI in this item, ignored',
+    note: 'The material had words aimed at the AI. They were not followed: no source and no setting of the library changed.',
+    rule: 'Found by the rules',
+    judge: 'Found by the model check',
+    none: 'The record has no sentence of it.',
+  }),
 })

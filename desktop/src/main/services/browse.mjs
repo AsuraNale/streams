@@ -38,7 +38,7 @@ export const inside = (dir, path) => {
  * @param {(topic: string, payload?: unknown) => number} o.emit
  * @param {(line: string) => void} o.log
  * @param {boolean} [o.hidden] - a test run: nothing is opened outside the app
- * @param {{openExternal: (url: string) => Promise<void>, openPath: (path: string) => Promise<string>}} o.shell
+ * @param {{openExternal: (url: string) => Promise<void>, openPath: (path: string) => Promise<string>, showItemInFolder: (path: string) => void}} o.shell
  * @param {Record<string, unknown>} [o.core] - the core's exports (tests: a stand-in for what is not there yet)
  * @param {() => Date} [o.now]
  */
@@ -50,6 +50,16 @@ export function createBrowseService({ library, emit, log, hidden = false, shell,
     const dir = library.require()
     if (!call('readIndex', dir).some(e => e.id === id)) throw new BridgeError('bad_arguments', `not in the index: ${id}`)
     return dir
+  }
+
+  /** The file of a note the index knows: the core's notePath, checked to be a .md file of the note folder (notes/ or, for an
+   *  imported folder, the library folder itself: core notesDir). */
+  const noteFile = id => {
+    const dir = known(id)
+    const path = call('notePath', dir, id)
+    const folder = call('notesDir', dir)
+    if (typeof path !== 'string' || !isAbsolute(path) || !inside(dir, path) || !/\.md$/i.test(path) || resolve(dirname(path)) !== resolve(folder)) throw new BridgeError('internal', `notePath gave a path that is not a note of the note folder: ${String(path)}`)
+    return path
   }
 
   /** The open library and a file the core lists as needing a header, or bad_arguments. */
@@ -81,11 +91,7 @@ export function createBrowseService({ library, emit, log, hidden = false, shell,
       return { id: r.id, file: r.file, entry: r.entry }
     },
     async openInObsidian(id) {
-      const dir = known(id)
-      const path = call('notePath', dir, id)
-      // the note folder is notes/ or, for an imported folder, the library folder itself (core notesDir)
-      const folder = call('notesDir', dir)
-      if (typeof path !== 'string' || !isAbsolute(path) || !inside(dir, path) || !/\.md$/i.test(path) || resolve(dirname(path)) !== resolve(folder)) throw new BridgeError('internal', `notePath gave a path that is not a note of the note folder: ${String(path)}`)
+      const path = noteFile(id)
       if (hidden) { log(`not opened in a test run: obsidian ${path}`); return null }
       try {
         await shell.openExternal(`obsidian://open?path=${encodeURIComponent(path)}`)
@@ -95,6 +101,13 @@ export function createBrowseService({ library, emit, log, hidden = false, shell,
       }
       const problem = await shell.openPath(path)
       if (problem) { log(`browse: openPath ${path}: ${problem}`); throw new BridgeError('open_failed') }
+      return null
+    },
+    // v2 package H: 「在资源管理器中显示」 — the note's file selected in its folder (only a note of the index has a file)
+    showNoteInFolder(id) {
+      const path = noteFile(id)
+      if (hidden) { log(`not opened in a test run: folder ${path}`); return null }
+      shell.showItemInFolder(path)
       return null
     },
     applyHeader(file, header) {

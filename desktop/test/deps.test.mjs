@@ -1,4 +1,4 @@
-// Dependencies (docs/desktop.md §一): exact versions, all from the official npm registry with an sha512
+// Dependencies (docs/desktop.md §一; v2 package H added @mozilla/readability): exact versions, all from the official npm registry with an sha512
 // integrity in package-lock.json, licences known; what node_modules holds is what the lock says; the page's
 // three vendored modules are those packages' own files; the app runs on the pinned Electron 44.0.0. No local link.
 import assert from 'node:assert/strict'
@@ -11,11 +11,12 @@ import { DESKTOP_DIR, ELECTRON_VERSION, REPO_DIR, electronExe } from '../scripts
 const pkg = JSON.parse(readFileSync(join(DESKTOP_DIR, 'package.json'), 'utf8'))
 const lock = JSON.parse(readFileSync(join(DESKTOP_DIR, 'package-lock.json'), 'utf8'))
 
+// v2 package H: @mozilla/readability, the reading window's 阅读模式 (src/main/reader.mjs; run in a hidden window, not by the page)
 const EXPECTED = {
-  dependencies: { htm: '3.1.1', preact: '10.29.8' },
+  dependencies: { '@mozilla/readability': '0.6.0', htm: '3.1.1', preact: '10.29.8' },
   devDependencies: { 'playwright-core': '1.63.0' },
 }
-const LICENCES = { htm: 'Apache-2.0', preact: 'MIT', 'playwright-core': 'Apache-2.0' }
+const LICENCES = { '@mozilla/readability': 'Apache-2.0', htm: 'Apache-2.0', preact: 'MIT', 'playwright-core': 'Apache-2.0' }
 
 test('package.json pins exactly these dependencies', () => {
   assert.deepEqual(pkg.dependencies, EXPECTED.dependencies)
@@ -25,12 +26,14 @@ test('package.json pins exactly these dependencies', () => {
 test('package-lock.json: every package from registry.npmjs.org with an sha512 integrity and a known licence; nothing linked', () => {
   const entries = Object.entries(lock.packages).filter(([k]) => k.startsWith('node_modules/'))
   const names = entries.map(([k]) => k.slice('node_modules/'.length)).sort()
-  assert.deepEqual(names, ['htm', 'playwright-core', 'preact'], 'no other package (none of them has dependencies)')
+  assert.deepEqual(names, ['@mozilla/readability', 'htm', 'playwright-core', 'preact'], 'no other package (none of them has dependencies)')
   for (const [key, e] of entries) {
     const name = key.slice('node_modules/'.length)
     assert.equal(e.link, undefined, `${name} is not a link`)
     assert.equal(e.version, EXPECTED.dependencies[name] ?? EXPECTED.devDependencies[name], name)
-    assert.equal(e.resolved, `https://registry.npmjs.org/${name}/-/${name}-${e.version}.tgz`, name)
+    // a scoped package's tarball is named without its scope
+    assert.equal(e.resolved, `https://registry.npmjs.org/${name}/-/${name.split('/').pop()}-${e.version}.tgz`, name)
+    assert.equal(e.dependencies, undefined, `${name} has no dependencies`)
     assert.match(e.integrity, /^sha512-[A-Za-z0-9+/]{86}==$/, name)
     assert.equal(e.license, LICENCES[name], name)
     assert.equal(e.hasInstallScript, undefined, `${name} runs nothing at install`)

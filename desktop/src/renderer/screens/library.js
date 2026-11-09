@@ -1,5 +1,13 @@
 // v2 package F: the 资料库 tab of a library's page (screens/library-frame.js; design P5): its actions in the library's head, the
 // list / graph switch (ViewSwitch) on its heading line; otherwise as v1.0 had it.
+// v2 package H (design P5, UC4; docs/desktop.md §4.9): with nothing kept yet the page opens on 「抓到的」 (else 「已收藏」); the
+// head has buttons only for the item being read — none while nothing is chosen (the reader says 「在左边选一条来读」). A note:
+// 编辑 · 打开原文 · 更多 (用 Obsidian 打开 · 在资源管理器中显示 · 在浏览器里打开). A caught item, which has no file: 收藏 (only
+// what waits in 待看: keepItem, the core's keep → writeNoteFile) · 打开原文 · 更多 (在浏览器里打开) — never Obsidian or the file
+// manager. Kept from here → the page goes to 「已收藏」 with that note open, marked 「已收藏 · 进了 notes/」. 「打开原文」 is
+// openReader(url, 'reader'): the isolated reading window (src/main/reader.mjs). A caught item that waits in 待看 shows its
+// summary (getInbox). Hooks: [data-part="item-actions"][data-for=note|caught], [data-action=keep|more][data-items],
+// the menu's [data-menu-item=obsidian|folder|browser], [data-kept-now], [data-part=pick-one|summary|keep-only-inbox].
 // 资料库与阅读 (mockup S6; docs/desktop.md §4.2). Three columns: the list (the search box on top, four tabs with their
 // counts, the topic and 「最近 30 天」 filters) · the reader (the note's Markdown cut into elements by lib/markdown.js;
 // a [[link]] that names a note in the library opens it) · the right panel (this note: topics, source, the scores with
@@ -10,15 +18,16 @@
 // text box the user may change (lib/header-text.js), 「写入这一个」「跳过」, and 「全部按拟的写入」 on top. A file whose
 // name cannot be an id, or for which no header can be proposed, says what to do instead and has no write button; the
 // sub folders that are not read are named. 「跳过」 writes nothing and only hides the card until the page is opened again.
-// Data only through the bridge (getLibrary, searchLibrary, readNote, getSources for the topics, openInObsidian, openItemUrl,
-// applyHeader, applyAllHeaders); read again on `library-changed`. The page counts nothing: the tab counts are getLibrary().counts.
+// Data only through the bridge (getLibrary, searchLibrary, readNote, getSources for the topics, getInbox, keepItem,
+// openInObsidian, showNoteInFolder, openReader, applyHeader, applyAllHeaders); read again on `library-changed`. The page counts
+// nothing: the tab counts are getLibrary().counts.
 // Test hooks: main[data-screen="library"][data-state], [data-view=<id>][data-count][aria-current], [data-filter-topic=<name>],
 // [data-filter-days], input[data-field="search"], [data-part=list|reader|note-panel|backlinks|same-source],
 // [data-row=<id | url | file>][data-current], [data-reader=<id>], [data-panel-row=<key>],
-// [data-action=edit|obsidian|source|verdicts|caught-verdicts], [data-stopped=<step>], [data-score=<node>];
+// [data-action=edit|source|keep|more|verdicts|caught-verdicts], [data-stopped=<step>], [data-score=<node>];
 // 待规范: [data-part=tidy|skipped-dirs|apply-all-result|written|skipped-line], [data-card=<file>][data-name-ok][data-proposable]
 // with textarea[data-field="header"], [data-card-error], [data-card-why], [data-action=apply|skip|apply-all|show-skipped].
-import { html, useEffect, useMemo, useState } from '../lib/html.js'
+import { html, useEffect, useMemo, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
@@ -27,7 +36,7 @@ import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { renderMarkdown } from '../lib/markdown.js'
 import { headerText, parseHeaderText } from '../lib/header-text.js'
-import { LinkButton, Panel, Tag, TopBar } from '../kit/index.js'
+import { Icon, LinkButton, Menu, Panel, Tag, TopBar } from '../kit/index.js'
 import { ERRORS, NODE_NAMES, NOTE_STATUS, SEP } from '../texts/common.js'
 import { LIBRARY as T } from '../texts/library.js'
 import { EditDialog } from './edit-dialog.js'
@@ -213,7 +222,7 @@ function TidyCards({ items, skippedDirs }) {
   </section>`
 }
 
-function Reader({ note, resolve, onWiki }) {
+function Reader({ note, resolve, onWiki, keptNow }) {
   const e = note.entry ?? {}
   const meta = [
     e.source ? fmt(T.reader.source, { source: e.source }) : null,
@@ -221,8 +230,8 @@ function Reader({ note, resolve, onWiki }) {
     e.kept ? fmt(T.reader.kept, { date: e.kept }) : null,
   ].filter(Boolean)
   return html`<article class="lib-reader__note" data-reader=${e.id}>
-    <div class="lib-reader__status">
-      <${Tag} tone=${e.status === 'authored' ? 'recommend' : 'done'}>${NOTE_STATUS[e.status] ?? e.status ?? ''}<//>
+    <div class="lib-reader__status" data-kept-now=${String(keptNow === true)}>
+      <${Tag} tone=${e.status === 'authored' ? 'recommend' : 'done'}>${keptNow ? T.reader.keptNow : NOTE_STATUS[e.status] ?? e.status ?? ''}<//>
     </div>
     <h2 class="lib-reader__title st-t-heading">${e.title}</h2>
     <div class="lib-reader__meta st-t-small st-t-sub">${meta.join(SEP)}</div>
@@ -230,11 +239,19 @@ function Reader({ note, resolve, onWiki }) {
   </article>`
 }
 
-function CaughtReader({ item, onVerdicts }) {
+/** A caught item waits in 待看 (the core's stoppedAt 'inbox'): only such an item can be kept (the core's keep). */
+const inInbox = item => item?.stoppedAt === 'inbox' || item?.stage === 'inbox'
+
+function CaughtReader({ item, card, onVerdicts }) {
+  const summary = card?.summary ?? null
+  const points = Array.isArray(summary?.points) ? summary.points.filter(p => typeof p === 'string' && p) : []
   return html`<article class="lib-reader__note" data-reader=${item.url}>
-    <div class="lib-reader__status"><${Tag} tone="wait">${T.views.caught}<//></div>
+    <div class="lib-reader__status"><${Tag} tone="wait">${inInbox(item) ? fmt(T.caught.inInbox, { caught: T.views.caught }) : T.views.caught}<//></div>
     <h2 class="lib-reader__title st-t-heading">${item.title}</h2>
     <div class="lib-reader__meta st-t-small st-t-sub">${[fmt(T.caught.source, { source: item.source ?? '', date: item.date ?? '' }), fmt(T.caught.firstSeen, { date: (item.firstSeen ?? '').slice(0, 10) })].join(SEP)}</div>
+    ${summary?.what ? html`<p class="lib-reader__what" data-part="summary"><b>${T.reader.what}</b>${summary.what}</p>` : null}
+    ${points.length ? html`<ul class="lib-reader__points">${points.map((p, i) => html`<li key=${i}>${p}</li>`)}</ul>` : null}
+    ${inInbox(item) ? null : html`<p class="st-t-small st-t-wait" data-part="keep-only-inbox">${T.actions.keepOnlyInbox}</p>`}
     <dl class="lib-kv">
       ${scoreKeys(item.scores).map(k => {
         const p = scoreParts(item.scores[k])
@@ -284,9 +301,29 @@ function NotePanel({ note, onSelect, onVerdicts }) {
   </div>`
 }
 
+/** 「更多」: a button, and under it a menu of `items` ([{ id, label }]); a choice calls onSelect(id). */
+function MoreMenu({ items, onSelect }) {
+  const button = useRef(null)
+  const [at, setAt] = useState(null)
+  const open = () => {
+    const r = button.current?.getBoundingClientRect()
+    if (r) setAt({ x: r.left, y: r.bottom + 4 })
+  }
+  return html`<span class="st-act lib-more" data-action="more" data-items=${items.map(i => i.id).join(' ')}>
+    <button type="button" class="st-button" ref=${button} aria-haspopup="menu" aria-expanded=${String(at !== null)} onClick=${open}>
+      ${T.actions.more}<${Icon} name="chevron-down" />
+    </button>
+    ${at ? html`<${Menu} label=${T.actions.moreLabel} x=${at.x} y=${at.y} items=${items}
+      onSelect=${id => { setAt(null); onSelect(id) }}
+      onClose=${({ restoreFocus }) => { setAt(null); if (restoreFocus) button.current?.focus() }} />` : null}
+  </span>`
+}
+
 export function LibraryScreen({ params = {} }) {
   const { navigate } = useApp()
-  const [view, setView] = useState(VIEWS.includes(params.view) ? params.view : 'kept')
+  // the tab: the one a navigation names; else, once the counts are known, 已收藏 — or 抓到的 when nothing is kept yet
+  // (v2 package H, design UC4 step 1). Until then no tab is current.
+  const [chosenView, setView] = useState(VIEWS.includes(params.view) ? params.view : null)
   const [topics, setTopics] = useState([])
   const [days, setDays] = useState(null)
   const [query, setQuery] = useState('')
@@ -296,10 +333,21 @@ export function LibraryScreen({ params = {} }) {
   const [editing, setEditing] = useState(false)
   const [verdictsFor, setVerdictsFor] = useState(null)
   const [actionError, setActionError] = useState(null)
+  // v2 package H: 「收藏」 from 抓到的 (the core's keep, as 待看's C does); the note it made, marked 「已收藏 · 进了 notes/」
+  const [keeping, setKeeping] = useState(false)
+  const [keptNow, setKeptNow] = useState(null)
   const topicsKey = topics.join('\n')
   const filter = { topics, days }
 
-  const lib = useLoad(() => call('getLibrary', view, filter), [view, topicsKey, days])
+  const lib = useLoad(async () => {
+    if (chosenView) return call('getLibrary', chosenView, filter)
+    const first = await call('getLibrary', 'kept', filter)
+    return first?.counts?.kept === 0 ? call('getLibrary', 'caught', filter) : first
+  }, [chosenView, topicsKey, days])
+  // (a reload decides again; only a keep turns 0 kept into 1, and a keep from this page picks 已收藏 itself)
+  const view = chosenView ?? (VIEWS.includes(lib.data?.view) ? lib.data.view : null)
+  // what 待看 holds, for a caught item's summary (getInbox: the same cards as the 待看 tab)
+  const inbox = useLoad(() => (view === 'caught' ? call('getInbox') : null), [view])
   const searchView = view === 'kept' || view === 'authored' ? view : 'all'
   const found = useLoad(() => (q ? call('searchLibrary', q, { view: searchView, topics, days }) : null), [q, searchView, topicsKey, days])
   const note = useLoad(() => (selected ? call('readNote', selected) : null), [selected])
@@ -308,6 +356,7 @@ export function LibraryScreen({ params = {} }) {
   // an exact id first, then an exact title)
   const names = useLoad(() => Promise.all([call('getLibrary', 'kept', { topics: [], days: null }), call('getLibrary', 'authored', { topics: [], days: null })]), [])
   useEvent('library-changed', () => { lib.reload(); found.reload(); note.reload(); names.reload(); sources.reload() })
+  useEvent('inbox-changed', () => { if (view === 'caught') { lib.reload(); inbox.reload() } }, [view])
 
   // a navigation that names a note (the graph's 「打开」, an answer's source) opens it
   useEffect(() => { if (typeof params.id === 'string') { setSelected(params.id); setCaughtUrl(null) } }, [params.id])
@@ -368,20 +417,54 @@ export function LibraryScreen({ params = {} }) {
   }
 
   let reader
-  if (caughtItem) reader = html`<${CaughtReader} item=${caughtItem} onVerdicts=${() => setVerdictsFor({ url: caughtItem.url, title: caughtItem.title })} />`
-  else if (mode === 'caught') reader = html`<p class="st-t-small st-t-muted">${T.reader.none}</p>`
+  const card = caughtItem ? (inbox.data?.items ?? []).find(c => c.url === caughtItem.url) ?? null : null
+  if (caughtItem) reader = html`<${CaughtReader} item=${caughtItem} card=${card} onVerdicts=${() => setVerdictsFor({ url: caughtItem.url, title: caughtItem.title })} />`
+  else if (mode === 'caught') reader = html`<p class="st-t-small st-t-muted" data-part="pick-one">${T.reader.none}</p>`
   // lib.data must be the pending view's own answer, not the list of the tab before (still shown while this one loads)
   else if (mode === 'pending') reader = lib.data?.view === 'pending' && (items.length || lib.data.skippedDirs?.length) ? html`<${TidyCards} items=${items} skippedDirs=${Array.isArray(lib.data.skippedDirs) ? lib.data.skippedDirs : []} />`
     : html`<p class="st-t-small st-t-muted">${T.pending.note}</p>`
-  else if (n) reader = html`<${Reader} note=${n} resolve=${resolve} onWiki=${choose} />`
+  else if (n && selected) reader = html`<${Reader} note=${n} resolve=${resolve} onWiki=${choose} keptNow=${keptNow !== null && n.entry?.id === keptNow} />`
   else if (note.status === 'error') reader = html`<p class="lib-error" role="alert">${T.reader.loadFailed}</p>`
-  else reader = html`<p class="st-t-small st-t-muted">${T.reader.none}</p>`
+  else reader = html`<p class="st-t-small st-t-muted" data-part="pick-one">${T.reader.none}</p>`
 
-  const actions = html`<div class="lib-actions">
-    <${Act} name="edit" disabled=${!showNote || !entry} onClick=${() => setEditing(true)}>${T.actions.edit}<//>
-    <${Act} name="obsidian" disabled=${!showNote || !entry} onClick=${() => doCall('openInObsidian', entry.id)}>${T.actions.obsidian}<//>
-    <${Act} name="source" disabled=${!showNote || !entry || !isWeb(entry.source)} onClick=${() => doCall('openItemUrl', entry.source)}>${T.actions.source}<//>
-  </div>`
+  // the head's buttons (v2 package H, design P5 / UC4): only for the item being read. A note (a file in the library): 编辑,
+  // 打开原文 (a web source), 更多 = 用 Obsidian 打开 · 在资源管理器中显示 · 在浏览器里打开. A caught item (no file yet): 收藏 (only
+  // what waits in 待看; the core's keep, through writeNoteFile), 打开原文, 更多 = 在浏览器里打开 — no Obsidian, no file manager
+  const openSource = url => doCall('openReader', url, 'reader')
+  const keepCaught = async item => {
+    setKeeping(true)
+    setActionError(null)
+    try {
+      const r = await call('keepItem', item.url)
+      setKeptNow(r.id)
+      setCaughtUrl(null)
+      setSelected(r.id)
+      setView('kept')
+    } catch { setActionError(T.actions.failed) } finally { setKeeping(false) }
+  }
+  const noteTarget = showNote && entry && selected && entry.id === selected ? entry : null
+  let actions = null
+  if (noteTarget) {
+    const e = noteTarget
+    const more = [{ id: 'obsidian', label: T.actions.obsidian }, { id: 'folder', label: T.actions.folder }, ...(isWeb(e.source) ? [{ id: 'browser', label: T.actions.browser }] : [])]
+    const pick = id => {
+      if (id === 'obsidian') doCall('openInObsidian', e.id)
+      else if (id === 'folder') doCall('showNoteInFolder', e.id)
+      else if (id === 'browser') doCall('openReader', e.source, 'browser')
+    }
+    actions = html`<div class="lib-actions" data-part="item-actions" data-for="note" data-id=${e.id}>
+      <${Act} name="edit" onClick=${() => setEditing(true)}>${T.actions.edit}<//>
+      ${isWeb(e.source) ? html`<${Act} name="source" icon="external" onClick=${() => openSource(e.source)}>${T.actions.source}<//>` : null}
+      <${MoreMenu} items=${more} onSelect=${pick} />
+    </div>`
+  } else if (caughtItem) {
+    const it = caughtItem
+    actions = html`<div class="lib-actions" data-part="item-actions" data-for="caught" data-url=${it.url}>
+      <${Act} name="keep" variant="primary" disabled=${keeping || !inInbox(it)} onClick=${() => keepCaught(it)}>${keeping ? T.actions.keeping : T.actions.keep}<//>
+      ${isWeb(it.url) ? html`<${Act} name="source" icon="external" onClick=${() => openSource(it.url)}>${T.actions.source}<//>` : null}
+      ${isWeb(it.url) ? html`<${MoreMenu} items=${[{ id: 'browser', label: T.actions.browser }]} onSelect=${() => doCall('openReader', it.url, 'browser')} />` : null}
+    </div>`
+  }
   const panel = html`<${Panel} label=${T.panel.title}>
     ${showNote ? html`<${NotePanel} note=${n} onSelect=${choose} onVerdicts=${() => setVerdictsFor({ url: entry.source, title: entry.title })} />` : html`<div class="lib-panel" data-part="note-panel"><p class="st-t-small st-t-muted">${T.panel.none}</p></div>`}
   <//>`
@@ -395,7 +478,7 @@ export function LibraryScreen({ params = {} }) {
           <div class="lib-list__head">
             <input type="search" class="lib-search" data-field="search" aria-label=${T.searchLabel} placeholder=${T.searchPlaceholder} maxlength="200"
               value=${query} onInput=${e => setQuery(e.currentTarget.value)} />
-            <${ViewTabs} view=${view} counts=${counts} onSelect=${id => { setView(id); setCaughtUrl(null); setQuery(''); setQ('') }} />
+            <${ViewTabs} view=${view} counts=${counts} onSelect=${id => { setView(id); setCaughtUrl(null); setKeptNow(null); setQuery(''); setQ('') }} />
             <${Filters} topics=${topicNames} chosen=${topics} days=${days} onTopic=${toggleTopic} onDays=${toggleDays} />
             ${results ? html`<div class="st-t-small st-t-sub" data-part="search-count" data-count=${results.length}>${fmt(T.searchCount, { n: results.length })}</div>` : null}
           </div>

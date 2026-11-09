@@ -5,9 +5,10 @@
 export const ASK = Object.freeze({
   title: '只用库里的东西回答',
   scope: '范围：已收藏 {kept} 条 · 我写的 {authored} 条',
-  empty: '问一句库里的东西。答案的每句话后面带编号，点编号看是哪一条。',
-  inputLabel: '问库里的东西',
-  inputPlaceholder: '问库里的东西…',
+  empty: '问一句库里的东西。答案的每句话后面带编号，点编号看是哪一条。想改这个库，也可以直接在这里说。',
+  inputLabel: '问这个库，或者说说想怎么改它',
+  inputPlaceholder: '问这个库，或者说说想怎么改它…',
+  inputHint: '只用这个库的条目回答 · 想改来源、主题、要求，直接说：会转给主 Agent，出一张提议卡',
   send: '发送',
   asking: '正在查库……',
   you: '你问',
@@ -15,6 +16,16 @@ export const ASK = Object.freeze({
   busy: '上一个问题还在查，等它答完再问。',
   failed: '这次没问成：{reason}',
   failedOther: '这次没问成，可以再问一次。',
+
+  // v2 package G (design P6, UC3): a sentence is routed first (sendLibraryMessage) — a question is answered here, a change goes
+  // to the main Agent, which answers with a proposal card; when the routing cannot tell, you choose
+  route: Object.freeze({
+    routed: '这句转给主 Agent',
+    handing: '正在转给主 Agent……',
+    unsure: '这是要改这个库吗？',
+    yes: '是，改这个库',
+    no: '不是，问问题',
+  }),
 
   answer: Object.freeze({
     citeLabel: '出处 {n}',

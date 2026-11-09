@@ -1,5 +1,5 @@
 /* The v2 shell (package F, plan B): a library's page (screens/library-frame.js) — its head, the tabs (kit.css), the screen and
-   its right panel inside one card; 库架 (screens/shelf.js); 和主 Agent 聊's empty page (screens/chat.js); 「新建库」
+   its right panel inside one card; 库架 (screens/shelf.js); 「新建库」
    (screens/new-library.js); the parts package F added to 概览, 来源与要求 and 设置. Colours only via tokens. */
 
 /* ---- a library's page: one card right of the sidebar ---------------------------------------------- */
@@ -80,9 +80,6 @@
 .shelf-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 560px; }
 .shelf-empty__actions { display: flex; gap: 8px; }
 
-/* ---- 和主 Agent 聊 (package G fills it) ---------------------------------------------------------- */
-.chat-body { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 8px; }
-
 /* ---- 「新建库」 ------------------------------------------------------------------------------------ */
 .st-dialog[data-dialog='new-library'] { width: min(560px, 100%); }
 .newlib__field { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
@@ -92,7 +89,6 @@
 /* ---- 概览: the head's next run, the suggestions, the 「运行状态」 part ---------------------------------- */
 .ov-next { max-width: 360px; text-align: right; }
 .ov-suggestions { display: flex; flex-direction: column; gap: 6px; }
-.ov-suggestions__list { margin: 0; padding: 10px 14px 10px 28px; border: 1px solid var(--st-border); border-left: 3px solid var(--st-wait); border-radius: var(--st-radius); }
 .stat-part__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .stat-kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
 .stat-kv__row { display: flex; flex-direction: column-reverse; gap: 2px; padding: 10px 14px; border: 1px solid var(--st-border); border-radius: var(--st-radius); background: var(--st-surface-2); }

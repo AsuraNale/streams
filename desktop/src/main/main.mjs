@@ -7,7 +7,7 @@
  * @module desktop/main/main
  */
 
-import { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeTheme, powerMonitor, protocol, safeStorage, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, Notification, Tray, WebContentsView, dialog, nativeTheme, powerMonitor, protocol, safeStorage, session, shell } from 'electron'
 import { readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -44,6 +44,8 @@ import { createAgentService } from './services/agent.mjs'
 import { createTray } from './tray.mjs'
 import { listInbox } from './core.mjs'
 import { nativeSource, windowColour } from './theme.mjs'
+import { createReader, isReaderSession, readabilitySource, readerCss } from './reader.mjs'
+import { createReaderService } from './services/reader.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const RENDERER_DIR = join(DESKTOP_DIR, 'src', 'renderer')
@@ -134,7 +136,11 @@ protocol.registerSchemesAsPrivileged([{ scheme: APP_SCHEME, privileges: APP_SCHE
 app.enableSandbox()
 Menu.setApplicationMenu(null)
 
-app.on('web-contents-created', (_event, contents) => guardContents(contents, { onBlocked: blocked }))
+// (the reading window's contents are the reader's to guard: reader.mjs guardReaderContents — they may show http(s) pages)
+app.on('web-contents-created', (_event, contents) => {
+  if (isReaderSession(contents.session, p => session.fromPartition(p))) return
+  guardContents(contents, { onBlocked: blocked })
+})
 
 // the app's own windows: where events go (events.mjs)
 const appWindows = new Set()
@@ -153,6 +159,7 @@ const emit = (topic, payload = null) => {
 // 「退出」, an update and every other quit really end the app (before-quit comes first)
 let quitting = false
 let closeToTray = () => false
+let closeReader = () => {}
 app.on('before-quit', () => { quitting = true })
 
 /** The app's window to the front (restored when minimised): a second launch, a click on a notification. false: no window. */
@@ -188,7 +195,8 @@ function createWindow() {
     webPreferences: { ...WEB_PREFERENCES, preload: PRELOAD, devTools: !app.isPackaged },
   })
   appWindows.add(win)
-  win.on('closed', () => appWindows.delete(win))
+  // the reading window goes with the app's window (it is part of it, not an app of its own)
+  win.on('closed', () => { appWindows.delete(win); if (appWindows.size === 0) closeReader() })
   win.on('close', event => {
     if (quitting || !closeToTray()) return
     event.preventDefault()
@@ -242,6 +250,15 @@ app.whenReady().then(() => {
   })
   // interface B (docs/desktop.md §4.2): reading and editing, the sources and topics, asking the library, the run status
   const browse = createBrowseService({ library, emit, log, hidden: HIDDEN, shell })
+  // 「打开原文」 (v2 package H; reader.mjs): the isolated reading window, 阅读模式 by @mozilla/readability
+  const reader = createReader({
+    BrowserWindow, WebContentsView, session, shell, log, hidden: HIDDEN, icon: ICON,
+    locale: () => locale.current().resolved, theme: currentTheme,
+    css: readerCss(RENDERER_DIR), readability: readabilitySource(DESKTOP_DIR),
+    onBack: () => { bringToFront() },
+  })
+  const readerService = createReaderService({ library, reader, log })
+  closeReader = () => { reader.window()?.close() }
   const sources = createSourcesService({ library, emit, log })
   // the library's chat box (v2 package E): a sentence routed to a change goes to the main agent (made below) with the library's id
   const ask = createAskService({ library, connections, log, agentSend: (text, options) => agent.handlers.agentSend(text, options) })
@@ -313,6 +330,7 @@ app.whenReady().then(() => {
       ...connections.handlers,
       ...pipeline.handlers,
       ...browse.handlers,
+      ...readerService.handlers,
       ...sources.handlers,
       ...ask.handlers,
       ...status.handlers,

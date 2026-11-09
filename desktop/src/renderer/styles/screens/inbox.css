@@ -27,6 +27,8 @@
 .inbox-card__title:hover { color: var(--st-accent); text-decoration: underline; }
 .inbox-card__tags { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .inbox-card__unverified { font-size: var(--st-fs-small); font-weight: 700; color: var(--st-danger); border: 1px solid var(--st-danger); border-radius: var(--st-radius-s); padding: 1px 8px; background: var(--st-danger-bg); }
+/* v2 package H: 「这一条里有写给 AI 的话，已忽略」 — amber, the state that waits for the user to look */
+.inbox-card__ai { font-size: var(--st-fs-small); font-weight: 700; color: var(--st-wait); border: 1px solid var(--st-wait-border); border-radius: var(--st-radius-s); padding: 1px 8px; background: var(--st-wait-bg); cursor: help; }
 .inbox-card__what { overflow-wrap: anywhere; }
 .inbox-card__points { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
 .inbox-card__scores { display: flex; flex-direction: column; gap: 2px; }

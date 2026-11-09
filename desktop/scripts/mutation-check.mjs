@@ -149,6 +149,71 @@ const MUTANTS = [
     edits: [['src/renderer/screens/library-frame.js', 'const scrollKey = `${id ?? \'\'}:${screen}`', 'const scrollKey = screen']],
     test: ['test/ui-shell.test.mjs', '--test-name-pattern=a click on a library|each library remembers'],
   },
+  // v2 package G (docs/checks/2026-11-09-wp-g/contract.md): the proposal card, 和主 Agent 聊, 问库's routing
+  {
+    id: 'g-decline-confirms',
+    what: 'the proposal card\'s 不要 calls confirmProposal',
+    edits: [['src/renderer/screens/proposal-card.js', "act('decline', () => call('declineProposal', card.id))", "act('decline', () => call('confirmProposal', card.id))"]],
+    test: ['test/ui-agent.test.mjs', '--test-name-pattern=the proposal card'],
+  },
+  {
+    id: 'g-send-while-busy',
+    what: '和主 Agent 聊 lets you send while a turn of the main Agent runs',
+    edits: [['src/renderer/screens/chat.js', 'const busy = sending.length > 0 || agent.busy', 'const busy = false']],
+    test: ['test/ui-agent.test.mjs', '--test-name-pattern=a turn in progress'],
+  },
+  {
+    id: 'g-unsure-yes-question',
+    what: '问库\'s 「是，改这个库」 resolves the sentence as a question',
+    edits: [['src/renderer/screens/ask.js', "onClick=${() => onChoose('change')}", "onClick=${() => onChoose('question')}"]],
+    test: ['test/ui-agent.test.mjs', '--test-name-pattern=unsure'],
+  },
+  {
+    id: 'g-card-press-twice',
+    what: 'a proposal card\'s button can be pressed again before the bridge answers (no guard, never disabled)',
+    edits: [
+      ['src/renderer/screens/proposal-card.js', '    if (inFlight.current) return\n    inFlight.current = true\n', ''],
+      ['src/renderer/screens/proposal-card.js', 'const busy = acting !== null', 'const busy = false'],
+    ],
+    test: ['test/ui-agent.test.mjs', '--test-name-pattern=the proposal card'],
+  },
+  // v2 package H: the library page, the reading window, the 「写给 AI 的话」 mark
+  {
+    id: 'h-obsidian-for-caught',
+    what: 'an item without a file (抓到的) also offers 用 Obsidian 打开 in 「更多」',
+    edits: [['src/renderer/screens/library.js', "items=${[{ id: 'browser', label: T.actions.browser }]}", "items=${[{ id: 'obsidian', label: T.actions.obsidian }, { id: 'browser', label: T.actions.browser }]}"]],
+    test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=stopped on the way|an item waiting'],
+  },
+  {
+    id: 'h-default-kept',
+    what: 'the page opens on 已收藏 even with nothing kept',
+    edits: [['src/renderer/screens/library.js', 'return first?.counts?.kept === 0 ?', 'return false ?']],
+    test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=nothing kept'],
+  },
+  {
+    id: 'h-reader-preload',
+    what: 'the reading window\'s page gets the app\'s preload (and with it the bridge)',
+    edits: [['src/main/reader.mjs', 'view = new WebContentsView({ webPreferences: { ...READER_WEB_PREFERENCES } })', "view = new WebContentsView({ webPreferences: { ...READER_WEB_PREFERENCES, preload: join(import.meta.dirname, '..', 'preload', 'preload.cjs') } })"]],
+    test: ['test/ui-reader.test.mjs', '--test-name-pattern=opens the reading window|web contents'],
+  },
+  {
+    id: 'h-reader-node',
+    what: 'the reading window has Node integration on',
+    edits: [['src/main/reader.mjs', '  sandbox: true,\n  nodeIntegration: false,', '  sandbox: true,\n  nodeIntegration: true,']],
+    test: ['test/ui-reader.test.mjs', '--test-name-pattern=opens the reading window|web contents'],
+  },
+  {
+    id: 'h-no-fallback',
+    what: 'a page with no text to take out does not fall back to the original page',
+    edits: [['src/main/reader.mjs', '      if (article) showReading()\n      else showOriginal(true)\n', '      if (article) showReading()\n']],
+    test: ['test/ui-reader.test.mjs', '--test-name-pattern=opens the reading window|nothing to read'],
+  },
+  {
+    id: 'h-ai-mark-on-all',
+    what: 'every card in 待看 carries the 「写给 AI 的话」 mark',
+    edits: [['src/renderer/screens/inbox.js', '${item.aiInstruction === true ? html`<span class="inbox-card__ai"', '${true ? html`<span class="inbox-card__ai"']],
+    test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=the card with words for the AI'],
+  },
 ]
 
 function runTest(desktop, test) {

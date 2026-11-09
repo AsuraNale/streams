@@ -244,6 +244,56 @@ test('stale: the configuration the card is about changed after it was made → c
   assert.deepEqual(confirmProposal(gone, { libraryDir: join(dir, 'not-here'), now }).reason, 'library-gone');
 });
 
+test('UC3: an add_source and an edit_topics card of one turn — either confirmed first, the other still goes through (baseHash = only what the card changes)', async () => {
+  assert.deepEqual(core.HASH_FIELDS.add_source, ['sources'], 'a source card hashes the sources only');
+  assert.deepEqual(core.HASH_FIELDS.edit_topics, ['topics'], 'a topics card hashes the topics only');
+  for (const order of [['add_source', 'edit_topics'], ['edit_topics', 'add_source']]) {
+    const dir = library(`uc3-${order[0]}`);
+    const cards = {
+      add_source: await draft('add_source', { libraryId: 'a', source: { name: 'feed-b', kind: 'rss', url: FEED_OK, topic: '评测' } }, dir),
+      edit_topics: await draft('edit_topics', { libraryId: 'a', ops: [{ op: 'add_keywords', topic: '评测', keywords: ['公告'] }] }, dir),
+    };
+    for (const kind of order) {
+      const r = confirmProposal(cards[kind], { libraryDir: dir, now });
+      assert.equal(r.status, 'confirmed', `${order.join(' then ')}: ${kind} ${r.reason ?? ''}`);
+    }
+    const c = config(dir);
+    assert.deepEqual(c.sources.map((s) => s.name), ['feed-a', 'hn-agents', 'feed-b']);
+    assert.deepEqual(c.topics.find((x) => x.name === '评测').keywords, ['benchmark', '公告']);
+    assert.deepEqual(whoDecided(dir).sources.by, 'agent-confirmed');
+    assert.deepEqual(whoDecided(dir).topics.by, 'agent-confirmed');
+  }
+});
+
+test('the other way: the part a card changes changed by hand after it was made → stale, nothing written (each library kind)', async () => {
+  const dir = library('own-part');
+  const cards = {
+    add_source: await draft('add_source', { libraryId: 'a', source: { name: 'feed-b', kind: 'rss', url: FEED_OK } }, dir),
+    remove_source: await draft('remove_source', { libraryId: 'a', name: 'hn-agents' }, dir),
+    pause_source: await draft('pause_source', { libraryId: 'a', name: 'feed-a', paused: true }, dir),
+    edit_topics: await draft('edit_topics', { libraryId: 'a', ops: [{ op: 'add_keywords', topic: '评测', keywords: ['eval'] }] }, dir),
+    edit_brief: await draft('edit_brief', { libraryId: 'a', brief: '新的要求' }, dir),
+    edit_thresholds: await draft('edit_thresholds', { libraryId: 'a', relevance: 0.5 }, dir),
+    edit_schedule: await draft('edit_schedule', { libraryId: 'a', time: '07:45' }, dir),
+    edit_cap: await draft('edit_cap', { libraryId: 'a', cap: 30 }, dir),
+  };
+  // by hand, after the cards: another source added (not the one of the card), a keyword, the brief, the lines, the time, the cap
+  addSource(dir, { name: 'mine', kind: 'hn', query: 'rag' });
+  updateTopic(dir, '评测', { keywords: ['benchmark', 'leaderboard'] });
+  saveBrief(dir, '我自己改的要求');
+  core.savePipelineConfig(dir, (() => { const p = pipelineConfig(dir); return { ...p, cap: 77, nodes: p.nodes.map((n) => (n.id === 'relevance' ? { ...n, threshold: 0.65 } : n)) }; })());
+  saveLibrarySchedule(dir, { enabled: false, time: '06:00' });
+  const t = tree(dir);
+  for (const [kind, c] of Object.entries(cards)) {
+    const r = confirmProposal(c, { libraryDir: dir, now });
+    assert.deepEqual([r.status, r.reason], ['stale', 'changed'], kind);
+  }
+  assert.deepEqual(tree(dir), t, 'nothing written');
+  // control: the same cards made now go through (stale above is about the part, not about the cards)
+  assert.equal(confirmProposal(await draft('edit_cap', { libraryId: 'a', cap: 30 }, dir), { libraryDir: dir, now }).status, 'confirmed');
+  assert.equal(confirmProposal(await draft('add_source', { libraryId: 'a', source: { name: 'feed-b', kind: 'rss', url: FEED_OK } }, dir), { libraryDir: dir, now }).status, 'confirmed');
+});
+
 test('a step that fails is undone: streams.json byte for byte as it was, the card failed and says at which step', async () => {
   const dir = library('rollback');
   const card = await draft('edit_topics', { libraryId: 'a', ops: [{ op: 'add_topic', name: 'RAG' }, { op: 'add_keywords', topic: '评测', keywords: ['eval'] }, { op: 'remove_topic', name: 'agent 记忆' }] }, dir);

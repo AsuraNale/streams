@@ -5,7 +5,9 @@
 // texts/inbox.js, texts/common.js NODE_NAMES.
 // The keyboard focus follows the current card (docs/desktop.md §4.3): J / K / L and a keep move it there (card.focus()), and when
 // a dialog (放弃, 这一条的记录) goes, the focus goes back to the current card, so a screen reader follows the list.
-// Test hooks: article[data-card][data-url][data-current], [data-waiting], [data-unverified], [data-maybe-duplicate],
+// v2 package H (design UC5 step 3): a card whose material had 「写给 AI 的话」 (the core's aiInstruction) carries an amber mark; its
+// hover line is what the check found (the card's verification.aiInstruction), 「这一条的记录」 shows it too. Keep / let go as ever.
+// Test hooks: article[data-card][data-url][data-current], [data-waiting], [data-unverified], [data-ai-instruction][title], [data-maybe-duplicate],
 // [data-action=open|keep|dismiss|later], the dialog [data-dialog="dismiss"] with [data-field="reason"] and
 // [data-action=confirm-dismiss|cancel-dismiss], the panel [data-part="reasons"] with [data-reason] lines, [data-action="adjust"].
 import { html, useEffect, useRef, useState } from '../lib/html.js'
@@ -18,7 +20,7 @@ import { Act } from '../lib/action.js'
 import { Dialog, LinkButton, Panel, Tag, TopBar } from '../kit/index.js'
 import { DAY, ERRORS, NODE_NAMES, SEP } from '../texts/common.js'
 import { INBOX as T } from '../texts/inbox.js'
-import { VerdictDialog } from './verdict-dialog.js'
+import { VerdictDialog, aiPhrases } from './verdict-dialog.js'
 import { LibraryFrame } from './library-frame.js'
 
 const LONG_WAIT = 14
@@ -34,6 +36,12 @@ function ScoreLine({ id, score }) {
   </span>`
 }
 
+/** The hover line of the 「写给 AI 的话」 mark: the sentences the card's check found (verification.aiInstruction), or where they are. */
+function aiHint(item) {
+  const phrases = aiPhrases(item.verification?.aiInstruction)
+  return phrases.length ? fmt(T.card.aiInstructionHint, { phrases: phrases.map(p => fmt(T.card.aiInstructionPhrase, { phrase: p })).join(SEP) }) : T.card.aiInstructionNoPhrase
+}
+
 function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onRecord }) {
   const scores = item.scores ?? {}
   const ids = ['relevance', 'substance', 'freshness', ...Object.keys(scores).filter(k => !['relevance', 'substance', 'freshness'].includes(k))]
@@ -47,6 +55,7 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onRec
       <div class="inbox-card__tags">
         ${waiting >= LONG_WAIT ? html`<${Tag} tone="wait"><span data-waiting=${waiting}>${fmt(T.card.waiting, { n: waiting })}</span><//>` : null}
         ${unverified ? html`<span class="inbox-card__unverified" data-unverified>${T.card.unverified}</span>` : null}
+        ${item.aiInstruction === true ? html`<span class="inbox-card__ai" data-ai-instruction title=${aiHint(item)}>${T.card.aiInstruction}</span>` : null}
         ${scoreless ? html`<${Tag} tone="wait"><span data-scoreless>${T.card.scoreless}</span><//>` : null}
       </div>
     </div>
