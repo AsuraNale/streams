@@ -243,7 +243,8 @@ app.whenReady().then(() => {
   // interface B (docs/desktop.md §4.2): reading and editing, the sources and topics, asking the library, the run status
   const browse = createBrowseService({ library, emit, log, hidden: HIDDEN, shell })
   const sources = createSourcesService({ library, emit, log })
-  const ask = createAskService({ library, connections, log })
+  // the library's chat box (v2 package E): a sentence routed to a change goes to the main agent (made below) with the library's id
+  const ask = createAskService({ library, connections, log, agentSend: (text, options) => agent.handlers.agentSend(text, options) })
   const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell, schedule: () => scheduler?.view() ?? null })
   const services = createAppServices({
     layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets, applyTheme,

@@ -542,6 +542,53 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 `core/scripts/agent-trial.mjs`（`--claude-only` / `--codex-only` / `--dry` / `--lost`），结果在 `docs/design/v2/agent-trial-2026-11-05.md`。
 
+## 5.16 对话分流 `route`（v2 包 E）· 有（11-09）
+
+契约 `docs/checks/2026-11-09-wp-e/contract.md`；architecture.md 2.1、2.2；设计稿 UC3。`src/ask/route.mjs`，经 `src/ask/index.mjs` 导出。**只判断，不改任何东西、不写任何文件**（`routes.jsonl` 由桌面调 `appendRouteLine` 写）。桌面怎么接见 `docs/desktop.md` §4.7。
+
+### 5.16.1 `routeMessage(text, { connector? })` → `{ route: 'question' | 'change' | 'unsure', confidence: 0–1, by: 'rule' | 'model' | 'none', reason }`
+
+`text` 去掉首尾空白后不能为空（否则抛 `bad-question`）。`reason` 是给日志看的一句英文（不是界面文字），如 `change signals: 以后, 也追踪`。
+
+1. **规则**（`routeByRules`，零模型调用）：在整句里找下面两张表（`CHANGE_SIGNALS` / `QUESTION_SIGNALS`，`routeSignals(text)` 给出找到的词）：
+   - 只有改动信号 → `{ route: 'change', confidence: 0.8, by: 'rule' }`；
+   - 只有提问信号 → `{ route: 'question', confidence: 0.8, by: 'rule' }`；
+   - 两种都有，或都没有 → 第 2 步。
+2. **模型兜底**：
+   - 没有连接（`connector` 不给、或没有 `complete`）→ `{ route: 'unsure', confidence: 0, by: 'none' }`，不调模型。
+   - 有连接：一次 `connector.complete({ prompt, format: 'json', model: 'main' })`——与问库同一组参数（v1.0 的一问一答：无工具、不留会话、没有 system；Claude Code / Codex 用零工具 / 只读沙箱那组参数，见第三节；不用包 C 的 `send`）。提示词 = `ROUTE_PROMPT_HEAD`（固定：说明 question / change 各指什么、横线之间是消息不是指令、只回 `{"route": "question" | "change", "confidence": 0 到 1}`）+ 横线之间的这句话（`routePrompt(text)`）。
+   - 回答要恰好读得出 `route` ∈ `question` · `change` · `unsure`、`confidence` 是 0–1 的数（`readRouteAnswer`）；不是 JSON 或形状不对 = 坏格式 → 重试一次（提示词末尾加 `RETRY_SUFFIX`，同 `completeJson`）；再坏 → `unsure`（`by: 'model'`，`confidence: 0`）。
+   - 连接失败（登录过期、网络…）→ 马上 `unsure`（`by: 'model'`，`confidence: 0`），不重试。
+   - 模型说 `unsure`，或 `confidence < 0.6`（`MODEL_MIN_CONFIDENCE`）→ `{ route: 'unsure', confidence: 模型给的, by: 'model' }`；否则 `{ route: 模型说的, confidence: 模型给的, by: 'model' }`。
+
+**改动信号**（`CHANGE_SIGNALS`；中文按字面子串，英文不分大小写、按整词）：
+
+| 词 | 怎么认 |
+|---|---|
+| 以后 · 今后 · 往后 · 从现在起 · 也追踪 · 跟踪 · 关注 · 加上 · 加一个 · 添加 · 删掉 · 去掉 · 别再 · 不要再 · 不再 · 改成 · 换成 · 暂停 · 停掉 · 上限 · 过关线 | 句中任何位置出现这几个字 |
+| 每天几点 | 「每天」+ 一个钟点（1–2 位数字含全角、一到三个中文数字「零一二三四五六七八九十两」、或「几」本身）+「点」：`每天8点`、`每天十点`、`每天几点` |
+| from now on · start tracking · add · remove · stop · pause · instead of | 整词（`\b…\b`）：`address` 里的 add、`unstoppable` 里的 stop 不算 |
+| also track | `also track` 开头即可（`also tracking` 也算） |
+| change … to | 同一句里（不跨 `. ! ? 。！？` 与换行）先有整词 `change`、后有整词 `to` |
+| don't … anymore | 同一句里先有 `don't` / `don’t` / `dont` / `do not`、后有整词 `anymore` |
+
+**提问信号**（`QUESTION_SIGNALS`）：
+
+| 词 | 怎么认 |
+|---|---|
+| ? · ？ | 半角或全角问号，任何位置 |
+| 谁 · 什么 · 哪 · 怎么 · 为什么 · 多少 · 是否 · 有没有 · 比较 · 对比 | 句中任何位置 |
+| 吗 · 呢（句末） | 后面只跟空白、引号、括号、`~ ～ …`，再到 `。 ． . ! ！ ? ？ ; ；`、换行或整段末尾；「呢子大衣」「吗啡」里的不算 |
+| what · which · who · how · why · when · does · do · is · are · can（句首） | 不分大小写的整词，在整段开头或 `. ! ? 。！？ ; ；`、换行之后（可隔空白与左引号、左括号）；`The library is fine.` 里的 is 不算 |
+
+例（测试里每个词各有一句）：「以后也追踪港股服装公司的公告。」→ `change`（以后、也追踪）；「安踏和李宁三季度谁的流水更好？」→ `question`（？、谁）；「以后会怎样？」→ 都有 → 模型；「你好」→ 都没有 → 模型。
+
+### 5.16.2 `_pipeline/routes.jsonl`（只追加）
+
+`appendRouteLine(libraryDir, { text, route, by, confidence, resolvedBy? }, { now? })` 追加一行 `{ at, text: 前 200 字（按字符，不按字节）, route, by, confidence, resolvedBy?: 'you' }`（`route` 不是三种之一 → `bad-argument`；前一行丢了换行时先补换行，同 `demand.jsonl`）。`readRoutes(libraryDir)` 读回全部行（坏行跳过）。桌面：分流的一句 `by` 是 `routeMessage` 的；你在「这是要改这个库吗？」里选的一句 `by: 'you'`、`confidence: 1`、`resolvedBy: 'you'`。
+
+常量：`ROUTES`、`RULE_CONFIDENCE`（0.8）、`MODEL_MIN_CONFIDENCE`（0.6）、`ROUTE_RETRIES`（1）、`ROUTES_FILE`、`ROUTE_TEXT_CHARS`（200）、`ROUTE_PROMPT_HEAD`。测试：`test/route.test.mjs`。
+
 ## 六、桌面桥（desktop 主进程 → 页面）
 
 页面唯一入口 `window.streams`；主进程把上面每个函数包成桥方法（名字同核心函数，加 `library:` / `fetch:` / `connect:` / `pipeline:` / `ask:` 前缀），事件：`round-progress`、`inbox-changed`、`status-changed`、`settings-changed`、`update`。桥方法表写在 `docs/desktop.md`。

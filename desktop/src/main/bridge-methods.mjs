@@ -196,6 +196,10 @@ export const BRIDGE_METHODS = Object.freeze({
   getDemands: Object.freeze({ args: 0 }),
   addDemand: Object.freeze({ args: 2, check: ([topic, q]) => name100(topic) && shortString(500)(q) }),
   answerFeedback: Object.freeze({ args: 2, check: ([q, note]) => nonEmptyShort(500)(q) && nonEmptyShort(2000)(note) }),
+  // v2 package E (services/ask.mjs; docs/desktop.md §4.7): the library's chat box, one sentence (1–500 characters) routed to the
+  // library's answer or the main agent; your answer to 「这是要改这个库吗？」 takes the route you chose. One sentence at a time
+  sendLibraryMessage: Object.freeze({ args: 1, check: ([t]) => question(t) }),
+  resolveLibraryMessage: Object.freeze({ args: 2, check: ([t, route]) => question(t) && (route === 'question' || route === 'change') }),
 })
 
 export const ERROR_CODES = Object.freeze([
@@ -203,7 +207,7 @@ export const ERROR_CODES = Object.freeze([
   'bad_arguments', // wrong number or kind of arguments
   'no_library', // no library folder opened yet
   'open_failed', // the system could not open the folder or the address
-  'no_connection', // a method that calls a model (askLibrary, previewNode) with no connection chosen
+  'no_connection', // a method that calls a model (askLibrary, previewNode, sendLibraryMessage / resolveLibraryMessage) with no connection chosen
   'internal', // anything else; the details go to the app's log, not to the page
 ])
 

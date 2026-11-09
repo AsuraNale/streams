@@ -198,6 +198,8 @@ frame-ancestors 'none'
 | `getDemands()` | 无 | 核心 `demands` | S10 右栏 |
 | `addDemand(topic, question)` | 主题非空 | 核心 `addDemand` | S10「记到想补的主题」 |
 | `answerFeedback(question, note)` | 两个非空字符串 | `{ ok: true }` | S10「这个回答哪里不对」 |
+| `sendLibraryMessage(text)` | 1–500 字（去掉首尾空白后） | **v2 包 E**：库内对话框的一句话，作用于当前库。先分流（核心 `routeMessage`，§4.7）：`question` → 走 `askLibrary` 的同一条路径；`change` → 主 Agent `agentSend(text, { libraryId: 当前库 })`；`unsure` → 谁都不问。返回 `{ route, by, confidence, result }`（`result` 是核心 `ask` 或 `agentSend` 的返回，原样）；`unsure` 时是 `{ route: 'unsure', by, confidence, text }`（没有 `result`）。每次在库的 `_pipeline/routes.jsonl` 记一行。与 `askLibrary` 共用「一次只许一句」（第二句 → `bad_arguments`）；去问库或主 Agent 时没选连接 → `no_connection`；`no_library` | 问库页（包 G） |
+| `resolveLibraryMessage(text, route)` | `text` 同上；`route` ∈ `'question'` · `'change'`（别的 → `bad_arguments`） | **v2 包 E**：你在「这是要改这个库吗？」里选了以后调：照选的走、不再分流；返回 `{ route, by: 'you', confidence: 1, result }`；`routes.jsonl` 记一行（`by: 'you'`、`resolvedBy: 'you'`）；一次只许一句、`no_connection`、`no_library` 同上 | 问库页（包 G）拿不准时的两个按钮 |
 | `getVerdicts(url)` | url 在账本里 | 核心 `verdictsFor` | S15 |
 <!-- bridge:end -->
 
@@ -282,12 +284,12 @@ frame-ancestors 'none'
 - `openInObsidian`：核心 `notePath` 给的路径必须在 `<库>/notes/` 之内（按文字核），否则 `internal`；`openExternal` 失败才 `openPath`，`openPath` 也失败 → `open_failed`。`openLogsFolder`：文件夹不在或 `openPath` 失败 → `open_failed`。hidden 下两者都只记日志、回 `null`。
 - `trySource`：只取来源对象里抓取器读的键（`name` `kind` `url` `query` `topic` `min_points` `max_results`）；`kind` 不在核心 `SOURCE_KINDS`、rss 没有 http(s) 地址、arXiv / HN 没有检索词 → `bad_arguments`，不发请求。`sample` 每项 `{ title, date }`，`http` 没有时为 `null`。
 - `searchLibrary`、`getLibrary`、`getGraph`、`getStatus`、`addDemand`、`answerFeedback` 把主进程的时钟（`now` 函数）传给核心。
-- `askLibrary` 的模型调用经 `createUsageCounter(库).wrap(连接器, 'ask')` 记进 `usage.jsonl`。
+- `askLibrary` 的模型调用经 `createUsageCounter(库).wrap(连接器, 'ask')` 记进 `usage.jsonl`。v2 包 E 起问库页的一句话先分流（`sendLibraryMessage`，§4.7）：提问才走这条路径，改动要求交主 Agent。
 - `savePipeline` 返回的 `config` 是保存后重读的 `pipelineConfig`（带底线项）。`getPipeline().verdictFailures` 的键是配置里全部关卡与摘要节点的 id。
 - 发 `library-changed`（payload 同 §4.1）的：`editNote`、`addSource`、`updateSource`、`removeSource`、`setSourcePaused`、`addTopic`、`updateTopic`、`removeTopic`、`savePipeline`，以及真登记了的 `addManualLink`。
 - 没选连接时 `startRound` 跑一轮**不打分**的（方案 S1「没有连接也能抓，只是不打分，全部进待看」）：`selfCheck(dir, { connector: null, scoreless: true })` 与 `runRound(dir, { connector: null, scoreless: true, … })`，抓到的全部进待看、0 次模型调用；`round-progress` 的 `result` 与 `getHome().lastRound` 里带 `scoreless: true`；这种轮写待看时核心报的 `inbox` 阶段在事件里仍记 `phase: 'fetch'`（页面的阶段词表没有 `inbox`），不出现 `gate:*` / `summary`。选了连接时照旧（连接器坏 → `started: false` 与 S13）。
 
-**新错误码** `no_connection`：要调模型的方法（`askLibrary`、`previewNode`）在没选连接时回它；页面说「还没选连接方式」并给「去设置」。
+**新错误码** `no_connection`：要调模型的方法（`askLibrary`、`previewNode`；v2 包 E 起还有 `sendLibraryMessage` / `resolveLibraryMessage` 去问库或主 Agent 时）在没选连接时回它；页面说「还没选连接方式」并给「去设置」。
 
 **侧栏**：九个入口都成真屏（界面 B 后 `placeholder.js` 只剩不用的工厂，可删）。v2 包 F 起这九个入口收进库页的五个标签，见 §五「界面结构」。
 
@@ -412,6 +414,25 @@ frame-ancestors 'none'
 
 测试：`test/services-agent.test.mjs`（桥参数、出卡经包 B、一次一轮、正本与状态、开发钩子与打包判断、流水线后记录建议卡、不要 / 要的字节对比、用量）；核心 `core/test/agent.test.mjs`、`core/test/connect-session.test.mjs`。
 
+### 4.7 §四补：问库的对话分流（v2 包 E，11-09）
+
+契约 `docs/checks/2026-11-09-wp-e/contract.md`；核心 `docs/core-api.md` 5.16；`services/ask.mjs`。本包只有后台，问库页上的显示（「这句转给主 Agent」、内联提议卡、拿不准时的两个按钮）在包 G。`askLibrary` 保留不变；包 G 的问库页改用 `sendLibraryMessage`。
+
+**一句话怎么走**（`sendLibraryMessage(text)`，当前库）：
+1. **分流**：核心 `routeMessage(text, { connector })`，规则表见 core-api 5.16（只有改动信号 → `change` 0.8；只有提问信号 → `question` 0.8；都有或都没有 → 模型兜底）。模型兜底用设置里选定的连接（`connections.active().connector`，v1.0 的一问一答：无工具、不留会话，与问库同一组参数），经 `createUsageCounter(库).wrap(连接器, 'route')` 记进库的 `usage.jsonl`（`purpose: 'route'`）。没选连接 → 规则判不了的就是 `unsure`（`by: 'none'`）。分流只判断，不改任何东西。
+2. **记一行**：库的 `_pipeline/routes.jsonl`（核心 `appendRouteLine`，只追加）`{ at, text: 前 200 字, route, by, confidence }`。
+3. **去向**：
+   - `question` → 与 `askLibrary` 同一条路径（核心 `ask`，连接器按 `ask` 记用量），`result` = `ask` 的返回原样（连接失败的 `{ ok: false, code }` 也原样）。
+   - `change` → 主 Agent：`agentSend(text, { libraryId: 当前库的登记 id })`（包 C，§4.6；排在主 Agent 的队列里），`result` = 它的返回原样（`{ turn, reply, ask, proposalIds, notice? }`，提议卡由包 B 出成 `pending`）。
+   - `unsure` → 问库和主 Agent 都不调，返回 `{ route: 'unsure', by, confidence, text }`，由页面问你「这是要改这个库吗？」。
+4. 返回 `{ route, by, confidence, result }`。
+
+**你的回答**（`resolveLibraryMessage(text, route)`，`route` ∈ `question` · `change`）：照选的走第 3 步（不再分流、不调分流模型），`routes.jsonl` 记 `{ at, text, route, by: 'you', confidence: 1, resolvedBy: 'you' }`，返回 `{ route, by: 'you', confidence: 1, result }`。
+
+**一次只许一句**：`askLibrary`、`sendLibraryMessage`、`resolveLibraryMessage` 共用一个「正在处理」的位置（从分流开始，到问库或主 Agent 的一轮结束）；这时再来一句 → `bad_arguments`（与问库原来的规矩相同）。跑完或出错都放开。
+
+测试：`test/services-route.test.mjs`（桥参数、三种去向用假连接与包 C 的脚本化假主 Agent 核、`resolveLibraryMessage` 照选的走、`routes.jsonl` 只追加、一次一句、`main.mjs` 接线）；核心 `core/test/route.test.mjs`。
+
 ## 五、界面写法
 
 **选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。
@@ -489,6 +510,7 @@ src/renderer/
 | `single-instance.test.mjs` | 第二次启动立刻退出、第一个把窗口提到前面 | 是 |
 | `tray.test.mjs` · `ui-schedule.test.mjs` | 定时开时关窗口进程还在、关时退出；`STREAMS_DEV_NOW` 下错过 → 启动补跑一轮且只一轮、`notifications.jsonl` 一条，没错过 → 不补；设置「运行」改时刻 / 关定时写 settings.json、25:00 被拒；今日顶栏；首次设置「定时」屏。测试世界的 `settings.json` 默认 `schedule.enabled: false`（`test/support/app.mjs`），要定时的测试自己打开 | 是 |
 | `services-schedule.test.mjs` | 假时钟下补跑判定、只补一轮、定时器到点只跑一次、提示 0 条不发、托盘菜单 | 否 |
+| `services-route.test.mjs`（v2 包 E） | 库内对话分流（§4.7）：`question` 只调问库、`change` 只调主 Agent 且带当前库 id、`unsure` 两个都不调；`resolveLibraryMessage` 照选的走、不调分流模型；`routes.jsonl` 只追加；一次一句（与 `askLibrary` 共用）；三张方法表；`main.mjs` 接线 | 否 |
 | `protocol.test.mjs` | 不起 Electron：页面文件 200；指向别的机器的写法 1 秒内 404；路径规则逐条；中文文件名；英文下 `texts/` 换 `texts-en/`；组件一览只在开发时发 | 否 |
 | `bridge.test.mjs` | 预加载、主进程表、本文 §四 表三者一致；事件主题三处一致；预加载只交出一个对象；信封与错误码 | 否 |
 | `layout.test.mjs` · `settings.test.mjs` · `locale.test.mjs` | 布局；settings.json 的每个字段；语言的判定与状态 | 否 |

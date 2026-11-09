@@ -130,6 +130,9 @@ const METHODS = [
   'getDemands',
   'addDemand',
   'answerFeedback',
+  // v2 package E: the chat box of a library, routed (question / change / unsure), and your answer to 「这是要改这个库吗？」
+  'sendLibraryMessage',
+  'resolveLibraryMessage',
 ]
 const EVENT_TOPICS = [
   'settings-changed',
