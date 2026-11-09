@@ -303,10 +303,12 @@ test('库架 with no library registered: one line and two buttons (the files of 
   assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-shelf-card], [data-library-row]').length), 0)
   assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="shelf-empty"] [data-action]')].map(a => a.dataset.action)), ['empty-chat', 'empty-manual'])
   assert.deepEqual(shelf.dirs.map(d => readFileSync(join(d, 'streams.json'), 'utf8')), before)
+  // v2 package I: 手动新建 is 新建库's own flow (screens/new-library.js), no longer a dialog; 取消 comes back to 库架
   await s.page.click('[data-action="empty-manual"] button')
-  await until(() => document.querySelector('[data-dialog="new-library"]') !== null)
+  await ready(s.page, 'new-library')
+  assert.equal(await s.page.evaluate(() => document.querySelector('.fr-body')?.dataset.step), 'folder')
   await s.page.click('[data-action="cancel-new"] button')
-  await until(() => document.querySelector('[data-dialog="new-library"]') === null)
+  await ready(s.page, 'shelf')
 })
 
 test('no page errors', () => {

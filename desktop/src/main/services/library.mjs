@@ -26,18 +26,28 @@
  *
  * 首次设置 records who decided each of its steps in the current library's streams.json (`recordSetupStep`, the core's;
  * plan A1), and the settings page reads it back (`getSetup`): a library made before, or imported, has none ({}).
+ * v2 package I: 首次打开 walks its connection step while the app knows no library — `recordSetupStep('connection', …)` with
+ * no current library writes settings.json's `setupConnection` ({ by, at, detail? }; any other step: no_library). A library
+ * 新建库 makes (an empty folder: createLibrary; a folder of .md files: importFolder) gets that record as its
+ * setup.connection, its `at` kept, when it has none yet.
+ *
+ * 新建库默认放在 (v2 package I; settings.json `libraryRoot`, package B's): getLibraryRoot → { path, isDefault } (no setting:
+ * the app's default place, `defaultLibraryRoot`); chooseLibraryRoot = the system's folder dialog (STREAMS_DEV_CHOOSE_FOLDER in
+ * development) then the same checks as setLibraryRoot(path | null): an absolute path, not the app-data folder or inside it
+ * (bad_arguments, nothing written); null = back to the default. chooseLibraryFolder's dialog opens in that folder when it is there.
  * @module desktop/main/services/library
  */
 
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { BridgeError, bridgeErrorOf } from '../bridge-methods.mjs'
 import {
   CONFIG_FILE, NO_OUTPUT_ROUNDS, REGISTRY_FILE, countFirstLevelMd, createLibrary, defaultIcon, homeNumbers, importFolder, libraryAt,
-  libraryOf, migrateRegistry, readBrief, readConfig, readRegistry, readSetup, rebuildIndex, recordSetupStep, usageTotal, withActive, withLibrary,
+  SETUP_BY, libraryOf, migrateRegistry, readBrief, readConfig, readRegistry, readSetup, rebuildIndex, recordSetupStep, usageTotal, withActive, withLibrary,
   withMeta, withoutLibrary, writeRegistry,
 } from '../core.mjs'
-import { readSettings } from '../settings.mjs'
+import { readSettings, writeSettings } from '../settings.mjs'
+import { isInside } from '../layout.mjs'
 
 export const FOLDER_STATES = Object.freeze(['empty', 'library', 'importable', 'other'])
 // the id the development library goes by while it is not registered (never a registry id: those are 8 characters)
@@ -83,8 +93,12 @@ function usable(path) {
  * @param {string|null} [o.devChooseFolder] - STREAMS_DEV_CHOOSE_FOLDER
  * @param {string|null} [o.agentUsageFile] - the main agent's usage.jsonl (v2 package C: <appData>/agent/usage.jsonl), counted in
  *   getUsageTotal on its own line (`agent`) and in the total
+ * @param {string|null} [o.defaultLibraryRoot] - v2 package I: where a new library goes while settings.json has no libraryRoot
+ *   (main.mjs: Documents\Streams packaged; a development run: STREAMS_DEV_LIBRARY_ROOT or a folder in its app data)
+ * @param {string[]} [o.protectedDirs] - v2 package I: folders a libraryRoot may not be in (layout.protectedDirs: the app data);
+ *   default: the settings file's folder
  */
-export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null, agentUsageFile = null }) {
+export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null, agentUsageFile = null, defaultLibraryRoot = null, protectedDirs = [dirname(settingsFile)] }) {
   // the folder the last chooseLibraryFolder gave: the only path useChosenFolder and addLibrary act on
   let chosen = null
 
@@ -142,6 +156,44 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
     return e
   }
 
+  // ---- 新建库默认放在 (v2 package I) ----
+  /** { path, isDefault }: settings.json's libraryRoot, else the default place. */
+  const rootView = () => {
+    const set = readSettings(settingsFile).libraryRoot
+    return set ? { path: set, isDefault: false } : { path: defaultLibraryRoot, isDefault: true }
+  }
+  /** libraryRoot = `path` (an absolute path outside the protected folders) or null (the default); else bad_arguments. */
+  const setRoot = path => {
+    if (path !== null) {
+      if (typeof path !== 'string' || path.trim() === '' || !isAbsolute(path)) throw new BridgeError('bad_arguments', 'libraryRoot must be an absolute path')
+      path = resolve(path)
+      if (protectedDirs.some(d => isInside(path, d))) throw new BridgeError('bad_arguments', 'libraryRoot may not be inside the app data folder')
+    }
+    writeSettings(settingsFile, { libraryRoot: path })
+    log(`library: new libraries go to ${path ?? `the default place (${defaultLibraryRoot})`}`)
+    emit('settings-changed', null)
+    return rootView()
+  }
+  /** The folder a dialog opens in: the libraryRoot when it is a folder that is there, else the system's choice. */
+  const dialogStart = () => {
+    const p = rootView().path
+    try { return p && statSync(p).isDirectory() ? { defaultPath: p } : {} } catch { return {} }
+  }
+
+  /**
+   * 首次打开's connection record (settings.json setupConnection) as `path`'s setup.connection, its time kept — only when the
+   * library has no connection record yet. A failure is logged, not thrown: the library is made either way.
+   */
+  const inheritConnection = path => {
+    const c = readSettings(settingsFile).setupConnection
+    if (!c) return
+    try {
+      if (readSetup(path).connection) return
+      recordSetupStep(path, 'connection', c.detail === undefined ? { by: c.by } : { by: c.by, detail: c.detail }, { now: () => new Date(c.at) })
+      log(`library: ${path}: setup.connection from the first-run record (${c.by}${c.detail ? ` ${c.detail}` : ''}, ${c.at})`)
+    } catch (err) { log(`library: ${path}: setup.connection not copied: ${String(err?.message ?? err)}`) }
+  }
+
   /** The current library changed: the events v1.0 sent on an open, with the library's id. */
   const announce = why => {
     const lib = current()
@@ -196,7 +248,7 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
       if (devChooseFolder) {
         path = devChooseFolder
       } else {
-        const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
+        const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'], ...dialogStart() })
         if (r.canceled || !Array.isArray(r.filePaths) || r.filePaths.length === 0) { chosen = null; return null }
         path = r.filePaths[0]
       }
@@ -221,6 +273,7 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
           log(`library: cannot make a library in ${path}: ${String(err?.code ?? '')} ${String(err?.message ?? err)}`)
           throw new BridgeError('open_failed')
         }
+        inheritConnection(path)
         return open(path)
       }
       if (state2 === 'library') return openExisting(path)
@@ -233,6 +286,7 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
           log(`library: cannot import ${path}: ${String(err?.code ?? '')} ${String(err?.message ?? err)}`)
           throw new BridgeError('open_failed')
         }
+        inheritConnection(path)
         return open(path)
       }
       log(`library: ${path} is ${state2} (was ${state}): not a library and not empty`)
@@ -253,8 +307,20 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
       emit('library-changed', current())
       return { count: r.entries.length, pending: r.pending.map(p => ({ file: p.file, codes: p.codes })) }
     },
-    /** 首次设置, at the end of each step: who decided it (core recordSetupStep: bad-setup → bad_arguments). */
+    /**
+     * 首次设置, at the end of each step: who decided it (core recordSetupStep: bad-setup → bad_arguments). v2 package I: no
+     * library yet and the step is the connection (首次打开) → settings.json setupConnection, checked the way the core checks.
+     */
     recordSetupStep(step, entry) {
+      if (!dir() && step === 'connection') {
+        const ok = entry !== null && typeof entry === 'object' && !Array.isArray(entry) && Object.keys(entry).every(k => k === 'by' || k === 'detail')
+          && SETUP_BY.includes(entry.by) && (entry.detail === undefined || (typeof entry.detail === 'string' && entry.detail.length <= 100))
+        if (!ok) throw new BridgeError('bad_arguments', 'a setup entry is { by, detail? }')
+        const record = { by: entry.by, at: now().toISOString(), ...(entry.detail === undefined ? {} : { detail: entry.detail }) }
+        writeSettings(settingsFile, { setupConnection: record })
+        log(`library: first-run connection ${record.by}${record.detail ? ` ${record.detail}` : ''} (settings.json, no library yet)`)
+        return { step, ...record }
+      }
       const d = require()
       try { return recordSetupStep(d, step, entry) } catch (err) { throw bridgeErrorOf(err) }
     },
@@ -269,6 +335,20 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
       shell.showItemInFolder(d)
       return null
     },
+    // ---- 新建库默认放在 (v2 package I) ----
+    getLibraryRoot: () => rootView(),
+    /** The system's folder dialog (or the development hook); null when nothing was chosen; else as setLibraryRoot. */
+    async chooseLibraryRoot() {
+      let path
+      if (devChooseFolder) path = devChooseFolder
+      else {
+        const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'], ...dialogStart() })
+        if (r.canceled || !Array.isArray(r.filePaths) || r.filePaths.length === 0) return null
+        path = r.filePaths[0]
+      }
+      return setRoot(path)
+    },
+    setLibraryRoot: path => setRoot(path),
     // ---- the registry (v2 package A) ----
     /** Every library the app knows, in order: the row, whether it is the current one, whether its folder can be read. */
     listLibraries() {

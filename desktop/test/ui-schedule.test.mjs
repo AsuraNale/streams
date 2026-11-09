@@ -111,23 +111,24 @@ test('no page errors (session A)', () => {
   assert.deepEqual(s.errors, [])
 })
 
+// v2 package I: 「定时」 is the last step of 新建库 (the manual way; 首次打开 is the connection and 和主 Agent 聊 now). Session B starts on
+// 新建库 with the world's library open (a library exists, so not 首次打开) and walks folder → blank pack → round → 定时; the
+// assertions are v1.0's, the sidebar has 新建库's four steps (no connection)
 const b = worldSession({
   kind: 'empty',
-  waitFor: 'first-run',
+  waitFor: 'new-library',
   settings: { schedule: { enabled: false, time: '08:30' } },
   prepare: world => { mkdirSync(join(world.root, 'chosen')) },
-  env: world => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: join(world.root, 'chosen') }),
+  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: join(world.root, 'chosen'), STREAMS_START_SCREEN: 'new-library' }),
 })
-const stepIs = id => b.page.waitForFunction(i => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === i, id, POLL)
+const stepIs = id => b.page.waitForFunction(i => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === i, id, POLL)
 
-test('首次设置: after the first round, 下一步 → the last screen 「定时」: every day at 08:30, in the tray, the rules; five steps in the sidebar', async () => {
+test('新建库: after the first round, 下一步 → the last screen 「定时」: every day at 08:30, in the tray, the rules; four steps in the sidebar', async () => {
   const steps = await b.page.evaluate(() => [...document.querySelectorAll('.st-sidebar [data-step]')].map(e => e.dataset.step))
-  assert.deepEqual(steps, ['folder', 'connection', 'pack', 'trial', 'schedule'])
+  assert.deepEqual(steps, ['folder', 'pack', 'trial', 'schedule'])
   await b.page.click('[data-action="choose-folder"] button')
   await b.page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
   await b.page.click('[data-action="next"] button')
-  await stepIs('connection')
-  await b.page.click('[data-action="skip"] button')
   await stepIs('pack')
   await b.page.click('[data-pack="blank"]')
   await b.page.click('[data-action="apply"] button')
@@ -148,7 +149,7 @@ test('首次设置: after the first round, 下一步 → the last screen 「定�
   assert.ok(rules.includes(FIRST_RUN.schedule.missed) && rules.includes(FIRST_RUN.schedule.close), rules)
 })
 
-test('首次设置 「定时」: 完成 = setSchedule with the default → the new library streams.json (v1.0: settings.json) { enabled: true, time: 08:30 }, then 待看', async () => {
+test('新建库 「定时」: 完成 = setSchedule with the default → the new library streams.json (v1.0: settings.json) { enabled: true, time: 08:30 }, then 待看', async () => {
   const chosen = join(b.world.root, 'chosen')
   assert.deepEqual(scheduleOf(chosen), { enabled: false, time: '08:30' }, 'control: the world started with it off (settings.json\'s, written into the new library)')
   await b.page.click('[data-action="go-inbox"] button')

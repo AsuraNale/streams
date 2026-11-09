@@ -54,22 +54,28 @@ export const SHELL = Object.freeze({
   }),
 
 
-  // 「新建库」 (the sidebar, the shelf): v1.0's two ways — a new library in an empty folder, or a folder that already holds
-  // one (or your own .md files)
+  // 「新建库」 (v2 package I: screens/new-library.js, the manual way — the sidebar, the shelf, 首次打开's 「也可以手动新建」): v1.0's
+  // 首次设置 without its connection step — 库放在哪 → 主题与来源 → 试跑一轮 → 定时 (the steps' words: texts/first-run.js)
   newLibrary: Object.freeze({
     title: '新建库',
-    text: '选一个空文件夹新建一个库，或者打开一个已经有库（或你自己的 .md 笔记）的文件夹。建好后它会出现在「我的库」里。',
-    name: '库名',
-    namePlaceholder: '不填就用文件夹名',
-    chooseEmpty: '选一个空文件夹新建',
-    chooseExisting: '打开已有文件夹',
-    chosen: '选的文件夹：{path}',
-    importable: '这个文件夹里有 {n} 个 .md，流息会把它当库打开，不搬、不改你的文件。',
-    importNow: '当库打开',
-    other: '这个文件夹里有别的东西，换一个。',
-    notEmpty: '新建库要一个空文件夹。',
-    failed: '没能打开这个文件夹。',
     cancel: '取消',
+  }),
+
+  // 「这个库」 at the foot of 来源与要求 (v2 package I: what 设置 had of the current library)
+  thisLibrary: Object.freeze({
+    title: '这个库',
+    hint: '文件夹、索引、登记',
+    folder: '文件夹',
+    reveal: '在资源管理器中显示',
+    revealFailed: '没能打开这个文件夹。',
+    remove: '移除这个库',
+    removeHint: '只从流息的库列表里去掉，文件夹和里面的文件都不动。',
+    removeDialog: Object.freeze({
+      title: '移除「{name}」？',
+      text: '只去掉登记：它不再出现在「我的库」里，也不再定时跑；文件夹和里面的文件一个都不删。以后用「新建库」选这个文件夹，就能再打开它。',
+      confirm: '移除',
+      cancel: '取消',
+    }),
   }),
 
   // 「谁定的」 beside each part of 来源与要求 (getWhoDecided)

@@ -8,17 +8,19 @@
 //       shelf                      库架
 //       lib-overview | lib-inbox | lib-library | lib-ask | lib-sources   a library's page on each of its five tabs
 //       (today, status and pipeline are v1.0's ids: 概览, 概览 scrolled to 「运行状态」, 来源与要求 scrolled to 「关卡」)
-//       first-run   no library open, the wizard walked to its second step (the folder chosen through the development hook)
+//       first-run   no library registered: 首次打开, its connection step (v2 package I; v1.0: the wizard's second step)
 //       run         概览 with the 「跑一轮」 dialog open
 //       error       概览 after a round that could not start (STREAMS_DEV_CONNECTION=login-expired): the S13 card
 //       library | edit | sources | pipeline | status | ask | graph   plan B's screens on the seeded world plus its extras
 //                   (test/support/seed.mjs seedPlanB): library = 资料库 with the MemGPT note open; edit = its 编辑 dialog;
 //                   ask = after one question
 //       settings-run        设置 on the seeded world, the schedule on (setSchedule), scrolled to 「定时一览」 (A2, 11-04; v2 package F)
-//       first-run-schedule  首次设置 walked to its last screen 「定时」: the folder, the connection skipped, the blank pack, the round
+//       first-run-schedule  新建库 walked to its last screen 「定时」 (v2 package I: 首次打开's connection skipped → 和主 Agent 聊 →
+//                           也可以手动新建 → the folder, the blank pack, the round)
 //       import      资料库 · 待规范 (S8) on a folder of .md files imported as a library: one card per file (11-04)
 //       settings-theme   设置 scrolled to 「主题」 (the three sets; docs/desktop.md §五) (11-04)
-//       settings-setup   设置 scrolled to 「库」 with 「首次设置」: six records written by the core before the start (plan A1, 11-04)
+//       settings-setup   来源与要求 scrolled to 「这个库」 with 「首次设置」: six records written by the core before the start (plan A1,
+//                        11-04; v2 package I moved it from 设置)
 //       no-output        概览 with 「连续 3 轮没有产出」: three rounds without output appended to rounds.jsonl (plan C8, 11-04)
 //       licenses         设置 with the 许可证与致谢 dialog open (S14, 11-04)
 //   v2 package H (11-09), on a library with nothing kept whose items are pages of a site on this machine (any --world;
@@ -76,7 +78,7 @@ const PLAN = {
   import: { start: 'library', connection: 'fake', importFolder: true },
   // 11-04: the three themes' row, 首次设置's record, the banner of plan C8, 许可证与致谢
   'settings-theme': { start: 'settings', connection: 'fake' },
-  'settings-setup': { start: 'settings', connection: 'fake', setupRecord: true },
+  'settings-setup': { start: 'sources', connection: 'fake', setupRecord: true },
   'no-output': { start: 'overview', connection: 'fake', noOutput: true },
   // v2 package F: three registered libraries (seedShelf), the seeded one current
   shelf: { start: 'shelf', connection: 'fake', planB: true, shelf: true },
@@ -146,9 +148,6 @@ try {
   const page = started.page
   if (screen === 'first-run') {
     await ready(page, 'first-run')
-    await page.click('[data-action="choose-folder"] button')
-    await page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
-    await page.click('[data-action="next"] button')
     await page.waitForFunction(() => document.querySelector('main[data-screen="first-run"][data-state="ready"] [data-part="step-connection"] [data-connection]') !== null, null, POLL)
   } else if (screen === 'run') {
     await ready(page, 'overview')
@@ -189,13 +188,16 @@ try {
     await page.waitForFunction(() => document.querySelector('[data-part="schedules"] [data-schedule="on"]') !== null, null, POLL)
     await page.evaluate(() => document.querySelector('[data-part="schedules"]').scrollIntoView({ block: 'start' }))
   } else if (screen === 'first-run-schedule') {
-    const step = id => page.waitForFunction(i => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === i, id, POLL)
+    const step = id => page.waitForFunction(i => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === i, id, POLL)
     await ready(page, 'first-run')
+    await page.waitForFunction(() => document.querySelectorAll('[data-connection]').length === 3, null, POLL)
+    await page.click('[data-action="skip"] button')
+    await ready(page, 'chat')
+    await page.click('[data-action="manual-new"] button')
+    await ready(page, 'new-library')
     await page.click('[data-action="choose-folder"] button')
     await page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
     await page.click('[data-action="next"] button')
-    await step('connection')
-    await page.click('[data-action="skip"] button')
     await step('pack')
     await page.click('[data-pack="blank"]')
     await page.click('[data-action="apply"] button')
@@ -207,9 +209,9 @@ try {
     await page.click('[data-action="next"] button')
     await step('schedule')
   } else if (screen === 'settings-theme' || screen === 'settings-setup') {
-    await ready(page, 'settings')
-    const part = screen === 'settings-theme' ? 'theme' : 'library'
-    if (screen === 'settings-setup') await page.waitForFunction(() => document.querySelector('[data-part="library"] [data-part="setup"]')?.dataset.setup === 'recorded', null, POLL)
+    await ready(page, screen === 'settings-theme' ? 'settings' : 'sources')
+    const part = screen === 'settings-theme' ? 'theme' : 'this-library'
+    if (screen === 'settings-setup') await page.waitForFunction(() => document.querySelector('[data-part="this-library"] [data-part="setup"]')?.dataset.setup === 'recorded', null, POLL)
     await page.evaluate(p => document.querySelector(`[data-part="${p}"]`).scrollIntoView({ block: 'start' }), part)
   } else if (screen === 'no-output') {
     await ready(page, 'overview')

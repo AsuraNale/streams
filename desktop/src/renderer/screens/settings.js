@@ -16,15 +16,28 @@
 // [data-setup-step=<step>][data-by=<by>]; the language radios' ids `settings-language-<setting>`; [data-part="theme"]
 // select[data-field="theme"] (setTheme, docs/desktop.md §五「主题」); [data-action="licenses"] → [data-dialog="licenses"] with
 // [data-part=license-text|components|notices], [data-component=<name>], [data-action=open-notices|close-licenses].
+// v2 package I (contract I2; design P9): five groups, top to bottom, each a [data-group=<id>] with its parts —
+//   connection  连接方式 (v1.0's three connections, two model slots each) + 「主 Agent 用这条连接的主模型」 [data-part="agent-uses"]
+//   agent       主 Agent [data-part="agent"] (getAgentStatus: the connection [data-agent-connection], whether the session goes on
+//               [data-session=live|none|api], how many turns [data-turns], the last summary [data-summary]); 「打开和主 Agent 聊」
+//               [data-action="open-chat"]. No 「清空对话」.
+//   library     新建库默认放在 [data-part="library-root"][data-root-default=true|false] with [data-root-path],
+//               [data-action=change-root|reset-root], [data-root-note=saved|bad|failed] (getLibraryRoot / chooseLibraryRoot /
+//               setLibraryRoot); 定时一览 and 全部库本月用量合计 (package F's, as they were)
+//   look        主题, 语言 (as they were)
+//   software    关于 (the version and the update), 许可证与致谢, 高级 (as they were)
+// What only meant something for the current library (its path, the other libraries, 新建库 / 打开已有文件夹, 重建索引, 首次设置's
+// record) is gone from here: 来源与要求's 「这个库」 (screens/sources.js; SetupRecord below is drawn there) and 新建库 (screens/
+// new-library.js). [data-part="library"] is no longer on this page.
 import { html, useEffect, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
-import { fmt, nextText } from '../lib/format.js'
+import { fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { AppFrame, AppSidebar, Button, Dialog, LinkButton, Main, TopBar } from '../kit/index.js'
-import { CONNECTIONS, NEXT_WHEN, SEP } from '../texts/common.js'
+import { CONNECTIONS, NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
 import { SETTINGS as T } from '../texts/settings.js'
 import { SHELL } from '../texts/shell.js'
 import { AboutUpdate } from './settings-update.js'
@@ -135,11 +148,19 @@ export function ApiKeyDialog({ api, onClose, onChanged }) {
   <//>`
 }
 
+/** One group of the page (v2 package I): its name, then its parts. */
+function Group({ id, name, children }) {
+  return html`<section class="settings__group" data-group=${id} aria-labelledby=${`settings-group-${id}`}>
+    <h2 class="settings__group-name" id=${`settings-group-${id}`}>${name}</h2>
+    <div class="settings__group-parts">${children}</div>
+  </section>`
+}
+
 /** One part of the page: a name on the left, the content on the right. */
 function Part({ id, name, hint, children }) {
   return html`<section class="settings__part" data-part=${id} aria-labelledby=${`settings-${id}`}>
     <div>
-      <h2 class="settings__name st-t-body" id=${`settings-${id}`}>${name}</h2>
+      <h3 class="settings__name st-t-body" id=${`settings-${id}`}>${name}</h3>
       ${hint ? html`<div class="st-t-small st-t-muted">${hint}</div>` : null}
     </div>
     <div class="settings__content">${children}</div>
@@ -207,6 +228,7 @@ function ConnectionsPart() {
       })}
     </div>` : null}
     <div class="st-t-small st-t-sub">${T.conn.which}</div>
+    <div class="st-t-small st-t-sub" data-part="agent-uses">${T.conn.agentUses}</div>
     ${keyDialog ? html`<${ApiKeyDialog} api=${data?.kinds?.api ?? {}} onClose=${() => setKeyDialog(false)} onChanged=${redetect} />` : null}
   <//>`
 }
@@ -251,8 +273,9 @@ function UsagePart() {
   <//>`
 }
 
-/** 「首次设置」 (plan A1): who decided each of the wizard's six steps, from the open library's streams.json (getSetup). */
-function SetupRecord({ setup }) {
+/** 「首次设置」 (plan A1): who decided each of the wizard's six steps, from the current library's streams.json (getSetup). v2
+ * package I: drawn in 来源与要求's 「这个库」 (screens/sources.js); the connection's record comes from 首次打开 (settings.json). */
+export function SetupRecord({ setup }) {
   if (setup.status === 'error' && !setup.data) return html`<span class="settings__error" data-part="setup" data-setup="error">${T.setupFailed}</span>`
   if (!setup.data) return html`<span data-part="setup" data-setup="loading"></span>`
   const steps = SETUP_STEPS.filter(s => Object.hasOwn(setup.data, s))
@@ -266,66 +289,60 @@ function SetupRecord({ setup }) {
   </ul>`
 }
 
-function LibraryPart({ appState }) {
-  const library = appState.data?.library ?? null
-  const setup = useLoad(() => (library ? call('getSetup') : null), [library?.path ?? null])
-  const recent = (appState.data?.recentLibraries ?? []).filter(r => (typeof r === 'string' ? r : r?.path) !== library?.path)
-  const [note, setNote] = useState(null)
+/** 主 Agent (v2 package I): getAgentStatus — the connection, the session, the conversation, the last summary. */
+function AgentPart() {
+  const { navigate } = useApp()
+  const st = useLoad(() => call('getAgentStatus'), [])
+  useEvent('agent-changed', p => { if (p?.phase === 'done') st.reload() })
+  useEvent('connections-changed', () => st.reload())
+  const A = T.agent
+  const d = st.data
+  const session = !d ? null : d.connection === null ? 'none' : d.sessionful === false ? 'api' : d.session?.live ? 'live' : 'none'
+  const sessionText = session === 'live' ? fmt(A.sessionLive, { turns: d.session.turns ?? 0 }) : session === 'api' ? A.sessionApi : A.sessionNone
+  const conn = d?.connection
+  const connText = !conn ? A.connectionNone : Object.hasOwn(CONNECTIONS.names, conn) ? CONNECTIONS.names[conn] : conn
+  return html`<${Part} id="agent" name=${A.name} hint=${A.hint}>
+    ${!d && st.status === 'error' ? html`<div class="settings__error">${A.failed}</div>` : null}
+    ${d ? html`<dl class="settings__kv-list">
+      <dt class="st-t-small st-t-sub">${A.connection}</dt>
+      <dd class=${conn ? '' : 'st-t-wait'} data-agent-connection=${conn ?? ''}>${connText}</dd>
+      <dt class="st-t-small st-t-sub">${A.session}</dt>
+      <dd data-session=${session}>${sessionText}</dd>
+      <dt class="st-t-small st-t-sub">${A.talk}</dt>
+      <dd data-turns=${d.turns ?? 0}>${fmt(A.talkLine, { turns: d.turns ?? 0, entries: d.entries ?? 0 })}</dd>
+      <dt class="st-t-small st-t-sub">${A.summary}</dt>
+      <dd data-summary=${d.lastSummaryAt ?? ''}>${d.lastSummaryAt ? whenText(d.lastSummaryAt, WHEN) ?? d.lastSummaryAt : A.summaryNone}</dd>
+    </dl>` : null}
+    <div class="settings__row"><${Act} name="open-chat" icon="chat" onClick=${() => navigate('chat')}>${A.open}<//></div>
+  <//>`
+}
+
+/** 新建库默认放在 (v2 package I): getLibraryRoot; 「换一个文件夹…」 = chooseLibraryRoot (the system's dialog); 「恢复默认」 = setLibraryRoot(null). */
+function LibraryRootPart() {
+  const root = useLoad(() => call('getLibraryRoot'), [])
   const [busy, setBusy] = useState(false)
-  const [rebuilt, setRebuilt] = useState(null)
-  const [importable, setImportable] = useState(null)
-  const choose = async mode => {
+  const [note, setNote] = useState(null)
+  const R = T.root
+  const d = root.data
+  const act = async fn => {
     setBusy(true)
     setNote(null)
     try {
-      const r = await call('chooseLibraryFolder')
-      if (!r) return
-      setImportable(null)
-      if (r.state === 'other') { setNote(T.folderOther); return }
-      if (mode === 'new' && r.state !== 'empty') { setNote(T.folderNotEmptyForNew); return }
-      // a folder of the user's own .md files (docs/desktop.md §4.3): said first, opened as a library only on the next click
-      if (r.state === 'importable') { setImportable(r); return }
-      await call('useChosenFolder', '')
-      appState.reload()
-    } catch { setNote(T.openFailed) } finally { setBusy(false) }
+      const r = await fn()
+      if (r) { root.mutate(() => r); setNote('saved') }
+    } catch (err) { setNote(err?.code === 'bad_arguments' ? 'bad' : 'failed') } finally { setBusy(false) }
   }
-  const importNow = async () => {
-    setBusy(true)
-    setNote(null)
-    try { await call('useChosenFolder', ''); setImportable(null); appState.reload() } catch { setNote(T.openFailed) } finally { setBusy(false) }
-  }
-  const openRecent = async path => {
-    setBusy(true)
-    setNote(null)
-    try { await call('openRecentLibrary', path); appState.reload() } catch { setNote(T.openFailed) } finally { setBusy(false) }
-  }
-  const rebuild = async () => {
-    setBusy(true)
-    setNote(null)
-    setRebuilt(null)
-    try { setRebuilt(await call('rebuildIndex')) } catch { setNote(T.rebuildFailed) } finally { setBusy(false) }
-  }
-  return html`<${Part} id="library" name=${T.library} hint=${T.libraryHint}>
-    <div class="settings__kv">
-      <span class="st-t-small st-t-sub">${T.current}</span>
-      ${library ? html`<span class="settings__path" data-library-path=${library.path}><b>${library.name}</b><span class="st-t-small st-t-muted settings__help">${library.path}</span></span>` : html`<span class="st-t-sub" data-library-path="">${T.noLibrary}</span>`}
-      ${library ? html`<span class="st-t-small st-t-sub settings__setup-name">${T.setup}</span><${SetupRecord} setup=${setup} />` : null}
-      <span class="st-t-small st-t-sub">${T.others}</span>
-      ${recent.length ? html`<ul class="settings__recent">
-        ${recent.map(r => { const path = typeof r === 'string' ? r : r.path; const name = typeof r === 'string' ? path.split(/[\\/]/).filter(Boolean).pop() : r.name; return html`<li key=${path}><a href="#" class="settings__link" data-recent=${path} onClick=${e => { e.preventDefault(); openRecent(path) }}>${fmt(T.otherLine, { name, path })}</a></li>` })}
-      </ul>` : html`<span class="st-t-small st-t-muted">${T.othersNone}</span>`}
-    </div>
-    <div class="settings__row">
-      <${Act} name="new-library" icon="plus" disabled=${busy} onClick=${() => choose('new')}>${T.newLibrary}<//>
-      <${Act} name="open-folder" icon="folder" disabled=${busy} onClick=${() => choose('open')}>${T.openFolder}<//>
-      <${Act} name="rebuild" disabled=${busy || !library} onClick=${rebuild}>${busy && rebuilt === null && note === null ? T.rebuilding : T.rebuild}<//>
-      ${rebuilt ? html`<span class="st-t-small st-t-done" data-rebuilt=${rebuilt.count}>${fmt(T.rebuilt, { count: rebuilt.count, tidy: rebuilt.pending?.length ?? 0 })}</span>` : null}
-      ${note ? html`<span class="settings__error" role="alert">${note}</span>` : null}
-    </div>
-    ${importable ? html`<div class="settings__row" data-part="importable" data-md-count=${importable.mdCount ?? ''}>
-      <span class="st-t-small st-t-sub">${fmt(T.folderImportable, { n: importable.mdCount ?? '' })}</span>
-      <${Act} name="import-folder" variant="primary" disabled=${busy} onClick=${importNow}>${T.importFolder}<//>
+  return html`<${Part} id="library-root" name=${R.label} hint=${R.hint}>
+    ${!d && root.status === 'error' ? html`<div class="settings__error">${R.failed}</div>` : null}
+    ${d ? html`<div class="settings__root" data-root-default=${String(d.isDefault === true)}>
+      <span class="settings__path-text" data-root-path=${d.path ?? ''}>${d.path ?? ''}</span>
+      ${d.isDefault ? html`<span class="settings__default">${R.isDefault}</span>` : null}
     </div>` : null}
+    <div class="settings__row">
+      <${Act} name="change-root" icon="folder" disabled=${busy || !d} onClick=${() => act(() => call('chooseLibraryRoot'))}>${R.change}<//>
+      <${Act} name="reset-root" disabled=${busy || !d || d.isDefault} onClick=${() => act(() => call('setLibraryRoot', null))}>${R.reset}<//>
+      ${note ? html`<span class=${note === 'saved' ? 'st-t-small st-t-done' : 'settings__error'} role=${note === 'saved' ? 'status' : 'alert'} data-root-note=${note}>${R[note]}</span>` : null}
+    </div>
   <//>`
 }
 
@@ -436,11 +453,25 @@ export function SettingsScreen() {
       <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h1" titleId="settings-title" />
       <div class="st-main__body settings__body">
         <div class="settings__list">
-          ${data ? html`<${ConnectionsPart} />` : null}
-          ${data ? html`<${SchedulesPart} /><${UsagePart} />` : null}
-          <${LibraryPart} appState=${appState} />
-          <${LanguagePart} language=${data?.language} onChange=${changeLanguage} />
-          ${data ? html`<${ThemePart} theme=${data.theme} failed=${themeFailed} onChange=${changeTheme} />` : null}
+          <${Group} id="connection" name=${T.groups.connection}>
+            ${data ? html`<${ConnectionsPart} />` : null}
+          <//>
+          <${Group} id="agent" name=${T.groups.agent}>
+            ${data ? html`<${AgentPart} />` : null}
+          <//>
+          <${Group} id="library" name=${T.groups.library}>
+            ${data ? html`<${LibraryRootPart} /><${SchedulesPart} /><${UsagePart} />` : null}
+          <//>
+          <${Group} id="look" name=${T.groups.look}>
+            ${data ? html`<${ThemePart} theme=${data.theme} failed=${themeFailed} onChange=${changeTheme} />` : null}
+            <${LanguagePart} language=${data?.language} onChange=${changeLanguage} />
+          <//>
+          <${Group} id="software" name=${T.groups.software}>
+          <${Part} id="about" name=${T.about}>
+            ${data ? html`<${AboutUpdate} version=${data.version} devBuild=${data.devBuild} />` : null}
+            <div class="st-t-small st-t-muted" data-part="made-by"><${LinkButton} onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}<//></div>
+            <div><${Act} name="licenses" onClick=${() => setLicenses(true)}>${T.licensesOpen}<//></div>
+          <//>
           <${Part} id="advanced" name=${T.advanced} hint=${T.advancedHint}>
             <div class="settings__advanced">
               <div class="settings__check">
@@ -456,10 +487,6 @@ export function SettingsScreen() {
               </div>
             </div>
           <//>
-          <${Part} id="about" name=${T.about}>
-            ${data ? html`<${AboutUpdate} version=${data.version} devBuild=${data.devBuild} />` : null}
-            <div class="st-t-small st-t-muted" data-part="made-by"><${LinkButton} onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}<//></div>
-            <div><${Act} name="licenses" onClick=${() => setLicenses(true)}>${T.licensesOpen}<//></div>
           <//>
           ${licenses ? html`<${LicensesDialog} onClose=${() => setLicenses(false)} />` : null}
         </div>

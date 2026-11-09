@@ -226,8 +226,13 @@ app.whenReady().then(() => {
   // pipeline (services/pipeline.mjs), then the shell's own services (app-services.mjs): the app state, the settings page
   const secrets = createSecretStore({ dir: layout.secretsDir, safeStorage })
   const currentLocale = () => locale.current()
+  // where a new library goes when settings.json has no libraryRoot (v2 packages B and I): a development run never falls back to
+  // the real Documents folder
+  const defaultLibraryRoot = app.isPackaged ? join(app.getPath('documents'), 'Streams') : (DEV_LIBRARY_ROOT ?? join(layout.appData, 'libraries'))
   // the libraries the app knows (v2 package A): the registry in layout.librariesFile, made from settings.json the first time
   const library = createLibraryService({
+    // 新建库默认放在 (v2 package I): shown and changed on 设置, never inside the protected folder
+    defaultLibraryRoot, protectedDirs: layout.protectedDirs,
     settingsFile: layout.settingsFile, registryFile: layout.librariesFile, emit, log, hidden: HIDDEN, dialog, shell, locale: currentLocale, now: clock, devLibrary: DEV_LIBRARY, devChooseFolder: DEV_CHOOSE_FOLDER,
     // the main agent's calls count in 「全部库本月用量合计」 on their own line (v2 package C)
     agentUsageFile: agentPaths(join(layout.appData, AGENT_DIR)).usage,
@@ -279,7 +284,6 @@ app.whenReady().then(() => {
   closeToTray = () => scheduler.enabled()
   // the proposal cards (v2 package B): made by the main agent later (createProposal, not on the bridge), confirmed on the page;
   // a confirm reaches the registry and the queue through the library service and the scheduler
-  const defaultLibraryRoot = app.isPackaged ? join(app.getPath('documents'), 'Streams') : (DEV_LIBRARY_ROOT ?? join(layout.appData, 'libraries'))
   const proposals = createProposalsService({
     appDataDir: layout.appData, library, scheduler: () => scheduler, emit, log, now: clock, locale: currentLocale,
     libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot,

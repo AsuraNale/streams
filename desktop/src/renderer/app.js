@@ -1,8 +1,13 @@
 // The page's entry: one App, which holds the route and the app's state, and shows the current screen.
 // A screen gets `params` (from navigate) and reaches the rest through useApp() (lib/app-context.js).
-// The app state is read again whenever the main process says a setting changed (event `settings-changed`) or the
-// library changed (`library-changed`). While no library is open the app shows 首次设置 (screens/first-run.js) in place
-// of the sidebar's entries, until the wizard says it is done (docs/desktop.md §4.1「首次设置」).
+// The app state is read again whenever the main process says a setting changed (event `settings-changed`), the
+// library changed (`library-changed`) or the connections did (`connections-changed`).
+// v2 package I (contract I1; docs/desktop.md §五「首次打开」): when the app state first arrives and the app knows no library at all
+// (`libraryCount` 0 — not v1.0's 「no library open」), the app shows 首次打开 (screens/first-run.js: the connection) in place of
+// the sidebar's entries; its end takes the app to 和主 Agent 聊 (the second step: its guide shows while there is no library).
+// With libraries registered and none current (a removed current library, say) the app opens on 库架 instead. It is decided once:
+// removing every library later does not bring 首次打开 back (库架 then says there is none). 新建库 (`newLibrary()`: the sidebar,
+// the shelf, the chat's guide) is the route 'new-library' (screens/new-library.js, v1.0's steps without the connection).
 //
 // v2 package F (plan B; docs/desktop.md §五「界面结构」): the sidebar does not change with the library — 库架 ('shelf'),
 // 和主 Agent 聊 ('chat'), one line per library, 「新建库」, 设置. A library's page is five tabs, each a route of LIBRARY_ROUTES
@@ -19,7 +24,6 @@ import { useLoad } from './lib/use-load.js'
 import { useLibraries, useWaiting } from './lib/libraries.js'
 import { ALIASES, FIRST_SCREEN, LIBRARY_FIRST_SCREEN, SCREENS } from './screens/index.js'
 import { FirstRunScreen } from './screens/first-run.js'
-import { NewLibraryDialog } from './screens/new-library.js'
 import { LIBRARY_ROUTES } from './kit/index.js'
 import { BRAND } from './texts/common.js'
 
@@ -50,15 +54,18 @@ const first = () => routeOf(decodeURIComponent(location.hash.slice(1))) ?? { scr
 function App() {
   const appState = useLoad(() => call('getAppState'), [])
   const [route, setRoute] = useState(first)
-  const [adding, setAdding] = useState(false)
   // per library (its registry id): the last route of its page, and how far each of its screens was scrolled
   const memory = useRef({ routes: new Map(), scroll: new Map() })
-  // first-time setup: decided once, when the app state first arrives without a library; the wizard ends it
+  // 首次打开: decided once, when the app state first arrives — the app knows no library at all; its end goes to 和主 Agent 聊
   const [setup, setSetup] = useState(null)
   useEffect(() => {
     if (setup !== null) return
-    if (appState.data) setSetup(appState.data.library === null && route.screen !== 'kit')
-    else if (appState.status === 'error') setSetup(false) // the state could not be read: the screens say so themselves
+    if (appState.data) {
+      const none = appState.data.libraryCount === 0 && route.screen !== 'kit'
+      // libraries registered, none of them current: 库架 (unless development opened another screen first)
+      if (!none && appState.data.library === null && !location.hash) setRoute({ screen: 'shelf', params: {} })
+      setSetup(none)
+    } else if (appState.status === 'error') setSetup(false) // the state could not be read: the screens say so themselves
   }, [appState.data, appState.status])
   // the theme (docs/desktop.md §五「主题」): the first frame already has it (the main process serves index.html with
   // data-theme); a change in 设置 sets it at once, and the app state keeps <html> in step after that
@@ -68,6 +75,7 @@ function App() {
   }, [appState.data?.theme])
   useEvent('settings-changed', () => appState.reload())
   useEvent('library-changed', () => appState.reload())
+  useEvent('connections-changed', () => appState.reload())
   const shell = setup === false
   const libraries = useLibraries(shell)
   const waiting = useWaiting(shell)
@@ -105,12 +113,13 @@ function App() {
   const has = id => routeOf(id) !== null
   const value = {
     route, navigate, has, appState, libraries, waiting, openLibrary, memory: memory.current,
-    newLibrary: () => setAdding(true),
+    // 新建库, the manual way (v2 package I): its own route; 「取消」 comes back to the screen it was opened from
+    newLibrary: () => setRoute(r => (r.screen === 'new-library' ? r : { screen: 'new-library', params: { back: r.screen } })),
   }
   if (setup === null) return null
   if (setup === true) {
     return html`<${AppContext.Provider} value=${value}>
-      <${FirstRunScreen} onDone=${screen => { setSetup(false); appState.reload(); navigate(screen ?? FIRST_SCREEN) }} />
+      <${FirstRunScreen} onDone=${screen => { setSetup(false); appState.reload(); navigate(screen ?? 'chat') }} />
     <//>`
   }
   const Screen = screens[route.screen]
@@ -118,8 +127,6 @@ function App() {
   const key = LIBRARY_ROUTES.includes(route.screen) ? `${libraryId ?? 'none'}:${route.screen}` : route.screen
   return html`<${AppContext.Provider} value=${value}>
     <${Screen} key=${key} params=${route.params} />
-    ${adding ? html`<${NewLibraryDialog} onClose=${() => setAdding(false)}
-      onOpened=${lib => { setAdding(false); appState.mutate(d => ({ ...d, library: lib })); appState.reload(); libraries.reload(); setRoute({ screen: 'overview', params: {} }) }} />` : null}
   <//>`
 }
 

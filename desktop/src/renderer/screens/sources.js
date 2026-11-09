@@ -14,6 +14,11 @@
 // Test hooks: main[data-screen="sources"][data-state], [data-part=sources|topics], [data-row=<name>][data-state][data-paused],
 // [data-hint=<code>], [data-tried=<name>][data-state], [data-topic-row=<name>], dialogs [data-dialog=add-source|add-link|
 // edit-source|remove-source|remove-topic] with input / select [data-field=…] and [data-action=…].
+// v2 package I (contract I2): 「这个库」 at the foot — what 设置 had of the current library: its folder [data-library-path] with
+// 「在资源管理器中显示」 (revealLibrary), 「重建索引」 (rebuildIndex: [data-rebuilt=<count>]), 首次设置's record (getSetup:
+// settings.js SetupRecord, [data-part="setup"]), 「移除这个库」 (asked first: [data-dialog="remove-library"], then
+// removeLibrary(id): only the registration goes — nothing in the folder is deleted — and the page goes to 库架).
+// Hooks: [data-part="this-library"], [data-action=reveal-library|rebuild|remove-library].
 import { html, useEffect, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
@@ -25,6 +30,7 @@ import { Dialog, LinkButton, TopBar } from '../kit/index.js'
 import { DAY, ERRORS, FETCH_HINTS, FETCH_STATES, NEXT_WHEN, SEP, SOURCE_KINDS, SOURCE_STATES } from '../texts/common.js'
 import { SOURCES as T } from '../texts/sources.js'
 import { SETTINGS as S } from '../texts/settings.js'
+import { SetupRecord } from './settings.js'
 import { SHELL } from '../texts/shell.js'
 import { LibraryFrame } from './library-frame.js'
 import { GatesSection } from './pipeline.js'
@@ -391,9 +397,51 @@ function RunPart({ libraryId, who, onSaved }) {
   </section>`
 }
 
+/** 「这个库」 (v2 package I): the folder, the index, 首次设置's record, and taking the library off the list (files untouched). */
+function ThisLibraryPart({ library, onRemove }) {
+  const L = SHELL.thisLibrary
+  const setup = useLoad(() => call('getSetup'), [library?.path ?? null])
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null)
+  const [rebuilt, setRebuilt] = useState(null)
+  const reveal = async () => {
+    setNote(null)
+    try { await call('revealLibrary') } catch { setNote(L.revealFailed) }
+  }
+  const rebuild = async () => {
+    setBusy(true)
+    setNote(null)
+    setRebuilt(null)
+    try { setRebuilt(await call('rebuildIndex')) } catch { setNote(S.rebuildFailed) } finally { setBusy(false) }
+  }
+  return html`<section class="src-part src-this" data-part="this-library" aria-labelledby="src-this">
+    <div class="src-part__head">
+      <h2 class="st-t-small st-t-sub st-t-strong" id="src-this">${L.title}</h2>
+      <span class="st-t-tiny st-t-muted">${L.hint}</span>
+    </div>
+    <div class="src-this__kv">
+      <span class="st-t-small st-t-sub">${L.folder}</span>
+      <span class="src-this__path" data-library-path=${library?.path ?? ''}>${library?.path ?? ''}</span>
+      <span class="st-t-small st-t-sub">${S.setup}</span>
+      <${SetupRecord} setup=${setup} />
+    </div>
+    <div class="src-run__row">
+      <${Act} name="reveal-library" icon="folder" disabled=${!library} onClick=${reveal}>${L.reveal}<//>
+      <${Act} name="rebuild" disabled=${busy || !library} onClick=${rebuild}>${busy ? S.rebuilding : S.rebuild}<//>
+      ${rebuilt ? html`<span class="st-t-small st-t-done" data-rebuilt=${rebuilt.count}>${fmt(S.rebuilt, { count: rebuilt.count, tidy: rebuilt.pending?.length ?? 0 })}</span>` : null}
+      ${note ? html`<span class="src-error" role="alert">${note}</span>` : null}
+    </div>
+    <div class="src-run__row">
+      <${Act} name="remove-library" disabled=${!library?.libraryId} onClick=${onRemove}>${L.remove}<//>
+      <span class="st-t-small st-t-sub">${L.removeHint}</span>
+    </div>
+  </section>`
+}
+
 export function SourcesScreen({ params = {} }) {
-  const { appState } = useApp()
-  const libraryId = appState?.data?.library?.libraryId ?? null
+  const { appState, navigate, libraries } = useApp()
+  const library = appState?.data?.library ?? null
+  const libraryId = library?.libraryId ?? null
   const view = useLoad(() => call('getSources'), [])
   const who = useLoad(() => call('getWhoDecided'), [])
   useEvent('library-changed', () => { view.reload(); who.reload() })
@@ -485,6 +533,7 @@ export function SourcesScreen({ params = {} }) {
             </div>
           </div>
           <${GatesSection} who=${html`<${WhoLine} who=${w} field="thresholds" />`} />
+          <${ThisLibraryPart} library=${library} onRemove=${() => setDialog({ kind: 'remove-library' })} />
         ` : null}
       </div>
     ${dialog?.kind === 'add-source' ? html`<${AddSourceDialog} topics=${topicNames} onClose=${close} onAdded=${() => { close(); changed() }} />` : null}
@@ -493,6 +542,9 @@ export function SourcesScreen({ params = {} }) {
     ${dialog?.kind === 'remove-source' ? html`<${ConfirmDialog} name="remove-source" title=${fmt(T.removeDialog.title, { name: dialog.source.name })} text=${T.removeDialog.text}
       confirm=${T.removeDialog.confirm} cancel=${T.removeDialog.cancel} onClose=${close}
       onConfirm=${async () => { await call('removeSource', dialog.source.name); close(); changed() }} />` : null}
+    ${dialog?.kind === 'remove-library' ? html`<${ConfirmDialog} name="remove-library" title=${fmt(SHELL.thisLibrary.removeDialog.title, { name: library?.name ?? '' })} text=${SHELL.thisLibrary.removeDialog.text}
+      confirm=${SHELL.thisLibrary.removeDialog.confirm} cancel=${SHELL.thisLibrary.removeDialog.cancel} onClose=${close}
+      onConfirm=${async () => { await call('removeLibrary', libraryId); close(); libraries?.reload?.(); appState.reload(); navigate('shelf') }} />` : null}
     ${dialog?.kind === 'remove-topic' ? html`<${ConfirmDialog} name="remove-topic" title=${fmt(T.removeTopicDialog.title, { name: dialog.topic.name })} text=${T.removeTopicDialog.text}
       confirm=${T.removeTopicDialog.confirm} cancel=${T.removeTopicDialog.cancel} onClose=${close}
       onConfirm=${async () => { await call('removeTopic', dialog.topic.name); close(); changed() }} />` : null}

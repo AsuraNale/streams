@@ -48,18 +48,23 @@ export const SHELL = Object.freeze({
 
   newLibrary: Object.freeze({
     title: 'New library',
-    text: 'Choose an empty folder for a new library, or open a folder that already holds one (or your own .md notes). It then shows under My libraries.',
-    name: 'Name',
-    namePlaceholder: 'Empty: the folder\'s name',
-    chooseEmpty: 'Choose an empty folder',
-    chooseExisting: 'Open a folder',
-    chosen: 'The folder: {path}',
-    importable: 'This folder holds {n} .md file{n?|s}. Streams opens it as a library and does not move or change your files.',
-    importNow: 'Open as a library',
-    other: 'This folder holds other things; choose another.',
-    notEmpty: 'A new library needs an empty folder.',
-    failed: 'This folder could not be opened.',
     cancel: 'Cancel',
+  }),
+
+  thisLibrary: Object.freeze({
+    title: 'This library',
+    hint: 'Its folder, its index, its place in the list',
+    folder: 'Folder',
+    reveal: 'Show in File Explorer',
+    revealFailed: 'The folder could not be opened.',
+    remove: 'Remove this library',
+    removeHint: 'Only takes it off the list in Streams; the folder and its files stay as they are.',
+    removeDialog: Object.freeze({
+      title: 'Remove “{name}”?',
+      text: 'It only leaves the list: it no longer shows under My libraries and no longer runs on a schedule. Not one file is deleted. Choose this folder under New library to open it again.',
+      confirm: 'Remove',
+      cancel: 'Cancel',
+    }),
   }),
 
   who: Object.freeze({

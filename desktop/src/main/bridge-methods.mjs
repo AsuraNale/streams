@@ -140,6 +140,11 @@ export const BRIDGE_METHODS = Object.freeze({
   getLibrarySchedule: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
   setLibrarySchedule: Object.freeze({ args: 2, check: ([id, s]) => libraryId(id) && schedule(s) }),
   getUsageTotal: Object.freeze({ args: 0 }),
+  // 新建库默认放在 (v2 package I; services/library.mjs): the folder and whether it is the default; the system's dialog; a path
+  // or null (= the default). The page's path is judged by the service: absolute, not inside the app data (else bad_arguments)
+  getLibraryRoot: Object.freeze({ args: 0 }),
+  chooseLibraryRoot: Object.freeze({ args: 0 }),
+  setLibraryRoot: Object.freeze({ args: 1, check: ([path]) => path === null || nonEmptyShort(2000)(path) }),
   // the proposal cards (v2 package B; services/proposals.mjs; docs/desktop.md §4.5): the list, the three answers — only
   // confirmProposal changes anything, and only for a pending card — and 「谁定的」 of the current library
   listProposals: Object.freeze({ args: 1, check: ([filter]) => proposalFilter(filter) }),

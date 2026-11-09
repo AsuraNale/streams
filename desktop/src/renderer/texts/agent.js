@@ -28,6 +28,23 @@ export const AGENT = Object.freeze({
     fromLibrary: '从「{name}」的问库转来',
   }),
 
+  // v2 package I: 首次打开's second step — above the conversation while the app knows no library. An example fills the input
+  // (it is not sent); 「也可以手动新建」 opens 新建库 (the manual way)
+  guide: Object.freeze({
+    title: '想追踪什么？',
+    text: '告诉主 Agent 你想持续跟踪什么，它会帮你拟一个库：主题、来源、过关线，你确认后才建。',
+    examplesLabel: '可以这样说（点一下填进输入框，改好再发）：',
+    examples: Object.freeze([
+      '帮我建个库，追踪中国电动车行业，重点是整车销量、电池和充电。',
+      '我想跟踪 AI agent 的新工具和评测，不要营销稿。',
+      '帮我盯着几家中国时尚上市公司的财报和新品。',
+    ]),
+    manual: '也可以手动新建',
+    manualHint: '自己选文件夹、起步包和来源，不经过主 Agent',
+    noConnection: '还没有连接，主 Agent 用不了。',
+    goSettings: '去设置',
+  }),
+
   // 「等你定的事」 at the top of 和主 Agent 聊: the proposal cards waiting + the suggestion cards not handled, every library
   waiting: Object.freeze({
     title: '等你定的事 · {n}',

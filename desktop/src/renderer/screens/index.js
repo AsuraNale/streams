@@ -3,7 +3,8 @@
 // its styles in styles/screens/ + one @import in styles/app.css).
 //
 // 11-03 (plan A / B of v1.0): 今日, 待看, 资料库, 图谱, 问库, 流水线, 来源与主题, 运行状态 and 设置; 首次设置 ('first-run') is what
-// app.js shows while no library is open (and can be opened by id in development). The component gallery ('kit') is not
+// app.js shows while no library is open (and can be opened by id in development). v2 package I: 首次打开 ('first-run') shows while
+// the app knows no library; 新建库 ('new-library') is a route of its own. The component gallery ('kit') is not
 // here: app.js adds it in development only.
 // v2 package F (plan B of v2; docs/desktop.md §五「界面结构」): the sidebar's 库架 ('shelf') and 和主 Agent 聊 ('chat', an empty
 // page until package G); a library's page is five tabs — 概览 ('overview': v1.0's 今日 + 流水线's numbers + 运行状态's sources),
@@ -16,6 +17,7 @@ import { FirstRunScreen } from './first-run.js'
 import { GraphScreen } from './graph.js'
 import { InboxScreen } from './inbox.js'
 import { LibraryScreen } from './library.js'
+import { NewLibraryScreen } from './new-library.js'
 import { OverviewScreen } from './overview.js'
 import { SettingsScreen } from './settings.js'
 import { ShelfScreen } from './shelf.js'
@@ -32,6 +34,8 @@ export const SCREENS = Object.freeze({
   ask: AskScreen,
   sources: SourcesScreen,
   settings: SettingsScreen,
+  // v2 package I: 新建库, the manual way (v1.0's 首次设置 without the connection step); app.js newLibrary() opens it
+  'new-library': NewLibraryScreen,
 })
 
 /** v1.0's screen ids → [the screen their content is on now, the params that point at it] */

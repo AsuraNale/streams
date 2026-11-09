@@ -84,9 +84,17 @@
 }
 
 /* 运行 and 库: label · value pairs */
-.settings__kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
-.settings__path { display: flex; align-items: baseline; gap: 2px; flex-wrap: wrap; min-width: 0; }
-.settings__recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+/* v2 package I (design P9): five groups — a group's name, then its parts */
+.settings__group { display: flex; flex-direction: column; padding-top: 14px; }
+.settings__group-name { margin: 0; padding: 6px 0; border-bottom: 2px solid var(--st-border); font-size: var(--st-fs-small); font-weight: 700; color: var(--st-text-2); letter-spacing: 0.04em; }
+.settings__group-parts { display: flex; flex-direction: column; }
+.settings__group-parts > .settings__part:last-child { border-bottom: 0; }
+/* 主 Agent's state: a label and its value per line */
+.settings__kv-list { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 6px 12px; margin: 0; align-items: baseline; }
+.settings__kv-list dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+/* 新建库默认放在: the folder, and 「默认位置」 when it is the default */
+.settings__root { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.settings__path-text { font-family: var(--st-font-mono); font-size: var(--st-fs-small); overflow-wrap: anywhere; min-width: 0; }
 /* 运行 · 定时: the switch and the time on one line, the next run and the two rules under it (docs/desktop.md §4.3) */
 .settings__schedule { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .settings__schedule .settings__check { margin-right: 12px; }

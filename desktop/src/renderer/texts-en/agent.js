@@ -23,6 +23,21 @@ export const AGENT = Object.freeze({
     fromLibrary: 'Passed on from Ask in “{name}”',
   }),
 
+  guide: Object.freeze({
+    title: 'What do you want to follow?',
+    text: 'Tell the main Agent what you want to keep track of. It drafts a library for you (topics, sources, pass lines), and the library is made only once you confirm.',
+    examplesLabel: 'You could say (a click puts it in the box; change it, then send):',
+    examples: Object.freeze([
+      'Make me a library on the Chinese electric car industry: car sales, batteries and charging.',
+      'I want to follow new AI agent tools and evaluations, no marketing pieces.',
+      'Keep an eye on the results and new products of a few listed Chinese fashion companies.',
+    ]),
+    manual: 'Or make one by hand',
+    manualHint: 'Choose the folder, a starter pack and the sources yourself, without the main Agent',
+    noConnection: 'No connection yet, so the main Agent cannot work.',
+    goSettings: 'Go to Settings',
+  }),
+
   waiting: Object.freeze({
     title: 'For you to decide · {n}',
     none: 'For you to decide · nothing',

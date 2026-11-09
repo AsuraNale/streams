@@ -14,7 +14,8 @@ const made = []
 const folder = () => { const dir = tempDir('st-settings-'); made.push(dir); return dir }
 after(() => { for (const dir of made) removeTree(dir, { waitMs: 3000 }) })
 const onDisk = file => JSON.parse(readFileSync(file, 'utf8'))
-const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, libraryRoot: null })
+// v2 package I: settings.json has one more field, setupConnection (首次打开's connection step while there is no library)
+const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, libraryRoot: null, setupConnection: null })
 
 test('no file, a broken file, a file of another shape: the defaults', () => {
   const dir = folder()
@@ -157,4 +158,22 @@ test('libraryRoot (v2 package B): null by default; an absolute path is kept; a r
   writeFileSync(file, `${JSON.stringify({ libraryRoot: 'libs' })}\n`)
   assert.equal(readSettings(file).libraryRoot, null)
   assert.equal(writeSettings(file, { libraryRoot: null }).libraryRoot, null)
+})
+
+test('setupConnection (v2 package I, 首次打开 before any library): null by default; { by, at, detail? } kept; anything else reads as null and is refused on write', () => {
+  const dir = folder()
+  const file = join(dir, 'settings.json')
+  assert.equal(readSettings(file).setupConnection, null)
+  const rec = { by: 'chose', at: '2026-11-09T18:00:00.000Z', detail: 'claude-code' }
+  assert.deepEqual(writeSettings(file, { setupConnection: rec }).setupConnection, rec)
+  assert.deepEqual(readSettings(file).setupConnection, rec)
+  assert.deepEqual(writeSettings(file, { setupConnection: { by: 'skipped', at: rec.at } }).setupConnection, { by: 'skipped', at: rec.at })
+  const before = readFileSync(file, 'utf8')
+  for (const bad of [{ by: 'maybe', at: rec.at }, { by: 'chose' }, { by: 'chose', at: 'yesterday' }, { ...rec, extra: 1 }, { ...rec, detail: 3 }, 'chose']) {
+    assert.throws(() => writeSettings(file, { setupConnection: bad }), TypeError, JSON.stringify(bad))
+  }
+  assert.equal(readFileSync(file, 'utf8'), before, 'nothing written')
+  writeFileSync(file, `${JSON.stringify({ setupConnection: { by: 'maybe', at: rec.at } })}\n`)
+  assert.equal(readSettings(file).setupConnection, null)
+  assert.equal(writeSettings(file, { setupConnection: null }).setupConnection, null)
 })

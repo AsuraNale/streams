@@ -8,6 +8,10 @@
 // is what lands on disk; 「全部按拟的写入」 writes the rest. After every write the file's body is byte for byte the old one
 // (the core's bodyHash of the file on disk = listPending's before) and the file is in 我写的.
 // Session F (no library, 首次设置): step 1 with that folder says the same and 下一步 opens it as a library.
+// v2 package I: 设置 has no 「打开已有文件夹」 any more and 首次设置 has no folder step: both sessions reach the folder through 新建库
+// (the manual way, screens/new-library.js), whose first step is v1.0's — session M opens 新建库 directly (a library is open, the
+// words are FIRST_RUN.folder's), and session F goes 首次打开 → the connection skipped → 和主 Agent 聊 → 「也可以手动新建」. After
+// 下一步 the folder is a library and 新建库 is at its pack step; session M then loads the page again to reach the library's page.
 // Plain Node at the end: lib/header-text.js round trips what the core proposes.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -17,7 +21,6 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { LIBRARY } from '../src/renderer/texts/library.js'
-import { SETTINGS } from '../src/renderer/texts/settings.js'
 import { FIRST_RUN } from '../src/renderer/texts/first-run.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { headerText, parseHeaderText } from '../src/renderer/lib/header-text.js'
@@ -46,14 +49,14 @@ let before = null
 let pendingBefore = null
 const m = worldSession({
   kind: 'empty',
-  waitFor: 'settings',
+  waitFor: 'new-library',
   settings: world => ({ libraryPath: world.library, ...NO_SCHEDULE }),
   prepare: world => {
     vault = join(world.root, 'vault')
     seeded = seedImportFolder(vault)
     before = hashTree(vault)
   },
-  env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: vault, STREAMS_START_SCREEN: 'settings' }),
+  env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: vault, STREAMS_START_SCREEN: 'new-library' }),
 })
 const page = () => m.page
 const click = sel => page().click(`${sel} button`)
@@ -65,6 +68,11 @@ const bodyHash = file => core.bodyHashOf(readFileSync(join(vault, file)))
 const untouched = files => { const now = hashTree(vault); for (const f of files) assert.equal(now[f], before[f], `${f} is byte for byte what it was`) }
 
 async function openPending() {
+  // v2 package I: from 新建库 (its own sidebar): the page loaded again opens on the current library, the folder just imported
+  if (await page().evaluate(() => document.querySelector('main[data-screen="new-library"]') !== null)) {
+    await page().evaluate(() => { location.hash = ''; location.reload() })
+    await ready(page(), 'overview')
+  }
   // v2 package F: 资料库 is a tab of the library's page (from 设置: the library's line first)
   if (await page().evaluate(() => document.querySelector('.st-lib-tabs') === null)) {
     await page().click('[data-library-row][data-active="true"]')
@@ -76,16 +84,16 @@ async function openPending() {
   await until(() => document.querySelector('[data-part="tidy"]') !== null && document.querySelectorAll('[data-card]').length > 0)
 }
 
-test('设置 「打开已有文件夹」 on a folder of .md files: it says how many and writes nothing; 「当库打开」 imports it, every file as it was', async () => {
-  await click('[data-action="open-folder"]')
-  await until(() => document.querySelector('[data-part="importable"]') !== null)
-  assert.equal(await page().evaluate(() => document.querySelector('[data-part="importable"]').dataset.mdCount), String(seeded.mdCount))
-  assert.equal(await text('[data-part="importable"] .st-t-small'), fmt(SETTINGS.folderImportable, { n: seeded.mdCount }))
+test('新建库 (v2 package I; v1.0: 设置 「打开已有文件夹」) on a folder of .md files: it says how many and writes nothing; 下一步 imports it, every file as it was', async () => {
+  await click('[data-action="choose-folder"]')
+  await until(() => document.querySelector('.fr-folder') !== null)
+  assert.equal(await page().evaluate(() => document.querySelector('.fr-folder').dataset.folderState), 'importable')
+  assert.equal(await text('[data-folder-note]'), fmt(FIRST_RUN.folder.importable, { n: seeded.mdCount }))
   assert.equal(existsSync(join(vault, 'streams.json')), false, 'only said, nothing written yet')
   assert.deepEqual(hashTree(vault), before)
-  await click('[data-action="import-folder"]')
-  await until(v => document.querySelector('[data-library-path]')?.dataset.libraryPath === v, vault)
-  assert.equal(await page().evaluate(() => document.querySelector('[data-part="importable"]')), null, 'the note is gone once it is opened')
+  await click('[data-action="next"]')
+  await until(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === 'pack')
+  assert.equal((await page().evaluate(() => window.streams.getAppState())).data.library.path, vault)
   const cfg = JSON.parse(readFileSync(join(vault, 'streams.json'), 'utf8'))
   assert.equal(cfg.notesDir, '.')
   untouched(Object.keys(IMPORT_FILES))
@@ -203,7 +211,12 @@ const f = worldSession({
   env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: vaultF }),
 })
 
-test('首次设置 step 1 on a folder of .md files: it says how many and that nothing is moved; 下一步 opens it as a library, the files as they were', async () => {
+test('首次打开 → 和主 Agent 聊 → 也可以手动新建 → 新建库 step 1 on a folder of .md files: it says how many and that nothing is moved; 下一步 opens it as a library, the files as they were', async () => {
+  await f.page.waitForFunction(() => document.querySelectorAll('[data-connection]').length === 3, null, POLL)
+  await f.page.click('[data-action="skip"] button')
+  await ready(f.page, 'chat')
+  await f.page.click('[data-action="manual-new"] button')
+  await ready(f.page, 'new-library')
   await f.page.click('[data-action="choose-folder"] button')
   await f.page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
   assert.equal(await f.page.evaluate(() => document.querySelector('.fr-folder').dataset.folderState), 'importable')
@@ -211,7 +224,7 @@ test('首次设置 step 1 on a folder of .md files: it says how many and that no
   assert.equal(await f.page.evaluate(() => document.querySelector('[data-action="next"] button').disabled), false)
   assert.equal(existsSync(join(vaultF, 'streams.json')), false)
   await f.page.click('[data-action="next"] button')
-  await f.page.waitForFunction(() => document.querySelector('main[data-screen="first-run"][data-state="ready"] .fr-body')?.dataset.step === 'connection', null, POLL)
+  await f.page.waitForFunction(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === 'pack', null, POLL)
   assert.equal(JSON.parse(readFileSync(join(vaultF, 'streams.json'), 'utf8')).notesDir, '.')
   const now = hashTree(vaultF)
   for (const [rel, h] of Object.entries(beforeF)) assert.equal(now[rel], h, rel)

@@ -42,7 +42,7 @@ const SCREENS = [
   { id: 'sources', name: '来源与要求', start: 'sources' },
   { id: 'status', name: '概览 · 运行状态', start: 'status', screen: 'overview' },
   { id: 'settings', name: '设置', start: 'settings' },
-  { id: 'first-run', name: '首次设置 · 第一步', start: 'first-run' },
+  { id: 'first-run', name: '首次打开 · 连接方式', start: 'first-run' },
   { id: 'ask', name: '问库', start: 'ask', then: async (page, world) => {
     await page.fill('textarea[data-field="question"]', world.planB.demandQuestion)
     await page.click('[data-action="send"] button')

@@ -13,9 +13,13 @@
 //     「有 N 张提议没出（格式不对）」 · 「会话接不上，已从记录里接着」 · the connection's problem with 「去设置」.
 //   - The input (1–4000 characters) and 发送; while a turn runs (this page's or another's: 问库's change, 交给主 Agent) 「主
 //     Agent 在想…」 shows and nothing can be sent. No connection chosen → v1.0's line 「还没选连接方式」 with 「去设置」.
+//   - v2 package I (contract I1, 首次打开's second step): while the app knows no library, a guide above the conversation —
+//     「告诉主 Agent 你想持续跟踪什么…」, three example sentences (a click puts one in the input and nothing is sent) and
+//     「也可以手动新建」 (→ 新建库, app.js newLibrary()). No connection chosen in settings.json (getAppState().activeConnection) →
+//     the guide says 「还没有连接，主 Agent 用不了」 with 「去设置」 (and the input's own v1.0 line is not drawn twice).
 // Words: texts/agent.js AGENT (and texts/common.js NO_CONNECTION, CONNECTIONS).
 // Test hooks: main[data-screen="chat"][data-state], [data-part=waiting|waiting-items|conversation|intro|compose|thinking|
-// no-connection|chat-note], [data-waiting=<n>], [data-waiting-card=<id>], [data-row=you|agent|lookup|note|summary][data-turn],
+// no-connection|chat-note|first-guide|guide-no-connection], [data-action="example"][data-example=<0..2>], [data-action="manual-new"], [data-waiting=<n>], [data-waiting-card=<id>], [data-row=you|agent|lookup|note|summary][data-turn],
 // [data-notice=<code>], [data-part="ask"] [data-action="quick"][data-option], [data-action=send|load-more|fold|see-card|
 // go-settings], textarea[data-field="message"].
 import { html, useEffect, useLayoutEffect, useRef, useState } from '../lib/html.js'
@@ -25,7 +29,7 @@ import { fmt } from '../lib/format.js'
 import { useEvent } from '../lib/use-events.js'
 import { useAgentBusy, useProposals, useSuggestions } from '../lib/agent.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, Main, TopBar } from '../kit/index.js'
+import { AppFrame, AppSidebar, LinkButton, Main, TopBar } from '../kit/index.js'
 import { CONNECTIONS, NO_CONNECTION } from '../texts/common.js'
 import { AGENT } from '../texts/agent.js'
 import { ProposalCard, cardTitle, libraryNameOf } from './proposal-card.js'
@@ -151,8 +155,28 @@ function Faint({ row, children }) {
   return html`<div class="chat-faint st-t-tiny st-t-muted" data-row=${row.role} data-turn=${row.turn}>${children}</div>`
 }
 
+/** 首次打开's second step (v2 package I): what to follow, three sentences to start from, the manual way. */
+export function FirstGuide({ noConnection, onExample, onManual, onSettings }) {
+  const G = AGENT.guide
+  return html`<section class="chat-guide" data-part="first-guide" aria-labelledby="chat-guide-title">
+    <h2 class="chat-guide__title" id="chat-guide-title">${G.title}</h2>
+    <p class="chat-guide__text">${G.text}</p>
+    ${noConnection ? html`<div class="chat-problem" data-part="guide-no-connection" role="alert">
+      <span class="st-t-wait">${G.noConnection}</span><${Act} name="go-settings" onClick=${onSettings}>${G.goSettings}<//>
+    </div>` : null}
+    <div class="st-t-small st-t-sub">${G.examplesLabel}</div>
+    <div class="chat-guide__examples">${G.examples.map((t, i) => html`<span key=${i} class="st-act" data-action="example" data-example=${i}>
+      <button type="button" class="chat-guide__example" onClick=${() => onExample(t)}>${t}</button>
+    </span>`)}</div>
+    <div class="chat-guide__manual st-t-small">
+      <span class="st-act" data-action="manual-new"><${LinkButton} onClick=${onManual}>${G.manual}<//></span>
+      <span class="st-t-sub">${G.manualHint}</span>
+    </div>
+  </section>`
+}
+
 export function ChatScreen() {
-  const { navigate, libraries } = useApp()
+  const { navigate, libraries, appState, newLibrary } = useApp()
   const proposals = useProposals()
   const suggestions = useSuggestions(null)
   const agent = useAgentBusy()
@@ -294,11 +318,20 @@ export function ChatScreen() {
   const waitingSuggestions = [...suggestions.items, ...keptSuggestions.filter(k => !suggestions.items.some(x => x.libraryId === k.libraryId && x.key === k.key))]
   const shownWaiting = waitingCards.length + waitingSuggestions.length
   const noConnection = problem === 'no_connection' || (agent.status && agent.status.connection === null)
+  // 首次打开's second step: the app knows no library yet
+  const guide = Array.isArray(libraries?.data) && libraries.data.length === 0
+  const guideNoConnection = guide && Boolean(appState?.data) && !appState.data.activeConnection
+  const fill = t => {
+    setText(t)
+    setNote(null)
+    setTimeout(() => document.querySelector('[data-part="compose"] textarea[data-field="message"]')?.focus(), 0)
+  }
   const state = entries !== null ? 'ready' : loadError ? 'error' : 'loading'
   return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`}>
     <${Main} screen="chat" state=${state} labelledby="chat-title">
       <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h1" titleId="chat-title" />
       <div class="st-main__body chat-body">
+        ${guide ? html`<${FirstGuide} noConnection=${guideNoConnection} onExample=${fill} onManual=${() => newLibrary?.()} onSettings=${settings} />` : null}
         <section class=${`chat-waiting${n ? '' : ' chat-waiting--none'}`} data-part="waiting" aria-labelledby="chat-waiting-title">
           <div class="chat-waiting__head">
             <h2 class="chat-waiting__title" id="chat-waiting-title" data-waiting=${n}>${n ? fmt(AGENT.waiting.title, { n }) : AGENT.waiting.none}</h2>
@@ -327,7 +360,7 @@ export function ChatScreen() {
           ${items}
           ${shownSending.map(s => html`<${YouBubble} key=${`sending:${s.at}`} text=${s.text} sending=${true} />`)}
         </div>
-        <${Compose} text=${text} onText=${setText} onSend=${() => send(text, { fromInput: true })} busy=${busy} noConnection=${noConnection} note=${note} onSettings=${settings} />
+        <${Compose} text=${text} onText=${setText} onSend=${() => send(text, { fromInput: true })} busy=${busy} noConnection=${noConnection && !guideNoConnection} note=${note} onSettings=${settings} />
       </div>
     <//>
   <//>`

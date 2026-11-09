@@ -43,6 +43,11 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
     return {
       // the library: its folder name is what the sidebar shows; null is 「未打开库」
       library: library.current(),
+      // v2 package I: how many libraries the app knows (the registry's, the development one too) — 0 is 首次打开 (app.js)
+      libraryCount: library.entries().length,
+      // v2 package I: the connection chosen in settings.json (claude-code · codex · api), or null — 和主 Agent 聊's guide says
+      // 「还没有连接」 without it (no detection: only the setting is read)
+      activeConnection: s.connections.active,
       // the registered libraries (settings 「库 · 其他」 lists those that are not the current one; openRecentLibrary takes
       // only one of these): path and name. v2 package A: from the registry, no longer settings.json's recentLibraries
       recentLibraries: library.entries().filter(l => !l.temporary).map(l => ({ path: l.path, name: l.name })),

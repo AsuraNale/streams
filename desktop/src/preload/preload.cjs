@@ -79,6 +79,9 @@ const METHODS = [
   'getLibrarySchedule',
   'setLibrarySchedule',
   'getUsageTotal',
+  'getLibraryRoot',
+  'chooseLibraryRoot',
+  'setLibraryRoot',
   // the proposal cards (v2 package B)
   'listProposals',
   'confirmProposal',

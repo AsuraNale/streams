@@ -14,7 +14,13 @@
  *   theme               the app's look (theme.mjs): river · paper · night; anything else is DEFAULT_THEME (one line in theme.mjs)
  *   libraryRoot         v2 package B: where a new library a proposal card makes goes when the card names no folder
  *                       (<libraryRoot>\<the library's name as a folder name>); an absolute path, or null (default) = the
- *                       app's default place (main.mjs: %USERPROFILE%\Documents\Streams in the packaged app)
+ *                       app's default place (main.mjs: %USERPROFILE%\Documents\Streams in the packaged app). v2 package I: the
+ *                       settings page shows and changes it (getLibraryRoot / chooseLibraryRoot / setLibraryRoot,
+ *                       services/library.mjs: never inside the app-data folder); 新建库's folder dialog opens there
+ *   setupConnection     v2 package I: who decided 首次打开's connection step, written while there is no library yet:
+ *                       { by, at, detail? } (by: core SETUP_BY; at: an ISO time; detail: the kind chosen), or null (default).
+ *                       Copied into a library's streams.json setup.connection (its `at` kept) when 新建库 makes one that
+ *                       has no connection record (services/library.mjs)
  * Read whole and checked field by field (a field that is not what it should be is its default; inside `connections`
  * each field on its own); written whole, through a temporary file and a rename, so a crash never leaves half a file.
  * @module desktop/main/settings
@@ -23,7 +29,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { DEFAULT_LANGUAGE, LANGUAGE_SETTINGS } from './locale.mjs'
-import { DEFAULT_SCHEDULE, VENDOR_IDS, isScheduleTime } from './core.mjs'
+import { DEFAULT_SCHEDULE, SETUP_BY, VENDOR_IDS, isScheduleTime } from './core.mjs'
 import { isThemeId, themeOf } from './theme.mjs'
 
 export const SETTINGS_SCHEMA = 'streams.settings/1'
@@ -45,7 +51,21 @@ export function defaultConnections() {
   }
 }
 
-const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false, libraryRoot: null })
+const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false, libraryRoot: null, setupConnection: null })
+const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/
+
+/**
+ * 首次打开's connection record (v2 package I): exactly { by, at, detail? } with by one of SETUP_BY, at an ISO time (UTC, as
+ * Date#toISOString writes it) and detail, when there, a string of at most 100 characters; anything else is null.
+ */
+export function setupConnectionOf(raw) {
+  if (!isObject(raw)) return null
+  if (!Object.keys(raw).every(k => k === 'by' || k === 'at' || k === 'detail')) return null
+  if (!SETUP_BY.includes(raw.by)) return null
+  if (typeof raw.at !== 'string' || !ISO_TIME.test(raw.at) || Number.isNaN(Date.parse(raw.at))) return null
+  if (raw.detail !== undefined && (typeof raw.detail !== 'string' || raw.detail.length > 100)) return null
+  return raw.detail === undefined ? { by: raw.by, at: raw.at } : { by: raw.by, at: raw.at, detail: raw.detail }
+}
 
 /** A model slot: a non-empty string id, or null (the default). Anything else is null. */
 function modelOf(v) {
@@ -126,6 +146,7 @@ export function readSettings(file) {
     schedule: normalizeSchedule(own(data, 'schedule')),
     theme: themeOf(own(data, 'theme')),
     libraryRoot: typeof root === 'string' && isAbsolute(root) ? root : DEFAULTS.libraryRoot,
+    setupConnection: setupConnectionOf(own(data, 'setupConnection')),
   }
 }
 
@@ -147,7 +168,7 @@ function checkConnections(raw) {
 /**
  * Change some settings and write them all.
  * @param {string} file
- * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}, theme?: string, libraryRoot?: string|null}} patch
+ * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}, theme?: string, libraryRoot?: string|null, setupConnection?: {by: string, at: string, detail?: string}|null}} patch
  * @returns {object} the settings now
  */
 export function writeSettings(file, patch) {
@@ -181,6 +202,11 @@ export function writeSettings(file, patch) {
   if (Object.hasOwn(patch, 'libraryRoot')) {
     if (patch.libraryRoot !== null && (typeof patch.libraryRoot !== 'string' || !isAbsolute(patch.libraryRoot))) throw new TypeError('libraryRoot must be an absolute path, or null')
     next.libraryRoot = patch.libraryRoot
+  }
+  if (Object.hasOwn(patch, 'setupConnection')) {
+    const v = patch.setupConnection === null ? null : setupConnectionOf(patch.setupConnection)
+    if (patch.setupConnection !== null && v === null) throw new TypeError('setupConnection must be { by, at, detail? }, or null')
+    next.setupConnection = v
   }
   const tmp = `${file}.${process.pid}.tmp`
   writeFileSync(tmp, `${JSON.stringify({ schema: SETTINGS_SCHEMA, ...next }, null, 2)}\n`)

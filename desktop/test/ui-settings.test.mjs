@@ -8,6 +8,10 @@
 // test checks that 设置 has nothing to change there, then writes the cap on the library's page (the same hooks, the same
 // values); the pass lines are read off 关卡 there (v1.0: 设置 showed them read only). The sidebar has no line with the open
 // folder's name any more: the new library is the current line of 「我的库」.
+// v2 package I: 设置 has no 「库」 part of the current library any more (its path, 新建库, 打开已有文件夹, 重建索引 moved to 来源与要求's
+// 「这个库」 and to 新建库, the manual way): the first test no longer reads the current path here (it checks the part is gone and
+// the sidebar's current line instead); the 「新建库 on the folder the hook gives」 test is now the same folder made a library through
+// 新建库 (the sidebar's 「+ 新建库」). test/ui-settings-i.test.mjs has the new page (groups, 主 Agent, 新建库默认放在, 这个库).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
@@ -31,7 +35,7 @@ const settings = () => JSON.parse(readFileSync(join(s.world.appData, 'settings.j
 const activeLibrary = () => { const r = JSON.parse(readFileSync(join(s.world.appData, 'libraries.json'), 'utf8')); return r.libraries.find(l => l.id === r.active)?.path ?? null }
 const rows = () => s.page.evaluate(() => [...document.querySelectorAll('[data-part="connections"] [data-connection]')].map(e => [e.dataset.connection, e.dataset.connState, e.dataset.active, e.querySelector('[data-conn-words]').textContent]))
 
-test('three rows, their names the fixed phrases, their states from the detection; the library part shows the current path', async () => {
+test('three rows, their names the fixed phrases, their states from the detection; no library part (v2 package I), the current library in the sidebar', async () => {
   // the connection rows come with their own read (getConnections) after the page is ready
   await s.page.waitForFunction(() => document.querySelectorAll('[data-part="connections"] [data-connection]').length === 3, null, POLL)
   const r = await rows()
@@ -41,7 +45,8 @@ test('three rows, their names the fixed phrases, their states from the detection
   assert.ok(r[2][3].includes(CONNECTIONS.keyNone), r[2][3])
   const names = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="connections"] [data-connection] b')].map(e => e.textContent))
   assert.deepEqual(names, Object.values(CONNECTIONS.names))
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="library"] [data-library-path]').dataset.libraryPath), s.world.library)
+  // v2 package I: was 「[data-part="library"] [data-library-path] is the current path」
+  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="settings"] [data-part="library"], main[data-screen="settings"] [data-library-path]')), null)
   await s.page.waitForFunction(name => document.querySelector('[data-library-row][data-active="true"] .st-sidebar__lib-name')?.textContent === name, basename(s.world.library), POLL)
 })
 
@@ -103,13 +108,28 @@ test('运行 (v2: on the library\'s 来源与要求, not 设置): the cap writte
   await ready(s.page, 'settings')
 })
 
-test('库: 新建库 on the folder the hook gives → the sidebar and the library part carry the new name', async () => {
+test('库: 新建库 on the folder the hook gives → the sidebar carries the new name (v2 package I: through 新建库, not a settings part)', async () => {
   const another = join(s.world.root, 'another')
-  await click('[data-part="library"] [data-action="new-library"]')
-  await s.page.waitForFunction(name => document.querySelector('[data-library-row][data-active="true"] .st-sidebar__lib-name')?.textContent === name, basename(another), POLL)
+  await s.page.click('.st-sidebar [data-action="add-library"]')
+  await ready(s.page, 'new-library')
+  await click('[data-action="choose-folder"]')
+  await s.page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
+  await click('[data-action="next"]')
+  await s.page.waitForFunction(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === 'pack', null, POLL)
   assert.ok(existsSync(join(another, 'streams.json')), 'a library was made there')
   assert.equal(activeLibrary(), another)
-  await s.page.waitForFunction(p => document.querySelector('[data-part="library"] [data-library-path]')?.dataset.libraryPath === p, another, POLL)
+  await s.page.click('[data-pack="blank"]')
+  await click('[data-action="apply"]')
+  await s.page.waitForFunction(() => document.querySelector('[data-part="tried"]') !== null, null, POLL)
+  await click('[data-action="continue"]')
+  await click('[data-action="skip-trial"]')
+  await s.page.waitForFunction(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === 'schedule', null, POLL)
+  await click('[data-action="go-today"]')
+  await ready(s.page, 'overview')
+  await s.page.waitForFunction(name => document.querySelector('[data-library-row][data-active="true"] .st-sidebar__lib-name')?.textContent === name, basename(another), POLL)
+  // back to 设置 for the next test (新建库 ends on the new library's page)
+  await s.page.click('.st-sidebar__footer-button')
+  await ready(s.page, 'settings')
 })
 
 test('关于: 「由 Starry Digital 开发」 is a link that opens https://starrydigital.ca through the bridge (a test run only writes the log)', async () => {

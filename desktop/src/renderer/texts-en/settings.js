@@ -4,7 +4,8 @@
 
 export const SETTINGS = Object.freeze({
   title: 'Settings',
-  subtitle: 'Applies to Streams on this computer',
+  subtitle: 'Applies to Streams on this computer and to every library',
+  groups: Object.freeze({ connection: 'Connection', agent: 'Main Agent', library: 'Libraries', look: 'Look and language', software: 'Software' }),
 
   connections: 'Connections',
   connectionsHint: 'Which one scores, and with which models',
@@ -19,7 +20,37 @@ export const SETTINGS = Object.freeze({
     probe: 'Try once now',
     apiHint: 'Any vendor · kept in the system credential store',
     which: 'Which one scores: the one you chose; with none chosen, the first usable one in the order above.',
+    agentUses: "The main Agent uses this connection's main model.",
   }),
+
+  agent: Object.freeze({
+    name: 'Main Agent',
+    hint: 'Looks after all the libraries: every new library and every change starts as a proposal',
+    connection: 'Connection',
+    connectionNone: 'No connection chosen, so the main Agent cannot work',
+    session: 'Session',
+    sessionLive: 'Carries on the last session ({turns} turn{turns?|s})',
+    sessionNone: 'No session to carry on; the next message starts one',
+    sessionApi: 'An API key keeps no session; each call brings the conversation along',
+    talk: 'Conversation',
+    talkLine: '{turns} turn{turns?|s} · {entries} record{entries?|s}',
+    summary: 'Last shortened',
+    summaryNone: 'Not shortened yet',
+    open: 'Open the chat with the main Agent',
+    failed: "The main Agent's state could not be read.",
+  }),
+
+  root: Object.freeze({
+    label: 'New libraries go in',
+    hint: "Where a library's folder goes by default, when the main Agent proposes one or you make one by hand",
+    isDefault: 'Default place',
+    change: 'Choose another folder…',
+    reset: 'Back to the default',
+    saved: 'Saved.',
+    bad: "That folder cannot be used: it needs a full path and may not be inside Streams' own app data folder.",
+    failed: 'This place could not be read.',
+  }),
+
   apiDialog: Object.freeze({
     title: 'Enter an API key',
     vendor: 'Vendor',
@@ -58,24 +89,10 @@ export const SETTINGS = Object.freeze({
   thresholdsValue: 'Relevance {relevance} · Substance {substance}',
   thresholdsHint: 'Change them on the library\'s Sources & Brief',
 
-  library: 'Library',
-  libraryHint: 'The current library, other libraries, the index',
-  current: 'Current',
-  noLibrary: 'No library open yet',
-  others: 'Others',
-  othersNone: 'No other library.',
-  otherLine: '{name} ({path})',
-  newLibrary: 'New library',
-  openFolder: 'Open an existing folder',
   rebuild: 'Rebuild the index',
   rebuilding: 'Rebuilding…',
   rebuilt: '{count} item{count?|s} indexed · {tidy} to tidy up',
   rebuildFailed: 'The index could not be rebuilt.',
-  folderOther: 'That folder holds other things. Pick another one.',
-  folderNotEmptyForNew: 'A new library needs an empty folder.',
-  folderImportable: 'This folder holds {n} .md files. Streams opens it as a library and does not move or change your files.',
-  importFolder: 'Open as a library',
-  openFailed: 'That folder could not be opened.',
   // 「首次设置」: who decided each of the wizard's steps (streams.json setup, plan A1)
   setup: 'First-time setup',
   setupNone: 'No record',

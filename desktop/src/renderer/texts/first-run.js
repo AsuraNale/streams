@@ -1,15 +1,19 @@
 // 首次设置 (screens/first-run.js, mockup S1): the four steps the app walks through before a library is open —
 // where the library goes, how a model is connected, topics and sources, a first round. The connection words
 // (「连接你电脑上的 …」, the login loop) are shared: texts/common.js CONNECTIONS.
+// v2 package I: 首次打开 is two steps — 连接方式 (screens/first-run.js) and 想追踪什么 (和主 Agent 聊 with its guide: texts/agent.js
+// AGENT.guide); the steps folder · pack · trial · schedule are 新建库's (screens/new-library.js, the manual way).
 
 export const FIRST_RUN = Object.freeze({
-  title: '流息首次设置',
+  title: '流息首次打开',
   steps: Object.freeze({
     folder: '库放在哪',
     connection: '连接方式',
     pack: '主题与来源',
     trial: '试跑一轮',
     schedule: '定时',
+    // v2 package I: 首次打开's second step (和主 Agent 聊)
+    track: '想追踪什么',
   }),
   // under a finished step in the wizard's sidebar
   stepDone: Object.freeze({
@@ -102,7 +106,7 @@ export const FIRST_RUN = Object.freeze({
     where: '软件在托盘时运行',
     missed: '错过了（比如关了机）：下次打开时补跑一轮，不会堆积。',
     close: '关窗口时，流息收进托盘，到点自己跑；托盘菜单里可以退出。',
-    later: '时刻和开关以后在设置的「运行」里改。',
+    later: '时刻和开关以后在这个库的「来源与要求」里改。',
     finishInbox: '完成，去待看',
     finishToday: '完成，去概览',
     failed: '没能保存定时。',

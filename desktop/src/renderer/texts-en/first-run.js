@@ -1,13 +1,14 @@
 // English (docs/desktop.md §六) for src/renderer/texts/first-run.js: the same keys.
 
 export const FIRST_RUN = Object.freeze({
-  title: 'Streams first-time setup',
+  title: 'Getting started with Streams',
   steps: Object.freeze({
     folder: 'Where the library goes',
     connection: 'Connection',
     pack: 'Topics and sources',
     trial: 'A first round',
     schedule: 'Schedule',
+    track: 'What to follow',
   }),
   stepDone: Object.freeze({
     connection: 'Connected',
@@ -98,7 +99,7 @@ export const FIRST_RUN = Object.freeze({
     where: 'Runs while Streams is in the tray',
     missed: 'Missed one (the computer was off, say): a single round runs the next time Streams opens; missed rounds do not pile up.',
     close: 'Closing the window puts Streams in the tray, where it runs on time; the tray menu can quit it.',
-    later: 'The time and the switch can be changed later under Runs in Settings.',
+    later: 'The time and the switch can be changed later on the library\'s Sources & Brief tab.',
     finishInbox: 'Done, go to the inbox',
     finishToday: 'Done, go to the overview',
     failed: 'The schedule could not be saved.',

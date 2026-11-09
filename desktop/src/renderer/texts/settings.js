@@ -1,10 +1,14 @@
 // 设置 (screens/settings.js, mockup S14): four parts — the connections (plan C2), the run (cap, the schedule, the pass
 // lines), the library (C3), and the software part (the language, the developer switch, the diagnostics, 「关于」 with
 // the update). The connection names and the login loop: texts/common.js CONNECTIONS.
+// v2 package I (design P9): five groups — 连接 · 主 Agent · 库 · 外观与语言 · 软件. The run's words stay here (来源与要求 uses
+// them); what 设置 had of the current library is 来源与要求's 「这个库」 now (texts/shell.js thisLibrary; 首次设置's record below).
 
 export const SETTINGS = Object.freeze({
   title: '设置',
-  subtitle: '对这台电脑上的流息都有效',
+  subtitle: '对这台电脑上的流息、所有的库都有效',
+  // v2 package I: the page's five groups, top to bottom
+  groups: Object.freeze({ connection: '连接', agent: '主 Agent', library: '库', look: '外观与语言', software: '软件' }),
 
   // 连接方式
   connections: '连接方式',
@@ -20,6 +24,38 @@ export const SETTINGS = Object.freeze({
     probe: '现在试一次',
     apiHint: '任一厂商 · 存在系统凭据保护里',
     which: '打分用哪一个：你选的那条；没选时按上面的顺序，第一个可用的。',
+    // v2 package I
+    agentUses: '主 Agent 用这条连接的主模型。',
+  }),
+
+  // v2 package I: the main agent (getAgentStatus)
+  agent: Object.freeze({
+    name: '主 Agent',
+    hint: '管所有的库：建库、改库，都先出提议卡',
+    connection: '连接',
+    connectionNone: '还没选连接，主 Agent 用不了',
+    session: '会话',
+    sessionLive: '接着上一次的会话（{turns} 轮）',
+    sessionNone: '没有接着的会话，下一句开一个新的',
+    sessionApi: 'API key 不留会话，每次带上对话记录',
+    talk: '对话',
+    talkLine: '{turns} 轮 · {entries} 条记录',
+    summary: '上次缩写',
+    summaryNone: '还没缩写过',
+    open: '打开和主 Agent 聊',
+    failed: '没能读出主 Agent 的状态。',
+  }),
+
+  // v2 package I: where a new library goes (getLibraryRoot / chooseLibraryRoot / setLibraryRoot)
+  root: Object.freeze({
+    label: '新建库默认放在',
+    hint: '主 Agent 提议建库、你手动新建时，库的文件夹默认放在这里',
+    isDefault: '默认位置',
+    change: '换一个文件夹…',
+    reset: '恢复默认',
+    saved: '已保存。',
+    bad: '这个文件夹不能用：要一个完整的路径，而且不能在流息自己的应用数据文件夹里。',
+    failed: '没能读出这个位置。',
   }),
   apiDialog: Object.freeze({
     title: '输入 API key',
@@ -61,25 +97,11 @@ export const SETTINGS = Object.freeze({
   thresholdsValue: '相关度 {relevance} · 实质 {substance}',
   thresholdsHint: '要改的话去库的「来源与要求」',
 
-  // 库
-  library: '库',
-  libraryHint: '当前的库、其他库、索引',
-  current: '当前',
-  noLibrary: '还没打开库',
-  others: '其他',
-  othersNone: '没有别的库。',
-  otherLine: '{name}（{path}）',
-  newLibrary: '新建库',
-  openFolder: '打开已有文件夹',
+  // 库 (v2 package I: the index and 首次设置's record are 来源与要求's 「这个库」 now)
   rebuild: '重建索引',
   rebuilding: '正在重建……',
   rebuilt: '索引 {count} 条 · 待规范 {tidy} 条',
   rebuildFailed: '没能重建索引。',
-  folderOther: '这个文件夹里有别的东西，换一个。',
-  folderNotEmptyForNew: '新建库要一个空文件夹。',
-  folderImportable: '这个文件夹里有 {n} 个 .md，流息会把它当库打开，不搬、不改你的文件。',
-  importFolder: '当库打开',
-  openFailed: '没能打开这个文件夹。',
   // 「首次设置」: who decided each of the wizard's steps (streams.json setup, plan A1)
   setup: '首次设置',
   setupNone: '没有记录',
