@@ -1,7 +1,7 @@
 // 许可证与致谢 (mockup S14; docs/desktop.md §四 getLicenses / openNotices) on a development run: 设置「关于」's button opens the
 // dialog; the license text on the page is word for word the repository's LICENSE; 「由 Starry Digital 开发」 asks for the
 // maker's page (a test run only writes the log); the five parts with the runtime's versions (Electron's own process.versions)
-// and the shipped package.json's version and license; 「打开完整的第三方声明」 cannot be clicked in development and says why,
+// and the shipped package.json's version and license (Preact, htm, @mozilla/readability); 「打开完整的第三方声明」 cannot be clicked in development and says why,
 // and the bridge refuses it there (open_failed). Esc and 关闭 close it. (The installed app's answer: installer/test/packaged.test.mjs.)
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -41,7 +41,7 @@ test('「由 Starry Digital 开发」 in the dialog asks for the maker\'s page',
   assert.ok(log().includes(want))
 })
 
-test('the five parts: Electron, Chromium, Node.js from the runtime; Preact and htm from the app\'s own package.json files', async () => {
+test('the six parts: Electron, Chromium, Node.js from the runtime; Preact, htm and @mozilla/readability from the app\'s own package.json files', async () => {
   const versions = await s.app.evaluate(() => process.versions)
   const rows = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="components"] [data-component]')].map(r => [...r.querySelectorAll('td')].map(td => td.textContent)))
   assert.deepEqual(rows, [
@@ -50,7 +50,9 @@ test('the five parts: Electron, Chromium, Node.js from the runtime; Preact and h
     ['Node.js', versions.node, 'MIT'],
     ['Preact', pkg('preact').version, pkg('preact').license],
     ['htm', pkg('htm').version, pkg('htm').license],
+    ['@mozilla/readability', pkg('@mozilla/readability').version, pkg('@mozilla/readability').license],
   ])
+  assert.deepEqual(rows.at(-1), ['@mozilla/readability', '0.6.0', 'Apache-2.0'], 'control: the reading mode\'s part, as desktop/package.json pins it')
   assert.equal(versions.electron, '44.0.0', 'control: the pinned Electron')
   const head = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="components"] th')].map(th => th.textContent))
   assert.deepEqual(head, [SETTINGS.licenses.name, SETTINGS.licenses.version, SETTINGS.licenses.license])

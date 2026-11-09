@@ -14,10 +14,14 @@ export function underTemp(dir) {
   return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
 }
 
-/** A fresh folder under the OS temp folder: <prefix><6 random hex>, made with mkdirSync (not mkdtemp). */
+/**
+ * A fresh folder under the OS temp folder: <prefix><process id>-<8 random hex>, made with mkdirSync (not mkdtemp) and never
+ * one that is there already (mkdirSync without recursive fails on it: another name is tried). The process id is in the name
+ * (v2 package J1) so that two test runs at the same time can tell their folders apart even in a listing.
+ */
 export function tempDir(prefix) {
   for (let tries = 0; tries < 20; tries++) {
-    const dir = join(tmpdir(), `${prefix}${randomBytes(3).toString('hex')}`)
+    const dir = join(tmpdir(), `${prefix}${process.pid}-${randomBytes(4).toString('hex')}`)
     try {
       mkdirSync(dir)
       return dir

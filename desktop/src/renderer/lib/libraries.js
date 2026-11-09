@@ -3,7 +3,8 @@
 // brief, the topics, the sources), joined by id.
 //   useLibraries(enabled)  → { status, data: [row…] | null, error, reload }; a row is
 //       { id, name, icon, color, active, exists, temporary, inbox, lastRoundAt, problem, brief, topics, sources, noOutputStreak }
-//     read again on `libraries-changed` (the registry) and `library-changed` (a library's contents: its brief, its sources);
+//     read again on `libraries-changed` (the registry), `library-changed` (a library's contents: its brief, its sources) and
+//     the end of a round (`round-progress` with done: true: its last round, its problem — v2 package J1);
 //     on `inbox-changed { libraryId, count }` only that one row's `inbox` changes (another library's event is not this one's
 //     count; an event without a libraryId: the whole list read again).
 //   useWaiting(enabled)    → how many things wait for you in 和主 Agent 聊: the pending proposal cards (listProposals) plus the
@@ -57,6 +58,8 @@ export function useLibraries(enabled) {
   const rows = useLoad(() => (enabled ? Promise.all([call('listLibraries'), call('getLibrariesOverview')]).then(([l, o]) => joinRows(l, o)) : null), [enabled])
   useEvent('libraries-changed', () => { if (enabled) rows.reload() }, [enabled])
   useEvent('library-changed', () => { if (enabled) rows.reload() }, [enabled])
+  // a round ended (any library's): its last round and its problem changed — the shelf's 「上次更新」, the amber dot
+  useEvent('round-progress', p => { if (enabled && p?.done === true) rows.reload() }, [enabled])
   useEvent('inbox-changed', p => {
     if (!enabled || typeof p?.count !== 'number') return
     if (typeof p.libraryId !== 'string' || p.libraryId === '') { rows.reload(); return }

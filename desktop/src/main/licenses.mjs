@@ -5,7 +5,8 @@
  *   own         { license: 'MIT', text }: the packaged app reads its own copy, resources/app/LICENSE (installer/build-installer.mjs
  *               puts the repository's LICENSE there); a development run reads the repository's, beside desktop/
  *   components  [{ name, version, license }]: Electron, Chromium, Node.js (the version from the runtime's process.versions),
- *               Preact and htm (the version and the license from their own package.json in the app's node_modules: what ships)
+ *               Preact, htm and @mozilla/readability (the reading mode's article extraction, v2 package H; the version and
+ *               the license from their own package.json in the app's node_modules: what ships)
  *   notices     { available }: THIRD-PARTY-NOTICES.txt beside Streams.exe (installer/notices.mjs writes it at build time);
  *               only an install has it, so a development run says false whatever its folders hold
  * @module desktop/main/licenses
@@ -17,13 +18,18 @@ import { join } from 'node:path'
 /** The full notices of an install, beside Streams.exe. */
 export const NOTICES_FILE = 'THIRD-PARTY-NOTICES.txt'
 
-// the runtime's three parts (their license is the project's own) and the page's two (read from their package.json)
+// the runtime's three parts (their license is the project's own) and the app's three packages (read from their package.json):
+// the page's two, and the reading window's article extraction (main process, v2 package H; desktop/package.json dependencies)
 const RUNTIME = Object.freeze([
   Object.freeze({ name: 'Electron', version: 'electron', license: 'MIT' }),
   Object.freeze({ name: 'Chromium', version: 'chrome', license: 'BSD-3-Clause' }),
   Object.freeze({ name: 'Node.js', version: 'node', license: 'MIT' }),
 ])
-const PACKAGES = Object.freeze([Object.freeze({ name: 'Preact', pkg: 'preact' }), Object.freeze({ name: 'htm', pkg: 'htm' })])
+const PACKAGES = Object.freeze([
+  Object.freeze({ name: 'Preact', pkg: 'preact' }),
+  Object.freeze({ name: 'htm', pkg: 'htm' }),
+  Object.freeze({ name: '@mozilla/readability', pkg: '@mozilla/readability' }),
+])
 
 /** Where Streams' own LICENSE is: the packaged app's copy, or the repository's in development. */
 export const licenseFileOf = ({ packaged, desktopDir }) => (packaged ? join(desktopDir, 'LICENSE') : join(desktopDir, '..', 'LICENSE'))

@@ -17,7 +17,7 @@
 | `listPending(libraryDir)` | 待规范清单，附拟好的文件头（不写盘） | `[{file, codes, messages, proposedHeader?}]` |
 | `validateNote({fileName, text, config})` | 规范 v0 校验 | `{ok, meta, body, problems, warnings}` |
 | `parseFrontmatter(text)` / `serializeFrontmatter(meta)` | 文件头读写（固定键序） | |
-| `writeNoteFile(libraryDir, {id, header, body}, {by})` | **唯一写 notes/ 的函数**；`by` 只收 `'keep'` / `'import-header'`（V2） | 抛 `bad-by` / `id-conflict` / `invalid-note` |
+| `writeNoteFile(libraryDir, {id, header, body}, {by})` | **唯一写 notes/ 的函数**；`by` 只收 `'keep'` / `'import-header'` / `'edit'`（V2；`edit` 是 维护者 11-03 定的「编辑一条」：只改 notes/ 里已存在且合规范的文件，不能新建） | 抛 `bad-by` / `id-conflict` / `invalid-note` |
 | `appendEvent(libraryDir, ev)` / `replayLedger(libraryDir)` / `recordSeen(libraryDir, item)` / `isSeen(libraryDir, url)` | 账本只追加；重放得到每个 url 的当前状态 | |
 
 ## 二、抓取（`src/fetch/`）· W2 · 有
@@ -29,7 +29,7 @@
 | `makeContext(opts)` | 一轮共用的上下文（fetchImpl、超时、时钟、sleep、arXiv 上次请求时间）。循环调 `fetchSource` 要先 `makeContext()` 一次再传同一个 ctx，否则 arXiv 间隔不共享 | ctx |
 | `addManual(libraryDir, {url, title?, topic?})` | 手动投入一个链接 | `{added, url}`；抛 `bad-url` |
 | `lastRoundStatus(libraryDir)` | 每个来源最近一轮状态与连续轮数（运行状态页 S11） | `{[name]: {status, consecutive, lastOkAt}}` |
-| `sourceHealth(status)` | 首页横幅用的健康级别 | `{level: quiet\|warning\|blocked, lines[]}` |
+| `sourceHealth(status)` | 概览（v1.0 的首页 / 今日）来源横幅用的健康级别 | `{level: quiet\|warning\|blocked, lines[]}` |
 
 五态内部码 → 界面词：ok 正常 · empty 没新内容 · gap 地址有问题 · failed 暂时失败 · blocked 被拒绝（翻译在 desktop 字典，核心只给码）。
 
@@ -108,8 +108,8 @@
 | `savePipelineConfig(libraryDir, cfg)` | 校验后写回 `streams.json`（其余键原样保留；v2 包 B 起整份经临时文件 + rename 写，同 5.6）。拒绝：删 / 改固定节点、改 `output`、删底线项、gate > 5、summary ≠ 1 | 抛 `locked-node`；`bad-config`（threshold 不在 0–1、未知 kind、material 不在 meta/body） |
 | `allowedActions(state, config)` / `assertAllowed(state, action)` | 不变量①：阶段 → 允许动作表。`seen` 只能 `gate:relevance`；relevance 过关才 `body` / `gate:substance`；substance 过关才 `summary`；`inbox` 才 `keep` / `dismiss` / `later`；`kept` / `dismissed` 什么都不能做 | 抛 `not-allowed` |
 | `roundLog(libraryDir, roundId)` / `listRounds(libraryDir, n=20)` | 运行记录（`rounds.jsonl` 的结构化行，最近的在前；logs/ 的 md 给人看） | 一行 = `{id, startedAt, finishedAt, counts, gates, calls, stoppedAt?, problems, warnings, fetch, unscored}`；`roundLog` 找不到返回 `null` |
-| `homeNumbers(libraryDir, {now?})` | 首页数字（S2）：全部从账本、fetch_log 与 rounds.jsonl 重算；`now` 可注入时钟（等待天数）。`noOutputStreak`（11-04，方案 C8）：从 rounds.jsonl 最新一轮往回数，`counts.inbox` 为 0（或缺、不是数）的连续轮数，碰到一轮有产出就停；没跑过为 0 | `{caught, inbox, inboxOldestDays, kept, dismissed, lastRound, noOutputStreak, sources:{level, lines}}` |
-| `noOutputStreak(rounds)` / `NO_OUTPUT_ROUNDS` | 上面那个数的纯函数（`rounds` 最新的在前）；阈值常量 `NO_OUTPUT_ROUNDS = 3`：首页「连续 N 轮没有产出」从这个数起显示（桌面经 `getHome().noOutputRounds` 拿，页面不自己定） | 整数 |
+| `homeNumbers(libraryDir, {now?})` | 概览的数字（v1.0 的首页 / 今日，S2；v2 每个库各算各的）：全部从账本、fetch_log 与 rounds.jsonl 重算；`now` 可注入时钟（等待天数）。`noOutputStreak`（11-04，方案 C8）：从 rounds.jsonl 最新一轮往回数，`counts.inbox` 为 0（或缺、不是数）的连续轮数，碰到一轮有产出就停；没跑过为 0 | `{caught, inbox, inboxOldestDays, kept, dismissed, lastRound, noOutputStreak, sources:{level, lines}}` |
+| `noOutputStreak(rounds)` / `NO_OUTPUT_ROUNDS` | 上面那个数的纯函数（`rounds` 最新的在前）；阈值常量 `NO_OUTPUT_ROUNDS = 3`：概览「连续 N 轮没有产出」从这个数起显示（库架卡片与建议卡 `no-output` 用同一个数）（桌面经 `getHome().noOutputRounds` 拿，页面不自己定） | 整数 |
 | `cleanCache(libraryDir, {days, now})` | 删 `_pipeline/cache/` 里超过 `cacheDays` 的正文 | `{removed}` |
 | `constantScoreWarning(scored, {min:5})` | 工具包 F3 移植：同一来源 ≥5 条分数全同 → 一句提醒（只提醒，不拒绝），进 `warnings` | `''` 或一句话 |
 
@@ -591,6 +591,6 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 ## 六、桌面桥（desktop 主进程 → 页面）
 
-页面唯一入口 `window.streams`；主进程把上面每个函数包成桥方法（名字同核心函数，加 `library:` / `fetch:` / `connect:` / `pipeline:` / `ask:` 前缀），事件：`round-progress`、`inbox-changed`、`status-changed`、`settings-changed`、`update`。桥方法表写在 `docs/desktop.md`。
+页面唯一入口 `window.streams`；主进程把上面每个函数包成桥方法（名字同核心函数，加 `library:` / `fetch:` / `connect:` / `pipeline:` / `ask:` 前缀），事件：`round-progress`、`inbox-changed`、`status-changed`、`settings-changed`、`update`；v2 加了 `libraries-changed`、`proposals-changed`、`agent-changed`，和某个库有关的事件都带 `libraryId`（桥里有「当前库」，跨库的方法显式带 id：architecture 第三节「包 A 实做」）。桥方法表与事件表写在 `docs/desktop.md` §四。
 
 *玄翎 · 2026-11-02*

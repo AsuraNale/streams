@@ -19,6 +19,8 @@ desktop/
     update-wiring.mjs · services/update.mjs   自更新（GitHub AsuraNale/streams 的发布）· services/env-proxy-fetch.mjs
     services/notify.mjs   Windows 通知（一轮跑完「这一轮进来 n 条待看」）   quit.mjs   退出时结束本次运行的辅助进程
     services/schedule.mjs 定时、补跑、跑完的提示（§4.3）   tray.mjs   托盘图标、提示文字与菜单（§4.3）
+    services/library.mjs · pipeline.mjs · sources.mjs · browse.mjs · ask.mjs · status.mjs · connections.mjs   库与各页的服务（§4.1–4.2；v2 包 A 起 library.mjs 管库登记、每库定时排队见 §4.4）
+    v2：services/proposals.mjs 提议卡（§4.5）· services/changes.mjs「谁定的」· services/agent.mjs 主 Agent 与建议卡（§4.6）· reader.mjs 阅读窗口（§4.9）
     version.mjs · icon.mjs · app-id.mjs · log.mjs
     texts/notify.js · texts-en/notify.js   主进程自己的字
   src/preload/preload.cjs   预加载桥：页面里唯一的 window.streams
@@ -59,7 +61,7 @@ npm run icon · npm run icon:check   # 重新渲染图标 / 核对（要 sharp�
 | `@mozilla/readability` | 0.6.0（2025-03-03 发布） | Apache-2.0 | 阅读窗口的「阅读模式」抽正文（v2 包 H，§4.9）：主进程读它自己的 `Readability.js`，原样包进隐藏窗口里跑；页面不加载它 | 同上 |
 | Electron | 44.0.0 | MIT | 外壳运行时 | **不是** desktop/ 的 npm 依赖：用 `installer/electron` 装好的那一份 |
 
-四个 npm 包都没有依赖、都不跑安装脚本；`test/deps.test.mjs` 核版本钉死、来源、sha512、许可、`node_modules` 里装的就是 lock 里的版本；没有本地链接（云织的 `@yunzhi/app-core` 链接没拿）。页面用到的三个文件由 `app://ui/vendor/` 按名字直接从 `node_modules` 发出。`@mozilla/readability` 在 `dependencies` 里，安装包按 `desktop/package.json` 的 `dependencies` 把它拷进 `resources/app/node_modules`，`THIRD-PARTY-NOTICES.txt` 按装进去的包自动列出它与它的 `LICENSE.md`（`installer/notices.mjs`，本包没改 installer/）；设置页「许可证与致谢」的部件表仍只列运行时与 Preact、htm（那张表由 installer 的打包测试逐项核，改它要动 installer/，不在本包范围）。抽正文不加 DOM 解析库：用 Chromium 自己的 `DOMParser`（§4.9）。
+四个 npm 包都没有依赖、都不跑安装脚本；`test/deps.test.mjs` 核版本钉死、来源、sha512、许可、`node_modules` 里装的就是 lock 里的版本；没有本地链接（云织的 `@yunzhi/app-core` 链接没拿）。页面用到的三个文件由 `app://ui/vendor/` 按名字直接从 `node_modules` 发出。`@mozilla/readability` 在 `dependencies` 里，安装包按 `desktop/package.json` 的 `dependencies` 把它拷进 `resources/app/node_modules`，`THIRD-PARTY-NOTICES.txt` 按装进去的包自动列出它与它的 `LICENSE.md`（`installer/notices.mjs`，本包没改 installer/）；设置页「许可证与致谢」的部件表 v2 包 J1 起也列它（`src/main/licenses.mjs`，名字 `@mozilla/readability`、版本与许可证取应用里那份 `package.json`：0.6.0、Apache-2.0）；installer 打包测试里对这张表的逐项核对（`installer/test/packaged.test.mjs`）留给包 J2 同步。抽正文不加 DOM 解析库：用 Chromium 自己的 `DOMParser`（§4.9）。
 
 ## 二、安全基线
 
@@ -111,7 +113,7 @@ frame-ancestors 'none'
 | `setShowDeveloperInfo(on)` | 布尔 | `{ showDeveloperInfo }` | 设置页「显示开发者信息」 |
 | `copyDiagnostics()` | 无 | `{ ok: true }`；主进程把诊断信息写进剪贴板（不带 key；测试时写到 `logs\clipboard.txt`） | 设置页「复制诊断信息」 |
 | `openMakerPage()` | 无 | `null`；在用户的浏览器里打开 `https://starrydigital.ca`（地址写死在主进程 `app-services.mjs MAKER_URL`，页面不给地址；测试时只记日志） | 设置页「关于」的「由 Starry Digital 开发」（V11，维护者 11-02 定「链 starrydigital.ca」） |
-| `getLicenses()` | 无 | `{ own: { license: 'MIT', text }, components: [{ name, version, license }], notices: { available } }`：`text` 是流息 `LICENSE` 全文（装好的应用读 `resources\app\LICENSE`，构建把仓库根的 `LICENSE` 放在那里；开发时读仓库根那份）；`components` 依次是 Electron · Chromium · Node.js（版本取运行时 `process.versions`）、Preact · htm（版本与许可证取应用里 `node_modules/<名>/package.json`）；`notices.available`：装好的应用安装目录里有 `THIRD-PARTY-NOTICES.txt` 时为真，开发时总为假（`app-services.mjs licensesView`） | 设置页「许可证与致谢」对话框 |
+| `getLicenses()` | 无 | `{ own: { license: 'MIT', text }, components: [{ name, version, license }], notices: { available } }`：`text` 是流息 `LICENSE` 全文（装好的应用读 `resources\app\LICENSE`，构建把仓库根的 `LICENSE` 放在那里；开发时读仓库根那份）；`components` 依次是 Electron · Chromium · Node.js（版本取运行时 `process.versions`）、Preact · htm · @mozilla/readability（版本与许可证取应用里 `node_modules/<名>/package.json`；Readability 是阅读模式抽正文用的，v2 包 J1 加进表里）；`notices.available`：装好的应用安装目录里有 `THIRD-PARTY-NOTICES.txt` 时为真，开发时总为假（`app-services.mjs licensesView`） | 设置页「许可证与致谢」对话框 |
 | `openNotices()` | 无 | `null`；用系统的查看程序打开安装目录里的 `THIRD-PARTY-NOTICES.txt`（文件名写死在主进程，页面不给路径；测试时只记日志）；没有这个文件（开发时）→ `open_failed` | 许可证与致谢「打开完整的第三方声明」 |
 | `getUpdateState()` | 无 | 更新的数据：`{ state, current, dev, canUpdate, checkedAt, release, progress, reason, turnRunning }`（`state` 十二态之一：`idle` · `checking` · `up_to_date` · `available` · `manual` · `check_failed` · `downloading` · `download_failed` · `verify_failed` · `ready` · `launching` · `launch_failed`） | 设置页「关于」（`lib/use-update.js`） |
 | `checkForUpdate()` | 无 | 同上；向 GitHub 问一次最新版（`AsuraNale/streams` 的 releases/latest） | 设置页「检查更新」 |
@@ -141,7 +143,7 @@ frame-ancestors 'none'
 | `estimateRound()` | 无 | 核心 `estimateRound` + `{ connection: { kind, model, verifyModel } }` | S12 |
 | `setRoundCap(cap)` | 正整数 | `{ cap }`；写 `streams.json` 的 `pipeline.cap` | S12「改上限」、设置「每轮上限」 |
 | `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；一轮在跑时 `bad_arguments`（v2 包 A：走全应用的队列，任何库的一轮在跑或有库在排队都算，见 §4.4）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | S12「开始」、S13「重试打分」 |
-| `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 「今日」进度条旁 |
+| `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 概览（v1.0 的「今日」）进度条旁 |
 | `getRoundState()` | 无 | `{ running, roundId, libraryId, progress, last: runRound 的返回 \| null, lastProblems }`（`libraryId`：那一轮是哪个库的，v2 包 A；全应用同一时间只有一轮） | S2 |
 | `getInbox()` | 无 | `{ items: 核心 listInbox(), recentDismissReasons: [{ts, reason, title}] }` | S3 |
 | `keepItem(url)` | url 必须在 inbox 里 | `{ id, file }`（`file` = `notes/` 里的文件名）；发 `inbox-changed`、`library-changed`（索引重建了） | S3「收藏」 |
@@ -149,7 +151,7 @@ frame-ancestors 'none'
 | `laterItem(url)` | | `{ url }`；不写盘 | S3「稍后」 |
 | `openItemUrl(url)` | 必须是 inbox 里或索引里某条的 `source`，否则 `bad_arguments` | `null`；`shell.openExternal`（测试只记日志） | S3「打开原文」 |
 | `getPipelineSettings()` | 无 | `{ cap, thresholds: { relevance, substance }, schedule }`；`schedule` = `getSchedule()` 的返回 | 设置「运行」 |
-| `getSchedule()` | 无 | 当前库的定时：`{ libraryId, enabled, time, nextRunAt: ISO \| null, lastRoundAt: ISO \| null, missed: boolean }`（§4.3–4.4；没打开库时是 `settings.json` 的、`libraryId` / `lastRoundAt` 为 null、`missed` 为 false） | 设置「运行」、今日顶栏「下次运行」 |
+| `getSchedule()` | 无 | 当前库的定时：`{ libraryId, enabled, time, nextRunAt: ISO \| null, lastRoundAt: ISO \| null, missed: boolean }`（§4.3–4.4；没打开库时是 `settings.json` 的、`libraryId` / `lastRoundAt` 为 null、`missed` 为 false） | 库页头「下次运行」（v2 包 F；v1.0 的设置「运行」与今日顶栏已不在，设置里是只读的「定时一览」，见 §4.10） |
 | `setSchedule(schedule)` | `{ enabled: boolean, time: 'HH:MM' }`（00:00–23:59，别的键 → `bad_arguments`） | 同上；写**当前库的 `streams.json`** 的 `schedule`（v2 包 A；v1.0 写 `settings.json`）、重设定时器；发 `settings-changed { libraryId }`；没打开库 → `no_library` | 设置「运行」、首次设置最后一步 |
 | `listLibraries()` | 无 | **v2 包 A**：登记表的库，按登记顺序：`[{ id, path, name, icon, color, addedAt, temporary, active, exists }]`；`exists` = 文件夹在、`streams.json` 读得出；`temporary` 只有开发钩子 `STREAMS_DEV_LIBRARY` 指的、没登记的那个库（id `dev`，排第一，不写进登记表）；`active` = 当前库 | 包 F 的左栏、库架 |
 | `setActiveLibrary(id)` | 登记表里的 id（不认识 → `bad_arguments`） | 换当前库，返回 `{ libraryId, path, name }`；文件夹不在或读不出 → `open_failed`，什么都不变；发 `libraries-changed`、`library-changed`、`settings-changed`。原有的库相关方法签名不变，都作用于当前库 | 包 F 切库 |
@@ -318,7 +320,7 @@ frame-ancestors 'none'
 | `library-changed` | `{ libraryId, path, name } \| null`（当前库） | 打开 / 新建 / 切换 / 改名了当前库，或它的内容变了（索引重建、收藏、来源…） | `app.js`：重读应用状态；今日 |
 | `libraries-changed` | `{ libraryId }`（涉及的那个库） | **v2 包 A**：登记表变了（登记、移除、切换、改名字图标颜色） | 包 F 的左栏、库架；主进程自己：重设定时器 |
 | `connections-changed` | `null` | 连接的设置变了（选定、模型槽、key 存了或删了） | 设置、S1 |
-| `round-progress` | `{ roundId, libraryId, phase, counts, calls, cap, done, result?, problems? }` | 一轮的每个阶段开始、每条打完分、跑完或停下（哪个库的一轮都发，带它的 `libraryId`） | 今日（只认当前库的）、S12 |
+| `round-progress` | `{ roundId, libraryId, phase, counts, calls, cap, done, result?, problems? }` | 一轮的每个阶段开始、每条打完分、跑完或停下（哪个库的一轮都发，带它的 `libraryId`） | 概览（v1.0 今日；只认当前库的）、S12 |
 | `inbox-changed` | `{ libraryId, count }` | 某个库的待看变了（一轮写入、收藏、放弃） | 侧栏角标（只认当前库的 `count`）、待看、今日 |
 | `proposals-changed` | `{ libraryId, id, status }`（建库卡 `libraryId` 为 null） | **v2 包 B**：出了一张提议卡，或一张卡被确认 / 不要 / 改一下 / 过期 / 失败 | 包 G 的卡片、「等你定的事」角标 |
 | `agent-changed` | `{ phase: 'started' \| 'done', turn, libraryId }` | **v2 包 C**：主 Agent 的一轮开始了 / 结束了（`agentSend`、`acceptSuggestion` 都会发） | 包 G 的对话流（重读 `getAgentTranscript` / `getAgentStatus`） |
@@ -348,7 +350,7 @@ frame-ancestors 'none'
 **界面**：
 - 设置「运行」块：定时开关 + 时刻（`input type=time`）+ 「错过了：下次打开补跑一轮，不会堆积」+ 「关窗口时：收进托盘（定时开着时）」。
 - 首次设置第 4 步跑完后多一屏「定时」（方案 A1 走一遍的最后一步）：默认每天 08:30、软件在托盘时运行、错过了下次打开补跑一轮；「完成」= `setSchedule` 接受默认（记「接受默认」）。
-- 今日顶栏「下次运行 明天 08:30」（`nextRunAt`；关着时「定时没开」）。
+- 今日顶栏「下次运行 明天 08:30」（`nextRunAt`；关着时「定时没开」）。v2 包 F 起在库页头，按库各显示各的。
 - 资料库「待规范」分页（S8）：每个文件一张卡：问题（缺文件头 / 缺 source 和 date / …）、「流息拟的文件头（可改）」textarea（YAML，预填 `proposedHeader`）、「写入这一个」「跳过」；顶上「全部按拟的写入」；说明「这些文件已经在你的文件夹里，流息没有动它们。给它们加上文件头后才会进库。正文一个字不改。」；拟不出的、文件名不能当 id 的如实说明怎么办；`skippedDirs` 非空时说明子文件夹这一版不读。
 - 待看：J / K 移动时把**键盘焦点**也移到当前卡片（`card.focus()`），读屏跟得上（Richard 11-03 的观察）。
 
@@ -539,7 +541,7 @@ src/renderer/
 **界面结构（v2 包 F，11-05：方案 B；设计稿 `docs/design/v2/streams-v2-design.html` 的导航、P1、P3–P7、P9）**
 
 - **左栏不随库变**（`kit/sidebar.js AppSidebar`）：品牌「流 · 流息 · STREAMS」→「库架」`a[data-nav="shelf"]` →「和主 Agent 聊」`a[data-nav="chat"]`（角标 `[data-badge="chat"]` = 待定的提议卡数 `listProposals({ status: 'pending' })` + 未处理的建议卡数——桥上有 `listSuggestions` 才数，包 C / G 接线前是 0；两者都 0 不画；`proposals-changed`、主 Agent 一轮结束（`agent-changed` done）与页面上处理了建议卡（`streams-suggestions-changed`，§4.8）时重读：`lib/libraries.js useWaiting`）→ 小标题「我的库」→ 每个登记的库一行 `a[data-library-row=<id>]`（库的图标方块 `LibraryMark`、名字、待看数 `[data-library-badge]`、有问题时一个琥珀小点 `[data-problem=missing|sources|no-output]`；`data-active` = 是不是当前库；在它的库页上时 `aria-current="page"`，画成白卡片）→「+ 新建库」`[data-action="add-library"]` → 底部「设置」。v1.0 的九个入口（今日、待看、资料库、图谱、问库、流水线、来源与主题、运行状态）没有了，全在库页里。
-- **库的列表**（`lib/libraries.js useLibraries`，`app.js` 放进 `useApp().libraries`）：`listLibraries` 与 `getLibrariesOverview` 按 id 合成一行；`libraries-changed`、`library-changed` 时整份重读；`inbox-changed { libraryId, count }` **只改那一行的 `inbox`**（别的库的事件不碰这一行；没带 libraryId 的事件 → 整份重读）。左栏、库架、库头都读它。
+- **库的列表**（`lib/libraries.js useLibraries`，`app.js` 放进 `useApp().libraries`）：`listLibraries` 与 `getLibrariesOverview` 按 id 合成一行；`libraries-changed`、`library-changed` 与一轮结束（`round-progress` 带 `done: true`，哪个库的都算；包 J1 补：否则库架卡片的「上次更新」与琥珀小点要等别的事件才变，`test/ui-shelf-after-round.test.mjs`）时整份重读；`inbox-changed { libraryId, count }` **只改那一行的 `inbox`**（别的库的事件不碰这一行；没带 libraryId 的事件 → 整份重读）。左栏、库架、库头都读它。
 - **点一个库**（`app.js openLibrary`）：不是当前库 → `setActiveLibrary(id)`（失败 = 文件夹不在：留在原处、列表重读）→ 回到这个库上次停的那一页；第一次开 → 它的「待看」（`LIBRARY_FIRST_SCREEN`，设计稿 UC2）。应用启动停在当前库的「概览」（`FIRST_SCREEN`；v1.0 启动在今日）。
 - **每个库各自记住**（内存，`app.js memory`）：`routes`：库 id → 最后停的路由（标签与参数，例如资料库的图谱视图）；`scroll`：「库 id:屏」→ 主体（`.st-main__body`）滚到哪。回到那一屏、它有了数据之后放回去；之后才长出来的部分（来源与要求的「要求」「关卡」各自读数据）每 100 ms 再放一次，直到放到、且主体里没有 `data-state="loading"` 的部分（最多 3 秒），这期间的滚动不算你的。换库时库页整个重新挂（`key` 带库 id），上一个库的东西不会留在页面上。
 - **库页**（`screens/library-frame.js LibraryFrame`）：一张卡片——库头 `[data-part="library-head"]`（图标方块、名字 `h1#lib-head-name`、「在追：…」`[data-part="tracking"]` = 要求的第一句，没有要求就是主题名，都没有就「还没写要求，也还没有主题」；右边是这一屏的按钮，如概览的「下次运行 · 连接」与「现在跑一轮」、来源与要求的「贴一个链接进待看」「加来源」、资料库的「编辑」「用 Obsidian 打开」「打开原文」）→ 五个标签（`kit/library-sections.js LibrarySections layout="tabs"`：`nav.st-lib-tabs button[data-tab=<id>][aria-current]`，待看带这个库的数 `[data-tab-badge="inbox"]`，问库是对话气泡图标）→ 屏本身（`Main` 照旧带 `data-screen` / `data-state`；有右栏的屏右栏在卡片里）。各屏原来的顶栏留作库页里的一行小标题（`h2`），按钮挪到库头。
@@ -575,9 +577,9 @@ src/renderer/
 - `ask`（S10）：顶栏范围（`getLibrary` 的 `counts`）；每轮问答 `[data-turn][data-state]`，每句后面的出处编号 `[data-cite]` 可点、在下方出处表 `[data-source-n][data-highlight]` 里标出，「打开」→ 资料库那一条；`removedCites` / `removedSentences` 非零各一行提示；`notInLibrary` 画成正式答案「库里没有。」；有 `notInLibrary` 或 `missing` 时给「记到想补的主题」（预填 `missing`）；「这个回答哪里不对」。问着时输入框禁用、显示「正在查库……」；`no_connection` →「去设置」。右栏：这次用了什么（命中 / 用了 / 调用 / 连接名 / 没给工具不联网 / 核对几轮）、想补的主题（`getDemands`，`suggest` 标「建议加成主题」）。`Answer` 组件导出给页面内的测试画一条给定的答案。
 - `graph`（S9）：节点位置 = `PAD_X + col × COL_GAP`、`PAD_Y + row × ROW_GAP`（`screens/graph.js` 导出这几个常数与 `place`），大小随 `count`；实线 topic / source → item，虚线（弧线）link；`svg[data-part="graph"]` 带着这份数据的 `data-days` / `data-status` / `data-links`（核心回显的 `filters`），测试据此等新数据画好。点条目开右下的框（`readNote` 补来源、日期、状态）。多于 60 条只画日期最近的 60 条（日期从 `getLibrary` 的条目取：图谱的节点不带日期），保持核心的列序。
 
-**设置的「软件」部分**（S14 的「软件」一块拆成几节：语言 · 主题 · 高级 · 关于）：「主题」一节见上；「关于」一节在「由 Starry Digital 开发」下面加按钮「许可证与致谢」（`[data-action="licenses"]`）→ 对话框 `[data-dialog="licenses"]`（`getLicenses`）：流息本身（`[data-part="own"][data-license]`，MIT，`LICENSE` 全文在可滚动的 `[data-part="license-text"]` 里，下面「由 Starry Digital 开发」= `openMakerPage`）；随软件带的组件表（`[data-part="components"]`，每行 `[data-component]`：名字、版本、许可证——Electron · Chromium · Node.js 的版本取运行时，Preact · htm 取应用里的 `package.json`）；「打开完整的第三方声明」（`[data-action="open-notices"]` → `openNotices`）：装好的应用里可点、打开安装目录的 `THIRD-PARTY-NOTICES.txt`；开发时这个文件没有，按钮不可点，旁边一句为什么（`[data-notices-why]`）。组件名、版本、许可证、LICENSE 全文是数据，不在字典里；对话框自己的字在 `texts/settings.js` 的 `licenses`。
+**设置的「软件」部分**（S14 的「软件」一块拆成几节：语言 · 主题 · 高级 · 关于）：「主题」一节见上；「关于」一节在「由 Starry Digital 开发」下面加按钮「许可证与致谢」（`[data-action="licenses"]`）→ 对话框 `[data-dialog="licenses"]`（`getLicenses`）：流息本身（`[data-part="own"][data-license]`，MIT，`LICENSE` 全文在可滚动的 `[data-part="license-text"]` 里，下面「由 Starry Digital 开发」= `openMakerPage`）；随软件带的组件表（`[data-part="components"]`，每行 `[data-component]`：名字、版本、许可证——Electron · Chromium · Node.js 的版本取运行时，Preact · htm · @mozilla/readability 取应用里的 `package.json`）；「打开完整的第三方声明」（`[data-action="open-notices"]` → `openNotices`）：装好的应用里可点、打开安装目录的 `THIRD-PARTY-NOTICES.txt`；开发时这个文件没有，按钮不可点，旁边一句为什么（`[data-notices-why]`）。组件名、版本、许可证、LICENSE 全文是数据，不在字典里；对话框自己的字在 `texts/settings.js` 的 `licenses`。
 
-**规矩**（测试会核）：页面写的每一个字都在 `texts/` 里（别处的字符串里出现汉字就红，`test/wording.test.mjs`）；`texts/` 里的每个字串过用词扫描器 0 命中（V7 禁词：Bronze / Silver / Gold / judge / keeper / gate / Medallion / pending / ledger；品牌词只许在「连接你电脑上的 …」里，`wording/banned-terms.json`）；汉字旁一律全角标点；英文表与中文表键一一对应、没有汉字、没有禁词（`test/texts-en.test.mjs`）；**颜色只用 `tokens.css` 的变量**，别的样式文件里写 `#xxxxxx`、`rgb()` 就红，每个 token 都在 `docs/tokens.md` 的名单里（`test/kit.test.mjs`）；不用行内样式字符串、不用 `innerHTML`；源文件只用 LF、不放看不见的字符。测试用的挂钩：`main[data-screen][data-state]`（`ready` 表示数据到了）、`[data-nav=<id>]`、`[data-part=<id>]`、`[data-action=<id>]`（按钮外的一层，`lib/action.js Act`）、`[data-num=inbox|caught|passed|kept][data-value]`（今日的四个数字）、`[data-dialog=run|dismiss|api-key]`、`[data-card][data-url][data-current]`（待看的卡）、`[data-connection=<kind>][data-conn-state]`（连接行）。页面不算数字：今日的四个数字直接是 `getHome` 的 `numbers.inbox` · `numbers.caught` · `lastRound.counts.inbox` · `numbers.kept`。
+**规矩**（测试会核）：页面写的每一个字都在 `texts/` 里（别处的字符串里出现汉字就红，`test/wording.test.mjs`）；`texts/` 里的每个字串过用词扫描器 0 命中（V7 禁词：Bronze / Silver / Gold / judge / keeper / gate / Medallion / pending / ledger；品牌词只许在「连接你电脑上的 …」里，`wording/banned-terms.json`）；汉字旁一律全角标点；英文表与中文表键一一对应、没有汉字、没有禁词（`test/texts-en.test.mjs`）；**颜色只用 `tokens.css` 的变量**，别的样式文件里写 `#xxxxxx`、`rgb()` 就红，每个 token 都在 `docs/tokens.md` 的名单里（`test/kit.test.mjs`）；不用行内样式字符串、不用 `innerHTML`；源文件只用 LF、不放看不见的字符。测试用的挂钩：`main[data-screen][data-state]`（`ready` 表示数据到了）、`[data-nav=<id>]`、`[data-part=<id>]`、`[data-action=<id>]`（按钮外的一层，`lib/action.js Act`）、`[data-num=inbox|caught|passed|kept][data-value]`（概览的四个数字，v1.0 的今日）、`[data-dialog=run|dismiss|api-key]`、`[data-card][data-url][data-current]`（待看的卡）、`[data-connection=<kind>][data-conn-state]`（连接行）。页面不算数字：概览（v1.0 今日）的四个数字直接是 `getHome` 的 `numbers.inbox` · `numbers.caught` · `lastRound.counts.inbox` · `numbers.kept`。
 
 **组件**（`kit/index.js`；`npm start -- --screen kit` 看全部）：`AppFrame` / `Main` / `Panel`（232 · 主区 · 404，间距 12）、`AppSidebar` 与侧栏零件（v2 加 `SidebarLibraryItem`、`SidebarAdd`）、`LibrarySections`（库的五个分区，`layout` = `tabs` | `sidebar`）/ `LibraryMark`（库的图标方块，颜色 `--st-lib-<名>`）、`TopBar`、`Button` / `LinkButton`、`PanelTabs`、`CardFrame`（`waiting` · `answered` · `plain`）、`Steps` / `StageProgress` / `stepClass`（小方块）、`Tag` / `Notice`（`wait` · `done` · `recommend` / `plain`）、`Icon`（线条图标；新增 `inbox` · `graph` · `flow` · `rss`；v2 加 `chat` · `chart` · `gear` · `play`）、`Popover`、`Menu`、`Dialog`；五种抓取状态的小标签是 CSS 类 `st-fetch st-fetch--<state>`（`kit.css`，颜色 `--st-fetch-*`）。文字样式类 `st-t-heading` · `st-t-title` · `st-t-body` · `st-t-small` · `st-t-tiny` · `st-t-sub` · `st-t-muted` · `st-t-strong` · `st-t-wait` · `st-t-done` · `st-t-num`。
 

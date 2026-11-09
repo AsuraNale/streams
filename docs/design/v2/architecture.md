@@ -172,6 +172,8 @@ v1.0 的 V1–V12 大多照用（V2 只有收藏写 notes、V3 五种抓取状�
 | N5 | 主 Agent 会话缓存丢失（删掉 `session.json`）后，对话能从正本接着进行 |
 | N6 | 设计稿五个 Use Case 在真窗口里逐步走通，截图与设计稿对照 |
 
+草案测试在 `tests/acceptance/v2-draft/`（`standards-draft.mjs` 是上表原文与每条的核法，另附 V1–V12 在 v2 的建议改字；`node tests/acceptance/v2-draft/run-draft.mjs` 打表，N6 的截图在 `docs/shots/acceptance-v2/`；工作包 J1，11-09），待 维护者 定后并入 `tests/acceptance/standards.mjs`，由 `run.mjs` 一起跑。
+
 ## 六、风险与未核实
 
 | 事 | 状态 | 怎么办 |
