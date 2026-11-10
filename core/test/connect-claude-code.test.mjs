@@ -49,8 +49,22 @@ function isIsolated(argv) {
   const toolsAt = argv.indexOf('--tools');
   return argv.includes('-p') && toolsAt >= 0 && argv[toolsAt + 1] === '' && argv.includes('--safe-mode') && argv.includes('--restricted')
     && argv.includes('--strict-mcp-config') && argv.includes('--no-session-persistence') && argv.includes('--disable-slash-commands')
-    && argv[argv.indexOf('--output-format') + 1] === 'json' && argv[argv.indexOf('--permission-prompts') + 1] === 'none';
+    // v2 package M: stream-json + --verbose (was json)
+    && argv[argv.indexOf('--output-format') + 1] === 'stream-json' && argv.includes('--verbose') && argv[argv.indexOf('--permission-prompts') + 1] === 'none';
 }
+
+// v2 package M: v1.0's fixed argv as it was before the package (git show HEAD~:core/src/connect/claude-code.mjs)
+const V1_FIXED_ARGS = ['-p', '--output-format', 'json', '--safe-mode', '--restricted', '--tools', '', '--strict-mcp-config', '--disable-slash-commands', '--no-session-persistence', '--permission-prompts', 'none'];
+/** v1.0's argv with only the output format swapped: what package M may change and nothing more. */
+const swapFormat = (argv) => { const i = argv.indexOf('json'); return [...argv.slice(0, i), 'stream-json', '--verbose', ...argv.slice(i + 1)]; };
+
+test('v2 package M: the fixed argv is v1.0\'s with only `json` → `stream-json --verbose`; reverse: a dropped or added flag is not', () => {
+  assert.deepEqual(CLAUDE_FIXED_ARGS, swapFormat(V1_FIXED_ARGS));
+  // reverse: the same comparison catches one flag less and one flag more
+  assert.notDeepEqual(CLAUDE_FIXED_ARGS.filter((a) => a !== '--restricted'), swapFormat(V1_FIXED_ARGS));
+  assert.notDeepEqual([...CLAUDE_FIXED_ARGS, '--include-partial-messages'], swapFormat(V1_FIXED_ARGS));
+  assert.equal(isIsolated(V1_FIXED_ARGS), false, 'the old json argv no longer counts: the predicate can fail');
+});
 
 test('claudeArgv: no tools, no settings, single JSON result; model and system only when given', () => {
   const base = claudeArgv();
@@ -245,6 +259,8 @@ test('real subprocess (fake-cli): the child really runs in an empty temp folder 
   assert.deepEqual(readdirSync(tmpRoot), [], 'nothing left under tmpRoot');
   assert.deepEqual(r.usage, { calls: 1, inputTokens: 15, outputTokens: 5, costUsd: 0.0012 });
   assert.equal(r.model, 'fake-model');
+  // v2 package M: the fake CLI's stream carries the rate_limit_event of 11-10
+  assert.deepEqual(r.quota?.windows, [{ id: 'five_hour', usedPercent: 5, resetsAt: 1794339000 }, { id: 'seven_day', usedPercent: 11, resetsAt: 1794603600 }]);
   const p = await c.probe();
   assert.equal(p.ok, true);
 });

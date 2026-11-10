@@ -1,7 +1,9 @@
 // v2 draft: Claude Code and Codex as the product's connectors see them, without a real CLI and without a model: a stand-in
 // for child_process.spawn (the connectors take it as deps.spawnImpl) that records every call (file, argv, working folder,
 // what came in on stdin) and answers the way the real CLIs print — Claude Code's one JSON envelope on stdout, Codex's
-// JSONL events — with a text the test decides from the call. A folder with an empty claude.exe and codex.exe stands in
+// JSONL events — with a text the test decides from the call. (v2 package M: Claude Code's stdout is the stream-json of
+// --output-format stream-json --verbose, its last line the envelope; `codex app-server` answers the quota read line by line
+// and keeps every line it was sent in call.sent.) A folder with an empty claude.exe and codex.exe stands in
 // for PATH, so the connectors' own lookup (which.mjs, codexCandidates) finds them; nothing is ever executed.
 //
 //   const cli = fakeCli({ answer: call => '{"ok":true}' })    answer(call) → the model's text (or a Promise of it), or { fail }
@@ -35,8 +37,36 @@ export function fakeCli({ name = 'cli', answer = () => '{"ok":true}', sessions =
     child.pid = 4242
     child.stdout = new PassThrough()
     child.stderr = new PassThrough()
-    child.kill = () => { setImmediate(() => child.emit('close', null, 'SIGTERM')); return true }
+    let closed = false
+    child.kill = () => { if (!closed) { closed = true; setImmediate(() => child.emit('close', null, 'SIGTERM')) } return true }
     child.unref = () => {}
+    // v2 package M: `codex app-server` (the quota read) talks line by line; every line it is sent is kept in call.sent
+    if (kind === 'codex' && args[0] === 'app-server') {
+      call.sent = []
+      let buf = ''
+      child.stdin = new Writable({
+        write(chunk, _e, cb) {
+          buf += Buffer.from(chunk).toString('utf8')
+          let nl
+          while ((nl = buf.indexOf('\n')) >= 0) {
+            const line = buf.slice(0, nl).trim()
+            buf = buf.slice(nl + 1)
+            if (!line) continue
+            call.sent.push(line)
+            let m = null
+            try { m = JSON.parse(line) } catch { continue }
+            const out = m.method === 'initialize' ? [{ method: 'remoteControl/status/changed', params: {} }, { id: m.id, result: { userAgent: 'fake' } }]
+              : m.method === 'account/rateLimits/read' ? [{ id: m.id, result: { rateLimits: { primary: { usedPercent: 28, windowDurationMins: 10080, resetsAt: 1794417106 }, secondary: null, planType: 'prolite' }, accountId: 'acct-x' } }]
+                : m.id !== undefined ? [{ id: m.id, error: { code: -32601, message: 'no such method' } }] : []
+            if (out.length) setImmediate(() => { if (!closed) child.stdout.write(`${out.map(o => JSON.stringify(o)).join('\n')}\n`) })
+          }
+          cb()
+        },
+        final(cb) { cb(); if (!closed) { closed = true; setImmediate(() => child.emit('close', 0, null)) } },
+      })
+      setImmediate(() => child.emit('spawn'))
+      return child
+    }
     const chunks = []
     let done = false
     const finish = async () => {
@@ -71,7 +101,15 @@ export function fakeCli({ name = 'cli', answer = () => '{"ok":true}', sessions =
       if (fresh >= 0) cli.sessions.add(sid)
       const text = await answer(call)
       if (text && typeof text === 'object' && text.fail) return { stdout: `${JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'OAuth session expired and could not be refreshed' })}\n`, status: 1 }
-      return { stdout: `${JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: text, session_id: sid, usage: { input_tokens: 5, output_tokens: 3 } })}\n`, status: 0 }
+      // v2 package M: stream-json, as 2.1.287 prints it with --output-format stream-json --verbose: init, the message, the
+      // plan's rate_limit_event, the result last
+      const lines = [
+        { type: 'system', subtype: 'init', session_id: sid, tools: [] },
+        { type: 'assistant', message: { content: [{ type: 'text', text }] } },
+        { type: 'rate_limit_event', rate_limit_info: { status: 'allowed', unifiedWindows: { five_hour: { utilization: 0.05, resetsAt: 1794339000 }, seven_day: { utilization: 0.11, resetsAt: 1794603600 } } } },
+        { type: 'result', subtype: 'success', is_error: false, result: text, session_id: sid, usage: { input_tokens: 5, output_tokens: 3 } },
+      ]
+      return { stdout: `${lines.map(l => JSON.stringify(l)).join('\n')}\n`, status: 0 }
     }
     // codex exec [resume <id>] … -
     const resuming = a[1] === 'resume'

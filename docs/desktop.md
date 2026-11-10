@@ -210,6 +210,7 @@ frame-ancestors 'none'
 | `answerFeedback(question, note)` | 两个非空字符串 | `{ ok: true }` | S10「这个回答哪里不对」 |
 | `sendLibraryMessage(text)` | 1–500 字（去掉首尾空白后） | **v2 包 E**：库内对话框的一句话，作用于当前库。先分流（核心 `routeMessage`，§4.7）：`question` → 走 `askLibrary` 的同一条路径；`change` → 主 Agent `agentSend(text, { libraryId: 当前库 })`；`unsure` → 谁都不问。返回 `{ route, by, confidence, result }`（`result` 是核心 `ask` 或 `agentSend` 的返回，原样）；`unsure` 时是 `{ route: 'unsure', by, confidence, text }`（没有 `result`）。每次在库的 `_pipeline/routes.jsonl` 记一行。与 `askLibrary` 共用「一次只许一句」（第二句 → `bad_arguments`）；去问库或主 Agent 时没选连接 → `no_connection`；`no_library` | 问库页（包 G） |
 | `resolveLibraryMessage(text, route)` | `text` 同上；`route` ∈ `'question'` · `'change'`（别的 → `bad_arguments`） | **v2 包 E**：你在「这是要改这个库吗？」里选了以后调：照选的走、不再分流；返回 `{ route, by: 'you', confidence: 1, result }`；`routes.jsonl` 记一行（`by: 'you'`、`resolvedBy: 'you'`）；一次只许一句、`no_connection`、`no_library` 同上 | 问库页（包 G）拿不准时的两个按钮 |
+| `getQuota()` | — | **v2 包 M**：当前连接的套餐余量或 API 余额（§4.11）：`{ source, at, windows[] }` · `{ source: 'api', at, vendor, balance[], available? }` 或 `null`（没选连接、没读到、读失败、厂商没有余额接口）；只读内存，不调模型、不写盘 | 左栏左下角（`kit/sidebar.js SidebarQuota`） |
 | `getVerdicts(url)` | url 在账本里 | 核心 `verdictsFor` | S15 |
 <!-- bridge:end -->
 
@@ -324,6 +325,7 @@ frame-ancestors 'none'
 | `inbox-changed` | `{ libraryId, count }` | 某个库的待看变了（一轮写入、收藏、放弃） | 侧栏角标（只认当前库的 `count`）、待看、今日 |
 | `proposals-changed` | `{ libraryId, id, status }`（建库卡 `libraryId` 为 null） | **v2 包 B**：出了一张提议卡，或一张卡被确认 / 不要 / 改一下 / 过期 / 失败 | 包 G 的卡片、「等你定的事」角标 |
 | `agent-changed` | `{ phase: 'started' \| 'done', turn, libraryId }` | **v2 包 C**：主 Agent 的一轮开始了 / 结束了（`agentSend`、`acceptSuggestion` 都会发） | 包 G 的对话流（重读 `getAgentTranscript` / `getAgentStatus`） |
+| `quota-changed` | `{ kind }`（哪种连接的；当前连接换了时是新的当前连接） | **v2 包 M**：某种连接的套餐余量 / API 余额读到了、随一次调用来了、读不到了，或当前连接换了（§4.11） | 左栏左下角（重读 `getQuota`） |
 <!-- events:end -->
 
 **加一个主题**：`src/main/events.mjs` 的 `EVENT_TOPICS` 加一项、`src/preload/preload.cjs` 的 `EVENT_TOPICS` 加同名、上表加一行；少一处 `npm test` 就红。
@@ -522,6 +524,21 @@ frame-ancestors 'none'
 - **新建库默认放在的规矩**（`services/library.mjs`）：`libraryRoot` 没设 → 默认位置（装好的流息 `%USERPROFILE%\Documents\Streams`；开发运行 `STREAMS_DEV_LIBRARY_ROOT`，没给就是它自己应用数据里的 `libraries`，所以开发运行从不写真的 Documents）。**v2 包 J2**：默认位置由 `src/main/library-root.mjs` 在第一次用到时才算（不在启动时）；装好的流息拿不到 Documents（`app.getPath('documents')` 抛错）时退到 `<用户主目录>\Streams`，再不行退到 `<应用数据>\libraries`，`main.log` 记一行，应用照常启动（原来整个起不来）；`createLibraryService` 的 `defaultLibraryRoot` 因此也可以是函数。测试：`test/library-root.test.mjs`、installer 的 `packaged.test.mjs` 第 4b 步。设的值必须是绝对路径、不能是 `layout.protectedDirs`（应用数据文件夹）本身或在它里面（大小写不论），否则 `bad_arguments`、`settings.json` 一个字节都不变。提议卡建库（包 B）读它；新建库的选文件夹对话框打开时停在那里。
 - 字：`texts/first-run.js`（`title` 改「流息首次打开」、`steps.track`、定时一步「以后在这个库的『来源与要求』里改」）、`texts/agent.js AGENT.guide`、`texts/shell.js` 的 `newLibrary`（只剩标题与「取消」）与 `thisLibrary`、`texts/settings.js` 的 `groups` · `conn.agentUses` · `agent` · `root`（去掉了 v1.0「库」一节的字）；英文表同键。
 
+### 4.11 §四补：左下角的套餐余量与 API 余额（v2 包 M，11-10）
+
+<!-- v2 package M: 维护者 11-10「套餐余额和API余额都放在左下角setting上面吧」；契约 docs/checks/2026-11-10-wp-m/contract.md M4 -->
+
+- **服务** `src/main/services/quota.mjs`：每种连接在内存里留最后一次的余量（**不写盘**：不进 `%APPDATA%\Streams` 的任何文件，重开应用重新读）。
+  - Claude Code：每次调用（库的关卡、缩写、核验、问库、分流、主 Agent 的每一轮、测试连接）的 stream-json 里带的 `rate_limit_event`（核心 `quota`，docs/core-api.md 5.17），连接服务把它交给 `record('claude-code', quota)`（`createConnectionsService({ onQuota })` → 核心 `deps.onQuota`）。是「上次调用时」的数，不另调。
+  - Codex：核心 `readCodexQuota`（`codex app-server`，只发三条，不调模型）——启动时、每 10 分钟（`CODEX_EVERY_MS`）、每轮结束（`round-progress` 的 `done`）与主 Agent 每轮结束（`agent-changed` 的 `done`）后读。**只在 Codex 是当前连接时读**（不为没在用的连接起进程）。
+  - API：核心 `readApiBalance`（只 DeepSeek、Moonshot 有官方余额接口），启动时、每轮结束与主 Agent 每轮结束后读，只在 API 是当前连接时读；key 从安全存储（safeStorage）在主进程里取，只进请求头，不写日志、不给页面。
+  - 连接设置变了（`connections-changed`：换了当前连接、厂商、key）→ 发一次 `quota-changed` 并照新的当前连接重读。
+  - 读失败（没装、超时、格式不对、key 不对）→ 那一种清成没有并发 `quota-changed`；日志只记错误码，不记服务器回的原文。
+- **桥** `getQuota()` → 当前连接的余量或 `null`：Claude Code `{ source: 'claude-code', at, windows: [{ id: 'five_hour' | 'seven_day', usedPercent, resetsAt }] }`；Codex `{ source: 'codex', at, plan?, windows: [{ id: 'primary' | 'secondary', usedPercent, windowMins, resetsAt }] }`；API `{ source: 'api', at, vendor, balance: [{ currency, amount }], available? }`（`resetsAt` 是 Unix 秒）。没选连接、还没读到、读失败、厂商没有余额接口、缓存的是另一个厂商的 → `null`。再过一遍核心 `checkQuota` 白名单：账户 id、credits、重置券之类一个字段都到不了页面。
+- **事件** `quota-changed` `{ kind }`：页面重读 `getQuota`。
+- **左下角**（`kit/sidebar.js SidebarQuota`，`lib/quota.js quotaView / useQuota`）：在「+ 新建库」下面的空白之后、「设置」上面；`[data-part="quota"][data-quota-kind=plan|balance]`，小标题「套餐余量」/「API 余额」，每个窗口一行 `[data-quota-row=<id>]`「5 小时 已用 5% · 14:30 重置」（今天只写时刻、明天「明天 14:30」、再往后「11-13 16:00」；Codex 的窗口按长度写「7 天」「5 小时」），余额一行「110.00 CNY」；悬停「截至 今天 10:16」。`getQuota` 是 `null` → **整块不画**（读不到、没有接口都一样）。字全在 `texts/shell.js SHELL.sidebar.quota`（英文 `texts-en/shell.js` 同键）；不写品牌词，也不写是哪条连接。样式用现有 kit 的安静小字（`.st-sidebar__quota`，同 `.st-sidebar__note`），新主题的样式在 K2 统一换。
+- **开发与测试**（装好的流息不认）：`STREAMS_DEV_QUOTA=<绝对路径的 JSON>` `{ "claude-code"?, "codex"?, "api"? }` 启动时当作读到的（每个过 `checkQuota`）；有它或有 `STREAMS_DEV_CONNECTION` 时不做任何真的读（不起 codex、不发请求）。
+
 ## 五、界面写法
 
 **选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。
@@ -540,7 +557,7 @@ src/renderer/
 
 **界面结构（v2 包 F，11-05：方案 B；设计稿 `docs/design/v2/streams-v2-design.html` 的导航、P1、P3–P7、P9）**
 
-- **左栏不随库变**（`kit/sidebar.js AppSidebar`）：品牌「流 · 流息 · STREAMS」→「库架」`a[data-nav="shelf"]` →「和主 Agent 聊」`a[data-nav="chat"]`（角标 `[data-badge="chat"]` = 待定的提议卡数 `listProposals({ status: 'pending' })` + 未处理的建议卡数——桥上有 `listSuggestions` 才数，包 C / G 接线前是 0；两者都 0 不画；`proposals-changed`、主 Agent 一轮结束（`agent-changed` done）与页面上处理了建议卡（`streams-suggestions-changed`，§4.8）时重读：`lib/libraries.js useWaiting`）→ 小标题「我的库」→ 每个登记的库一行 `a[data-library-row=<id>]`（库的图标方块 `LibraryMark`、名字、待看数 `[data-library-badge]`、有问题时一个琥珀小点 `[data-problem=missing|sources|no-output]`；`data-active` = 是不是当前库；在它的库页上时 `aria-current="page"`，画成白卡片）→「+ 新建库」`[data-action="add-library"]` → 底部「设置」。v1.0 的九个入口（今日、待看、资料库、图谱、问库、流水线、来源与主题、运行状态）没有了，全在库页里。
+- **左栏不随库变**（`kit/sidebar.js AppSidebar`）：品牌「流 · 流息 · STREAMS」→「库架」`a[data-nav="shelf"]` →「和主 Agent 聊」`a[data-nav="chat"]`（角标 `[data-badge="chat"]` = 待定的提议卡数 `listProposals({ status: 'pending' })` + 未处理的建议卡数——桥上有 `listSuggestions` 才数，包 C / G 接线前是 0；两者都 0 不画；`proposals-changed`、主 Agent 一轮结束（`agent-changed` done）与页面上处理了建议卡（`streams-suggestions-changed`，§4.8）时重读：`lib/libraries.js useWaiting`）→ 小标题「我的库」→ 每个登记的库一行 `a[data-library-row=<id>]`（库的图标方块 `LibraryMark`、名字、待看数 `[data-library-badge]`、有问题时一个琥珀小点 `[data-problem=missing|sources|no-output]`；`data-active` = 是不是当前库；在它的库页上时 `aria-current="page"`，画成白卡片）→「+ 新建库」`[data-action="add-library"]` →（v2 包 M）当前连接的套餐余量或 API 余额 `[data-part="quota"]`（§4.11；没有就整块不画）→ 底部「设置」。v1.0 的九个入口（今日、待看、资料库、图谱、问库、流水线、来源与主题、运行状态）没有了，全在库页里。
 - **库的列表**（`lib/libraries.js useLibraries`，`app.js` 放进 `useApp().libraries`）：`listLibraries` 与 `getLibrariesOverview` 按 id 合成一行；`libraries-changed`、`library-changed` 与一轮结束（`round-progress` 带 `done: true`，哪个库的都算；包 J1 补：否则库架卡片的「上次更新」与琥珀小点要等别的事件才变，`test/ui-shelf-after-round.test.mjs`）时整份重读；`inbox-changed { libraryId, count }` **只改那一行的 `inbox`**（别的库的事件不碰这一行；没带 libraryId 的事件 → 整份重读）。左栏、库架、库头都读它。
 - **点一个库**（`app.js openLibrary`）：不是当前库 → `setActiveLibrary(id)`（失败 = 文件夹不在：留在原处、列表重读）→ 回到这个库上次停的那一页；第一次开 → 它的「待看」（`LIBRARY_FIRST_SCREEN`，设计稿 UC2）。应用启动停在当前库的「概览」（`FIRST_SCREEN`；v1.0 启动在今日）。
 - **每个库各自记住**（内存，`app.js memory`）：`routes`：库 id → 最后停的路由（标签与参数，例如资料库的图谱视图）；`scroll`：「库 id:屏」→ 主体（`.st-main__body`）滚到哪。回到那一屏、它有了数据之后放回去；之后才长出来的部分（来源与要求的「要求」「关卡」各自读数据）每 100 ms 再放一次，直到放到、且主体里没有 `data-state="loading"` 的部分（最多 3 秒），这期间的滚动不算你的。换库时库页整个重新挂（`key` 带库 id），上一个库的东西不会留在页面上。
@@ -600,6 +617,8 @@ src/renderer/
 | `tray.test.mjs` · `ui-schedule.test.mjs` | 定时开时关窗口进程还在、关时退出；`STREAMS_DEV_NOW` 下错过 → 启动补跑一轮且只一轮、`notifications.jsonl` 一条，没错过 → 不补；设置「运行」改时刻 / 关定时写 settings.json、25:00 被拒；今日顶栏；首次设置「定时」屏。测试世界的 `settings.json` 默认 `schedule.enabled: false`（`test/support/app.mjs`），要定时的测试自己打开 | 是 |
 | `services-schedule.test.mjs` | 假时钟下补跑判定、只补一轮、定时器到点只跑一次、提示 0 条不发、托盘菜单 | 否 |
 | `services-route.test.mjs`（v2 包 E） | 库内对话分流（§4.7）：`question` 只调问库、`change` 只调主 Agent 且带当前库 id、`unsure` 两个都不调；`resolveLibraryMessage` 照选的走、不调分流模型；`routes.jsonl` 只追加；一次一句（与 `askLibrary` 共用）；三张方法表；`main.mjs` 接线 | 否 |
+| `services-quota.test.mjs`（v2 包 M） | 左下角余量服务（§4.11）：`getQuota` 只给当前连接的、过白名单；Claude Code 每次调用带来的（连接服务的 `onQuota`）记下并发 `quota-changed`；Codex 启动时、每 10 分钟、每轮后读，API 启动时与每轮后读，只在它是当前连接时读；没有余额接口的厂商、换了厂商 → `null`；读失败 → 清掉并发事件；开发文件；不写盘（服务里没有写文件的调用，跑完应用数据文件夹一个文件都没多）；`main.mjs` 接线、桥与事件表 | 否 |
+| `ui-quota.test.mjs`（v2 包 M） | 真窗口里左下角「设置」上面那块：有数（Claude Code 两个窗口两行、Codex 一行；API 余额那一行在 `quotaView` 上核；字照中文表）、读不到（没选连接 / 没读到）与没有接口（API 选了 Anthropic）整块不画；`quota-changed` 后重读；可见字过 wording 的 `scanStrings`、没有品牌词；给了 `STREAMS_QUOTA_SHOTS=<绝对路径的文件夹>` 时窗口显示出来（隐藏的窗口不出帧），每种状态把左栏截一张图存在那里（平常跑测试不开窗口、不截图） | 是 |
 | `protocol.test.mjs` | 不起 Electron：页面文件 200；指向别的机器的写法 1 秒内 404；路径规则逐条；中文文件名；英文下 `texts/` 换 `texts-en/`；组件一览只在开发时发 | 否 |
 | `bridge.test.mjs` | 预加载、主进程表、本文 §四 表三者一致；事件主题三处一致；预加载只交出一个对象；信封与错误码 | 否 |
 | `layout.test.mjs` · `settings.test.mjs` · `locale.test.mjs` | 布局；settings.json 的每个字段；语言的判定与状态 | 否 |

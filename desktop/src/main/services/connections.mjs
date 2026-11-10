@@ -40,8 +40,10 @@ export const keyRefOf = vendor => `key-${vendor}`
  * @param {object} [o.connectorDeps] - more deps for the core's connectors (tests: spawnImpl, fetchImpl)
  * @param {(connector: object) => object} [o.usageWrap] - what a probe runs on: main.mjs wraps the connector with the open
  *   library's usage counter (core createUsageCounter(dir).wrap, purpose `probe`) so the call is counted there
+ * @param {(kind: string, quota: object) => void} [o.onQuota] - v2 package M: the plan's windows a Claude Code call brought
+ *   (core deps.onQuota), for the corner of the sidebar (services/quota.mjs record)
  */
-export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, connectorDeps = {}, usageWrap = c => c }) {
+export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, connectorDeps = {}, usageWrap = c => c, onQuota = () => {} }) {
   if (devConnection !== null && !DEV_CONNECTION_MODES.includes(devConnection)) throw new TypeError(`STREAMS_DEV_CONNECTION must be one of ${DEV_CONNECTION_MODES.join(' | ')}`)
   const settings = () => readSettings(settingsFile)
   const detected = { 'claude-code': null, codex: null, api: null }
@@ -66,7 +68,8 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
     checkKind(kind)
     if (devConnection === 'fake') return scriptedConnector()
     if (devConnection) return fakeConnector({ mode: devConnection })
-    return createConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref) })
+    // v2 package M: every call's quota (Claude Code's stream) goes to the corner under this kind
+    return createConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref), onQuota: q => onQuota(kind, q) })
   }
 
   /**
@@ -76,7 +79,8 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
    */
   const sessionConnector = (kind, { cwd, log: sessionLog = log } = {}) => {
     checkKind(kind)
-    return createSessionConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref), log: line => sessionLog(`agent connection: ${line}`) }, { cwd })
+    // v2 package M: the main agent's turns bring the plan's windows too
+    return createSessionConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref), log: line => sessionLog(`agent connection: ${line}`), onQuota: q => onQuota(kind, q) }, { cwd })
   }
 
   const keyState = () => {
@@ -267,5 +271,8 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
     return lines
   }
 
-  return { handlers, active, connector, sessionConnector, connection, probeConnector, diagnosticLines, devConnection }
+  // v2 package M: the current connection's kind, for the quota service (services/quota.mjs) — the setting only, no detection
+  const activeKind = () => settings().connections.active ?? null
+
+  return { handlers, active, activeKind, connector, sessionConnector, connection, probeConnector, diagnosticLines, devConnection }
 }

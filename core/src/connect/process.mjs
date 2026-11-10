@@ -76,6 +76,92 @@ export function launchDetached({ file, args = [], title, platform = process.plat
   });
 }
 
+// v2 package M: a line-by-line exchange with one subprocess (Codex's app-server, codex-quota.mjs), ended by the caller:
+//   runDialogue({ file, args, cwd, timeoutMs, env, spawnImpl, platform, start(ctl), onLine(line, ctl) })
+//     ctl.send(text)   one line to the child's stdin ('\n' added)
+//     ctl.end(value)   done: the child is killed, the promise resolves
+//   -> { ended: true, value, sent } | { ended: false, status, signal, timedOut, spawnError, sent, stderr }
+//   `sent` = every line written, in order (what the caller's tests check). The child is killed on end, on timeout, and when
+//   it closes by itself; nothing is waited for after that.
+export const DIALOGUE_TIMEOUT_MS = 10_000;
+
+export function runDialogue({ file, args = [], cwd, timeoutMs = DIALOGUE_TIMEOUT_MS, env, spawnImpl = nodeSpawn, platform = process.platform, start, onLine }) {
+  return new Promise((resolve) => {
+    const plan = spawnPlan(file, args, platform);
+    const sent = [];
+    const err = [];
+    let child;
+    let settled = false;
+    let timer = null;
+    let buffer = '';
+    // stdin closed first: a child behind a cmd.exe shim (which kill() does not reach) sees the end of its input and stops
+    const kill = () => {
+      try { child?.stdin?.end(); } catch { /* already closed */ }
+      try { child?.kill(); } catch { /* already gone */ }
+    };
+    let closed = false;
+    let onClosed = null;
+    // the answer is handed back once the child is gone (its folder can then be removed: Windows keeps a running child's cwd
+    // busy), or after a second at most
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      kill();
+      const done = () => resolve({ ...result, sent: [...sent] });
+      if (closed || !child) { done(); return; }
+      const t = setTimeout(done, 1000);
+      onClosed = () => { clearTimeout(t); done(); };
+    };
+    const ctl = {
+      send(text) {
+        if (settled || !child?.stdin) return;
+        const line = String(text).replace(/[\r\n]+/g, ' ');
+        sent.push(line);
+        try { child.stdin.write(`${line}\n`); } catch { /* the close event carries the result */ }
+      },
+      end(value) { finish({ ended: true, value }); },
+    };
+    try {
+      child = spawnImpl(plan.file, plan.args, {
+        cwd,
+        env: env ?? process.env,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true,
+        windowsVerbatimArguments: plan.windowsVerbatimArguments,
+      });
+    } catch (e) {
+      finish({ ended: false, status: null, signal: null, timedOut: false, spawnError: e, stderr: '' });
+      return;
+    }
+    child.on('error', (e) => {
+      if (settled) { if (onClosed) onClosed(); return; }
+      closed = true;
+      finish({ ended: false, status: null, signal: null, timedOut: false, spawnError: e, stderr: Buffer.concat(err).toString('utf8') });
+    });
+    child.stdin?.on('error', () => { /* the child went away; close / timeout decides */ });
+    child.stderr?.on('data', (d) => { if (err.length < 64) err.push(Buffer.from(d)); });
+    child.stdout?.on('data', (d) => {
+      buffer += Buffer.from(d).toString('utf8');
+      let nl;
+      while (!settled && (nl = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (line === '') continue;
+        try { onLine(line, ctl); } catch (e) { finish({ ended: true, value: { error: e } }); }
+      }
+      if (buffer.length > 1_000_000) finish({ ended: false, status: null, signal: null, timedOut: false, spawnError: null, stderr: 'stdout line too long' });
+    });
+    child.on('close', (status, signal) => {
+      closed = true;
+      if (onClosed) { onClosed(); return; }
+      finish({ ended: false, status, signal, timedOut: false, spawnError: null, stderr: Buffer.concat(err).toString('utf8') });
+    });
+    if (timeoutMs > 0) timer = setTimeout(() => finish({ ended: false, status: null, signal: 'SIGTERM', timedOut: true, spawnError: null, stderr: Buffer.concat(err).toString('utf8') }), timeoutMs);
+    try { start?.(ctl); } catch (e) { finish({ ended: true, value: { error: e } }); }
+  });
+}
+
 export function runProcess({ file, args = [], cwd, input, timeoutMs = DEFAULT_PROCESS_TIMEOUT_MS, env, spawnImpl = nodeSpawn, platform = process.platform }) {
   return new Promise((resolve) => {
     const plan = spawnPlan(file, args, platform);

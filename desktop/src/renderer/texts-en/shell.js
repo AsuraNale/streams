@@ -7,6 +7,19 @@ export const SHELL = Object.freeze({
     newLibrary: 'New library',
     problem: 'Something is wrong with this library',
     inboxBadge: '{n} item{n?|s} in the inbox',
+    // v2 package M: the corner above Settings
+    quota: Object.freeze({
+      label: 'What is left',
+      plan: 'Plan usage',
+      balance: 'API balance',
+      window: '{span}: {pct}% used · resets {when}',
+      resets: Object.freeze({ today: '{hm}', tomorrow: 'tomorrow {hm}', date: '{m}/{d} {hm}' }),
+      hours: '{n} hour{n?|s}',
+      days: '{n} day{n?|s}',
+      minutes: '{n} min',
+      amount: '{amount} {currency}',
+      asOf: 'As of {when}',
+    }),
   }),
 
   tabs: Object.freeze({

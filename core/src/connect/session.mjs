@@ -36,7 +36,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:f
 import { isAbsolute, join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
 import { createConnector } from './connector.mjs';
-import { CLAUDE_COMMAND, CLAUDE_FIXED_ARGS, parseClaudeOutput } from './claude-code.mjs';
+// v2 package M: CLAUDE_FIXED_ARGS is stream-json + --verbose now; the envelope and the quota read from that stream
+import { CLAUDE_COMMAND, CLAUDE_FIXED_ARGS, parseClaudeOutput, claudeEnvelopeOf, withQuota } from './claude-code.mjs';
 import { CODEX_FIXED_ARGS, CODEX_LAST_MESSAGE_FILE, chooseCodex, codeFromText as codexCode, parseCodexEvents } from './codex.mjs';
 import { resolveCommand, spawnFailure, finishText } from './command.mjs';
 import { runProcess } from './process.mjs';
@@ -143,14 +144,15 @@ export function createSessionConnector(connection, deps = {}, { cwd } = {}) {
       const r = await run(cmd, claudeSessionArgv({ model, system: req.system, ...(resumed ? { resume: id } : { sessionId: id }) }), req.prompt);
       const sf = spawnFailure(r);
       if (sf) return after({ ...sf, model, sessionId: id, resumed });
-      const parsed = parseClaudeOutput(r);
-      let envId = null;
-      try { envId = JSON.parse((r.stdout || '').trim().split('\n').filter((l) => l.trim().startsWith('{')).pop() || 'null')?.session_id ?? null; } catch { envId = null; }
+      const parsed = parseClaudeOutput(r, { now: deps.now });
+      // v2 package M: the session id from the stream's result line (it was the one envelope's)
+      const envId = claudeEnvelopeOf(r.stdout)?.session_id ?? null;
       const sid = typeof envId === 'string' && UUID_RE.test(envId) ? envId : id;
       const out = !parsed.ok
         ? { ok: false, code: parsed.code, detail: parsed.detail, text: parsed.text, usage: { calls: 1, ...(parsed.usage || {}) }, model: parsed.model ?? model }
         : finishText({ text: parsed.text, usage: parsed.usage, model: parsed.model ?? model ?? 'default' });
-      return after(lostOrNot({ ...out, sessionId: sid, resumed }, resumed));
+      // v2 package M: the plan's windows of this turn, as complete() gives them
+      return after(lostOrNot(withQuota({ ...out, sessionId: sid, resumed }, parsed.quota, deps), resumed));
     }
     return { ...base, sessionful: true, cwd, send };
   }

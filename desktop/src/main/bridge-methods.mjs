@@ -209,6 +209,8 @@ export const BRIDGE_METHODS = Object.freeze({
   // library's answer or the main agent; your answer to 「这是要改这个库吗？」 takes the route you chose. One sentence at a time
   sendLibraryMessage: Object.freeze({ args: 1, check: ([t]) => question(t) }),
   resolveLibraryMessage: Object.freeze({ args: 2, check: ([t, route]) => question(t) && (route === 'question' || route === 'change') }),
+  // v2 package M (services/quota.mjs; docs/desktop.md §4.11): the current connection's plan windows or API balance, or null
+  getQuota: Object.freeze({ args: 0 }),
 })
 
 export const ERROR_CODES = Object.freeze([

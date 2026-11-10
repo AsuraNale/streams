@@ -19,6 +19,11 @@
 //     main agent's Claude Code call gets --allowedTools; Codex's first call gets a writable sandbox; Codex's resume gets a
 //     writable sandbox → the run-time scan of that copy is red;
 //   - the site scan on a planted new place that starts `claude` with a tool → reported.
+// v2 package M: Claude Code's set is `--output-format stream-json --verbose` (was json; the allowlist takes only that, with
+// planted json / text / no --verbose reported), and Codex's plan windows are read from `codex app-server`
+// (core connect/codex-quota.mjs): a known place (runDialogue), checked at run time — argv exactly ['app-server'], the lines
+// sent exactly initialize · initialized · account/rateLimits/read; reverse: planted argvs and a fourth message are reported,
+// and two mutants (a fourth message, a feature switched on) turn the run-time scan red.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { existsSync } from 'node:fs'
@@ -27,7 +32,7 @@ import { isAbsolute, join, relative } from 'node:path'
 import { REPO_DIR, caseDir, core as realCore, fake as realFake } from '../support/paths.mjs'
 import { sourceFiles } from '../support/source-scan.mjs'
 import { mutantCore } from '../support/mutant.mjs'
-import { claudeProblems, codexProblems, spawnSites } from './support/hands.mjs'
+import { claudeProblems, codexProblems, codexQuotaProblems, spawnSites } from './support/hands.mjs'
 import { fakeCli, flagValue } from './support/fake-cli.mjs'
 import { startSite } from './support/site.mjs'
 
@@ -51,7 +56,10 @@ const KNOWN_SITES = {
     { call: 'runProcess', count: 2, what: 'the wrappers runInEmptyDir and runQuick themselves' },
     { call: 'launchDetached', count: 1, what: 'the wrapper openLoginWith itself' },
   ],
-  'core/src/connect/process.mjs': [{ call: 'spawnImpl', count: 2, what: 'runProcess and launchDetached themselves (child_process.spawn)' }],
+  // v2 package M: runDialogue (the app-server's line-by-line exchange) is the third
+  'core/src/connect/process.mjs': [{ call: 'spawnImpl', count: 3, what: 'runProcess, launchDetached and runDialogue themselves (child_process.spawn)' }],
+  // v2 package M: Codex's plan windows — `codex app-server`, three JSON-RPC messages, no thread or turn; checked at run time
+  'core/src/connect/codex-quota.mjs': [{ call: 'runDialogue', count: 1, what: 'codex app-server: initialize · initialized · account/rateLimits/read, nothing else (CODEX_QUOTA_ARGS), checked at run time' }],
   'core/src/connect/session.mjs': [{ call: 'runProcess', count: 1, what: 'the main agent\'s session mode: claudeSessionArgv / codexSessionArgv / codexResumeArgv, checked at run time' }],
   'desktop/src/main/quit.mjs': [{ call: 'spawnSync', count: 1, what: 'taskkill of the app\'s own helper processes at quit (no model)' }],
   'desktop/src/main/services/update.mjs': [{ call: 'spawnImpl', count: 1, what: 'the downloaded setup program of an update (no model)' }],
@@ -106,6 +114,13 @@ test('N2 reverse: a planted new place that starts claude with a tool, and a quic
   assert.notEqual(changed.find(f => f.rel === cc.rel).text, cc.text, 'control: the plant applied')
   const p2 = siteProblems(changed)
   assert.ok(p2.some(p => p.includes("'-p', '--tools', 'Bash'") && p.includes('not one of the known quick calls')), p2.join('\n'))
+  // v2 package M: the app-server entry is a known place; a second dialogue there, or one anywhere else, is reported
+  assert.ok(spawnSites(files).some(s => s.file === 'core/src/connect/codex-quota.mjs' && s.call === 'runDialogue'), 'control: the scan sees the app-server entry')
+  const cq = files.find(f => f.rel === 'core/src/connect/codex-quota.mjs')
+  const twice = files.map(f => (f === cq ? { ...f, text: `${f.text}\nexport const again = () => runDialogue({ file: 'codex', args: ['app-server'] });\n` } : f))
+  assert.ok(siteProblems(twice).some(p => p.startsWith('core/src/connect/codex-quota.mjs: 2 × runDialogue')), siteProblems(twice).join('\n'))
+  const elsewhere = [...files, { rel: 'desktop/src/main/services/quota-shortcut.mjs', text: "import { runDialogue } from '../core.mjs'\nexport const go = () => runDialogue({ file: 'codex', args: ['app-server'] })\n" }]
+  assert.ok(siteProblems(elsewhere).some(p => p.startsWith('desktop/src/main/services/quota-shortcut.mjs: starts a process')), siteProblems(elsewhere).join('\n'))
 })
 
 // ---- 2. every model call at run time ----
@@ -152,6 +167,10 @@ async function capture(core, fakeMod, label) {
     const sc = core.createSessionConnector(connection, deps(kind), { cwd })
     for (const text of ['你好', '接着说']) await core.agentTurn({ text }, { agentDir, connector: sc, registry: { libraries: [] }, now: () => new Date(Date.now() + HOUR) })
   }
+  // v2 package M: Codex's plan windows (the desktop's corner): `codex app-server`, three messages
+  cli.phase = 'quota:codex'
+  const q = await core.readCodexQuota({ kind: 'codex' }, deps('codex'))
+  if (!q.ok) throw new Error(`${label}: the quota read failed on the stand-in: ${JSON.stringify(q)}`)
   return cli.calls
 }
 
@@ -165,7 +184,9 @@ function callProblems(calls) {
     const phase = c.phase ?? 'none'
     const key = `${phase}|${c.kind}`
     seen[key] = (seen[key] ?? 0) + 1
-    const ps = c.kind === 'claude' ? claudeProblems(c.args, { mode: phase === 'agent' ? 'session' : 'once' }) : codexProblems(c.args, { cwd: c.cwd })
+    // v2 package M: an app-server call is the quota read (its own allowlist: the argv and the three messages)
+    const ps = c.kind === 'claude' ? claudeProblems(c.args, { mode: phase === 'agent' ? 'session' : 'once' })
+      : c.args[0] === 'app-server' ? codexQuotaProblems(c.args, c.sent ?? []) : codexProblems(c.args, { cwd: c.cwd })
     if (Array.isArray(c.cwdEntries) ? c.cwdEntries.length > 0 : true) ps.push(`working folder not empty at start: ${JSON.stringify(c.cwdEntries)}`)
     // the folder is a throw-away one under the system's temporary folder (v1.0: <tmp>/<random>/cwd; the main agent: its own), never a library
     const rel = c.cwd ? relative(tmpdir(), c.cwd) : '..'
@@ -176,7 +197,8 @@ function callProblems(calls) {
   return { problems, seen }
 }
 
-const PHASES = ['round', 'ask', 'route'].flatMap(p => [[`${p}:claude-code`, 'claude'], [`${p}:codex`, 'codex']]).concat([['agent', 'claude'], ['agent', 'codex']])
+// v2 package M: the quota read of Codex is one of the paths
+const PHASES = ['round', 'ask', 'route'].flatMap(p => [[`${p}:claude-code`, 'claude'], [`${p}:codex`, 'codex']]).concat([['agent', 'claude'], ['agent', 'codex'], ['quota:codex', 'codex']])
 
 test('N2 · every model call of a round, 问库, the routing and the main Agent, on Claude Code and Codex: no hands (allowlisted argv, empty folder)', async () => {
   const calls = await capture(realCore, realFake, 'real')
@@ -225,6 +247,24 @@ test('N2 reverse: the allowlists report every planted tool, permission, folder, 
     [...codexResume.slice(0, -2), '--sandbox', 'read-only', ...codexResume.slice(-2)],
   ]
   for (const argv of resumePlants) assert.notDeepEqual(codexProblems(argv, { cwd: 'C:\\w\\cwd' }), [], `not reported: ${JSON.stringify(argv)}`)
+  // v2 package M: the stream-json argv — the old json one, --verbose missing or twice, another format: each reported
+  assert.ok(claudeOnce.includes('--verbose') && claudeOnce[claudeOnce.indexOf('--output-format') + 1] === 'stream-json', 'control: the product passes stream-json --verbose')
+  const formatPlants = [
+    (() => { const a = [...claudeOnce]; a[a.indexOf('--output-format') + 1] = 'json'; return a })(),
+    (() => { const a = [...claudeOnce]; a[a.indexOf('--output-format') + 1] = 'text'; return a })(),
+    swap(claudeOnce, '--verbose', []), [...claudeOnce, '--verbose'], [...claudeOnce, '--include-partial-messages'],
+    swap(claudeSession, '--verbose', []),
+  ]
+  for (const argv of formatPlants) assert.notDeepEqual(claudeProblems(argv, { mode: argv.includes('--session-id') ? 'session' : 'once' }), [], `not reported: ${JSON.stringify(argv)}`)
+  // v2 package M: the app-server entry — its argv and what it was sent
+  const sent = ['{"id":1,"method":"initialize","params":{"clientInfo":{"name":"streams","version":"2"}}}', '{"method":"initialized"}', '{"id":2,"method":"account/rateLimits/read"}']
+  assert.deepEqual(codexQuotaProblems([...realCore.CODEX_QUOTA_ARGS], sent), [], 'control: the product\'s app-server call passes')
+  const quotaPlants = [
+    [['app-server', '--enable', 'web_search'], sent], [['app-server', '-c', 'sandbox_mode="danger-full-access"'], sent], [['app-server', '--listen', 'ws://0.0.0.0:9'], sent], [['exec', '--json'], sent],
+    [['app-server'], [...sent, '{"id":3,"method":"account/rateLimitResetCredit/use"}']], [['app-server'], [...sent, '{"id":3,"method":"thread/start","params":{}}']],
+    [['app-server'], [...sent, '{"id":3,"method":"turn/start","params":{}}']], [['app-server'], sent.slice(0, 2)], [['app-server'], [sent[0], sent[2], sent[1]]], [['app-server'], [...sent, 'not json']],
+  ]
+  for (const [argv, lines] of quotaPlants) assert.notDeepEqual(codexQuotaProblems(argv, lines), [], `not reported: ${JSON.stringify(argv)} ${JSON.stringify(lines.at(-1))}`)
 })
 
 const MUTANTS = [
@@ -232,6 +272,9 @@ const MUTANTS = [
   { id: 'n02-session-tool', what: 'the main agent\'s Claude Code call gets --allowedTools', phase: 'agent claude', edits: [{ file: 'connect/session.mjs', from: "  if (model) argv.push('--model', model);\n  if (system) argv.push('--system-prompt', system);", to: "  argv.push('--allowedTools', 'Bash');\n  if (model) argv.push('--model', model);\n  if (system) argv.push('--system-prompt', system);" }] },
   { id: 'n02-codex-write', what: 'Codex\'s first call in a writable sandbox', phase: 'round:codex codex', edits: [{ file: 'connect/codex.mjs', from: "  '--sandbox', 'read-only',", to: "  '--sandbox', 'workspace-write',"  }] },
   { id: 'n02-codex-resume-write', what: 'Codex\'s resume in a writable sandbox', phase: 'agent codex', edits: [{ file: 'connect/session.mjs', from: `export const CODEX_READ_ONLY_CONFIG = 'sandbox_mode="read-only"';`, to: `export const CODEX_READ_ONLY_CONFIG = 'sandbox_mode="workspace-write"';` }] },
+  // v2 package M: the quota read sends a fourth message (an account action), and Claude Code's set loses --verbose for json
+  { id: 'n02-quota-fourth', what: 'the Codex quota read also sends account/rateLimitResetCredit/use', phase: 'quota:codex codex', edits: [{ file: 'connect/codex-quota.mjs', from: '        ctl.send(message(CODEX_QUOTA_METHODS[2], 2));', to: "        ctl.send(message(CODEX_QUOTA_METHODS[2], 2));\n        ctl.send(JSON.stringify({ id: 3, method: 'account/rateLimitResetCredit/use' }));" }] },
+  { id: 'n02-quota-argv', what: 'the Codex quota read starts app-server with a feature on', phase: 'quota:codex codex', edits: [{ file: 'connect/codex-quota.mjs', from: "export const CODEX_QUOTA_ARGS = Object.freeze(['app-server']);", to: "export const CODEX_QUOTA_ARGS = Object.freeze(['app-server', '--enable', 'web_search']);" }] },
 ]
 
 for (const m of MUTANTS) {

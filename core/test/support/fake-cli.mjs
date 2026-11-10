@@ -56,7 +56,23 @@ async function main() {
     usage: { input_tokens: 10, cache_creation_input_tokens: 2, cache_read_input_tokens: 3, output_tokens: 5 },
     total_cost_usd: 0.0012, modelUsage: { 'fake-model': { inputTokens: 15, outputTokens: 5 } },
   };
-  process.stdout.write(JSON.stringify(envelope) + '\n');
+  // v2 package M: Claude Code's stream-json (with --output-format stream-json --verbose): an init line, the assistant's
+  // message, the rate_limit_event (FAKE_CLI_RATE_LIMIT=0 leaves it out), the result last — the shape 2.1.287 printed 11-10
+  const stream = argv[argv.indexOf('--output-format') + 1] === 'stream-json';
+  if (!stream) {
+    process.stdout.write(JSON.stringify(envelope) + '\n');
+    process.exit(exitCode);
+  }
+  const lines = [
+    { type: 'system', subtype: 'init', cwd: process.cwd(), session_id: '00000000-0000-0000-0000-000000000000', tools: [], mcp_servers: [] },
+    { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } },
+    ...(process.env.FAKE_CLI_RATE_LIMIT === '0' ? [] : [{
+      type: 'rate_limit_event',
+      rate_limit_info: { status: 'allowed', resetsAt: 1794339000, rateLimitType: 'five_hour', overageStatus: 'rejected', unifiedWindows: { five_hour: { utilization: 0.05, resetsAt: 1794339000 }, seven_day: { utilization: 0.11, resetsAt: 1794603600 } } },
+    }]),
+    envelope,
+  ];
+  process.stdout.write(lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
   process.exit(exitCode);
 }
 

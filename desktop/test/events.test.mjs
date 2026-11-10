@@ -26,8 +26,8 @@ test('emit (main): a listed topic only, to the app\'s own pages that are still o
   assert.throws(() => emit('made-up-topic', {}), /no event topic/)
   assert.throws(() => emit('toString'), /no event topic/)
   // v2 package A: libraries-changed (the registry changed); v2 package B: proposals-changed (a proposal card made or decided);
-  // v2 package C: agent-changed (a turn of the main agent started or ended)
-  assert.deepEqual(Object.keys(EVENT_TOPICS).sort(), ['agent-changed', 'connections-changed', 'inbox-changed', 'libraries-changed', 'library-changed', 'open-screen', 'proposals-changed', 'round-progress', 'settings-changed', 'update'])
+  // v2 package C: agent-changed (a turn of the main agent started or ended); v2 package M: quota-changed (the corner above 设置)
+  assert.deepEqual(Object.keys(EVENT_TOPICS).sort(), ['agent-changed', 'connections-changed', 'inbox-changed', 'libraries-changed', 'library-changed', 'open-screen', 'proposals-changed', 'quota-changed', 'round-progress', 'settings-changed', 'update'])
 })
 
 test('onEvent (page): only a listed topic and a function; the payload alone arrives; the returned function unsubscribes', async () => {

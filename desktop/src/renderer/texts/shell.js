@@ -13,6 +13,21 @@ export const SHELL = Object.freeze({
     // the amber dot after a library's name
     problem: '这个库有问题',
     inboxBadge: '{n} 条待看',
+    // v2 package M (kit/sidebar.js SidebarQuota): the corner above 设置 — the current connection's plan windows (Claude Code,
+    // Codex) or its API balance; nothing at all when there is none. {span}: hours / days / minutes below; {when} of `window`:
+    // `resets` (lib/format.js nextText); {when} of `asOf`: WHEN of texts/common.js
+    quota: Object.freeze({
+      label: '余量',
+      plan: '套餐余量',
+      balance: 'API 余额',
+      window: '{span} 已用 {pct}% · {when} 重置',
+      resets: Object.freeze({ today: '{hm}', tomorrow: '明天 {hm}', date: '{m}-{d} {hm}' }),
+      hours: '{n} 小时',
+      days: '{n} 天',
+      minutes: '{n} 分钟',
+      amount: '{amount} {currency}',
+      asOf: '截至 {when}',
+    }),
   }),
 
   // a library's page: its head and the five tabs (plan B; the same five can be the sidebar's entries in plan A)

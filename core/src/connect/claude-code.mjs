@@ -2,7 +2,10 @@
 //
 // argv (Claude Code 2.1.287, read from `claude --help` on 2026-11-02):
 //   -p                              print mode, non-interactive
-//   --output-format json            one JSON envelope on stdout ({ type:'result', result, is_error, usage, ... })
+//   --output-format stream-json     one JSON object per line on stdout; the last { type:'result', result, is_error, usage, ... }
+//   --verbose                       (stream-json needs it with -p) — v2 package M: was `--output-format json` (one envelope,
+//                                   no rate-limit info); the stream also carries a `rate_limit_event` with the plan's windows
+//                                   (quota.mjs). Nothing else changed: every flag below is v1.0's.
 //   --safe-mode                     CLAUDE.md, skills, plugins, hooks, MCP servers, custom commands all off; auth works
 //   --restricted                    no Bash/code tools, ignores user/project/local settings files
 //   --tools ""                      no built-in tools at all ("" = disable all tools)
@@ -26,12 +29,16 @@
 import { resolveCommand, runInEmptyDir, runQuick, spawnFailure, finishText, probeFrom, versionOf, openLoginWith } from './command.mjs';
 import { resolveModel, modelsFor } from './models.mjs';
 import { failure, clip, checkRequest } from './types.mjs';
+// v2 package M: the plan's windows that come with every call
+import { quotaFromClaudeStream } from './quota.mjs';
 
 export const CLAUDE_COMMAND = 'claude';
 
 export const CLAUDE_FIXED_ARGS = [
   '-p',
-  '--output-format', 'json',
+  // v2 package M: stream-json + --verbose instead of json, for the plan's rate_limit_event (quota.mjs); the rest unchanged
+  '--output-format', 'stream-json',
+  '--verbose',
   '--safe-mode',
   '--restricted',
   '--tools', '',
@@ -67,36 +74,62 @@ export function codeFromText(text) {
   return 'unknown';
 }
 
-// Parse what `claude -p --output-format json` printed.
-export function parseClaudeOutput({ stdout, stderr, status }) {
+// v2 package M: the envelope of a stream-json stdout is its last `type: 'result'` line; v1.0's one-envelope stdout (and a
+// warning line before it) still reads the old way: the last JSON object.
+export function claudeEnvelopeOf(stdout) {
   const trimmed = (stdout || '').trim();
-  let env = null;
-  if (trimmed !== '') {
-    // the envelope is the last JSON object on stdout (a warning line could precede it)
-    const start = trimmed.lastIndexOf('\n{');
-    const candidate = start >= 0 ? trimmed.slice(start + 1) : trimmed;
+  if (trimmed === '') return null;
+  const lines = trimmed.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line.startsWith('{') || !line.includes('"result"')) continue;
     try {
-      env = JSON.parse(candidate);
-    } catch {
-      env = null;
-    }
+      const j = JSON.parse(line);
+      if (j && typeof j === 'object' && j.type === 'result') return j;
+    } catch { /* not this line */ }
   }
+  const start = trimmed.lastIndexOf('\n{');
+  const candidate = start >= 0 ? trimmed.slice(start + 1) : trimmed;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return null;
+  }
+}
+
+// Parse what `claude -p --output-format stream-json --verbose` printed. The answer is v1.0's (ok, text, usage, model / code,
+// detail), plus `quota` when the stream carried a well-formed rate_limit_event (v2 package M; absent otherwise).
+export function parseClaudeOutput({ stdout, stderr, status }, { now } = {}) {
+  const trimmed = (stdout || '').trim();
+  const env = claudeEnvelopeOf(trimmed);
+  const quota = quotaFromClaudeStream(trimmed, now);
+  const q = quota ? { quota } : {};
   if (!env || typeof env !== 'object') {
     const text = trimmed !== '' ? trimmed : (stderr || '').trim();
     const code = codeFromText(text);
-    return { ok: false, code: code === 'unknown' && status === 0 ? 'bad-format' : code, detail: `exit ${status}; ${clip(text, 300)}` };
+    return { ok: false, code: code === 'unknown' && status === 0 ? 'bad-format' : code, detail: `exit ${status}; ${clip(text, 300)}`, ...q };
   }
   const resultText = typeof env.result === 'string' ? env.result : '';
   const usage = usageFrom(env);
   const model = modelFrom(env);
   if (env.is_error === true || (status !== 0 && status !== null)) {
     const text = resultText || (stderr || '').trim();
-    return { ok: false, code: codeFromText(text), detail: `exit ${status}; ${clip(text, 300)}`, usage, model };
+    return { ok: false, code: codeFromText(text), detail: `exit ${status}; ${clip(text, 300)}`, usage, model, ...q };
   }
   if (env.stop_reason === 'refusal') {
-    return { ok: false, code: 'refused', detail: 'stop_reason refusal', usage, model, text: resultText };
+    return { ok: false, code: 'refused', detail: 'stop_reason refusal', usage, model, text: resultText, ...q };
   }
-  return { ok: true, text: resultText, usage, model };
+  return { ok: true, text: resultText, usage, model, ...q };
+}
+
+/**
+ * v2 package M: a call's result with its quota when the stream had one — absent otherwise, so the result is v1.0's exactly —
+ * and deps.onQuota(quota) told (the desktop's corner; an error there never fails the call).
+ */
+export function withQuota(result, quota, deps = {}) {
+  if (!quota) return result;
+  if (typeof deps.onQuota === 'function') { try { deps.onQuota(quota); } catch { /* the caller's problem, not the call's */ } }
+  return { ...result, quota };
 }
 
 function usageFrom(env) {
@@ -160,9 +193,12 @@ export function createClaudeCodeConnector(connection, deps = {}) {
     });
     const sf = spawnFailure(r);
     if (sf) return { ...sf, model };
-    const parsed = parseClaudeOutput(r);
-    if (!parsed.ok) return { ok: false, code: parsed.code, detail: parsed.detail, text: parsed.text, usage: { calls: 1, ...(parsed.usage || {}) }, model: parsed.model ?? model };
-    return finishText({ text: parsed.text, usage: parsed.usage, model: parsed.model ?? model ?? 'default' });
+    const parsed = parseClaudeOutput(r, { now: deps.now });
+    const out = !parsed.ok
+      ? { ok: false, code: parsed.code, detail: parsed.detail, text: parsed.text, usage: { calls: 1, ...(parsed.usage || {}) }, model: parsed.model ?? model }
+      : finishText({ text: parsed.text, usage: parsed.usage, model: parsed.model ?? model ?? 'default' });
+    // v2 package M: the plan's windows go with the result (and to deps.onQuota)
+    return withQuota(out, parsed.quota, deps);
   }
 
   async function openLogin({ title } = {}) {

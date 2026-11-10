@@ -4,6 +4,12 @@ export { createConnector, checkConnection } from './connector.mjs';
 export { createClaudeCodeConnector, claudeArgv, parseClaudeOutput, CLAUDE_FIXED_ARGS, CLAUDE_LOGIN_ARGS } from './claude-code.mjs';
 export { createCodexConnector, codexArgv, parseCodexEvents, codexCandidates, chooseCodex, desktopAppCodex, compareVersions, CODEX_FIXED_ARGS, CODEX_SOURCES, CODEX_LOGIN_ARGS } from './codex.mjs';
 export { launchDetached, launchPlan, LAUNCH_STDIO } from './process.mjs';
+// v2 package M: the plan's quota and the API balance (docs/core-api.md 5.17)
+export { claudeEnvelopeOf, withQuota } from './claude-code.mjs';
+export { quotaFromClaudeStream, quotaFromCodexRateLimits, checkQuota, hasBalanceEndpoint, BALANCE_ENDPOINTS, BALANCE_VENDORS, QUOTA_SOURCES, CLAUDE_WINDOWS, CODEX_WINDOWS } from './quota.mjs';
+export { readCodexQuota, CODEX_QUOTA_ARGS, CODEX_QUOTA_METHODS } from './codex-quota.mjs';
+export { readApiBalance, BALANCE_TIMEOUT_MS } from './balance.mjs';
+export { runDialogue, DIALOGUE_TIMEOUT_MS } from './process.mjs';
 export { createApiConnector, buildRequest, codeFromHttp, parseSuccess, ANTHROPIC_VERSION } from './api.mjs';
 export { CLAUDE_CODE_MODELS, CODEX_MODELS, VENDORS, VENDOR_IDS, modelsFor, recommendedModel, defaultModelFor, resolveModel } from './models.mjs';
 export { extractJson } from './json-output.mjs';

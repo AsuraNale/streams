@@ -524,7 +524,7 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 | 连接 | 第一次 | 之后 | 「不能动手」 |
 |---|---|---|---|
-| Claude Code | `CLAUDE_SESSION_ARGS`（= v1.0 `CLAUDE_FIXED_ARGS` 去掉 `--no-session-persistence`：`-p --output-format json --safe-mode --restricted --tools "" --strict-mcp-config --disable-slash-commands --permission-prompts none`）+ `--session-id <新 uuid>` [`--model`] [`--system-prompt`] | 同上，`--resume <id>` 代替 `--session-id` | 一个工具都没有；提示走 stdin |
+| Claude Code | `CLAUDE_SESSION_ARGS`（= v1.0 `CLAUDE_FIXED_ARGS` 去掉 `--no-session-persistence`：`-p --output-format stream-json --verbose --safe-mode --restricted --tools "" --strict-mcp-config --disable-slash-commands --permission-prompts none`；v2 包 M 起 `json` 换成 `stream-json --verbose`，5.17）+ `--session-id <新 uuid>` [`--model`] [`--system-prompt`] | 同上，`--resume <id>` 代替 `--session-id` | 一个工具都没有；提示走 stdin |
 | Codex | `CODEX_SESSION_ARGS`（= v1.0 `CODEX_FIXED_ARGS` 去掉 `--ephemeral`：`exec --json --sandbox read-only --skip-git-repo-check --ignore-user-config --ignore-rules --color never`）+ `-C <cwd> -o <旁边的文件> [-m] -`；会话 id = `thread.started` 的 `thread_id` | `CODEX_RESUME_ARGS`：`exec resume --json -c sandbox_mode="read-only" --skip-git-repo-check --ignore-user-config --ignore-rules` + `-o <文件> [-m] <id> -`（`exec resume` 不认 `--sandbox` / `-C` / `--color`，0.166.0-alpha.6 的 `--help` 核过） | 只读沙箱；`-o` 的文件在 `cwd` 之外的临时文件夹 |
 | API key | `complete()` | 同左（会话由 `agentTurn` 重放） | 请求里没有 `tools` 等字段 |
 
@@ -588,6 +588,54 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 `appendRouteLine(libraryDir, { text, route, by, confidence, resolvedBy? }, { now? })` 追加一行 `{ at, text: 前 200 字（按字符，不按字节）, route, by, confidence, resolvedBy?: 'you' }`（`route` 不是三种之一 → `bad-argument`；前一行丢了换行时先补换行，同 `demand.jsonl`）。`readRoutes(libraryDir)` 读回全部行（坏行跳过）。桌面：分流的一句 `by` 是 `routeMessage` 的；你在「这是要改这个库吗？」里选的一句 `by: 'you'`、`confidence: 1`、`resolvedBy: 'you'`。
 
 常量：`ROUTES`、`RULE_CONFIDENCE`（0.8）、`MODEL_MIN_CONFIDENCE`（0.6）、`ROUTE_RETRIES`（1）、`ROUTES_FILE`、`ROUTE_TEXT_CHARS`（200）、`ROUTE_PROMPT_HEAD`。测试：`test/route.test.mjs`。
+
+## 5.17 套餐余量与 API 余额 `quota`（v2 包 M）· 有（11-10）
+
+<!-- v2 package M: 维护者 11-10「走连接的时候也读到 Usage 的余额」「套餐余额和API余额都放在左下角setting上面」；契约 docs/checks/2026-11-10-wp-m/contract.md -->
+
+读余量、不花余量。三种来源一个形状（`src/connect/quota.mjs`），所有字段按名单取，别的（账户 id、credits、重置券、超额开关……）一个不抄；缺字段或类型不对 → 没有 quota（`null` / 结果里没有这个键），从不报错。
+
+| 来源 | 形状 | 时间 |
+|---|---|---|
+| Claude Code | `{ source: 'claude-code', at, windows: [{ id: 'five_hour' \| 'seven_day', usedPercent, resetsAt }] }` | 随调用来，「上次调用时」的数 |
+| Codex | `{ source: 'codex', at, plan?, windows: [{ id: 'primary' \| 'secondary', usedPercent, windowMins, resetsAt }] }` | 读的时候 |
+| API | `{ source: 'api', at, vendor, balance: [{ currency, amount }], available? }` | 读的时候 |
+
+`at` 是 ISO 时间；`resetsAt` 是 Unix 秒（工具给的原样）；`usedPercent` 0–100，保留一位小数。`checkQuota(q)` 再过一遍同一份名单（桌面的缓存、开发文件都经它），不合 → `null`。
+
+### 5.17.1 Claude Code：跟着调用拿（`claude-code.mjs`、`session.mjs`）
+
+- **参数只改输出格式**：`CLAUDE_FIXED_ARGS` 的 `--output-format json` 换成 `--output-format stream-json --verbose`；其余「不能动手」的参数一个不改（一次性调用与会话模式都是）。这一组参数 11-10 在本机 Claude Code 2.1.287 上实测（stream 里有 `rate_limit_event`；只用 `json` 时没有）；`--verbose` 在 `claude --help` 里是「覆盖 verbose 设置」，只多打详细输出，不给任何工具。
+- **解析**：stdout 每行一个 JSON；信封 = 最后一条 `type: 'result'` 的行（`claudeEnvelopeOf`；只有一个 JSON 信封的旧格式、前面有一行警告的，照旧按「最后一个 JSON 对象」读）。`parseClaudeOutput` 与 `complete()` / 会话的 `send()` 回给下游的结果与改前**完全相同**，只在 stream 里有合格的 `rate_limit_event` 时多一个 `quota` 键。
+- **余量**：`quotaFromClaudeStream(stdout, now?)` 取**最后一条合格的** `rate_limit_event` 的 `rate_limit_info.unifiedWindows`：`five_hour`、`seven_day` 两个窗口各取 `utilization`（0–1，换成百分比）与 `resetsAt`；一个窗口坏了（不是 0–1 的数、重置时间不是正整数）整条不要；没有这条事件 → 没有 quota。
+- `deps.onQuota(quota)`（可选）：有 quota 时调一次（桌面的左下角用它）；它抛错不影响这次调用。
+- 真调用试验：`core/scripts/quota-trial.mjs`，结果 `docs/design/v2/agent-trial-2026-11-10.md`（5 次调用全成功、全合格 JSON、每次都带余量）。
+
+### 5.17.2 Codex：不调模型直接读 `readCodexQuota(connection, deps)` → `{ ok: true, quota }` / `{ ok: false, code, detail }`（`codex-quota.mjs`）
+
+- Codex 可执行文件的找法与 `codex.mjs` 相同（`connection.command`、PATH、桌面应用的副本；取版本最高的）。
+- 在一个新的空临时目录（`workdir.mjs`，`mkdirSync`，用完删）里起 `codex app-server`（`CODEX_QUOTA_ARGS = ['app-server']`；stdio 上的 JSON-RPC，一行一条），**只发三条**（`CODEX_QUOTA_METHODS`），按这个顺序：`{"id":1,"method":"initialize","params":{"clientInfo":{"name":"streams","version":"2"}}}` → 收到 1 的回答后 `{"method":"initialized"}` 与 `{"id":2,"method":"account/rateLimits/read"}` → 收到 2 的回答**立刻结束进程**；10 秒（`DIALOGUE_TIMEOUT_MS`）没答完也结束。不开线程、不发 turn、不调模型；服务器发来的通知与请求（`remoteControl/status/changed`、`account/updated`……）一概不理、不回。
+- 回答里只读 `rateLimits.primary / secondary` 的 `usedPercent / windowDurationMins / resetsAt` 与 `rateLimits.planType`（`quotaFromCodexRateLimits`）；`accountId`、`credits`、`rateLimitResetCredits` 不取、不存、不显示；`rateLimitResetCredit/*` 之类的账户操作一条都不发。
+- 错误码：`not-installed`（没找到 / 起不来）· `timeout` · `bad-format`（没答、答错格式、JSON-RPC 错误、进程自己退了）· `unknown`。app-server 在 Codex 自己的帮助里标着 [experimental]：读不到就是没有，界面不显示。
+- 进程层：`runDialogue({ file, args, cwd, timeoutMs, env, spawnImpl, platform, start(ctl), onLine(line, ctl) })`（`process.mjs`）：一行一行地和子进程对话，`ctl.send` / `ctl.end`，结束时先关 stdin 再结束进程，等它退了（最多 1 秒）再交回，所以临时目录删得掉；回 `{ ended, value, sent }`（`sent` = 发出的每一行，测试拿它核「只发了三条」）。
+
+### 5.17.3 API 余额 `readApiBalance(connection, deps)` → `{ ok: true, quota }` / `{ ok: false, code, detail }`（`balance.mjs`）
+
+只做官方文档里有余额接口的预设厂商（`BALANCE_ENDPOINTS`、`hasBalanceEndpoint(vendor)`）。一次 `GET`，`Authorization: Bearer <key>`，不调模型。key 从 `deps.getKey(keyRef)` 取（桌面：safeStorage，在主进程里、请求时取），只进请求头；回来的 `detail` 里先抹掉 key 再截短；这里不写日志。错误码：`not-applicable`（这家没有接口：**不发任何请求**）· `bad-key`（没存 key、401 / 403）· `rate-limited` · `network` · `timeout` · `bad-format`（不是文档写的形状）· `unknown`。10 秒超时。
+
+逐家查官方文档的结论（`models.mjs` `VENDORS` 七家，11-10）：
+
+| 厂商 | 有没有余额接口 | 做法 | 官方文档 |
+|---|---|---|---|
+| `deepseek` | **有**：`GET https://api.deepseek.com/user/balance`，回 `{ is_available, balance_infos: [{ currency: 'CNY' \| 'USD', total_balance, granted_balance, topped_up_balance }] }`（金额是字符串） | 做了：取每种货币的 `total_balance` 与 `is_available`；地址 = 连接 baseUrl 的 origin + `/user/balance` | https://api-docs.deepseek.com/api/get-user-balance |
+| `moonshot` | **有**：`GET https://api.moonshot.cn/v1/users/me/balance`，回 `{ code, data: { available_balance, voucher_balance, cash_balance }, scode, status }`（人民币） | 做了：取 `available_balance`（CNY），`available` = 它 > 0；地址 = baseUrl + `/users/me/balance` | https://platform.kimi.com/docs/api/balance（原 platform.moonshot.cn/docs/api/balance） |
+| `anthropic` | 无：普通 API key 没有余额接口；Usage and Cost API 只给历史用量与花费，要 Admin API key，个人账户不能用 | 无接口，不显示 | https://platform.claude.com/docs/en/api/usage-cost-api |
+| `openai` | 无：没有查余额的接口；usage / costs 接口要 Admin key，给的是用量与花费，不是余额 | 无接口，不显示 | https://developers.openai.com/api/reference/resources/organization/subresources/usage |
+| `zhipu` | 无：开放平台 API 文档里没有账户余额接口（只有知识库用量） | 无接口，不显示 | https://docs.bigmodel.cn/llms.txt（API 文档索引） |
+| `gemini` | 无：额度与余额只在 AI Studio 的 Billing 页、Cloud Billing 控制台里看，没有 API | 无接口，不显示 | https://aistudio.google.com/docs/billing（原 ai.google.dev/gemini-api/docs/billing） |
+| `custom` | 不知道是哪家（OpenAI 兼容的任意地址） | 不显示 | — |
+
+测试：`test/connect-quota.test.mjs`（Claude Code 四种：有事件 / 无事件 / 字段坏 / 多条取最后一条，结果与改前同形，会话模式也带；Codex 用假 app-server `test/support/fake-app-server.mjs`：正常 / 不答 / 答错 / 报错 / 自己退了 / 起不来，「只发三条」与反向——核心的一份副本多发一条，检查变红；API 只用 127.0.0.1 上的假服务器：两家的文档形状、别的形状、401 引 key、没 key、没有接口的五家一个请求都不发）；`test/connect-claude-code.test.mjs`（参数 = 改前的 v1.0 参数只把 `json` 换成 `stream-json --verbose`）。
 
 ## 六、桌面桥（desktop 主进程 → 页面）
 

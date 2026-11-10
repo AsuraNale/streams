@@ -4,7 +4,8 @@
 //   - AppSidebar — the usual one, plan B of v2 (package F; docs/design/v2/streams-v2-design.html 导航): it does not change with
 //     the library. The brand, 库架, 和主 Agent 聊 (its badge: the things waiting for you), 「我的库」 with one line per library
 //     (its mark, its name, its 待看 count, an amber dot when something is wrong, the current one a white card while you are on
-//     its page), 「+ 新建库」, 设置 at the foot. Everything comes from the app context (useApp: libraries, waiting,
+//     its page), 「+ 新建库」, the current connection's plan quota or API balance (v2 package M; only when there is one), 设置 at
+//     the foot. Everything comes from the app context (useApp: libraries, waiting,
 //     openLibrary, newLibrary; app.js).
 //   Plan A (kept, not used: docs/desktop.md §五「侧栏」): the shelf as the home page and, inside a library, its five parts as
 //   the sidebar's entries — kit/library-sections.js LibrarySections layout="sidebar" draws them with these same parts.
@@ -17,6 +18,8 @@ import { BRAND, SIDEBAR } from '../texts/common.js'
 import { SHELL } from '../texts/shell.js'
 import { Icon } from './icons.js'
 import { LIBRARY_ROUTES, LibraryMark } from './library-sections.js'
+// v2 package M: the corner above 设置
+import { useQuota } from '../lib/quota.js'
 
 /** The two entries above 「我的库」, in order, with their icons; the screen id is the key (screens/index.js registers each). */
 export const NAV_ENTRIES = Object.freeze([['shelf', 'grid'], ['chat', 'chat']])
@@ -88,12 +91,27 @@ export function SidebarNote({ children }) {
   return html`<div class="st-sidebar__note">${children}</div>`
 }
 
+/**
+ * v2 package M: the corner above 设置 — `view` from lib/quota.js quotaView (the plan's windows, one line each, or the API
+ * balance), its time as the hover text; nothing at all for null. Test hooks: [data-part="quota"][data-quota-kind=plan|balance],
+ * [data-quota-row=<id>].
+ */
+export function SidebarQuota({ view }) {
+  if (!view) return null
+  return html`<section class="st-sidebar__quota" data-part="quota" data-quota-kind=${view.kind} aria-label=${SHELL.sidebar.quota.label} title=${view.asOf ? fmt(SHELL.sidebar.quota.asOf, { when: view.asOf }) : undefined}>
+    <div class="st-sidebar__quota-title">${view.title}</div>
+    ${view.rows.map(r => html`<div key=${r.id} class="st-sidebar__quota-row" data-quota-row=${r.id}>${r.text}</div>`)}
+  </section>`
+}
+
 /** The usual sidebar, plan B. `current`: the screen id you are on (default: the route's). */
 export function AppSidebar({ current: where }) {
   const { route, navigate, libraries, waiting, openLibrary, newLibrary } = useApp()
   const here = where ?? route?.screen ?? null
   const onLibrary = LIBRARY_ROUTES.includes(here)
   const rows = Array.isArray(libraries?.data) ? libraries.data : []
+  // v2 package M: the current connection's quota, above 设置
+  const quota = useQuota()
   return html`<${Sidebar}>
     ${NAV_ENTRIES.map(([id, icon]) => html`<${SidebarNav} key=${id} id=${id} icon=${icon} isCurrent=${here === id}
       badge=${id === 'chat' ? waiting ?? null : null} badgeLabel=${id === 'chat' ? fmt(SHELL.sidebar.chatBadge, { n: waiting ?? 0 }) : undefined}
@@ -104,6 +122,7 @@ export function AppSidebar({ current: where }) {
     </nav>
     <${SidebarAdd} name="add-library" onClick=${() => newLibrary?.()}>${SHELL.sidebar.newLibrary}<//>
     <${SidebarSpacer} />
+    <${SidebarQuota} view=${quota} />
     <${SidebarFooterButton} icon="gear" isCurrent=${here === 'settings'} onClick=${() => navigate('settings')}>${SIDEBAR.settings}<//>
   <//>`
 }

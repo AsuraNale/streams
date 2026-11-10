@@ -179,10 +179,12 @@ c.models();         // 型号表；c.resolveModel(slot) -> 型号 id
 **Claude Code**（本机 2.1.287，参数名全部来自 `claude --help`）。提示词走 stdin，不进 argv；cwd 是 `os.tmpdir()/streams-connect/<随机>/cwd`，`mkdirSync` 新建、用完整个 `<随机>` 删掉：
 
 ```
-claude -p --output-format json --safe-mode --restricted --tools "" --strict-mcp-config
+claude -p --output-format stream-json --verbose --safe-mode --restricted --tools "" --strict-mcp-config
        --disable-slash-commands --no-session-persistence --permission-prompts none
        [--model <id>] [--system-prompt <text>]
 ```
+
+- v2 package M（11-10）：`--output-format json` 换成 `stream-json --verbose`（别的不变）：stdout 每行一个 JSON，信封是最后一条 `type: result` 的行，其中一条 `rate_limit_event` 带套餐的 5 小时 / 7 天窗口（`docs/core-api.md` 5.17）。下面说的信封字段照旧。
 
 - `--safe-mode`：CLAUDE.md、skills、plugins、hooks、MCP、自定义命令全关，登录与型号选择照常（不用 `--bare`：它只认 ANTHROPIC_API_KEY，会把 OAuth 登录拦掉）。
 - `--restricted`：去掉 Bash 等执行类工具，并忽略 user / project / local 设置文件；`--tools ""` 再把全部内置工具去掉。

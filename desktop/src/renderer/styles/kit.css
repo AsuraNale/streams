@@ -150,6 +150,17 @@
   line-height: 1.6;
   color: var(--st-sidebar-text-2);
 }
+/* v2 package M: the corner above 设置 (kit/sidebar.js SidebarQuota), in the note's quiet style; the new themes restyle it in K2 */
+.st-sidebar__quota {
+  margin: 0 0 6px;
+  padding: 8px 8px 6px;
+  border-top: 1px solid var(--st-sidebar-divider);
+  font-size: var(--st-fs-tiny);
+  line-height: 1.6;
+  color: var(--st-sidebar-text-2);
+}
+.st-sidebar__quota-title { font-weight: 700; }
+.st-sidebar__quota-row { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the current place: a white card */
 .st-sidebar__nav[aria-current],
 .st-sidebar__new[aria-current],

@@ -7,6 +7,8 @@
 //   codexProblems(argv, { cwd })      [] when this `codex` argv is `exec` in the read-only sandbox (first call: --sandbox
 //                                     read-only; a resume: -c sandbox_mode="read-only"), with no flag that would give it a
 //                                     tool, the network, a folder or a config of its own; `-C` (when given) is `cwd`
+//   codexQuotaProblems(argv, sent)    [] when a `codex app-server` call is the quota read (v2 package M): argv exactly
+//                                     ['app-server'], the lines sent exactly initialize · initialized · account/rateLimits/read
 //   spawnSites(files)                 every place in the given sources that can start a process: [{ file, line, call, text }]
 //
 // Both predicates are allowlists: every flag must be one of the ones the product is known to pass, with the value it must
@@ -17,7 +19,9 @@ import { stripComments } from '../../support/source-scan.mjs'
 // claude: flag → null (takes no value) | a check of its value
 const CLAUDE_FLAGS = {
   '-p': null,
-  '--output-format': v => v === 'json',
+  // v2 package M: the stream (for the plan's rate_limit_event) instead of one envelope; --verbose goes with it and adds no tool
+  '--output-format': v => v === 'stream-json',
+  '--verbose': null,
   '--safe-mode': null,
   '--restricted': null,
   '--tools': v => v === '',
@@ -30,7 +34,27 @@ const CLAUDE_FLAGS = {
   '--session-id': v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v ?? ''),
   '--resume': v => /^[A-Za-z0-9._:-]{1,200}$/.test(v ?? ''),
 }
-const CLAUDE_REQUIRED = ['-p', '--output-format', '--safe-mode', '--restricted', '--tools', '--strict-mcp-config', '--disable-slash-commands', '--permission-prompts']
+const CLAUDE_REQUIRED = ['-p', '--output-format', '--verbose', '--safe-mode', '--restricted', '--tools', '--strict-mcp-config', '--disable-slash-commands', '--permission-prompts']
+
+// v2 package M: Codex's quota is read from `codex app-server` (core connect/codex-quota.mjs) — no thread, no turn, no model.
+// The argv is exactly this, and the only messages sent are these three, in this order (anything else is a problem).
+export const CODEX_QUOTA_ARGV = Object.freeze(['app-server'])
+export const CODEX_QUOTA_SENT = Object.freeze(['initialize', 'initialized', 'account/rateLimits/read'])
+
+/** [] when an app-server call is the quota read and nothing else: its argv, and the methods of the lines it was sent. */
+export function codexQuotaProblems(argv, sentLines = []) {
+  const problems = []
+  if (JSON.stringify(argv) !== JSON.stringify(CODEX_QUOTA_ARGV)) problems.push(`app-server argv ${JSON.stringify(argv)} (want ${JSON.stringify(CODEX_QUOTA_ARGV)})`)
+  const methods = []
+  for (const line of sentLines) {
+    let m = null
+    try { m = JSON.parse(line) } catch { problems.push(`a line that is not JSON-RPC: ${JSON.stringify(line).slice(0, 80)}`); continue }
+    methods.push(m?.method)
+    if (!CODEX_QUOTA_SENT.includes(m?.method)) problems.push(`sent ${JSON.stringify(m?.method)}`)
+  }
+  if (JSON.stringify(methods) !== JSON.stringify(CODEX_QUOTA_SENT)) problems.push(`sent ${JSON.stringify(methods)} (want exactly ${JSON.stringify(CODEX_QUOTA_SENT)})`)
+  return problems
+}
 
 export function claudeProblems(argv, { mode = 'once' } = {}) {
   const problems = []
@@ -110,7 +134,8 @@ export function codexProblems(argv, { cwd } = {}) {
 
 // ---- where a process can be started --------------------------------------------------------------------------------
 // the product's own wrappers and Node's: a call of any of these starts (or would start) another program
-const SPAWN_CALLS = ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork', 'runProcess', 'runInEmptyDir', 'runQuick', 'launchDetached', 'openLoginWith']
+// v2 package M: runDialogue (process.mjs; the app-server's line-by-line exchange) is one of them
+const SPAWN_CALLS = ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork', 'runProcess', 'runInEmptyDir', 'runQuick', 'launchDetached', 'openLoginWith', 'runDialogue']
 const SPAWN_RE = new RegExp(`(?<![\\w$.])(${SPAWN_CALLS.join('|')}|nodeSpawn|spawnImpl)\\s*\\(`, 'g')
 
 export function spawnSites(files) {

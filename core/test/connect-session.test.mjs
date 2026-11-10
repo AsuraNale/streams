@@ -45,7 +45,9 @@ function claudeHandsOff(argv) {
   if (argv.filter((a) => a === '--tools').length !== 1) problems.push('--tools given more than once');
   for (const f of ['--safe-mode', '--restricted', '--strict-mcp-config', '--disable-slash-commands']) if (!argv.includes(f)) problems.push(`${f} missing`);
   if (argv[at('--permission-prompts') + 1] !== 'none') problems.push('--permission-prompts none missing');
-  if (argv[at('--output-format') + 1] !== 'json') problems.push('--output-format json missing');
+  // v2 package M: stream-json + --verbose (the plan's rate_limit_event); everything else as before
+  if (argv[at('--output-format') + 1] !== 'stream-json') problems.push('--output-format stream-json missing');
+  if (!argv.includes('--verbose')) problems.push('--verbose missing');
   for (const f of CLAUDE_FORBIDDEN) if (argv.includes(f)) problems.push(`${f} present`);
   const modes = ['--session-id', '--resume'].filter((f) => argv.includes(f));
   if (modes.length !== 1) problems.push(`session flags: ${modes.join(',') || 'none'}`);

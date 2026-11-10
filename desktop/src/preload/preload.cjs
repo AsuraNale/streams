@@ -139,6 +139,8 @@ const METHODS = [
   // v2 package E: the chat box of a library, routed (question / change / unsure), and your answer to 「这是要改这个库吗？」
   'sendLibraryMessage',
   'resolveLibraryMessage',
+  // v2 package M: what is left of the plan or the API balance of the current connection (the corner above 设置)
+  'getQuota',
 ]
 const EVENT_TOPICS = [
   'settings-changed',
@@ -156,6 +158,8 @@ const EVENT_TOPICS = [
   'proposals-changed',
   // a turn of the main agent started or ended (v2 package C)
   'agent-changed',
+  // the quota of a connection changed (v2 package M)
+  'quota-changed',
 ]
 const EVENT_CHANNEL = 'streams:event'
 

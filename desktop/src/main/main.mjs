@@ -41,6 +41,8 @@ import { iconPath } from './icon.mjs'
 import { createScheduleService } from './services/schedule.mjs'
 import { createProposalsService } from './services/proposals.mjs'
 import { createAgentService } from './services/agent.mjs'
+// v2 package M: the plan quota / API balance of the current connection
+import { createQuotaService } from './services/quota.mjs'
 import { createTray } from './tray.mjs'
 import { listInbox } from './core.mjs'
 import { nativeSource, windowColour } from './theme.mjs'
@@ -89,6 +91,9 @@ const DEV_LIBRARY_ROOT = !app.isPackaged && typeof process.env.STREAMS_DEV_LIBRA
 // agent's scripted answers, a JSON file (for the page's tests and package G). A packaged app ignores it: its agent talks to the
 // chosen connection
 const DEV_AGENT_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_AGENT_SCRIPT === 'string' && isAbsolute(process.env.STREAMS_DEV_AGENT_SCRIPT) ? process.env.STREAMS_DEV_AGENT_SCRIPT : null
+// v2 package M (services/quota.mjs; docs/desktop.md §4.11), development and tests only: a JSON file of quotas taken as read at
+// start (the corner's three states without a real codex or a real key); with it nothing real is read. A packaged app ignores it
+const DEV_QUOTA = !app.isPackaged && typeof process.env.STREAMS_DEV_QUOTA === 'string' && isAbsolute(process.env.STREAMS_DEV_QUOTA) ? process.env.STREAMS_DEV_QUOTA : null
 const STARTED_AT = Date.now()
 const clock = DEV_NOW === null ? () => new Date() : () => new Date(DEV_NOW + (Date.now() - STARTED_AT))
 // the app's own version (version.mjs): release.json's — packaged through resources/app/package.json, in development read from it
@@ -240,11 +245,15 @@ app.whenReady().then(() => {
     // the main agent's calls count in 「全部库本月用量合计」 on their own line (v2 package C)
     agentUsageFile: agentPaths(join(layout.appData, AGENT_DIR)).usage,
   })
+  // v2 package M: the corner above 设置 (services/quota.mjs) — made right after the connections, which hand it every call's quota
+  let quota = null
   const connections = createConnectionsService({
     settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION,
     // a probe made from the page counts in the open library's usage (core createUsageCounter), under `probe`
     usageWrap: c => { const d = library.dir(); return d ? createUsageCounter(d).wrap(c, 'probe') : c },
+    onQuota: (kind, q) => quota?.record(kind, q),
   })
+  quota = createQuotaService({ connections, activeKind: () => connections.activeKind(), secrets, emit, log, devConnection: DEV_CONNECTION, devQuotaFile: DEV_QUOTA })
   // the schedule and the queue (services/schedule.mjs) are made below; the pipeline reaches them through these three
   // (getHome's nextRun; the end of a round: the notification, the next one in the queue; the page's startRound: the queue)
   let scheduler = null
@@ -312,7 +321,14 @@ app.whenReady().then(() => {
     else if (topic === 'settings-changed') tray.refresh()
     // a library registered, removed or switched to: the timer again, for the libraries as they are now
     else if (topic === 'libraries-changed') scheduler.arm()
+    // v2 package M: Codex and the API read their quota again after a round, after a turn of the main agent, and for a new
+    // current connection (another one, a vendor, a key)
+    else if (topic === 'round-progress' && payload?.done === true) void quota.afterTurn('a round ended')
+    else if (topic === 'agent-changed' && payload?.phase === 'done') void quota.afterTurn('a turn of the main agent ended')
+    else if (topic === 'connections-changed') void quota.connectionsChanged()
   })
+  quota.start()
+  app.on('will-quit', () => quota.stop())
   powerMonitor.on('resume', () => { void scheduler.resumed() })
   app.on('will-quit', () => { scheduler.stop(); tray.destroy() })
   // the update (update-wiring.mjs): a check only when the user asks; the setup program replaces the install in place
@@ -344,6 +360,8 @@ app.whenReady().then(() => {
       ...scheduler.handlers,
       ...proposals.handlers,
       ...agent.handlers,
+      // v2 package M
+      ...quota.handlers,
     },
   })
 

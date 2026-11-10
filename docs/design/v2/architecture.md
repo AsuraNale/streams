@@ -12,6 +12,7 @@
 | Codex 命令行的接续（`codex exec resume`） | **能**：PATH 上没有 `codex`，但 Codex 桌面版自带的 `codex.exe`（v1.0 连接器本来就会找它，0.166.0-alpha.6）第一次 `exec` 拿到会话 id，换一个空文件夹再 `exec resume <id>` 记得上一句的暗号。注意：`exec resume` 不认 `--sandbox`，只读要用 `-c sandbox_mode="read-only"` 传；分叉没测 | 11-05 两次真调用（脚本在玄翎的 scratchpad：codex-resume-spike.mjs） |
 | v1.0 调 Claude Code 的方式 | 零工具 + `--no-session-persistence`（每次一问一答、不留会话） | `core/src/connect/claude-code.mjs` 第 34–41 行 |
 | 主 Agent 的 JSON 动作在真模型上稳不稳（包 C 试验） | **稳**：Claude Code 5 轮 6 次调用、Codex 2 轮 2 次调用，8 次全是合格 JSON、一次过校验、0 次重试；4 张卡全部出成；会话用产品里的参数（零工具 / 只读）真的接得上；resume 一个不存在的会话两边都在本机被拒、归为「会话丢了」 | `core/scripts/agent-trial.mjs`，结果 `docs/design/v2/agent-trial-2026-11-05.md`（共 12 次 CLI 调用） |
+| Claude Code 的输出格式（v2 包 M，11-10） | **改了一处**：`--output-format json` 换成 `--output-format stream-json --verbose`，其余「不能动手」的参数一个不改（一次性调用与主 Agent 会话都是）；stream 里有一条 `rate_limit_event`（套餐 5 小时 / 7 天窗口已用多少、何时重置），左栏左下角的余量用它；解析出的结果给下游时与改前同形。Codex 的余量另从 `codex app-server` 读（只发三条 JSON-RPC，不调模型） | 真调用试验 `core/scripts/quota-trial.mjs`，结果 `docs/design/v2/agent-trial-2026-11-10.md`（5 次调用：主 Agent 2 轮含接续、问库 1 次（作答 + 核验 2 次调用）、打分 1 条；全部成功、每次都带余量）；细节 `docs/core-api.md` 5.17 |
 
 ## 一、总图：三层 + 两个进程
 
