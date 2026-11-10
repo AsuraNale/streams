@@ -237,11 +237,17 @@ function stage() {
   const srcFiles = gitFiles('desktop/src').filter(f => !devOnly.some(d => f === `desktop/src/renderer/${d}`))
   for (const f of srcFiles) copySource(f, join(app, relative('desktop', f)))
   counts.desktop = srcFiles.length
-  // v2 package K2: the bundled UI font and its license text go with desktop/src (git knows both); a build without either stops
-  for (const f of ['desktop/src/renderer/fonts/NotoSansSC-VF.ttf', 'desktop/src/renderer/fonts/OFL-NotoSansSC.txt']) {
-    if (!srcFiles.includes(f)) throw new Stop(`${f} is not a file git knows: the app's font must ship with its license`)
+  // v2 package K2: the bundled UI font and its license text go with desktop/src (git knows both); a build without either stops.
+  // v2 package N: asked of an app whose styles load the font (styles/fonts.css, package K2 on) — v1.0's app, the update
+  // test's older build (STREAMS_INSTALLER_APP_REF), has neither, and the build stopped there: upgrade.test.mjs could not run
+  const bundlesFont = srcFiles.includes('desktop/src/renderer/styles/fonts.css')
+  if (bundlesFont) {
+    for (const f of ['desktop/src/renderer/fonts/NotoSansSC-VF.ttf', 'desktop/src/renderer/fonts/OFL-NotoSansSC.txt']) {
+      if (!srcFiles.includes(f)) throw new Stop(`${f} is not a file git knows: the app's font must ship with its license`)
+    }
   }
-  counts.font = 2
+  if (!bundlesFont && !APP_REF) throw new Stop('desktop/src/renderer/styles/fonts.css is not a file git knows: the working tree\'s app loads its font there (v2 package K2)')
+  counts.font = bundlesFont ? 2 : 0
   // the icon: of desktop/assets/icon only the one file the app reads (desktop/src/main/icon.mjs); the SVG sources and the
   // PNG renders stay out
   const icoFile = `desktop/${ICON_FILE.join('/')}`
@@ -414,6 +420,12 @@ function releaseNotes({ file, bytes, sha256, electron }) {
   const v = RELEASE.version
   const tick = '`'
   const fence = '```'
+  // v2 package N: the size in MB too, and how much of what is installed is the bundled font (the stage's own file; a build of
+  // an older app — STREAMS_INSTALLER_APP_REF — has none, and its notes then say nothing of it)
+  const fontFile = join(STAGE, 'resources', 'app', 'src', 'renderer', 'fonts', 'NotoSansSC-VF.ttf')
+  const fontBytes = existsSync(fontFile) ? statSync(fontFile).size : null
+  const mb = n => (n / 1_000_000).toFixed(1)
+  const group = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   return [
     `# 流息 Streams ${v} · 发布说明 / Release notes`,
     '',
@@ -424,7 +436,7 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     '| | |',
     '|---|---|',
     `| 文件 / File | ${tick}${file}${tick} |`,
-    `| 大小 / Size | ${bytes} 字节 / bytes |`,
+    `| 大小 / Size | ${bytes} 字节 / bytes（约 / about ${mb(bytes)} MB）${fontBytes === null ? '' : `，含界面字体 Noto Sans SC / including the interface font Noto Sans SC（字体文件 / font file ${group(fontBytes)} 字节 / bytes，装好后 / installed）`} |`,
     `| sha256 | ${tick}${sha256}${tick} |`,
     `| 版本 / Version | ${v}（${RELEASE.app_ver_name}） |`,
     `| 发布者 / Publisher | ${RELEASE.publisher} |`,
@@ -438,6 +450,20 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     fence,
     '',
     '显示的值应与上面的 sha256 一致（大小写不论）。The hash shown must be the sha256 above (letter case aside).',
+    '',
+    // v2 package N: what this build has that the v2 trial build (2026-11-09) had not — packages K2, L, M; nothing about the
+    // version number or a release date, which are not decided
+    '## 这一版有什么 / What is new in this build',
+    '',
+    '- **三套新主题**：精密国际主义（默认）、澄明玻璃、研究对话，各有浅色与深色；「外观」可选浅色 / 深色 / 跟随系统（默认跟随系统：Windows 换深色，流息跟着换）。换掉了 v1.0 测试版的河蓝 / 素灰 / 夜间：旧设置自动换算——河蓝 → 精密国际主义 + 跟随系统，素灰 → 精密国际主义 + 浅色，夜间 → 精密国际主义 + 深色，别的设置不动。界面字体 Noto Sans SC 随安装包带着（SIL Open Font License 1.1，全文在「设置 → 许可证与致谢」和安装目录的 `THIRD-PARTY-NOTICES.txt`）。',
+    '- **右栏四个标签**：进度（全部库：在跑的那一轮、排队的先后、下一次定时）、等你决定（全部库待确认的提议卡与建议卡）、详情（随主区变：待看的这一条、资料库的这一篇、问库的这一问）、文件（当前库的笔记按主题分组、待看、这个库的要求与来源）。右栏可以收起；收起与停在哪个标签，下次打开照旧。资料库改成「列表 + 阅读」两栏。',
+    '- **排队**：已经有一个库在跑时再点「开始」（或托盘的「现在跑一轮」），这个库排到队尾、轮到了自动开始，不再「没能开始」；已经排上的不重复排，仍然一次只跑一轮。跑一轮对话框、概览、库架和左栏写明谁在跑、排第几。',
+    '- **左下角「套餐已用」/「API 余额」**（「设置」上面）：当前连接是 Claude Code 时跟着它的调用读，Codex 时问它自己（不调模型），API 只有 DeepSeek 与 Moonshot 有余额接口；读不到就整块不显示（没有连接时也不显示）。只放在内存里，不写盘。',
+    '',
+    '- **Three new themes**: Precision (the default), Clear Glass and Research, each light and dark; the appearance is Light, Dark or Follow the system (the default). They replace the v1.0 test version\'s River / Paper / Night, whose setting is carried over: River → Precision + Follow the system, Paper → Precision + Light, Night → Precision + Dark; no other setting changes. The interface font, Noto Sans SC, ships with the installer (SIL Open Font License 1.1, in full under Settings → Licenses and credits and in `THIRD-PARTY-NOTICES.txt`).',
+    '- **A right panel with four tabs**: Progress (every library: the round running, the queue, the next timed rounds), For you (proposal and suggestion cards of every library), Details (follows the main area) and Files (the current library\'s notes by topic, its inbox, its requirements and sources). It folds away, and stays folded or on its tab next time. The library tab has two columns (list and reading).',
+    '- **A queue**: Start while another library runs puts this one at the end of the queue; it starts by itself when its turn comes (no more "could not start"), is never queued twice, and still one round runs at a time. The run dialog, the overview, the shelf and the sidebar say which one runs and where each one waits.',
+    '- **"Plan used" / "API balance" above Settings**: for Claude Code read from its own calls, for Codex asked of Codex itself (no model call), for an API key only where the vendor has a balance endpoint (DeepSeek, Moonshot); nothing is shown when it cannot be read (or with no connection). Kept in memory only.',
     '',
     '## 这一版没有代码签名 / This version is not code-signed',
     '',
@@ -520,7 +546,8 @@ async function main() {
     facts: { appName: RELEASE.app_name, version: RELEASE.version, electron: JSON.parse(readFileSync(join(INSTALLER, 'electron', 'manifest.json'), 'utf8')).electron.version },
   })
   writeFileSync(join(STAGE, 'THIRD-PARTY-NOTICES.txt'), notices.text)
-  if (notices.fonts < 1) throw new Stop('THIRD-PARTY-NOTICES.txt lists no font (v2 package K2: Noto Sans SC and its OFL)')
+  // v2 package N: for an app that bundles the font (v1.0's, an older build's, has none: staged.counts.font 0)
+  if (staged.counts.font > 0 && notices.fonts < 1) throw new Stop('THIRD-PARTY-NOTICES.txt lists no font (v2 package K2: Noto Sans SC and its OFL)')
   say(`  ok  ${notices.npm} npm packages, ${notices.fonts} font with its OFL; MPL / LGPL with their source: ${notices.copyleft.map(c => `${c.id} (${c.license})`).join(', ') || 'none'}`)
 
   say('6. checks on the stage')

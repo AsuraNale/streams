@@ -9,6 +9,7 @@
  *                             keeps a Start-menu shortcut only when the ID is a VT_LPWSTR and the CLSID a VT_CLSID)
  *   toastKey(clsid)           HKCU\Software\Classes\CLSID\{clsid}: its default value, CustomActivator, LocalServer32
  *   realInstallTraces(o)      the guard's picture: the app's uninstall entry, its two shortcuts, its toast activator key
+ *   deadLeftovers(t) / liveInstallHere(t)   v2 package N: an entry / key whose install is gone is a leftover, not an install
  *   picture(root)             names, sizes and times of everything below a folder (nothing read inside files)
  *   processesUnder(dir) / endProcesses(rows)
  *
@@ -134,6 +135,36 @@ export function realInstallTraces({ guid, appName, clsid }) {
 
 /** What in a picture of realInstallTraces says "installed here": [] when nothing. */
 export const installedHere = t => [t.entry && 'its uninstall entry', t.startMenu && t.startMenuPath, t.desktop && t.desktopPath, t.toastKey && 'its toast activator key'].filter(Boolean)
+
+const unquote = s => String(s ?? '').trim().replace(/^"([^"]*)".*$/, '$1')
+
+/**
+ * v2 package N: the leftovers of an install that is gone — an uninstall entry whose folder and uninstaller no longer exist,
+ * and/or a toast activator key whose LocalServer32 names a program that no longer exists — with no shortcut of the app.
+ * Nothing is installed behind them, so they are not a real install the guard must keep away from: the installing tests
+ * install with the same AppId (Inno Setup writes the entry anew, [Registry] the key) and their uninstall removes both
+ * (docs/installer.md §十一: 维护者's entry of 2026-11-09, left in the Claude app's registry view; 维护者 agreed the tests clean
+ * it up). Returns the leftovers' names, or [] when the picture is not only leftovers (nothing there, or anything alive).
+ */
+export function deadLeftovers(t) {
+  if (t.startMenu || t.desktop) return []
+  const dead = []
+  if (t.entry) {
+    const folder = t.entry.InstallLocation ?? ''
+    const uninstaller = unquote(t.entry.UninstallString)
+    if (!folder || !uninstaller || existsSync(folder) || existsSync(uninstaller)) return []
+    dead.push(`its uninstall entry (names ${folder}, gone)`)
+  }
+  if (t.toastKey) {
+    const server = t.toastKey.localServer ?? ''
+    if (!server || existsSync(server)) return []
+    dead.push(`its toast activator key (names ${server}, gone)`)
+  }
+  return dead
+}
+
+/** v2 package N: the guard's question — a real install here? (installedHere without dead leftovers, which do not count). */
+export const liveInstallHere = t => (deadLeftovers(t).length ? [] : installedHere(t))
 
 /** Names, sizes and times of everything below `root` (nothing read inside files; links not followed); null when absent. */
 export function picture(root) {

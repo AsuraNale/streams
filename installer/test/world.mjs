@@ -16,7 +16,7 @@
  */
 
 import { createServer } from 'node:http'
-import { existsSync, mkdirSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { SYSTEM32 } from './machine.mjs'
 
@@ -79,7 +79,11 @@ export async function startTrap() {
 /** The development switches, each set to a trap (folders below `traps`, a file that must never appear, a stand-in address). */
 export function trapSwitches(traps, trapUrl) {
   for (const d of ['app-data', 'local-data', 'library', 'choose-folder']) mkdirSync(join(traps, d), { recursive: true })
+  // v2 package N: package M's switch, a quota file read at start — the trap is a file that is not JSON, so an app that took
+  // the switch would write 「quota: development file not read」 into its main.log (QUOTA_TRAP_LINE; packaged.test.mjs looks)
+  writeFileSync(join(traps, 'quota.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_QUOTA)\n')
   return {
+    STREAMS_DEV_QUOTA: join(traps, 'quota.json'),
     STREAMS_APP_DATA: join(traps, 'app-data'),
     STREAMS_LOCAL_DATA: join(traps, 'local-data'),
     STREAMS_WINDOW: 'hidden',
@@ -93,6 +97,9 @@ export function trapSwitches(traps, trapUrl) {
     STREAMS_DEV_NOW: '2001-02-03T04:05:06.000Z',
   }
 }
+
+/** v2 package N: what main.log would say had the app taken STREAMS_DEV_QUOTA (its trap file is not JSON; services/quota.mjs). */
+export const QUOTA_TRAP_LINE = 'quota: development file not read'
 
 /** The trap folders and file are as they were made (empty / absent): [] when no switch was taken. */
 export function trapsUntouched(traps) {

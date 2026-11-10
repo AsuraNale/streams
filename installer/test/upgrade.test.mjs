@@ -18,6 +18,7 @@
 //   1. 0.9.0 installed silently: its uninstall entry (0.9.0), its shortcuts in the test user's Start menu and desktop
 //   2. 0.9.0 first start (installer/test/harness.mjs): use case A to a kept note (v1.0's 首次设置); 设置 → 关于 says 0.9.0;
 //      v2 package J2: 设置's 定时 set to a time of its own (not the default 08:30, so a migration that ignores it shows);
+//      v2 package N: and 设置's 主题 to 夜间 (night: its migration changes the appearance);
 //      settings.json then holds v1.0's libraryPath / recentLibraries / schedule, and there is no libraries.json and no
 //      schedule in the library's streams.json (the controls: what 6 finds there, v2 made)
 //   3. the stand-in for GitHub (installer/test/github-standin.mjs) gives 1.0.0 with a WRONG sha256: 检查更新 → 有新版本 →
@@ -37,7 +38,10 @@
 //      the setup program opened again, its first start): libraries.json made from settings.json — the library registered
 //      and current, nothing else; the app opens on its 概览, the sidebar (plan B) has its row and 库架 its card; its
 //      schedule moved into its streams.json (the time set in 2, also what getSchedule answers); settings.json's libraryPath,
-//      recentLibraries and schedule as 0.9.0 left them (read, not written)
+//      recentLibraries and schedule as 0.9.0 left them (read, not written). v2 package N, K2's theme migration (the maintainer 11-10):
+//      v1.0's 夜间 is 精密国际主义 + 深色 (what the app reads, the page draws, the window's colour), every other field of
+//      settings.json as v1.0 wrote it; and the table's three v1.0 ids (river → precision + system, paper → + light, night →
+//      + dark) given to the installed app one by one in the test user's settings.json
 //   7. silent uninstall: entry, files, shortcuts, toast activator key gone; nothing of Streams left on the real machine
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
@@ -47,8 +51,8 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { launchInstalled, readRecord, requestQuit } from './harness.mjs'
 import {
-  endProcesses, entriesNamed, filesOf, installedHere, picture, processesUnder, ps, realInstallTraces, same, sha256File, shellFolder,
-  shortcut, sleep, toastKey, uninstallEntry,
+  deadLeftovers, endProcesses, entriesNamed, filesOf, installedHere, liveInstallHere, processesUnder, ps, realInstallTraces, same,
+  sha256File, shellFolder, shortcut, sleep, toastKey, uninstallEntry,
 } from './machine.mjs'
 import { startGitHub } from './github-standin.mjs'
 import { appEnv, startFeed, startTrap, trapsUntouched } from './world.mjs'
@@ -58,6 +62,8 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const imp = p => import(pathToFileURL(join(REPO, p)).href)
 const { TOAST_ACTIVATOR_CLSID } = await imp('desktop/src/main/app-id.mjs')
 const { SETUP_ARGS } = await imp('desktop/src/main/services/update.mjs')
+// v2 package N: each theme set's page colour (K2)
+const { THEME_PAGE } = await imp('desktop/src/shared/themes.mjs')
 const { removeTree } = await imp('desktop/scripts/lib/remove-tree.mjs')
 const { tempDir } = await imp('desktop/scripts/lib/temp.mjs')
 const core = await imp('core/src/index.mjs')
@@ -78,6 +84,11 @@ const V1_SCHEDULE = (() => {
   const t = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   return { enabled: true, time: t === '08:30' ? '08:31' : t }
 })()
+// v2 package N: the theme 0.9.0 (v1.0's app) is set to in 2 — 夜间, the one v1.0 theme whose migration changes the appearance
+// (the maintainer 11-10's table, desktop/src/main/theme.mjs migrateLook: none / river / anything else → precision + system, paper →
+// precision + light, night → precision + dark). 6 checks the migration of all three in the installed 1.0.0
+const V1_THEME = 'night'
+const MIGRATION = Object.freeze({ river: { theme: 'precision', appearance: 'system' }, paper: { theme: 'precision', appearance: 'light' }, night: { theme: 'precision', appearance: 'dark' } })
 // how long the older app's exit is held after 开始更新 (the harness's slowExitMs): the busy machine of the update's handshake
 const SLOW_EXIT_MS = 8000
 const GITHUB_LATEST = 'https://api.github.com/repos/AsuraNale/streams/releases/latest'
@@ -99,7 +110,8 @@ W.exe = join(W.install, RELEASE.exe_name)
 for (const d of [W.profile, W.roaming, W.local, W.tmp, W.traps, W.library]) mkdirSync(d, { recursive: true })
 
 const traceArgs = { guid: RELEASE.app_guid, appName: RELEASE.app_name, clsid: TOAST_ACTIVATOR_CLSID }
-const real = { appData: join(process.env.APPDATA, RELEASE.install_folder), localAppData: join(process.env.LOCALAPPDATA, RELEASE.install_folder) }
+// v2 package N: the real %APPDATA%\Streams and %LOCALAPPDATA%\Streams are no longer pictured (listed) here — contract N: no
+// test reads or writes them; everything of this run (setup programs, apps, uninstaller) runs as the test's user (userEnv)
 const S = { result: {} }
 const hook = (n, more = {}) => ({ appData: W.roaming, localAppData: W.local, recordFile: join(ROOT, `record-${n}.jsonl`), pickFolder: W.library, quitFile: join(ROOT, `quit-${n}`), githubUrl: S.github.url, ...more })
 // the user's folders of this run, for the setup programs (the app gets the same through appEnv)
@@ -122,9 +134,11 @@ before(async () => {
   assert.equal(sha256File(NEW_SETUP), NEW_RECORD.installer.sha256, 'the newer installer is the one the build recorded')
   // the guard (as packaged.test.mjs): HKCU is the real one, so an install of Streams here stops the test
   S.traces = realInstallTraces(traceArgs)
-  const found = installedHere(S.traces)
+  // v2 package N: leftovers whose install is gone (machine.mjs deadLeftovers) are not an install: this run's install writes
+  // over them and its uninstall removes them (as packaged.test.mjs)
+  const found = liveInstallHere(S.traces)
   assert.deepEqual(found, [], `Streams looks installed on this machine (${found.join(', ')}): this test installs and uninstalls, so it does not run here`)
-  S.realBefore = { appData: picture(real.appData), localAppData: picture(real.localAppData) }
+  S.result.leftoversBefore = deadLeftovers(S.traces)
   // where Windows puts the Start menu, the desktop and the two data folders for this run's user: inside the run's folder
   const env = userEnv()
   S.folders = Object.fromEntries(['Programs', 'DesktopDirectory', 'ApplicationData', 'LocalApplicationData'].map(n => [n, shellFolder(n, env)]))
@@ -227,6 +241,13 @@ test(`2 · ${OLDER} first start: use case A to a kept note; 设置 → 关于 sa
   await A.page.fill('input[data-field="schedule-time"]', V1_SCHEDULE.time)
   await until(A.page, t => document.querySelector('[data-schedule-note]') !== null && document.querySelector('input[data-field="schedule-time"]')?.value === t, V1_SCHEDULE.time)
   for (let i = 0; i < 50 && JSON.parse(readFileSync(settingsFile, 'utf8')).schedule?.time !== V1_SCHEDULE.time; i += 1) await sleep(200)
+  // v2 package N: v1.0's 设置 → 主题 changed to 夜间 (night), the way a user of the v1.0 test version did it; the new version
+  // migrates it (维护者 11-10: night → 精密国际主义 + 深色) — checked in 6
+  assert.equal(JSON.parse(readFileSync(settingsFile, 'utf8')).theme ?? 'river', 'river', 'control: v1.0\'s default theme so far')
+  await A.page.selectOption('select[data-field="theme"]', V1_THEME)
+  for (let i = 0; i < 50 && JSON.parse(readFileSync(settingsFile, 'utf8')).theme !== V1_THEME; i += 1) await sleep(200)
+  assert.equal(JSON.parse(readFileSync(settingsFile, 'utf8')).theme, V1_THEME, 'v1.0 saved its theme in settings.json')
+  assert.equal(await A.page.evaluate(() => document.documentElement.dataset.theme), V1_THEME, 'and drew it')
   // what v1.0 leaves: settings.json names the one library (libraryPath, recentLibraries) and holds the schedule; no
   // libraries.json; the library's streams.json has no schedule of its own
   S.settings = JSON.parse(readFileSync(settingsFile, 'utf8'))
@@ -400,6 +421,28 @@ test(`6 · a start of ${RELEASE.version}: packaged, 关于 says ${RELEASE.versio
     // settings.json's v1.0 fields: read, not written — as 0.9.0 left them
     const settings = JSON.parse(readFileSync(join(W.appData, 'settings.json'), 'utf8'))
     assert.deepEqual({ libraryPath: settings.libraryPath, recentLibraries: settings.recentLibraries, schedule: settings.schedule }, S.result.v1Settings, 'settings.json keeps libraryPath, recentLibraries and schedule as v1.0 wrote them')
+    // v2 package N (package K2's migration, after a real update): v1.0's 夜间 is 精密国际主义 + 深色 now — what the app reads,
+    // what the page draws, the window's colour — and every other setting v1.0 wrote is as it wrote it (only the theme field
+    // is v1.0's own that v2 reads differently; settings.json keeps 'night' until v2 writes it, or has the two new fields)
+    const look = (await B.page.evaluate(() => window.streams.getAppState())).data
+    assert.deepEqual({ theme: look.theme, appearance: look.appearance, scheme: look.scheme }, { ...MIGRATION[V1_THEME], scheme: 'dark' }, `v1.0's ${V1_THEME} migrated`)
+    assert.deepEqual(await B.page.evaluate(() => ({ theme: document.documentElement.dataset.theme, appearance: document.documentElement.dataset.appearance })), { theme: 'precision', appearance: 'dark' }, 'the page draws 精密国际主义 dark')
+    const background = await B.evaluate("require('electron').BrowserWindow.getAllWindows().find(w => !w.isDestroyed()).getBackgroundColor()")
+    assert.equal(background.toUpperCase(), THEME_PAGE.precision.dark.toUpperCase(), `the window's colour: ${background}`)
+    for (const [k, v] of Object.entries(S.settings)) if (k !== 'theme') assert.deepEqual(settings[k], v, `settings.json's ${k}: as v1.0 wrote it`)
+    assert.ok(settings.theme === V1_THEME || (settings.theme === 'precision' && settings.appearance === 'dark'), `settings.json's theme: ${settings.theme} / ${settings.appearance}`)
+    // the rest of the maintainer's table in the installed app: the test user's settings.json given each v1.0 id (the rest as v1.0 left
+    // it), the app asked (getAppState reads the file each time, through the same readSettings / migrateLook as at start)
+    const settingsFile = join(W.appData, 'settings.json')
+    const kept = readFileSync(settingsFile)
+    try {
+      for (const [old, want] of Object.entries(MIGRATION)) {
+        writeFileSync(settingsFile, `${JSON.stringify({ ...S.settings, theme: old }, null, 2)}\n`)
+        const st = (await B.page.evaluate(() => window.streams.getAppState())).data
+        assert.deepEqual({ theme: st.theme, appearance: st.appearance }, want, `v1.0's ${old} → ${want.theme} + ${want.appearance}`)
+      }
+    } finally { writeFileSync(settingsFile, kept) }
+    S.result.themeMigration = { after: { theme: look.theme, appearance: look.appearance, scheme: look.scheme, background }, table: MIGRATION }
     // 库架: the library's card, current
     await B.page.click('.st-sidebar [data-nav="shelf"]')
     await until(B.page, () => document.querySelector('main[data-screen="shelf"][data-state="ready"]') && document.querySelectorAll('[data-shelf-card]').length > 0)
@@ -435,6 +478,5 @@ test('7 · silent uninstall: entry, files, shortcuts, toast activator key gone; 
   assert.deepEqual(entriesNamed(/^流息/), [])
   assert.ok(existsSync(join(W.appData, 'settings.json')) && existsSync(S.note.file), 'the app\'s data and the library stay')
   assert.deepEqual(installedHere(realInstallTraces(traceArgs)), [], 'no trace of an install on the real machine')
-  assert.deepEqual({ appData: picture(real.appData), localAppData: picture(real.localAppData) }, S.realBefore, 'the real %APPDATA%\\Streams and %LOCALAPPDATA%\\Streams as before')
   writeFileSync(join(DIST, 'upgrade-test-result.json'), `${JSON.stringify({ at: new Date().toISOString(), newer: NEW_RECORD.installer, older: S.result.olderBuild, ...S.result, folders: S.folders }, null, 2)}\n`)
 })

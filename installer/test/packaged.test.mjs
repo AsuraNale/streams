@@ -4,8 +4,11 @@
 //
 // One run, in order:
 //   0. guards: no install of Streams on this machine — its uninstall entry, its Start-menu or desktop shortcut, its toast
-//      activator key: the test stops rather than touch one; a picture of the real %APPDATA%\Streams and
-//      %LOCALAPPDATA%\Streams (names, sizes, times: nothing read inside)
+//      activator key: the test stops rather than touch one. v2 package N: an entry or key whose install is gone (its folder
+//      and uninstaller missing, no shortcut: machine.mjs deadLeftovers — 维护者's entry of 2026-11-09, docs/installer.md §十一)
+//      is not an install: this run's install (the same AppId) writes over it and its uninstall removes it. v2 package N: the
+//      real %APPDATA%\Streams and %LOCALAPPDATA%\Streams are not even listed any more (contract N: no test reads them); the
+//      uninstall runs as the test's user (its {userappdata} resolves into this run's folder, checked first)
 //   1. silent install into a temporary folder (/VERYSILENT /DIR=…): the HKCU uninstall entry (name, version, publisher,
 //      location, icon), the Start-menu and desktop shortcuts (target, working folder, icon, the app's AppUserModelID and
 //      toast activator CLSID, read the way Electron reads them), the toast activator key, Streams.exe's icon and version
@@ -26,13 +29,18 @@
 //      row) and 库架 with the library's card; 资料库 → 「打开原文」 on the kept note → the reading window, isolated (its two web
 //      contents' parameters, its own in-memory session, no bridge), in 阅读模式 with the item's article from the feed on this
 //      machine and none of the page's script, then 回到条目 closes it; the only address the app asked for is the feed on this
-//      machine (the harness's record of every request; the proxy trap empty)
+//      machine (the harness's record of every request; the proxy trap empty). v2 package N, what packages K2, L and M added:
+//      the first start's look is 精密国际主义 following Windows (settings, Electron's themeSource, the window's colour before
+//      the first frame, the served index.html's data-theme / data-appearance, the page's background), the bundled Noto Sans
+//      SC is installed and loaded; on 待看 the right panel's four tabs (进度 · 等你决定 · 详情 · 文件, 详情 current, a switch
+//      remembered in settings.json) and no quota corner (no connection: getQuota null, nothing above 设置)
 //   4. quitting, with no debugger attached: nothing of the install left running
 //   4b. v2 package J2: the reverse of world.mjs's Documents folder — started again with the test user's Documents removed,
 //      the installed app still comes up (getPath('documents') fails, as the control shows); a new library's default place
 //      is <home>Streams and main.log says why; quitting ends it
-//   5. silent uninstall (the default: the app's data kept): program folder, shortcuts, uninstall entry, toast activator
-//      key gone; the app's data and the library stay; the real %APPDATA%\Streams and %LOCALAPPDATA%\Streams as before
+//   5. v2 package N: the uninstall 维护者 ran (unins000.exe with no switch, its dialogs: 是 → 「否」 to the data question → 确定;
+//      installer/test/dialogs.mjs) — was silent before: program folder, shortcuts, uninstall entry, toast activator key gone
+//      (the log: the entry deleted), nothing named 流息 among the uninstall entries; the app's data and the library stay
 // `after`, whatever happened: the install's processes ended, the uninstaller run if this run's install is still there,
 // the temporary folder removed (links first). The result goes to installer/dist/packaged-test-result.json.
 import assert from 'node:assert/strict'
@@ -44,10 +52,12 @@ import { basename, dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { launchInstalled, readRecord, requestQuit } from './harness.mjs'
 import {
-  VT_CLSID, VT_LPWSTR, asElectronReadsIt, endProcesses, entriesNamed, filesOf, iconFileOf, installedHere, picture, processesUnder,
-  realInstallTraces, same, sha256File, shortcut, sleep, toastKey, uninstallEntry,
+  VT_CLSID, VT_LPWSTR, asElectronReadsIt, deadLeftovers, endProcesses, entriesNamed, filesOf, iconFileOf, installedHere,
+  liveInstallHere, processesUnder, realInstallTraces, same, sha256File, shellFolder, shortcut, sleep, toastKey, uninstallEntry,
 } from './machine.mjs'
-import { FEED_ITEMS, SCRIPT_RAN, appEnv, articleLine, startFeed, startTrap, trapsUntouched } from './world.mjs'
+// v2 package N: the uninstall with its dialogs (the maintainer's way)
+import { uninstallTexts, uninstallWithDialogs } from './dialogs.mjs'
+import { FEED_ITEMS, QUOTA_TRAP_LINE, SCRIPT_RAN, appEnv, articleLine, startFeed, startTrap, trapsUntouched } from './world.mjs'
 import { machineMarkers, scanForLeaks } from '../scan.mjs'
 import { groupMatchesIco, iconGroups, innoCopyright, setupVersionInfo, versionInfo } from '../exe-resources.mjs'
 
@@ -57,6 +67,11 @@ const { FIRST_RUN } = await imp('desktop/src/renderer/texts/first-run.js')
 // v2 package J2: the guide of 和主 Agent 聊 (首次打开's second step) and the reading window's own session
 const { AGENT } = await imp('desktop/src/renderer/texts/agent.js')
 const { READER_PARTITION } = await imp('desktop/src/main/reader.mjs')
+// v2 package N: the page colour of each theme set (K2), the right panel's tab names (L), the pinned ISCC (its language file:
+// the uninstaller's own texts)
+const { THEME_PAGE } = await imp('desktop/src/shared/themes.mjs')
+const { PANEL } = await imp('desktop/src/renderer/texts/panel.js')
+const { ensureInnoSetup } = await imp('installer/innosetup/setup_innosetup.mjs')
 const { APP_USER_MODEL_ID, TOAST_ACTIVATOR_CLSID } = await imp('desktop/src/main/app-id.mjs')
 const { ICON_FILE } = await imp('desktop/src/main/icon.mjs')
 const { parseIco } = await imp('desktop/scripts/lib/icon.mjs')
@@ -89,26 +104,39 @@ W.appData = join(W.roaming, RELEASE.install_folder)
 W.exe = join(W.install, RELEASE.exe_name)
 for (const d of [W.profile, W.tmp, W.traps, W.library]) mkdirSync(d, { recursive: true })
 
-const real = {
-  appData: join(process.env.APPDATA, RELEASE.install_folder),
-  localAppData: join(process.env.LOCALAPPDATA, RELEASE.install_folder),
-}
-const S = { pictures: {}, result: {} }
+// v2 package N: the real %APPDATA%\Streams and %LOCALAPPDATA%\Streams are no longer pictured (listed) here — contract N: no
+// test reads or writes them (玄翎 compares them from outside the tests). What keeps them safe: the app runs with its user
+// folders in this run's folder (world.mjs appEnv), and so does the uninstaller (UNINSTALL_ENV, checked in before())
+const S = { result: {} }
 const traceArgs = { guid: RELEASE.app_guid, appName: RELEASE.app_name, clsid: TOAST_ACTIVATOR_CLSID }
 const hook = n => ({ appData: W.roaming, localAppData: W.local, recordFile: join(ROOT, `record-${n}.jsonl`), pickFolder: W.library, quitFile: join(ROOT, `quit-${n}`) })
+// v2 package N: the uninstaller runs as this run's user — {userappdata} / {localappdata}, which the data question's 「是」 would
+// delete, resolve into W.profile (TEMP stays the real one: the uninstaller's copy of itself goes there, after() removes it)
+const UNINSTALL_ENV = { ...process.env, USERPROFILE: W.profile, APPDATA: W.roaming, LOCALAPPDATA: W.local }
+const inside = (p, dir) => resolve(p).toLowerCase().startsWith(`${resolve(dir).toLowerCase()}${sep}`)
 
 before(async () => {
   assert.equal(process.platform, 'win32', 'the installer is Windows-only')
   assert.ok(existsSync(SETUP), `no installer at ${SETUP}: run node installer/build-installer.mjs`)
   assert.equal(sha256File(SETUP), RECORD.installer.sha256, 'the installer is the one the build recorded')
   assert.equal(RELEASE.version, RELEASE_FILE.version, 'the build is of release.json\'s version')
-  // the guard: an install of Streams on this machine (its uninstall entry, a shortcut, its toast activator key) is never touched
+  // the guard: an install of Streams on this machine (its uninstall entry, a shortcut, its toast activator key) is never touched.
+  // v2 package N: leftovers whose install is gone (deadLeftovers) are not an install — recorded, then replaced by this run's
+  // install and removed by its uninstall (the maintainer agreed, 2026-11-10)
   S.traces = realInstallTraces(traceArgs)
-  const found = installedHere(S.traces)
+  const found = liveInstallHere(S.traces)
   assert.deepEqual(found, [], `Streams looks installed on this machine (${found.join(', ')}): this test installs and uninstalls, so it does not run here`)
+  S.result.leftoversBefore = deadLeftovers(S.traces)
+  if (S.result.leftoversBefore.length) process.stderr.write(`before: leftovers of an install that is gone, removed by this run's install and uninstall: ${S.result.leftoversBefore.join('; ')}\n`)
   S.startMenu = S.traces.startMenuPath
   S.desktop = S.traces.desktopPath
-  S.pictures.before = { appData: picture(real.appData), localAppData: picture(real.localAppData) }
+  for (const d of [W.roaming, W.local]) mkdirSync(d, { recursive: true })
+  for (const [name, dir] of [['ApplicationData', W.roaming], ['LocalApplicationData', W.local]]) {
+    const p = shellFolder(name, UNINSTALL_ENV)
+    assert.ok(same(p, dir) && inside(p, W.profile), `${name} resolves to ${p} for the uninstaller, not this run's ${dir}: refusing`)
+  }
+  const { iscc } = await ensureInnoSetup({ install: false })
+  S.uninstallTexts = uninstallTexts({ iscc, iss: readFileSync(join(REPO, 'installer', 'setup', 'streams.iss'), 'utf8'), appName: RELEASE.app_name })
   S.feed = await startFeed()
   S.trap = await startTrap()
 })
@@ -120,7 +148,8 @@ after(async () => {
   const entry = uninstallEntry(RELEASE.app_guid)
   if (entry && same(entry.InstallLocation, W.install) && existsSync(join(W.install, 'unins000.exe'))) {
     process.stderr.write('after: uninstalling this run\'s install\n')
-    spawnSync(join(W.install, 'unins000.exe'), ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'], { windowsHide: true })
+    // v2 package N: as this run's user (UNINSTALL_ENV), like test 5
+    spawnSync(join(W.install, 'unins000.exe'), ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'], { windowsHide: true, env: UNINSTALL_ENV })
     for (let i = 0; i < 120 && uninstallEntry(RELEASE.app_guid); i += 1) await sleep(500)
   }
   // the uninstaller's own copy in TEMP, when it outlived the uninstall
@@ -279,6 +308,41 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   assert.equal(facts.visible, false, 'the window was never shown')
   assert.equal(facts.toastActivatorCLSID, TOAST_ACTIVATOR_CLSID)
   S.result.app = facts
+  // v2 package N (package K2's look, in the installed app): a first start is 精密国际主义 following Windows — the settings say
+  // so (no settings.json yet: the defaults), Electron's own parts follow Windows (themeSource 'system'), the window was made
+  // with that set's page colour (what shows before the first frame), the served index.html carries data-theme and
+  // data-appearance on <html> before any script runs, and the page paints that colour
+  assert.equal(existsSync(join(W.appData, 'settings.json')), false, 'control: a first start, no settings.json (the look is the default)')
+  const look = await A.evaluate(`(async () => {
+    const { BrowserWindow, nativeTheme, net } = require('electron')
+    const w = BrowserWindow.getAllWindows()[0]
+    const served = await net.fetch(w.webContents.getURL(), { cache: 'no-store' }).then(r => r.text()).catch(e => 'error: ' + e.message)
+    return { background: w.getBackgroundColor(), themeSource: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors, htmlTag: (/<html[^>]*>/.exec(served) ?? [served.slice(0, 200)])[0] }
+  })()`)
+  const scheme = look.dark ? 'dark' : 'light'
+  const state = (await page().evaluate(() => window.streams.getAppState())).data
+  assert.deepEqual({ theme: state.theme, appearance: state.appearance, scheme: state.scheme }, { theme: 'precision', appearance: 'system', scheme }, '精密国际主义, 跟随系统 (Windows is ' + scheme + ' now)')
+  assert.equal(look.themeSource, 'system', 'Electron\'s own parts follow Windows')
+  assert.equal(look.background.toUpperCase(), THEME_PAGE.precision[scheme].toUpperCase(), `the window's colour before the first frame: ${look.background}`)
+  assert.match(look.htmlTag, /\sdata-theme="precision"/, `the served index.html: ${look.htmlTag}`)
+  assert.match(look.htmlTag, new RegExp(`\\sdata-appearance="${scheme}"`), `the served index.html: ${look.htmlTag}`)
+  const painted = await page().evaluate(() => ({ theme: document.documentElement.dataset.theme, appearance: document.documentElement.dataset.appearance, page: getComputedStyle(document.body).backgroundColor }))
+  const rgb = hex => `rgb(${[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`
+  assert.deepEqual(painted, { theme: 'precision', appearance: scheme, page: rgb(THEME_PAGE.precision[scheme]) }, 'the page paints the set\'s colour')
+  // v2 package N (K2's font): Noto Sans SC is installed (test 1 compared it byte for byte with the stage) and is the font the
+  // page loaded — from the install folder, through app:// — and draws its body in
+  const fontFile = join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts', 'NotoSansSC-VF.ttf')
+  assert.ok(STAGE_MANIFEST.files.some(f => f.path === 'resources/app/src/renderer/fonts/NotoSansSC-VF.ttf') && existsSync(fontFile), 'the font is in the stage and installed')
+  await page().evaluate(() => document.fonts.ready)
+  const font = await page().evaluate(() => ({
+    check: document.fonts.check('14px "Streams Noto Sans SC"'),
+    faces: [...document.fonts].map(f => [f.family.replace(/"/g, ''), f.status]).filter(([f]) => f === 'Streams Noto Sans SC'),
+    body: getComputedStyle(document.body).fontFamily,
+  }))
+  // (a face whose file is missing or broken ends 'error', and check() is then false)
+  assert.deepEqual({ check: font.check, faces: font.faces }, { check: true, faces: [['Streams Noto Sans SC', 'loaded']] }, `Noto Sans SC loaded: ${JSON.stringify(font)}`)
+  assert.match(font.body, /^"?Streams Numerals"?, "?Streams Noto Sans SC"?, sans-serif$/, 'the body\'s font')
+  S.result.look = { ...look, scheme, painted, font }
   // no development switch taken so far: 首次打开 (not STREAMS_DEV_LIBRARY's library, not STREAMS_START_SCREEN's settings),
   // in Chinese (not STREAMS_DEV_SYSTEM_LANGUAGES' English), the tray icon made (STREAMS_WINDOW=hidden would make none)
   // v2 package J2: 首次打开 shows because no library is registered (the registry the first start made is empty); its first
@@ -408,7 +472,36 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   const ofl = readFileSync(join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts', 'OFL-NotoSansSC.txt'), 'utf8')
   assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes(ofl.replace(/\r\n/g, '\n').trim()), 'the notices carry the font\'s OFL in full')
   assert.equal(licenses.font.license, 'OFL-1.1')
+  // v2 package N: the notices' own line for the font (its file, OFL 1.1, where it is installed) and the license page's text is
+  // the shipped OFL file's
+  assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes('* NotoSansSC-VF.ttf — Noto Sans SC, the interface font (界面字体), unmodified — SIL Open Font License 1.1 — installed at resources\\app\\src\\renderer\\fonts\\NotoSansSC-VF.ttf'), 'the notices name the font and its license')
+  assert.equal(licenses.font.text.replace(/\r\n/g, '\n').trim(), ofl.replace(/\r\n/g, '\n').trim(), 'the license page shows the shipped OFL in full')
+  assert.match(licenses.font.text, /SIL OPEN FONT LICENSE Version 1\.1/)
   S.result.licenses = { own: licenses.own.license, components: licenses.components, notices: licenses.notices }
+
+  // v2 package N (package L's right panel, in the installed app): on 待看 the panel is open with its four tabs in order —
+  // 进度 · 等你决定 · 详情 · 文件, the words of texts/panel.js — 详情 current (the default); a click on 进度 switches it and
+  // settings.json remembers it (panel), and back to 详情
+  const panelNow = () => page().evaluate(() => {
+    const a = document.querySelector('aside[data-part="right-panel"]')
+    return a && { open: a.dataset.open, tab: a.dataset.tab, tabs: [...a.querySelectorAll('[data-panel-tab]')].map(b => [b.dataset.panelTab, b.textContent.trim(), b.getAttribute('aria-current')]) }
+  })
+  const tabsWith = current => ['progress', 'decide', 'detail', 'files'].map(id => [id, PANEL.tabs[id], id === current ? 'true' : null])
+  assert.deepEqual(await panelNow(), { open: 'true', tab: 'detail', tabs: tabsWith('detail') }, 'the right panel: four tabs, 详情 current')
+  assert.deepEqual(Object.values(PANEL.tabs), ['进度', '等你决定', '详情', '文件'], 'control: the words are the Chinese ones')
+  await page().click('aside[data-part="right-panel"] [data-panel-tab="progress"]')
+  await until(() => document.querySelector('aside[data-part="right-panel"]')?.dataset.tab === 'progress')
+  assert.deepEqual(await panelNow(), { open: 'true', tab: 'progress', tabs: tabsWith('progress') })
+  for (let i = 0; i < 50 && settingsOnDisk().panel?.tab !== 'progress'; i += 1) await sleep(100)
+  assert.deepEqual(settingsOnDisk().panel, { open: true, tab: 'progress' }, 'settings.json remembers the tab')
+  await page().click('aside[data-part="right-panel"] [data-panel-tab="detail"]')
+  await until(() => document.querySelector('aside[data-part="right-panel"]')?.dataset.tab === 'detail')
+  // v2 package N (package M's corner): no connection, so no plan quota and no API balance — the corner above 设置 is not
+  // there at all (维护者 11-10: what cannot be read is not shown); control: the sidebar and its 设置 are
+  const corner = await page().evaluate(async () => ({ quota: (await window.streams.getQuota()).data, part: document.querySelectorAll('[data-part="quota"]').length, settingsButton: document.querySelectorAll('.st-sidebar .st-sidebar__footer-button').length }))
+  assert.deepEqual(corner, { quota: null, part: 0, settingsButton: 1 }, `no quota corner without a connection: ${JSON.stringify(corner)}`)
+  assert.equal(readFileSync(join(W.appData, 'logs', 'main.log'), 'utf8').includes(QUOTA_TRAP_LINE), false, 'STREAMS_DEV_QUOTA (a trap: not JSON) not taken')
+  S.result.panelAndCorner = { panel: await panelNow(), corner }
 
   // 待看: C keeps the current card
   const notesDir = join(W.library, 'notes')
@@ -606,27 +699,40 @@ test('4b · the reverse of world.mjs\'s Documents: the test user has no Document
 
 // ---------------------------------------------------------------- 5. uninstall
 
-test('5 · silent uninstall: program folder, shortcuts, uninstall entry, toast activator key gone; the app\'s data and the library stay; the real %APPDATA%\\Streams and %LOCALAPPDATA%\\Streams as before', async () => {
+// v2 package N: was a silent uninstall (/VERYSILENT /SUPPRESSMSGBOXES, which no user runs); now the maintainer's of 2026-11-10 —
+// unins000.exe with no switch but /LOG, its three boxes answered by dialogs.mjs (是 → 「否」 → 确定) — as this run's user
+// (UNINSTALL_ENV: the data question's folders resolve into this run's folder, checked in before())
+test('5 · the uninstall with its dialogs, as 维护者 ran it (是 → 「否」 → 确定): program folder, shortcuts, uninstall entry, toast activator key gone (the log: the entry deleted); the app\'s data and the library stay; nothing named 流息 among the uninstall entries', async () => {
   assert.deepEqual(processesUnder(W.install), [])
   const t0 = Date.now()
-  const r = spawnSync(join(W.install, 'unins000.exe'), ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', `/LOG=${join(ROOT, 'uninstall.log')}`], { windowsHide: true, timeout: 120_000 })
-  assert.equal(r.status, 0)
-  // the uninstaller hands over to a copy of itself in TEMP and returns: wait for the entry and the folder to go
+  const log = join(ROOT, 'uninstall.log')
+  const T = S.uninstallTexts
+  const r = await uninstallWithDialogs({ exe: join(W.install, 'unins000.exe'), env: UNINSTALL_ENV, log, confirmText: T.confirm, dataQuestion: T.dataQuestion, deleteData: false, workDir: ROOT })
+  assert.equal(r.watcherErr, '')
+  assert.equal(r.watcherEnd?.timedOut, false, `the uninstaller's processes ended: ${JSON.stringify(r.watcherEnd)}`)
+  assert.equal(r.exitCode, 0)
+  assert.deepEqual(r.dialogs.map(d => d.text), [T.confirm, T.dataQuestion, T.done], `the three boxes: ${JSON.stringify(r.dialogs)}`)
+  assert.deepEqual(r.dialogs.map(d => d.pressed).slice(0, 2), [6, 7], '是, then 否')
+  // the second phase (the uninstaller's copy in TEMP) ends a moment after the last box: wait for the entry and the folder
   for (let i = 0; i < 240 && (uninstallEntry(RELEASE.app_guid) || existsSync(W.install)); i += 1) await sleep(500)
   S.result.uninstallSeconds = Math.round((Date.now() - t0) / 100) / 10
+  const lines = readFileSync(log, 'utf8').split(/\r?\n/)
+  const at = re => lines.findIndex(l => re.test(l))
+  assert.ok(at(new RegExp(`Deleting registry key: HKEY_CURRENT_USER\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\\\{${RELEASE.app_guid}\\}_is1$`)) >= 0, 'the log: the uninstall entry deleted')
+  assert.ok(at(/Uninstallation process succeeded\.$/) >= 0 && lines.some(l => /Removed all\? Yes$/.test(l)), 'the log: the uninstall succeeded, everything removed')
+  assert.deepEqual(lines.filter(l => /User chose (Yes|No|OK)\.$/.test(l)).map(l => /User chose (\w+)\./.exec(l)[1]), ['Yes', 'No', 'OK'], 'the log: 是, 否, 确定')
+  S.result.uninstallDialogs = r.dialogs
+  S.result.uninstallLog = lines.filter(l => /Deleting registry key|User chose|Uninstallation process succeeded|Removed all/.test(l))
   assert.equal(uninstallEntry(RELEASE.app_guid), null, 'the uninstall entry is gone')
   assert.equal(existsSync(W.install), false, `the program folder is gone: ${existsSync(W.install) ? readdirSync(W.install).join(', ') : ''}`)
   assert.equal(existsSync(S.startMenu), false, 'Start-menu shortcut gone')
   assert.equal(existsSync(S.desktop), false, 'desktop shortcut gone')
   assert.equal(toastKey(TOAST_ACTIVATOR_CLSID), null, 'the toast activator key is gone')
   assert.deepEqual(entriesNamed(/^流息/), [], 'no uninstall entry named 流息')
-  assert.ok(existsSync(join(W.appData, 'settings.json')), 'the app\'s data stays (the uninstaller deletes it only when asked)')
+  assert.deepEqual(entriesNamed(/Streams/i), [], 'nor one named Streams')
+  assert.ok(existsSync(join(W.appData, 'settings.json')), 'the app\'s data stays (「否」)')
   assert.ok(existsSync(S.result.note.path), 'the library and its note stay')
-  const now = { appData: picture(real.appData), localAppData: picture(real.localAppData) }
-  assert.deepEqual(now.appData, S.pictures.before.appData, '%APPDATA%\\Streams unchanged')
-  assert.deepEqual(now.localAppData, S.pictures.before.localAppData, '%LOCALAPPDATA%\\Streams unchanged')
+  // nothing of an install left — the leftovers of before() (the maintainer's entry and key, if any) included
   assert.deepEqual(installedHere(realInstallTraces(traceArgs)), [], 'no trace of an install left')
-  writeFileSync(join(DIST, 'packaged-test-result.json'), `${JSON.stringify({
-    at: new Date().toISOString(), installer: RECORD.installer, ...S.result, realDataBefore: S.pictures.before, realDataAfter: now,
-  }, null, 2)}\n`)
+  writeFileSync(join(DIST, 'packaged-test-result.json'), `${JSON.stringify({ at: new Date().toISOString(), installer: RECORD.installer, ...S.result }, null, 2)}\n`)
 })
