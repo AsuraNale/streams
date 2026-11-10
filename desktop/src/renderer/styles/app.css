@@ -21,3 +21,5 @@
 @import url('./screens/graph.css');
 @import url('./screens/shell.css');
 @import url('./screens/agent.css');
+/* v2 package L: the right panel, the queue's marks */
+@import url('./screens/panel.css');

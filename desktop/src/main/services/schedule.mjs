@@ -7,10 +7,16 @@
  *
  * One round at a time for the whole app: a library whose slot came, or whose catch-up is owed, goes into one queue, in the
  * order its slot came; the next one starts when the round before it ended. A library already in the queue, or the one
- * whose round runs, is not queued again. The page's 「现在跑一轮」 (startCurrent, through services/pipeline.mjs roundGate) and
- * the tray's (startOne) go through the same queue: idle, the current library's round starts at once; busy (a round runs,
- * or one waits), the page gets v1.0's 「a round is running」 (bad_arguments) and the tray only a line in the log — a manual
- * round is refused, never queued behind the others.
+ * whose round runs, is not queued again. The page's 「开始」 (startCurrent, through services/pipeline.mjs roundGate) and
+ * the tray's 「现在跑一轮」 (startOne) go through the same queue: idle, the current library's round starts at once.
+ * v2 package L (维护者 11-10, feedback #1 「没能开始」): busy (another library's round runs, or one waits), the current library
+ * is put at the END of the queue and the answer says so — { started: false, queued: true, position, runningLibraryId }
+ * (position: 1 is the round that runs, 2 the first waiting, …); a library whose round runs already, or that waits already, is
+ * not queued twice — { started: false, already: 'running' | 'queued', position? }. (Until package L a manual round was
+ * refused while busy: the page got 「a round is running」.) Still one round at a time, and a catch-up never stacks.
+ * Every waiting library carries why it waits ('schedule' | 'catch-up' | 'manual': the page's or the tray's 开始, a confirmed
+ * card's round) and since when; getQueue gives the round that runs, the queue and each library's next slot, and every change
+ * of the queue sends `queue-changed` { running, waiting } (the ids).
  *
  * The catch-up, at start and on waking from sleep: for each library on its own, core missedRun against the start of the
  * last round in its rounds.jsonl says whether one round is owed, and one is queued, never more (three missed days still
@@ -31,6 +37,8 @@ import { readSettings } from '../settings.mjs'
 import { byYou } from './changes.mjs'
 
 export const MAX_WAIT_MS = 10 * 60_000
+/** v2 package L: why a library waits — its slot came, a missed slot is caught up, or someone asked (开始 · the tray · a card). */
+export const QUEUE_WHY = Object.freeze(['schedule', 'catch-up', 'manual'])
 
 /**
  * @param {object} o
@@ -47,8 +55,10 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
   let timer = null
   let armed = new Map() // library id → the slot the timer waits for (a Date)
   const fired = new Map() // library id → the last slot of it that fired (ms): never fired again
-  const queue = [] // [{ id, why }]: the libraries waiting for their round, first come first
+  const queue = [] // [{ id, why, kind, since }]: the libraries waiting for their round, first come first (kind: QUEUE_WHY)
   let runningId = null // the library whose round runs (or is being started) through the queue, or null
+  let runningKind = null // v2 package L: why that round runs (QUEUE_WHY), and since when
+  let runningSince = null
   const skipped = new Set() // libraries said in the log as skipped (said again only after they came back)
 
   /** v1.0's one schedule (settings.json): what a library without its own takes. */
@@ -103,13 +113,26 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
   /** Busy: a round runs, or is being started, or waits in the queue. */
   const busy = () => runningId !== null || queue.length > 0 || pipeline.isRunning()
 
+  /** v2 package L: the library whose round runs now (through the queue, or the pipeline's own), or null. */
+  const runningLibrary = () => runningId ?? pipeline.runningLibrary?.() ?? null
+  /** v2 package L: the place of the queue's i-th waiting library, counting the round that runs as 1. */
+  const positionOf = i => i + 1 + (runningId !== null || pipeline.isRunning() ? 1 : 0)
+
+  /** v2 package L: every change of the queue is said to the page (the ids only; getQueue gives the rest). */
+  const changed = () => {
+    try { emit('queue-changed', { running: runningLibrary(), waiting: queue.map(q => q.id) }) } catch (err) { log(`schedule: queue-changed not sent: ${String(err?.message ?? err)}`) }
+  }
+
   /** The next library of the queue, when nothing runs: its round started; one that did not start lets the next one go. */
   async function pump() {
     if (runningId !== null || pipeline.isRunning() || queue.length === 0) return null
-    const { id, why } = queue.shift()
+    const { id, why, kind } = queue.shift()
     const e = library.find(id)
-    if (!e || !library.usable(e.path)) { log(`schedule: ${why}: ${id} is not a readable library any more, skipped`); return pump() }
+    if (!e || !library.usable(e.path)) { log(`schedule: ${why}: ${id} is not a readable library any more, skipped`); changed(); return pump() }
     runningId = id
+    runningKind = kind
+    runningSince = now().toISOString()
+    changed()
     let r
     try {
       r = await pipeline.startRoundIn(e)
@@ -118,12 +141,15 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       r = { started: false, reason: 'error' }
     }
     log(`schedule: ${why}: ${id}: ${r.started ? `round ${r.roundId} started` : `the round did not start (${JSON.stringify(r.problems ?? r.reason ?? [])})`}`)
-    if (!r.started) { runningId = null; void pump() }
+    if (!r.started) { runningId = null; changed(); void pump() }
     return r
   }
 
-  /** Put a library in the queue (not when it is in it already, or its round runs). */
-  function enqueue(entry, why) {
+  /**
+   * Put a library at the end of the queue (not when it is in it already, or its round runs). `kind`: why it waits
+   * (QUEUE_WHY). → { queued: true, position } or { queued: false, reason: 'running' | 'queued' }.
+   */
+  function enqueue(entry, why, kind = 'schedule') {
     if (runningId === entry.id || pipeline.runningLibrary?.() === entry.id) {
       log(`schedule: ${why}: ${entry.id}: a round of this library is running, no second one`)
       return { queued: false, reason: 'running' }
@@ -132,29 +158,71 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       log(`schedule: ${why}: ${entry.id} is in the queue already`)
       return { queued: false, reason: 'queued' }
     }
-    queue.push({ id: entry.id, why })
+    queue.push({ id: entry.id, why, kind: QUEUE_WHY.includes(kind) ? kind : 'schedule', since: now().toISOString() })
+    const position = positionOf(queue.length - 1)
     log(`schedule: ${why}: ${entry.id} queued (${queue.length} waiting${runningId ? `, ${runningId} running` : ''})`)
+    changed()
     void pump()
-    return { queued: true }
+    return { queued: true, position }
   }
 
-  /** The current library's round now, if the queue is idle (the page and the tray: v1.0's rule, refused when busy). */
+  /**
+   * The current library's round (the page's 「开始」 and the tray's 「现在跑一轮」): idle → it starts now (v1.0); busy → v2 package
+   * L: this library goes to the end of the queue and the answer says where, or that it runs / waits already (never twice).
+   */
   async function startCurrent(why = 'the page') {
     const e = currentEntry()
     if (!e) { log(`schedule: ${why}: no library open, no round`); return { started: false, reason: 'no-library' } }
-    if (busy()) { log(`schedule: ${why}: a round is running, no second one`); return { started: false, reason: 'running' } }
+    if (busy()) {
+      const running = runningLibrary()
+      if (running === e.id) { log(`schedule: ${why}: ${e.id}: its round runs already, no second one`); return { started: false, already: 'running' } }
+      const at = queue.findIndex(q => q.id === e.id)
+      if (at >= 0) { log(`schedule: ${why}: ${e.id} waits in the queue already (place ${positionOf(at)})`); return { started: false, already: 'queued', position: positionOf(at) } }
+      const q = enqueue(e, why, 'manual')
+      // (enqueue says no only for a library that runs or waits: both answered above)
+      return { started: false, queued: true, position: q.position, runningLibraryId: runningLibrary() }
+    }
     runningId = e.id
+    runningKind = 'manual'
+    runningSince = now().toISOString()
+    changed()
     let r
     try {
       r = await pipeline.startRoundIn(e)
     } catch (err) {
       runningId = null
+      changed()
       void pump()
       throw err
     }
     log(`schedule: ${why}: ${e.id}: ${r.started ? `round ${r.roundId} started` : `the round did not start (${JSON.stringify(r.problems ?? [])})`}`)
-    if (!r.started) { runningId = null; void pump() }
+    if (!r.started) { runningId = null; changed(); void pump() }
     return r
+  }
+
+  /**
+   * v2 package L (getQueue): the round that runs — its library, why, the pipeline's phase, calls and cap, when it started —
+   * the libraries waiting in order (why, since when), and each library's next timed slot, soonest first.
+   */
+  function queueView() {
+    const rid = runningLibrary()
+    let running = null
+    if (rid !== null || pipeline.isRunning()) {
+      const c = pipeline.current?.() ?? null
+      const mine = c && (rid === null || c.libraryId === rid) ? c : null
+      running = {
+        libraryId: rid ?? mine?.libraryId ?? null, roundId: mine?.roundId ?? null, phase: mine?.phase ?? 'self-check',
+        calls: mine?.calls ?? 0, cap: mine?.cap ?? null, startedAt: mine?.startedAt ?? runningSince, why: rid !== null && rid === runningId ? runningKind : null,
+      }
+    }
+    const t = now()
+    const next = []
+    for (const l of libraries()) {
+      const at = nextRunAt(l.schedule, new Date(Math.max(t.getTime(), fired.get(l.id) ?? 0)))
+      if (at) next.push({ libraryId: l.id, at: at.toISOString() })
+    }
+    next.sort((a, b) => a.at.localeCompare(b.at))
+    return { running, waiting: queue.map(q => ({ libraryId: q.id, why: q.kind, since: q.since })), next }
   }
 
   /** The tray's 「现在跑一轮」: startCurrent, every failure in the log only. */
@@ -177,7 +245,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
     }
     owed.sort((a, b) => a.due - b.due)
     const queued = []
-    for (const { l, last } of owed) if (enqueue(l, `catch-up at ${why} (last round ${last ?? 'never'})`).queued) queued.push(l.id)
+    for (const { l, last } of owed) if (enqueue(l, `catch-up at ${why} (last round ${last ?? 'never'})`, 'catch-up').queued) queued.push(l.id)
     return { owed: owed.map(o => o.l.id), queued }
   }
 
@@ -213,7 +281,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       fired.set(id, slot.getTime())
       log(`schedule: ${id}: the slot ${slot.toISOString()} came`)
       const e = library.find(id)
-      if (e) enqueue(e, 'scheduled')
+      if (e) enqueue(e, 'scheduled', 'schedule')
     }
     arm()
   }
@@ -258,13 +326,16 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
      * One round of the library `entry` put in the queue, like a slot that came (v2 package B: a confirmed run_round or
      * create_library card) → { queued } or { queued: false, reason: 'running' | 'queued' } (never twice).
      */
-    queueRound: (entry, why) => enqueue(entry, why),
+    queueRound: (entry, why) => enqueue(entry, why, 'manual'),
+    /** v2 package L: what getQueue gives. */
+    queueView,
     /**
      * After a round (services/pipeline.mjs onRoundDone): its library is free, one notification when it wrote into 待看
      * (none for 0), then the next one of the queue.
      */
     roundDone({ roundId, libraryId = null, result }) {
-      if (runningId !== null && (libraryId === null || libraryId === runningId)) runningId = null
+      if (runningId !== null && (libraryId === null || libraryId === runningId)) { runningId = null; runningKind = null; runningSince = null }
+      changed()
       let shown = false
       const n = result?.started ? Number(result?.counts?.inbox ?? 0) : 0
       if (!(n > 0)) log(`schedule: round ${roundId}: nothing new in the inbox, no notification`)
@@ -279,6 +350,10 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
     /** Is the schedule on for any library (the window's close button then hides it to the tray)? */
     enabled: () => libraries().some(l => l.schedule.enabled),
     handlers: {
+      /** v2 package L: the queue of every library (docs/desktop.md §4.4). */
+      getQueue() {
+        return queueView()
+      },
       getSchedule() {
         return viewOf(currentEntry())
       },

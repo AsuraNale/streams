@@ -214,6 +214,25 @@ const MUTANTS = [
     edits: [['src/renderer/screens/inbox.js', '${item.aiInstruction === true ? html`<span class="inbox-card__ai"', '${true ? html`<span class="inbox-card__ai"']],
     test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=the card with words for the AI'],
   },
+  // v2 package L: the queue, the right panel
+  {
+    id: 'l-refuse',
+    what: '开始 while another library runs is refused again (package A\'s rule) instead of queued at the end',
+    edits: [['src/main/services/schedule.mjs', "      const q = enqueue(e, why, 'manual')\n", "      if (busy()) { log(`schedule: ${why}: a round is running, no second one`); return { started: false, reason: 'running' } }\n      const q = enqueue(e, why, 'manual')\n"]],
+    test: ['test/services-queue.test.mjs', '--test-name-pattern=开始|维护者'],
+  },
+  {
+    id: 'l-panel-not-saved',
+    what: 'the right panel\'s folded / open state and tab are not written into settings.json (only answered)',
+    edits: [['src/main/app-services.mjs', 'const s = writeSettings(layout.settingsFile, { panel: patch })', 'const s = { panel: { ...readSettings(layout.settingsFile).panel, ...patch } }']],
+    test: ['test/ui-panel.test.mjs', '--test-name-pattern=four tabs switch'],
+  },
+  {
+    id: 'l-records-open',
+    what: '文件\'s 程序记录（不用动） is open by default',
+    edits: [['src/renderer/screens/right-panel.js', 'const [recordsOpen, setRecordsOpen] = useState(false)', 'const [recordsOpen, setRecordsOpen] = useState(true)']],
+    test: ['test/ui-panel.test.mjs', '--test-name-pattern=文件'],
+  },
 ]
 
 function runTest(desktop, test) {

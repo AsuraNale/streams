@@ -21,6 +21,9 @@
 // [data-part=routed|unsure|handing|input-hint], [data-sentence=<i>], [data-cite=<n>],
 // [data-source-n=<n>][data-highlight], [data-part=asking|removed-cites|removed-sentences|not-in-library|missing|used|demands],
 // input[data-field="demand-topic"], textarea[data-field="feedback"], [data-demand=<topic>][data-count][data-suggest].
+// v2 package L: the right column is the window's right panel's 「详情」 now (screens/right-panel.js): first the notes the latest
+// answer cites ([data-part="detail-cites"] [data-detail-cite=<n>][data-id]: its number, title, the sentence citing it; a click
+// opens it in 资料库), then what the answer used and the topics you want more of, as before.
 import { html, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
@@ -29,12 +32,14 @@ import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { useProposals } from '../lib/agent.js'
-import { Panel, Tag, TopBar } from '../kit/index.js'
+import { Tag, TopBar } from '../kit/index.js'
 import { LibraryFrame } from './library-frame.js'
 import { AgentBubble, Notice } from './chat.js'
 import { AGENT } from '../texts/agent.js'
 import { BRAND, CONNECTIONS, NO_CONNECTION } from '../texts/common.js'
 import { ASK as T } from '../texts/ask.js'
+import { PANEL } from '../texts/panel.js'
+import { DetailBlock } from './right-panel.js'
 
 const MAX_CHARS = 500
 const sizeOf = v => (Array.isArray(v) ? v.length : typeof v === 'number' ? v : 0)
@@ -122,6 +127,23 @@ export function Answer({ turn, index, highlight, onCite, onOpen, onDemand, onSet
       <${FeedbackBox} question=${turn.question} />
     </div>
   </div>`
+}
+
+/** v2 package L, 详情: the notes the latest answer cites — each with the first sentence that cites it; a click opens it. */
+function CitedNotes({ result, onOpen }) {
+  const D = PANEL.detail.ask
+  const sources = result && result.ok !== false && Array.isArray(result.sources) ? result.sources : []
+  const sentences = Array.isArray(result?.answer) ? result.answer : []
+  if (!sources.length) return html`<p class="st-t-small st-t-muted" data-part="detail-cites" data-n="0">${D.citesNone}</p>`
+  return html`<ol class="st-rp-cites" data-part="detail-cites" data-n=${sources.length}>
+    ${sources.map(src => {
+      const said = sentences.find(x => Array.isArray(x.cites) && x.cites.includes(src.n))?.text ?? null
+      return html`<li key=${src.n}><button type="button" class="st-rp-cite" data-detail-cite=${src.n} data-id=${src.id} onClick=${() => onOpen(src.id)}>
+        <span class="st-rp-cite__n">${src.n}</span>
+        <span class="st-rp-cite__text"><b>${src.title}</b>${src.date ? html`<small>${src.date}</small>` : null}${said ? html`<q>${said}</q>` : null}</span>
+      </button></li>`
+    })}
+  </ol>`
 }
 
 function UsedPanel({ result, connection }) {
@@ -212,7 +234,11 @@ export function AskScreen() {
   const latest = [...turns].reverse().find(t => t.status === 'done' && t.route === 'question')?.result ?? null
   const c = counts.data
   const list = Array.isArray(demands.data) ? demands.data : []
-  const panel = html`<${Panel} label=${T.panel.used}>
+  // v2 package L: the right panel's 详情 — the notes the answer cites, then what it used and the topics wanted
+  const cited = latest && latest.ok !== false && Array.isArray(latest.sources) ? latest.sources.length : 0
+  const detail = html`<${DetailBlock} where=${PANEL.detail.where.ask} title=${cited ? fmt(PANEL.detail.ask.cites, { n: cited }) : null} part="detail-ask">
+    ${cited ? html`<p class="st-t-small st-t-sub">${PANEL.detail.ask.hint}</p>` : null}
+    <${CitedNotes} result=${latest} onOpen=${id => navigate('library', { id })} />
     <div class="ask-panel">
       <section class="ask-panel__block" data-part="used" aria-labelledby="ask-used">
         <h2 class="st-t-small st-t-sub st-t-strong" id="ask-used">${T.panel.used}</h2>
@@ -246,7 +272,7 @@ export function AskScreen() {
         onOpen=${id => navigate('library', { id })} onDemand=${() => demands.reload()} onSettings=${() => navigate('settings')} />
     </div>`
   }
-  return html`<${LibraryFrame} tab="ask" state=${c ? 'ready' : counts.status} labelledby="ask-title" panel=${panel}>
+  return html`<${LibraryFrame} tab="ask" state=${c ? 'ready' : counts.status} labelledby="ask-title" detail=${detail}>
       <${TopBar} title=${T.title} titleTag="h2" titleId="ask-title" subtitle=${c ? fmt(T.scope, { kept: c.kept ?? 0, authored: c.authored ?? 0 }) : null} />
       <div class="st-main__body ask-body">
         <div class="ask-list" data-part="conversation" ref=${listRef}>

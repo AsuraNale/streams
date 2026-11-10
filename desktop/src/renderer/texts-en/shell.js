@@ -10,7 +10,8 @@ export const SHELL = Object.freeze({
     // v2 package M: the corner above Settings
     quota: Object.freeze({
       label: 'What is left',
-      plan: 'Plan usage',
+      // v2 package L: the K1 draft's title (the used per cent)
+      plan: 'Plan used',
       balance: 'API balance',
       window: '{span}: {pct}% used · resets {when}',
       resets: Object.freeze({ today: '{hm}', tomorrow: 'tomorrow {hm}', date: '{m}/{d} {hm}' }),

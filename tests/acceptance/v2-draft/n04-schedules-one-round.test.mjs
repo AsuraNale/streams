@@ -10,7 +10,9 @@
 //   2. two libraries at the same minute: both run, one after the other;
 //   3. the app closed for three days: at start each library owes one round (not three), queued one after the other,
 //      oldest slot first; the wake-up catch-up right after adds nothing; once they ran, nothing is owed;
-//   4. 「现在跑一轮」 while the queue is busy is refused, not stacked.
+//   4. 「现在跑一轮」 while the queue is busy is not stacked. v2 package L (维护者 11-10, feedback #1): it is no longer refused —
+//      a library already waiting answers 「already queued」 (not queued twice), one not in the line goes to its END; still
+//      never a second round at once, and each library runs once.
 // Reverse (mutants of a copy of the desktop's main process, ./support/mutant-app.mjs): the queue starts the next round
 // while one runs → red at 「two rounds at once」; a library already in the queue is queued again → red at 「owed more than one」.
 import assert from 'node:assert/strict'
@@ -138,21 +140,26 @@ async function scenario(app, label) {
     const after = s.catchUp('after')
     want((after.owed ?? []).length === 0, `closed: after the rounds nothing is owed (${JSON.stringify(after)})`)
   }
-  // 4. 现在跑一轮 while busy
+  // 4. 现在跑一轮 while busy — v2 package L: the check was 「refused (reason 'running')」; the rule is now 「queued, never stacked」
+  // (a waiting library: already queued; the round count per library stays one), so this part checks that instead
   {
-    const { time, rounds: p, schedule: s } = await world(app, `${label}-manual`, { a: { schedule: ON('10:00') }, b: { schedule: ON('10:00') } }, at(9, 9, 59))
+    const { time, rounds: p, schedule: s, ids } = await world(app, `${label}-manual`, { a: { schedule: ON('10:00') }, b: { schedule: ON('10:00') } }, at(9, 9, 59))
     s.arm(); time.set(at(9, 10, 0)); time.fire(); await tick()
     const before = p.order.length
     const r = await s.startCurrent('the page')
-    want(r.started === false && r.reason === 'running', `manual while busy: ${JSON.stringify(r)}`)
+    want(r.started === false && (r.already === 'queued' || r.already === 'running' || r.queued === true), `manual while busy: ${JSON.stringify(r)}`)
     want(p.order.length === before, 'manual while busy: a round started anyway')
+    const again = await s.startCurrent('the page')
+    want(again.started === false && again.queued !== true, `owed more than one (manual pressed twice): ${JSON.stringify(again)}`)
     await p.finishAll()
     want(p.maxActive === 1, `two rounds at once (manual): at most ${p.maxActive}`)
+    const counts = [ids.a, ids.b].map(id => p.order.filter(x => x === id).length)
+    want(counts.every(n => n === 1), `owed more than one (manual): rounds per library ${JSON.stringify(counts)}`)
   }
   return problems
 }
 
-test('N4 · three libraries, each on its own schedule: one round at a time; a missed round caught up once, not stacked; 现在跑一轮 refused while busy', async () => {
+test('N4 · three libraries, each on its own schedule: one round at a time; a missed round caught up once, not stacked; 现在跑一轮 while busy queued, not stacked (v2 package L)', async () => {
   assert.deepEqual(await scenario(realApp(), 'real'), [])
 })
 

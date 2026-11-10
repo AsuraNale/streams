@@ -12,6 +12,10 @@
 // Test hooks: main[data-screen="overview"][data-state], [data-part=sources|no-output|problem|numbers|round|progress|recent|
 // suggestions|run|next-run], [data-part="no-output"][data-streak], [data-num=inbox|caught|passed|kept],
 // [data-part="problem"][data-code][data-connection-code], [data-action=run|cancel-round|retry|change|copy|login|login-again].
+// v2 package L (feedback #1): this library's place in the one queue (the app context's getQueue) — waiting: an amber banner
+// 「排队中 · 第 n 位」 with who runs before it and why ([data-part="queue"][data-position], [data-action="see-progress"] → the
+// right panel's 进度), and the head's button 「已排上」, not pressable; running: the button 「正在跑」, not pressable
+// ([data-action="run"][data-queue-state=running|queued|idle]).
 import { html, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
@@ -19,7 +23,7 @@ import { dayText, fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { isOfLibrary, useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
-import { LinkButton, Notice } from '../kit/index.js'
+import { Button, LinkButton, Notice } from '../kit/index.js'
 import { CONNECTIONS, DAY, ERRORS, FETCH_STATES, NEXT_WHEN, NODE_NAMES, ROUND_PHASES, SEP, WHEN } from '../texts/common.js'
 import { TODAY as T } from '../texts/today.js'
 import { SHELL } from '../texts/shell.js'
@@ -28,6 +32,9 @@ import { RunDialog } from './run-dialog.js'
 import { LoginLoop } from './settings.js'
 import { RunStatus } from './status.js'
 import { LibrarySuggestions } from './suggestion-card.js'
+import { Icon } from '../kit/index.js'
+import { doingOf, queueStateOf } from '../lib/queue.js'
+import { QUEUE } from '../texts/panel.js'
 
 const LINE = /^(ok|empty|gap|failed|blocked|paused|no-fetch-yet)(?: (\d+)(?:\/(\d+))?(?: (\S*))?(?: hint=(\S+))?)?$/
 const LOUD = ['failed', 'gap', 'blocked']
@@ -62,6 +69,22 @@ function SourceBanner({ sources, onGo }) {
 }
 
 /** Plan C8: 「连续 N 轮没有产出」 from the core's threshold on (getHome().noOutputRounds); under it, nothing. */
+/** v2 package L: 「排队中 · 第 n 位」 — who runs before this library and why; it starts by itself after. */
+function QueueBanner({ place, queue, nameOf, onSee }) {
+  if (place?.state !== 'queued') return null
+  const r = queue?.running ?? null
+  const name = r ? nameOf(r.libraryId) : null
+  const B = QUEUE.banner
+  return html`<section class="ov-queue" data-part="queue" data-position=${place.position} role="status">
+    <${Icon} name="clock" size=${16} />
+    <div class="ov-queue__text">
+      <div class="ov-queue__title">${fmt(B.title, { n: place.position })}</div>
+      <p>${name ? fmt(B.text, { name, doing: doingOf(r.why, QUEUE.doing) }) : B.textNoName}</p>
+    </div>
+    <${Act} name="see-progress" onClick=${onSee}>${B.see}<//>
+  </section>`
+}
+
 function NoOutputBanner({ streak, threshold, onGo }) {
   if (!Number.isInteger(streak) || !Number.isInteger(threshold) || threshold < 1 || streak < threshold) return null
   return html`<div class="today-banner" data-part="no-output" data-streak=${streak}>
@@ -173,7 +196,7 @@ function RecentKept({ items }) {
 }
 
 export function OverviewScreen({ params }) {
-  const { navigate, appState } = useApp()
+  const { navigate, appState, queue, libraries, setPanel } = useApp()
   const home = useLoad(() => call('getHome'), [])
   // v2 package A: a round of another library (a timed one) is not this page's
   const libraryId = appState?.data?.library?.libraryId ?? null
@@ -222,12 +245,18 @@ export function OverviewScreen({ params }) {
   const state = data ? 'ready' : home.status
   // v1.0 sent 「连续 N 轮没有产出」 to 运行状态: that is the 「运行状态」 part of this page now
   const toRun = () => document.querySelector('main[data-screen="overview"] [data-part="run"]')?.scrollIntoView({ block: 'start' })
+  // v2 package L: where this library is in the queue — waiting: 「已排上」; running: 「正在跑」 (neither pressable)
+  const place = queueStateOf(queue?.data ?? null, libraryId)
+  const nameOf = id => (Array.isArray(libraries?.data) ? libraries.data.find(r => r.id === id)?.name ?? null : null)
+  const runWords = place?.state === 'queued' ? QUEUE.queuedButton : place?.state === 'running' || live ? QUEUE.runningButton : T.runNow
   const actions = html`<span class="ov-next st-t-small st-t-sub" data-part="next-run" data-next-run=${data?.nextRun ?? ''}>${data ? `${nextRun}${SEP}${connLine}` : ''}</span>
-    <${Act} name="run" variant="primary" icon="play" disabled=${!data || Boolean(live) || busy} onClick=${() => setShowRun(true)}>${T.runNow}<//>`
+    <span class="st-act" data-action="run" data-queue-state=${place?.state ?? (live ? 'running' : 'idle')}><${Button} variant=${place || live ? 'secondary' : 'primary'} icon=${place || live ? undefined : 'play'}
+      disabled=${!data || Boolean(live) || busy || place !== null} onClick=${() => setShowRun(true)}>${runWords}<//></span>`
   return html`<${LibraryFrame} tab="overview" state=${state} label=${SHELL.overview.title} actions=${actions} section=${params?.section}>
       <div class="st-main__body today-body">
         ${home.status === 'error' && !data ? html`<div class="today-error" role="alert">${home.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}<${LinkButton} onClick=${() => home.reload()}>${ERRORS.retry}<//></div>` : null}
         ${data ? html`
+          <${QueueBanner} place=${place} queue=${queue?.data ?? null} nameOf=${nameOf} onSee=${() => setPanel?.({ open: true, tab: 'progress' })} />
           <${SourceBanner} sources=${numbers?.sources} onGo=${() => navigate('sources')} />
           <${NoOutputBanner} streak=${numbers?.noOutputStreak} threshold=${data.noOutputRounds} onGo=${toRun} />
           <${ProblemCard} problem=${data.problem} busy=${busy} copied=${copied} onRetry=${retry} onChange=${() => navigate('settings')} onCopy=${copy} onRedetect=${redetect} />

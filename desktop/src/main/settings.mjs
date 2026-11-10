@@ -25,6 +25,8 @@
  *                       { by, at, detail? } (by: core SETUP_BY; at: an ISO time; detail: the kind chosen), or null (default).
  *                       Copied into a library's streams.json setup.connection (its `at` kept) when 新建库 makes one that
  *                       has no connection record (services/library.mjs)
+ *   panel               v2 package L: the main window's right panel — { open: boolean, tab: progress · decide · detail · files };
+ *                       default { open: true, tab: 'detail' }; each field checked on its own (setPanel, app-services.mjs)
  * Read whole and checked field by field (a field that is not what it should be is its default; inside `connections`
  * each field on its own); written whole, through a temporary file and a rename, so a crash never leaves half a file.
  * @module desktop/main/settings
@@ -53,6 +55,23 @@ export function defaultConnections() {
     codex: { model: null, verifyModel: null },
     api: { vendor: DEFAULT_VENDOR, baseUrl: null, model: null, verifyModel: null },
   }
+}
+
+// v2 package L: the right panel's four tabs, in their order (screens/right-panel.js)
+export const PANEL_TABS = Object.freeze(['progress', 'decide', 'detail', 'files'])
+export const DEFAULT_PANEL = Object.freeze({ open: true, tab: 'detail' })
+
+/** v2 package L: the right panel's state, each field checked on its own (a bad one is its default). */
+export function normalizePanel(raw) {
+  const open = own(raw, 'open')
+  const tab = own(raw, 'tab')
+  return { open: typeof open === 'boolean' ? open : DEFAULT_PANEL.open, tab: PANEL_TABS.includes(tab) ? tab : DEFAULT_PANEL.tab }
+}
+
+/** v2 package L: a change of the right panel the page may ask for — { open?, tab? }, at least one, nothing else. */
+export function isPanelPatch(raw) {
+  return isObject(raw) && Object.keys(raw).length > 0 && Object.keys(raw).every(k => k === 'open' || k === 'tab')
+    && (raw.open === undefined || typeof raw.open === 'boolean') && (raw.tab === undefined || PANEL_TABS.includes(raw.tab))
 }
 
 const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false, libraryRoot: null, setupConnection: null })
@@ -152,6 +171,8 @@ export function readSettings(file) {
     ...migrateLook(own(data, 'theme'), own(data, 'appearance')),
     libraryRoot: typeof root === 'string' && isAbsolute(root) ? root : DEFAULTS.libraryRoot,
     setupConnection: setupConnectionOf(own(data, 'setupConnection')),
+    // v2 package L: the right panel (open or folded, its tab), remembered for the next start
+    panel: normalizePanel(own(data, 'panel')),
   }
 }
 
@@ -173,7 +194,7 @@ function checkConnections(raw) {
 /**
  * Change some settings and write them all.
  * @param {string} file
- * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}, theme?: string, appearance?: string, libraryRoot?: string|null, setupConnection?: {by: string, at: string, detail?: string}|null}} patch
+ * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}, theme?: string, appearance?: string, libraryRoot?: string|null, setupConnection?: {by: string, at: string, detail?: string}|null, panel?: {open?: boolean, tab?: string}}} patch
  * @returns {object} the settings now
  */
 export function writeSettings(file, patch) {
@@ -217,6 +238,11 @@ export function writeSettings(file, patch) {
     const v = patch.setupConnection === null ? null : setupConnectionOf(patch.setupConnection)
     if (patch.setupConnection !== null && v === null) throw new TypeError('setupConnection must be { by, at, detail? }, or null')
     next.setupConnection = v
+  }
+  // v2 package L: the right panel — the fields given change, the other stays
+  if (Object.hasOwn(patch, 'panel')) {
+    if (!isPanelPatch(patch.panel)) throw new TypeError(`panel must be { open?: boolean, tab?: ${PANEL_TABS.join(' | ')} }`)
+    next.panel = normalizePanel({ ...next.panel, ...patch.panel })
   }
   const tmp = `${file}.${process.pid}.tmp`
   writeFileSync(tmp, `${JSON.stringify({ schema: SETTINGS_SCHEMA, ...next }, null, 2)}\n`)

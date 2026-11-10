@@ -15,7 +15,8 @@ const folder = () => { const dir = tempDir('st-settings-'); made.push(dir); retu
 after(() => { for (const dir of made) removeTree(dir, { waitMs: 3000 }) })
 const onDisk = file => JSON.parse(readFileSync(file, 'utf8'))
 // v2 package I: settings.json has one more field, setupConnection (首次打开's connection step while there is no library)
-const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, appearance: DEFAULT_APPEARANCE, libraryRoot: null, setupConnection: null })
+// v2 package L: and the right panel's state, panel { open, tab } (default open, 详情) — the reason this list changed
+const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, appearance: DEFAULT_APPEARANCE, libraryRoot: null, setupConnection: null, panel: { open: true, tab: 'detail' } })
 
 test('no file, a broken file, a file of another shape: the defaults', () => {
   const dir = folder()
@@ -164,6 +165,8 @@ test('v1.0\'s theme migrated when read: only theme and appearance change, every 
     language: 'en', libraryPath: lib, recentLibraries: [lib], showDeveloperInfo: true, schedule: { enabled: false, time: '21:15' }, libraryRoot: join(dir, 'libs'),
     connections: { active: 'codex', 'claude-code': { model: 'opus', verifyModel: null }, codex: { model: null, verifyModel: 'mini' }, api: { vendor: 'deepseek', baseUrl: null, model: null, verifyModel: null } },
     setupConnection: { by: 'chose', at: '2026-11-03T10:00:00.000Z', detail: 'codex' },
+    // v2 package L: the right panel's state is one more field, kept as written like the others (why this list changed)
+    panel: { open: false, tab: 'files' },
   }
   const rows = [[undefined, 'precision', 'system'], ['river', 'precision', 'system'], ['paper', 'precision', 'light'], ['night', 'precision', 'dark'], ['sepia', 'precision', 'system']]
   const seen = {}
@@ -216,4 +219,25 @@ test('setupConnection (v2 package I, 首次打开 before any library): null by d
   writeFileSync(file, `${JSON.stringify({ setupConnection: { by: 'maybe', at: rec.at } })}\n`)
   assert.equal(readSettings(file).setupConnection, null)
   assert.equal(writeSettings(file, { setupConnection: null }).setupConnection, null)
+})
+
+// v2 package L: the right panel's state (folded or open, its tab) — kept in settings.json so the next start opens it the same way.
+// Controls first: each bad value reads as its default; a write of one field keeps the other; a bad patch writes nothing.
+test('panel: { open, tab } read field by field, written by patch, a bad one refused', () => {
+  const dir = folder()
+  const file = join(dir, 'settings.json')
+  assert.deepEqual(readSettings(file).panel, { open: true, tab: 'detail' }, 'no file: open, 详情')
+  writeFileSync(file, JSON.stringify({ panel: { open: 'no', tab: 'logs' } }))
+  assert.deepEqual(readSettings(file).panel, { open: true, tab: 'detail' }, 'both fields bad: both their defaults')
+  writeFileSync(file, JSON.stringify({ panel: { open: false, tab: 'logs' } }))
+  assert.deepEqual(readSettings(file).panel, { open: false, tab: 'detail' }, 'one bad field: only that one is its default')
+  writeSettings(file, { panel: { tab: 'files' } })
+  assert.deepEqual(onDisk(file).panel, { open: false, tab: 'files' }, 'the tab changed, open stayed folded')
+  writeSettings(file, { panel: { open: true } })
+  assert.deepEqual(readSettings(file).panel, { open: true, tab: 'files' }, 'unfolded, the tab stayed')
+  for (const bad of [{}, { open: 1 }, { tab: 'ledger' }, { open: true, extra: 1 }, null, 'open']) {
+    const before = readFileSync(file, 'utf8')
+    assert.throws(() => writeSettings(file, { panel: bad }), TypeError, JSON.stringify(bad))
+    assert.equal(readFileSync(file, 'utf8'), before, 'nothing written for ' + JSON.stringify(bad))
+  }
 })

@@ -23,6 +23,8 @@ const METHODS = [
   'setTheme',
   'setAppearance',
   'setShowDeveloperInfo',
+  // v2 package L: the right panel
+  'setPanel',
   'copyDiagnostics',
   'openMakerPage',
   'getLicenses',
@@ -70,6 +72,8 @@ const METHODS = [
   // the timed round
   'getSchedule',
   'setSchedule',
+  // the queue of every library (v2 package L)
+  'getQueue',
   // the libraries the app knows (v2 package A)
   'listLibraries',
   'setActiveLibrary',
@@ -105,6 +109,9 @@ const METHODS = [
   // v2 package H: the file of a note in the file manager, the original in the reading window
   'showNoteInFolder',
   'openReader',
+  // v2 package L: 「文件」 of the right panel
+  'getLibraryOutline',
+  'revealProgramRecords',
   // 待规范 (S8): writing headers onto the files of an imported folder
   'applyHeader',
   'applyAllHeaders',
@@ -161,6 +168,8 @@ const EVENT_TOPICS = [
   'agent-changed',
   // the quota of a connection changed (v2 package M)
   'quota-changed',
+  // the queue of the rounds changed (v2 package L)
+  'queue-changed',
 ]
 const EVENT_CHANNEL = 'streams:event'
 

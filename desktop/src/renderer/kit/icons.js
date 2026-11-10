@@ -42,6 +42,10 @@ const ICONS = Object.freeze({
   chat: [2, ROUND, [['path', { d: 'M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H10l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z' }]]],
   play: [2, ROUND, [['path', { d: 'M8 5l11 7-11 7z' }]]],
   chart: [2, ROUND, [['path', { d: 'M4 20h16M7 16v-5M12 16V7M17 16v-8' }]]],
+  // v2 package L: the right panel — its fold button (a window with its right column), 等你决定 (a ticked box), a note (book)
+  panel: [2, ROUND, [['rect', { x: 3, y: 4, width: 18, height: 16, rx: 2 }], ['path', { d: 'M15 4v16' }]]],
+  checklist: [2, ROUND, [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 2 }], ['path', { d: 'M8 12l3 3 5-6' }]]],
+  book: [2, ROUND, [['path', { d: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z' }], ['path', { d: 'M4 21V5M8 7h7' }]]],
   gear: [2, ROUND, [['circle', { cx: 12, cy: 12, r: 3 }], ['path', { d: 'M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1' }]]],
 })
 

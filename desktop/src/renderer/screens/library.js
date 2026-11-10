@@ -8,10 +8,11 @@
 // openReader(url, 'reader'): the isolated reading window (src/main/reader.mjs). A caught item that waits in 待看 shows its
 // summary (getInbox). Hooks: [data-part="item-actions"][data-for=note|caught], [data-action=keep|more][data-items],
 // the menu's [data-menu-item=obsidian|folder|browser], [data-kept-now], [data-part=pick-one|summary|keep-only-inbox].
-// 资料库与阅读 (mockup S6; docs/desktop.md §4.2). Three columns: the list (the search box on top, four tabs with their
-// counts, the topic and 「最近 30 天」 filters) · the reader (the note's Markdown cut into elements by lib/markdown.js;
-// a [[link]] that names a note in the library opens it) · the right panel (this note: topics, source, the scores with
-// their reasons, freshness, the file; the notes that link here; the notes from the same source). The top bar: 「编辑」
+// 资料库与阅读 (mockup S6; docs/desktop.md §4.2). v2 package L (维护者 11-10 「资料库标签页保留瘦成两栏」): two columns — the list
+// (the search box on top, four tabs with their counts, the topic and 「最近 30 天」 filters) · the reader (the note's Markdown
+// cut into elements by lib/markdown.js; a [[link]] that names a note in the library opens it). What was its third column
+// (this note: topics, source, the scores with their reasons, freshness, the file; the notes that link here; the notes from
+// the same source) is the window's right panel's 「详情」 now (screens/right-panel.js), the same hooks. The top bar: 「编辑」
 // (screens/edit-dialog.js), 「用 Obsidian 打开」, 「打开原文」. 「抓到的」 lists what the core's ledger holds short of kept or
 // let go, with each step's score and the step it stopped at; 「待规范」 (mockup S8, docs/desktop.md §4.3) lists the files
 // and their problems on the left and, in the reader, one card per file: the problem, the header the core proposes in a
@@ -36,12 +37,14 @@ import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { renderMarkdown } from '../lib/markdown.js'
 import { headerText, parseHeaderText } from '../lib/header-text.js'
-import { Icon, LinkButton, Menu, Panel, Tag, TopBar } from '../kit/index.js'
+import { Icon, LinkButton, Menu, Tag, TopBar } from '../kit/index.js'
 import { ERRORS, NODE_NAMES, NOTE_STATUS, SEP } from '../texts/common.js'
 import { LIBRARY as T } from '../texts/library.js'
 import { EditDialog } from './edit-dialog.js'
 import { VerdictDialog } from './verdict-dialog.js'
 import { LibraryFrame, ViewSwitch } from './library-frame.js'
+import { DetailBlock } from './right-panel.js'
+import { PANEL } from '../texts/panel.js'
 
 const VIEWS = ['kept', 'authored', 'caught', 'pending']
 const RECENT_DAYS = 30
@@ -465,11 +468,11 @@ export function LibraryScreen({ params = {} }) {
       ${isWeb(it.url) ? html`<${MoreMenu} items=${[{ id: 'browser', label: T.actions.browser }]} onSelect=${() => doCall('openReader', it.url, 'browser')} />` : null}
     </div>`
   }
-  const panel = html`<${Panel} label=${T.panel.title}>
-    ${showNote ? html`<${NotePanel} note=${n} onSelect=${choose} onVerdicts=${() => setVerdictsFor({ url: entry.source, title: entry.title })} />` : html`<div class="lib-panel" data-part="note-panel"><p class="st-t-small st-t-muted">${T.panel.none}</p></div>`}
-  <//>`
+  // v2 package L: the old third column, in the right panel's 详情 (the note being read: its title on top)
+  const panelBody = showNote ? html`<${NotePanel} note=${n} onSelect=${choose} onVerdicts=${() => setVerdictsFor({ url: entry.source, title: entry.title })} />` : html`<div class="lib-panel" data-part="note-panel"><p class="st-t-small st-t-muted">${T.panel.none}</p></div>`
+  const detail = html`<${DetailBlock} where=${PANEL.detail.where.library} title=${showNote && entry && selected && entry.id === selected ? entry.title : null} part="detail-library">${panelBody}<//>`
   const state = lib.data ? 'ready' : lib.status
-  return html`<${LibraryFrame} tab="library" state=${state} labelledby="library-title" panel=${panel} actions=${actions}>
+  return html`<${LibraryFrame} tab="library" state=${state} labelledby="library-title" detail=${detail} actions=${actions}>
       <${TopBar} title=${T.title} titleTag="h2" titleId="library-title"
         subtitle=${showNote && entry ? NOTE_STATUS[entry.status] ?? '' : caughtItem ? T.views.caught : null}
         actions=${html`<${ViewSwitch} current="list" onSelect=${v => { if (v === 'graph') navigate('graph') }} />`} />

@@ -11,7 +11,7 @@ import { clipboard, shell } from 'electron'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { diagnosticsText } from './diagnostics.mjs'
-import { readSettings, writeSettings } from './settings.mjs'
+import { isPanelPatch, readSettings, writeSettings } from './settings.mjs'
 import { BridgeError } from './bridge-methods.mjs'
 import { DEFAULT_THEME, isAppearance, isThemeId } from './theme.mjs'
 import { licensesView, noticesFileOf } from './licenses.mjs'
@@ -67,11 +67,23 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       scheme: scheme(),
       // 设置 marks the default theme's card 「默认」 (theme.mjs DEFAULT_THEME, the one place it is defined)
       defaultTheme: DEFAULT_THEME,
+      // v2 package L: the main window's right panel — open or folded, and its tab (settings.json; screens/right-panel.js)
+      panel: s.panel,
     }
   }
 
   const handlers = {
     getAppState: () => appState(),
+    /**
+     * v2 package L: the right panel folded / unfolded, or another tab — written into settings.json, so the next start opens it
+     * the same way. No event: the page that asked keeps what this answers ({ open, tab }).
+     */
+    setPanel(patch) {
+      if (!isPanelPatch(patch)) throw new BridgeError('bad_arguments')
+      const s = writeSettings(layout.settingsFile, { panel: patch })
+      log(`panel: ${s.panel.open ? 'open' : 'folded'}, ${s.panel.tab}`)
+      return s.panel
+    },
     /** 「语言」: write the setting and decide the language again; `changed` tells the page to load itself again. */
     setLanguage(v) {
       const r = locale.set(v)

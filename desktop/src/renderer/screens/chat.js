@@ -17,6 +17,10 @@
 //     「告诉主 Agent 你想持续跟踪什么…」, three example sentences (a click puts one in the input and nothing is sent) and
 //     「也可以手动新建」 (→ 新建库, app.js newLibrary()). No connection chosen in settings.json (getAppState().activeConnection) →
 //     the guide says 「还没有连接，主 Agent 用不了」 with 「去设置」 (and the input's own v1.0 line is not drawn twice).
+// v2 package L: the window's right panel (screens/right-panel.js) beside it; its 「详情」 is the latest turn — what the main Agent
+// looked up in it ([data-part="detail-looked"] [data-detail-lookup]) and the cards it made ([data-part="detail-cards"]
+// [data-detail-card=<id>][data-status]; a click scrolls to the card). Opened from 等你决定 with `params.card`, the page scrolls
+// to that card ([data-proposal] in the conversation, else in 「等你定的事」).
 // Words: texts/agent.js AGENT (and texts/common.js NO_CONNECTION, CONNECTIONS).
 // Test hooks: main[data-screen="chat"][data-state], [data-part=waiting|waiting-items|conversation|intro|compose|thinking|
 // no-connection|chat-note|first-guide|guide-no-connection], [data-action="example"][data-example=<0..2>], [data-action="manual-new"], [data-waiting=<n>], [data-waiting-card=<id>], [data-row=you|agent|lookup|note|summary][data-turn],
@@ -29,10 +33,12 @@ import { fmt } from '../lib/format.js'
 import { useEvent } from '../lib/use-events.js'
 import { useAgentBusy, useProposals, useSuggestions } from '../lib/agent.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, LinkButton, Main, TopBar } from '../kit/index.js'
+import { AppFrame, AppSidebar, Icon, LinkButton, Main, TopBar } from '../kit/index.js'
 import { CONNECTIONS, NO_CONNECTION } from '../texts/common.js'
 import { AGENT } from '../texts/agent.js'
 import { ProposalCard, cardTitle, libraryNameOf } from './proposal-card.js'
+import { DetailBlock, RightPanel } from './right-panel.js'
+import { PANEL } from '../texts/panel.js'
 import { SuggestionCard } from './suggestion-card.js'
 
 const T = AGENT.chat
@@ -175,7 +181,33 @@ export function FirstGuide({ noConnection, onExample, onManual, onSettings }) {
   </section>`
 }
 
-export function ChatScreen() {
+/** v2 package L, 详情: the latest turn's lookups and cards (a click on a card scrolls to it). */
+function TurnDetail({ rows, nameOf, cardOf }) {
+  const D = PANEL.detail.chat
+  const last = rows.length ? Math.max(...rows.map(r => (Number.isInteger(r.turn) ? r.turn : -1))) : -1
+  if (last < 0) return html`<p class="st-t-small st-t-sub st-rp-none" data-part="detail-none">${D.none}</p>`
+  const mine = rows.filter(r => r.turn === last)
+  const looked = mine.filter(r => r.role === 'lookup').map(r => lookupText(r, nameOf))
+  const cards = mine.filter(r => r.role === 'agent').flatMap(r => (Array.isArray(r.data?.proposalIds) ? r.data.proposalIds : [])).map(id => cardOf(id) ?? { id, status: null })
+  const go = id => document.querySelector(`[data-part="conversation"] [data-proposal="${id}"], [data-waiting-card="${id}"]`)?.scrollIntoView({ block: 'center' })
+  return html`<${DetailBlock} where=${PANEL.detail.where.chat} title=${D.title} part="detail-chat">
+    <section class="st-rp-section" data-part="detail-looked" data-turn=${last} data-n=${looked.length}>
+      <h3 class="st-rp-heading">${fmt(D.looked, { n: looked.length })}</h3>
+      ${looked.length ? html`<ul class="st-rp-looked">${looked.map((t, i) => html`<li key=${i} data-detail-lookup=${i}><${Icon} name="search" />${t}</li>`)}</ul>`
+        : html`<p class="st-t-small st-t-muted">${D.lookedNone}</p>`}
+    </section>
+    <section class="st-rp-section" data-part="detail-cards" data-n=${cards.length}>
+      <h3 class="st-rp-heading">${fmt(D.cards, { n: cards.length })}</h3>
+      ${cards.length ? cards.map(c => html`<button type="button" key=${c.id} class="st-rp-decide" data-detail-card=${c.id} data-status=${c.status ?? ''} onClick=${() => go(c.id)}>
+        <span class="st-rp-decide__kind st-rp-decide__kind--proposal">${PANEL.decide.proposal}</span>
+        <b class="st-rp-decide__title">${c.kind ? cardTitle(c, nameOf(c.libraryId)) : c.id}</b>
+        <span class="st-rp-decide__where">${[Object.hasOwn(D.cardState, c.status ?? '') ? D.cardState[c.status] : null, D.see].filter(Boolean).join(' · ')}<${Icon} name="chevron-right" /></span>
+      </button>`) : html`<p class="st-t-small st-t-muted">${D.cardsNone}</p>`}
+    </section>
+  <//>`
+}
+
+export function ChatScreen({ params = {} }) {
   const { navigate, libraries, appState, newLibrary } = useApp()
   const proposals = useProposals()
   const suggestions = useSuggestions(null)
@@ -214,6 +246,17 @@ export function ChatScreen() {
     latest().then(t => { if (live) { setEntries(t.entries ?? []); setHasMore(t.hasMore === true) } }, () => { if (live) setLoadError(true) })
     return () => { live = false }
   }, [])
+  // v2 package L: opened from the right panel's 等你决定 with a card: scrolled to it once the record and the cards are here
+  const shownCard = useRef(null)
+  useEffect(() => {
+    const id = typeof params.card === 'string' ? params.card : null
+    if (!id || shownCard.current === id || entries === null || !proposals.data) return
+    const el = document.querySelector(`[data-part="conversation"] [data-proposal="${id}"], [data-waiting-card="${id}"]`)
+    if (!el) return
+    shownCard.current = id
+    toEnd.current = false
+    el.scrollIntoView({ block: 'center' })
+  })
   // a turn ended (this page's, 问库's, 交给主 Agent): the record again, and the end of it in view if it was there
   useEvent('agent-changed', p => {
     if (p?.phase !== 'done') return
@@ -327,7 +370,8 @@ export function ChatScreen() {
     setTimeout(() => document.querySelector('[data-part="compose"] textarea[data-field="message"]')?.focus(), 0)
   }
   const state = entries !== null ? 'ready' : loadError ? 'error' : 'loading'
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`}>
+  const detail = entries !== null ? html`<${TurnDetail} rows=${rows} nameOf=${nameOf} cardOf=${id => proposals.byId.get(id) ?? null} />` : null
+  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`} panel=${html`<${RightPanel} detail=${detail} />`}>
     <${Main} screen="chat" state=${state} labelledby="chat-title">
       <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h1" titleId="chat-title" />
       <div class="st-main__body chat-body">

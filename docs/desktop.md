@@ -106,12 +106,13 @@ frame-ancestors 'none'
 <!-- bridge:begin -->
 | 方法 | 参数 | 返回的 `data` | 谁用 |
 |---|---|---|---|
-| `getAppState()` | 无 | `{ library: { libraryId, path, name } \| null, recentLibraries: [{ path, name }], showDeveloperInfo, language: { setting, resolved }, version, devBuild, theme, libraryCount, activeConnection }`；`library` 是当前库（侧栏显示 `name`，没有就是「未打开库」；v2 包 A 起带登记 id `libraryId`，`name` 是登记表的名字，默认文件夹名）；`recentLibraries` 是登记表里的库（v2 包 A 起不再读 `settings.json`）；`version` 是 `installer/setup/release.json` 的版本，`devBuild` 为真时是开发版；`theme` 是 `river` · `paper` · `night` 之一（§五「主题」）——**v2 包 K2** 起是 `precision` · `glass` · `research` 之一，另有 `appearance`（`light` · `dark` · `system`，设置）、`scheme`（现在生效的 `light` · `dark`：跟随系统时是 Windows 现在用的）、`defaultTheme`（`precision`，设置页给那张卡标「默认」）；**v2 包 I**：`libraryCount` = 应用知道的库有几个（登记表的，加上开发钩子那个临时库），0 → 首次打开；`activeConnection` = `settings.json` 里选定的连接（`claude-code` · `codex` · `api` · `null`，只读设置、不检测），和主 Agent 聊的引导据此说「还没有连接」 | `app.js`（每一屏经 `useApp().appState`）、设置页 |
+| `getAppState()` | 无 | `{ library: { libraryId, path, name } \| null, recentLibraries: [{ path, name }], showDeveloperInfo, language: { setting, resolved }, version, devBuild, theme, libraryCount, activeConnection }`；`library` 是当前库（侧栏显示 `name`，没有就是「未打开库」；v2 包 A 起带登记 id `libraryId`，`name` 是登记表的名字，默认文件夹名）；`recentLibraries` 是登记表里的库（v2 包 A 起不再读 `settings.json`）；`version` 是 `installer/setup/release.json` 的版本，`devBuild` 为真时是开发版；`theme` 是 `river` · `paper` · `night` 之一（§五「主题」）——**v2 包 K2** 起是 `precision` · `glass` · `research` 之一，另有 `appearance`（`light` · `dark` · `system`，设置）、`scheme`（现在生效的 `light` · `dark`：跟随系统时是 Windows 现在用的）、`defaultTheme`（`precision`，设置页给那张卡标「默认」）；**v2 包 I**：`libraryCount` = 应用知道的库有几个（登记表的，加上开发钩子那个临时库），0 → 首次打开；`activeConnection` = `settings.json` 里选定的连接（`claude-code` · `codex` · `api` · `null`，只读设置、不检测），和主 Agent 聊的引导据此说「还没有连接」；**v2 包 L**：`panel` = `{ open, tab }`，右栏展开与否和当前标签（`settings.json`，§4.12） | `app.js`（每一屏经 `useApp().appState`）、设置页 |
 | `onEvent(topic, callback)` | 下面事件表里的一个主题；一个函数 | 不是信封：返回取消订阅的函数；主题不在表里、`callback` 不是函数就抛错 | `app.js` |
 | `setLanguage(language)` | `'auto'` · `'zh-CN'` · `'en'` | `{ setting, resolved, changed }`；写进设置并重新决定界面语言；`changed` 为真时页面自己重新载入（§六） | 设置页「语言」 |
 | `setTheme(id)` | **v2 包 K2**：`'precision'` · `'glass'` · `'research'`（别的 → `bad_arguments`，v1.0 的三个 id 也是） | `{ theme, appearance, scheme }`；写进 `settings.json` 的 `theme`，主进程跟着改每个窗口的底色（那一组的 `--st-page`）和阅读窗口；发 `settings-changed`。页面自己马上把 `<html data-theme>`、`data-appearance` 换掉（§五「主题」） | 设置页「主题」三张卡 |
 | `setAppearance(appearance)` | **v2 包 K2**：`'light'` · `'dark'` · `'system'`（别的 → `bad_arguments`） | `{ theme, appearance, scheme }`；写进 `settings.json` 的 `appearance`，主进程改 `nativeTheme.themeSource`（同名；`system` 时 Electron 跟着 Windows）、窗口底色与阅读窗口；发 `settings-changed`；`scheme` 是现在生效的浅 / 深 | 设置页「外观」 |
 | `setShowDeveloperInfo(on)` | 布尔 | `{ showDeveloperInfo }` | 设置页「显示开发者信息」 |
+| `setPanel(patch)` | **v2 包 L**：`{ open?: boolean, tab?: 'progress' \| 'decide' \| 'detail' \| 'files' }`，至少一个字段（别的 → `bad_arguments`） | `{ open, tab }`：写进 `settings.json` 的 `panel`（只改给的字段），下次启动右栏照旧；不发事件（页面自己用这个回答） | 右栏的收起 / 展开按钮、四个标签（§4.12） |
 | `copyDiagnostics()` | 无 | `{ ok: true }`；主进程把诊断信息写进剪贴板（不带 key；测试时写到 `logs\clipboard.txt`） | 设置页「复制诊断信息」 |
 | `openMakerPage()` | 无 | `null`；在用户的浏览器里打开 `https://starrydigital.ca`（地址写死在主进程 `app-services.mjs MAKER_URL`，页面不给地址；测试时只记日志） | 设置页「关于」的「由 Starry Digital 开发」（V11，维护者 11-02 定「链 starrydigital.ca」） |
 | `getLicenses()` | 无 | `{ own: { license: 'MIT', text }, components: [{ name, version, license }], notices: { available } }`：`text` 是流息 `LICENSE` 全文（装好的应用读 `resources\app\LICENSE`，构建把仓库根的 `LICENSE` 放在那里；开发时读仓库根那份）；`components` 依次是 Electron · Chromium · Node.js（版本取运行时 `process.versions`）、Preact · htm · @mozilla/readability（版本与许可证取应用里 `node_modules/<名>/package.json`；Readability 是阅读模式抽正文用的，v2 包 J1 加进表里）；`notices.available`：装好的应用安装目录里有 `THIRD-PARTY-NOTICES.txt` 时为真，开发时总为假（`app-services.mjs licensesView`） | 设置页「许可证与致谢」对话框 |
@@ -143,7 +144,7 @@ frame-ancestors 'none'
 | `getHome()` | 无 | 见 §4.1「今日」 | S2 |
 | `estimateRound()` | 无 | 核心 `estimateRound` + `{ connection: { kind, model, verifyModel } }` | S12 |
 | `setRoundCap(cap)` | 正整数 | `{ cap }`；写 `streams.json` 的 `pipeline.cap` | S12「改上限」、设置「每轮上限」 |
-| `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；一轮在跑时 `bad_arguments`（v2 包 A：走全应用的队列，任何库的一轮在跑或有库在排队都算，见 §4.4）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | S12「开始」、S13「重试打分」 |
+| `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；走全应用的队列（v2 包 A，§4.4）。**v2 包 L**：队列忙（别的库在跑或在排）时**不再回 `bad_arguments`**，而是把当前库排到队尾：`{ started: false, queued: true, position, runningLibraryId }`（`position` 1 = 在跑的那个，2 = 第一个在排的…）；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排（§4.12）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | S12「开始」、S13「重试打分」 |
 | `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 概览（v1.0 的「今日」）进度条旁 |
 | `getRoundState()` | 无 | `{ running, roundId, libraryId, progress, last: runRound 的返回 \| null, lastProblems }`（`libraryId`：那一轮是哪个库的，v2 包 A；全应用同一时间只有一轮） | S2 |
 | `getInbox()` | 无 | `{ items: 核心 listInbox(), recentDismissReasons: [{ts, reason, title}] }` | S3 |
@@ -153,6 +154,7 @@ frame-ancestors 'none'
 | `openItemUrl(url)` | 必须是 inbox 里或索引里某条的 `source`，否则 `bad_arguments` | `null`；`shell.openExternal`（测试只记日志） | S3「打开原文」 |
 | `getPipelineSettings()` | 无 | `{ cap, thresholds: { relevance, substance }, schedule }`；`schedule` = `getSchedule()` 的返回 | 设置「运行」 |
 | `getSchedule()` | 无 | 当前库的定时：`{ libraryId, enabled, time, nextRunAt: ISO \| null, lastRoundAt: ISO \| null, missed: boolean }`（§4.3–4.4；没打开库时是 `settings.json` 的、`libraryId` / `lastRoundAt` 为 null、`missed` 为 false） | 库页头「下次运行」（v2 包 F；v1.0 的设置「运行」与今日顶栏已不在，设置里是只读的「定时一览」，见 §4.10） |
+| `getQueue()` | 无 | **v2 包 L**：全应用的一个队列（§4.12）：`{ running: { libraryId, roundId, phase, calls, cap, startedAt, why } \| null, waiting: [{ libraryId, why, since }], next: [{ libraryId, at }] }`；`why` 是 `'schedule'`（到点）· `'catch-up'`（补跑错过的）· `'manual'`（页面或托盘的「开始」、确认了的开跑卡）；`phase` / `calls` / `cap` 是那一轮最后一条 `round-progress` 的；`next` 是每个开着定时的库的下一次，早的在前。只读 | 右栏「进度」、跑一轮对话框、概览横幅、库架卡片与左栏第二行（`lib/queue.js useQueue`） |
 | `setSchedule(schedule)` | `{ enabled: boolean, time: 'HH:MM' }`（00:00–23:59，别的键 → `bad_arguments`） | 同上；写**当前库的 `streams.json`** 的 `schedule`（v2 包 A；v1.0 写 `settings.json`）、重设定时器；发 `settings-changed { libraryId }`；没打开库 → `no_library` | 设置「运行」、首次设置最后一步 |
 | `listLibraries()` | 无 | **v2 包 A**：登记表的库，按登记顺序：`[{ id, path, name, icon, color, addedAt, temporary, active, exists }]`；`exists` = 文件夹在、`streams.json` 读得出；`temporary` 只有开发钩子 `STREAMS_DEV_LIBRARY` 指的、没登记的那个库（id `dev`，排第一，不写进登记表）；`active` = 当前库 | 包 F 的左栏、库架 |
 | `setActiveLibrary(id)` | 登记表里的 id（不认识 → `bad_arguments`） | 换当前库，返回 `{ libraryId, path, name }`；文件夹不在或读不出 → `open_failed`，什么都不变；发 `libraries-changed`、`library-changed`、`settings-changed`。原有的库相关方法签名不变，都作用于当前库 | 包 F 切库 |
@@ -183,6 +185,8 @@ frame-ancestors 'none'
 | `editNote(id, changes)` | `changes` 只能有 `title` / `topics` / `body` | `{ id, file, entry }`；核心 `bad-edit` / `invalid-note` → `bad_arguments`；发 `library-changed` | S7 |
 | `openInObsidian(id)` | id 在索引里 | `null`；`shell.openExternal('obsidian://open?path=<绝对路径>')`，打不开时 `shell.openPath(路径)`（测试只记日志） | S6「用 Obsidian 打开」（v2 包 H 起在「更多」里，只对有文件的条目） |
 | `showNoteInFolder(id)` | id 在索引里（路径同 `openInObsidian` 的核法：核心 `notePath`，必须是笔记文件夹里的 `.md`） | `null`；`shell.showItemInFolder(路径)`（测试只记日志 `not opened in a test run: folder <路径>`） | P5「更多」→「在资源管理器中显示」（v2 包 H，§4.9） |
+| `getLibraryOutline()` | 无 | **v2 包 L**：当前库「讲给人听的结构」，只读不写盘：`{ libraryId, name, notes: { count, groups: [{ topic: string \| null, count, notes: [{ id, title, status, date }] }] }, inbox: { count }, requirements: { sources, topics } }`——笔记（已收藏与我写的，索引里的）按笔记头的 `topics` 分组（一篇两个主题就在两组里；没有主题的在 `topic: null` 组，界面叫「未分主题」），篇数多的组在前；**不给任何程序文件的名字或路径** | 右栏「文件」（§4.12） |
+| `revealProgramRecords()` | 无 | **v2 包 L**：`null`；当前库的程序记录文件夹在资源管理器里选中（`shell.showItemInFolder`；测试只记日志 `not opened in a test run: folder <路径>`）；不列、不打开里面的任何文件 | 右栏「文件」→「程序记录（不用动）」展开后的「在资源管理器中显示」 |
 | `openReader(url, how)` | `url` 是 http(s)，且是当前库记录里的条目（`replayLedger` 的 states 里，抓到的、待看的都算）或索引里某条的 `source`，否则 `bad_arguments`；`how` ∈ `reader` · `browser` | `reader`：在隔离的阅读窗口里打开（§4.9），等抽正文结束后回 `{ mode: 'reading' \| 'original', fallback }`；`browser`：`null`，系统浏览器打开（测试只记日志）。不写盘 | P5「打开原文」「更多」→「在浏览器里打开」（v2 包 H） |
 | `applyHeader(file, header)` | `file` 是核心 `listPending` 里的文件名（否则 `bad_arguments`）；`header` 是对象（页面上改过的文件头，与拟好的合并、用户给的键优先）或 `null`（用拟好的） | 核心 `applyProposedHeader` 的返回 `{ id, file, entry }`；`not-proposable` / `bad-file-name` / `already-conforming` / `bad-id` / `invalid-note` → `bad_arguments`；发 `library-changed` | S8「写入这一个」 |
 | `applyAllHeaders()` | 无 | `{ written: [file…], skipped: [{ file, code }] }`：对每个文件名能当 id、拟得出文件头的待规范文件按拟的写入；文件名不能当 id 的 `code: 'bad-file-name'`，拟不出的 `'not-proposable'`，核心拒绝的是核心的错误码；写了至少一个才发 `library-changed` | S8「全部按拟的写入」 |
@@ -327,6 +331,7 @@ frame-ancestors 'none'
 | `proposals-changed` | `{ libraryId, id, status }`（建库卡 `libraryId` 为 null） | **v2 包 B**：出了一张提议卡，或一张卡被确认 / 不要 / 改一下 / 过期 / 失败 | 包 G 的卡片、「等你定的事」角标 |
 | `agent-changed` | `{ phase: 'started' \| 'done', turn, libraryId }` | **v2 包 C**：主 Agent 的一轮开始了 / 结束了（`agentSend`、`acceptSuggestion` 都会发） | 包 G 的对话流（重读 `getAgentTranscript` / `getAgentStatus`） |
 | `quota-changed` | `{ kind }`（哪种连接的；当前连接换了时是新的当前连接） | **v2 包 M**：某种连接的套餐余量 / API 余额读到了、随一次调用来了、读不到了，或当前连接换了（§4.11） | 左栏左下角（重读 `getQuota`） |
+| `queue-changed` | `{ running, waiting }`（库的 id；没有在跑的时 `running` 为 null） | **v2 包 L**：有库排进队列、队列里的一轮开始或结束（§4.12） | 应用（`lib/queue.js useQueue` 重读 `getQueue`：右栏「进度」、左栏第二行、库架、概览） |
 <!-- events:end -->
 
 **加一个主题**：`src/main/events.mjs` 的 `EVENT_TOPICS` 加一项、`src/preload/preload.cjs` 的 `EVENT_TOPICS` 加同名、上表加一行；少一处 `npm test` 就红。
@@ -377,7 +382,7 @@ frame-ancestors 'none'
 
 **排队**：
 - **同一时间只跑一轮**：一个全局队列，按到点先后；同一个库已在队列里或正在跑 → 不重复入队（记日志）。前一轮跑完（`onRoundDone`）才开下一个；没开起来的（自检失败）让下一个接着开。
-- **手动「现在跑一轮」（页面的 `startRound`、托盘菜单）也走这个队列，选的是「回『正在跑』的错误」**：队列空闲 → 当前库的一轮马上开（占住队列，期间到点的库排在它后面）；队列忙（任何库的一轮在跑、在开、或有库在排队）→ 页面的 `startRound` 照 v1.0 的规矩回 `bad_arguments`（「一轮在跑」），托盘只记一行日志；手动的从不排进队列。理由：v1.0 的页面已经会处理这个错误，排队则要页面能显示「排在第几」（包 F 的事）。
+- **（v2 包 L 起改了，见 §4.12：手动的一轮排到队尾。下面是包 A 当时的规则，留作记录。）** **手动「现在跑一轮」（页面的 `startRound`、托盘菜单）也走这个队列，选的是「回『正在跑』的错误」**：队列空闲 → 当前库的一轮马上开（占住队列，期间到点的库排在它后面）；队列忙（任何库的一轮在跑、在开、或有库在排队）→ 页面的 `startRound` 照 v1.0 的规矩回 `bad_arguments`（「一轮在跑」），托盘只记一行日志；手动的从不排进队列。理由：v1.0 的页面已经会处理这个错误，排队则要页面能显示「排在第几」（包 F 的事）。
 - **补跑**（启动与睡醒时）：每个库按自己的 `schedule` 与自己 `rounds.jsonl` 最后一轮看欠不欠，欠就补**一轮**（三天没开也只补一轮）；几个库都欠就按各自欠的那个时刻先后依次排队。
 - **关窗口进托盘**：任一库的定时开着（v1.0 是「定时开着」）。
 - **通知**：一轮写进待看 n 条 → 「<库名>：这一轮进来 n 条待看」（`newItems`，中英两张表都有）；0 条不发。
@@ -540,6 +545,28 @@ frame-ancestors 'none'
 - **左下角**（`kit/sidebar.js SidebarQuota`，`lib/quota.js quotaView / useQuota`）：在「+ 新建库」下面的空白之后、「设置」上面；`[data-part="quota"][data-quota-kind=plan|balance]`，小标题「套餐余量」/「API 余额」，每个窗口一行 `[data-quota-row=<id>]`「5 小时 已用 5% · 14:30 重置」（今天只写时刻、明天「明天 14:30」、再往后「11-13 16:00」；Codex 的窗口按长度写「7 天」「5 小时」），余额一行「110.00 CNY」；悬停「截至 今天 10:16」。`getQuota` 是 `null` → **整块不画**（读不到、没有接口都一样）。字全在 `texts/shell.js SHELL.sidebar.quota`（英文 `texts-en/shell.js` 同键）；不写品牌词，也不写是哪条连接。样式用现有 kit 的安静小字（`.st-sidebar__quota`，同 `.st-sidebar__note`），新主题的样式在 K2 统一换——**v2 包 K2 已换**：照 K1 画成小卡（标题与「截至 …」、每个窗口一行带进度条，`aria-label` 是整句），见 §五「主题」。
 - **开发与测试**（装好的流息不认）：`STREAMS_DEV_QUOTA=<绝对路径的 JSON>` `{ "claude-code"?, "codex"?, "api"? }` 启动时当作读到的（每个过 `checkQuota`）；有它或有 `STREAMS_DEV_CONNECTION` 时不做任何真的读（不起 codex、不发请求）。
 
+### 4.12 §四补：右栏四个标签、排队、资料库两栏（v2 包 L，11-10）
+
+<!-- v2 package L: 维护者 11-10 「右栏定四个标签…资料库标签页保留瘦成两栏」「『没能开始』那条照建议改」；契约 docs/checks/2026-11-10-wp-l/contract.md -->
+
+**排队规则改了（反馈 #1「没能开始」）**（`services/schedule.mjs startCurrent`，经 `services/pipeline.mjs roundGate`）：
+- 页面的「开始」（跑一轮对话框）与托盘的「现在跑一轮」：没有在跑、也没有在排的 → 当前库马上开（照旧）。**有别的库在跑或在排 → 当前库排到队尾**，回答 `{ started: false, queued: true, position, runningLibraryId }`，不再是 `bad_arguments`；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排。托盘与页面同一个回答（托盘只记日志）。
+- 照旧：**同一时间只跑一轮**；同一个库不会在队列里出现两次；补跑每库最多一轮、不叠加（N4）。
+- 队列里每个库带 `why`（`schedule` · `catch-up` · `manual`）与 `since`；确认了的「开跑一轮」卡也算 `manual`。
+- `getQueue()` 与事件 `queue-changed`（§四表）：在跑的那一轮（库、为什么、阶段、调用数 / 上限、开始时间）、排队的先后、每个库的下一次定时。
+- 说法（`texts/panel.js QUEUE`，中英两张）：跑一轮对话框被排上 →「「中国电动车行业」正在补跑错过的那一轮；这个库排在第 3 位，轮到了会自动开始。」+「前面 · 这个库」两行 +「看进度」「知道了」；原来笼统的「没能开始。」只留给真正的出错。概览：在排时琥珀横幅「排队中 · 第 n 位」+ 前面是谁在跑什么 +「看进度」，库头按钮变「已排上」不可点；在跑时按钮「正在跑」不可点。库架卡片与左栏库列表的第二行：「在跑」/「排队中 · 第 n 位」。
+
+**右栏**（`screens/right-panel.js RightPanel`，样式 `styles/screens/panel.css`）：
+- 主窗口三栏：左栏 232 · 主区 · 右栏 380（窗口窄于 1360 时 352）；右上角按钮收起成 52px 的一条（四个图标，「等你决定」带数，点哪个就展开到哪个标签）。窗口最小 1280×800 时三栏都放得下。**收起 / 展开与当前标签记在 `settings.json` 的 `panel`**（`setPanel`，`getAppState().panel`；默认展开、「详情」），下次打开照旧。首次打开、新建库的向导没有右栏。
+- **进度**：全部库——在跑的那个（库名、为什么、开始时间、到了哪一步、调用数 / 上限）、排队的先后（1 = 在跑的，「这个库」标出当前库）、各库下一次定时。读 `getQueue`（`app.js useQueue`：`queue-changed` 与一轮结束时重读；跑的过程中阶段与调用数跟 `round-progress` 走，不每步重读）。
+- **等你决定**：全部库待确认的提议卡与没处理的建议卡，每条写库名与一句话；**和左栏「和主 Agent 聊」旁的数同一个来源**（`lib/libraries.js useWaitingItems`：`listProposals({ status: 'pending' })` + `listSuggestions(null)` 里没处理的；左栏的数就是它的 `count`）。点提议卡 → 和主 Agent 聊并滚到那张卡（路由参数 `card`）；点建议卡 → 那个库的概览、滚到「主 Agent 给这个库的建议」（`openLibrary(id, route)`）。
+- **详情**（随主区变；屏把内容经 `LibraryFrame` / `AppFrame` 的 `detail` 交给右栏）：待看 → 当前那张卡每道关的分数（数字带条）与理由、核验通过与否、「写给 AI 的话」标记、来源、「这一条的记录」，下面照旧是「最近的放弃理由」；资料库 → 原第三栏（`NotePanel`：主题、来源、分数理由、文件、链到这里的、同一来源的、「这一条的核验记录」，钩子照旧 `[data-part=note-panel|backlinks|same-source]`）；问库 → 最近一问的答案引用的笔记（编号、标题、引它的那句，点了在资料库打开），下面照旧是「这次用了什么」「想补的主题」；和主 Agent 聊 → 最近一轮它查过的东西与提的卡（点卡滚到它）；其他页面 → 一句说明。
+- **文件**（当前库；库架、和主 Agent 聊、设置 →「先选一个库」）：`getLibraryOutline` 画「讲给人听的结构」——库名 +「在资源管理器中显示」（`revealLibrary`）；**笔记（n）按笔记头的主题分组**（第一组展开），点一篇 = 在资料库标签里打开它，右键或「更多」：用 Obsidian 打开（`openInObsidian`）· 在资源管理器中显示（`showNoteInFolder`）；**待看（n）** 点了去待看；**这个库的要求与来源** 点了去「来源与要求」（**不提供直接打开那个配置文件**）；**程序记录（不用动）默认折叠**，展开只有一句说明与「在资源管理器中显示」（`revealProgramRecords`）。界面上不出现任何程序文件名（V7）。
+
+**资料库两栏**：资料库标签只剩「列表 + 阅读」两栏（`.lib-body` 的两个子块 `[data-part=list|reader]`），原第三栏只在右栏「详情」里；搜索、四个视图、主题与「最近 30 天」筛选、列表 / 图谱切换、待规范流程照旧。
+
+**测试**：`test/services-queue.test.mjs`（排到队尾、已在排不重复、托盘与页面同答、维护者 的原场景——在旧行为下是 `bad_arguments`，红；`getQueue` 与 `queue-changed`）、`tests/acceptance/v2-draft` 的 N4（第 4 段改成「忙时排上、不叠加」）、`test/settings.test.mjs`（`panel` 字段）、`test/ui-panel.test.mjs`（真窗口：三处排队说法、四个标签、收起与标签记住、等你决定与左栏同数、详情随四个主区变、文件树与笔记头一致且程序记录默认折叠、资料库两栏；世界见 `test/support/queue-world.mjs`：本机假源把补跑的那一轮卡在抓取里）。变异（`npm run mutants -- l-refuse l-panel-not-saved l-records-open`）：改回拒绝、收起状态不写盘、程序记录默认展开，各自变红。截图：`node scripts/shots-l.mjs` → `docs/shots/2026-11-10-l/`。
+
 ## 五、界面写法
 
 **选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。
@@ -562,7 +589,7 @@ src/renderer/
 - **库的列表**（`lib/libraries.js useLibraries`，`app.js` 放进 `useApp().libraries`）：`listLibraries` 与 `getLibrariesOverview` 按 id 合成一行；`libraries-changed`、`library-changed` 与一轮结束（`round-progress` 带 `done: true`，哪个库的都算；包 J1 补：否则库架卡片的「上次更新」与琥珀小点要等别的事件才变，`test/ui-shelf-after-round.test.mjs`）时整份重读；`inbox-changed { libraryId, count }` **只改那一行的 `inbox`**（别的库的事件不碰这一行；没带 libraryId 的事件 → 整份重读）。左栏、库架、库头都读它。
 - **点一个库**（`app.js openLibrary`）：不是当前库 → `setActiveLibrary(id)`（失败 = 文件夹不在：留在原处、列表重读）→ 回到这个库上次停的那一页；第一次开 → 它的「待看」（`LIBRARY_FIRST_SCREEN`，设计稿 UC2）。应用启动停在当前库的「概览」（`FIRST_SCREEN`；v1.0 启动在今日）。
 - **每个库各自记住**（内存，`app.js memory`）：`routes`：库 id → 最后停的路由（标签与参数，例如资料库的图谱视图）；`scroll`：「库 id:屏」→ 主体（`.st-main__body`）滚到哪。回到那一屏、它有了数据之后放回去；之后才长出来的部分（来源与要求的「要求」「关卡」各自读数据）每 100 ms 再放一次，直到放到、且主体里没有 `data-state="loading"` 的部分（最多 3 秒），这期间的滚动不算你的。换库时库页整个重新挂（`key` 带库 id），上一个库的东西不会留在页面上。
-- **库页**（`screens/library-frame.js LibraryFrame`）：一张卡片——库头 `[data-part="library-head"]`（图标方块、名字 `h1#lib-head-name`、「在追：…」`[data-part="tracking"]` = 要求的第一句，没有要求就是主题名，都没有就「还没写要求，也还没有主题」；右边是这一屏的按钮，如概览的「下次运行 · 连接」与「现在跑一轮」、来源与要求的「贴一个链接进待看」「加来源」、资料库的「编辑」「用 Obsidian 打开」「打开原文」）→ 五个标签（`kit/library-sections.js LibrarySections layout="tabs"`：`nav.st-lib-tabs button[data-tab=<id>][aria-current]`，待看带这个库的数 `[data-tab-badge="inbox"]`，问库是对话气泡图标）→ 屏本身（`Main` 照旧带 `data-screen` / `data-state`；有右栏的屏右栏在卡片里）。各屏原来的顶栏留作库页里的一行小标题（`h2`），按钮挪到库头。
+- **库页**（`screens/library-frame.js LibraryFrame`）：一张卡片——库头 `[data-part="library-head"]`（图标方块、名字 `h1#lib-head-name`、「在追：…」`[data-part="tracking"]` = 要求的第一句，没有要求就是主题名，都没有就「还没写要求，也还没有主题」；右边是这一屏的按钮，如概览的「下次运行 · 连接」与「现在跑一轮」、来源与要求的「贴一个链接进待看」「加来源」、资料库的「编辑」「用 Obsidian 打开」「打开原文」）→ 五个标签（`kit/library-sections.js LibrarySections layout="tabs"`：`nav.st-lib-tabs button[data-tab=<id>][aria-current]`，待看带这个库的数 `[data-tab-badge="inbox"]`，问库是对话气泡图标）→ 屏本身（`Main` 照旧带 `data-screen` / `data-state`）。**v2 包 L**：右栏不在卡片里了，是整个窗口的第三栏（四个标签，§4.12）；屏原来的右栏内容是它的「详情」。各屏原来的顶栏留作库页里的一行小标题（`h2`），按钮挪到库头。
 - **组件的 A / B 两种排法**（方案 A 保留）：`LibrarySections` 的 `layout` 是 `'tabs'`（方案 B：库页顶部的标签）或 `'sidebar'`（方案 A：同五项画成左栏入口 `a[data-nav=<id>]`，用侧栏零件 `SidebarNav`）；`current` 认路由 id（图谱算资料库，`TAB_OF`）、`badges` 给角标、`onSelect(id)`。换方案 A = 进库后左栏用 `Sidebar` + 「‹ 库架」+ `LibrarySections layout="sidebar"`，库页不画标签；屏本身不用改。本包只用 B。
 - **各标签的数据**（都作用于当前库，包 A 的「当前库」）：
   - 概览 `overview`（`screens/overview.js`，P3）：v1.0 今日的全部（`getHome`：横幅——来源出问题、连续 N 轮没有产出、上一次「现在跑一轮」的问题卡含登录过期；四个数；上一轮各步的数 = 流水线的「上一轮」；正在跑的进度；最近收藏）+「现在跑一轮」与下次定时（库头）+「运行状态」一块（`screens/status.js RunStatus`，`getStatus`：上次运行 · 上次你拍板 · 本月调用次数 `[data-stat]`，来源状态一览 `[data-part="source-status"] [data-row]`，「复制诊断信息」「打开运行记录文件夹」）+「主 Agent 给这个库的建议」（桥上有 `listSuggestions` 才列标题，否则不画；卡片是包 G 的）。v1.0 运行状态里的三条连接不再在库页里（连接不是哪个库的），在设置。

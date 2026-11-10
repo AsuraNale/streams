@@ -6,10 +6,14 @@
 // context's libraries (listLibraries + getLibrariesOverview); words: texts/shell.js SHELL.shelf.
 // Test hooks: main[data-screen="shelf"][data-state], [data-shelf-card=<id>] with [data-part=name|tracking|updated|inbox|problem]
 // ([data-problem=<problem>|"none"]), [data-action=new-card|new-library|empty-chat|empty-manual], [data-part="shelf-empty"].
+// v2 package L: a library whose round runs or waits says so on its card — 「在跑」 / 「排队中 · 第 n 位」 ([data-part="queue"]
+// [data-queue-state=running|queued][data-position]; the queue of the app context, getQueue); the window's right panel beside it.
 import { html } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { fmt, whenText } from '../lib/format.js'
 import { tracking } from '../lib/libraries.js'
+import { queueStateOf, queueWords } from '../lib/queue.js'
+import { RightPanel } from './right-panel.js'
 import { Act } from '../lib/action.js'
 import { AppFrame, AppSidebar, Icon, LibraryMark, LinkButton, Main, TopBar } from '../kit/index.js'
 import { ERRORS, SEP, WHEN } from '../texts/common.js'
@@ -24,16 +28,18 @@ function problemLine(row) {
   return null
 }
 
-function Card({ row, onOpen }) {
+function Card({ row, queue, onOpen }) {
   const what = tracking(row, SEP)
   const problem = problemLine(row)
   const updated = row.lastRoundAt ? fmt(T.updated, { when: whenText(row.lastRoundAt, WHEN) ?? row.lastRoundAt }) : T.updatedNever
+  const place = queueStateOf(queue, row.id)
   return html`<button type="button" class="shelf-card" data-shelf-card=${row.id} data-active=${String(row.active)} onClick=${onOpen}>
     <${LibraryMark} icon=${row.icon} color=${row.color} size="l" />
     <span class="shelf-card__text">
       <span class="shelf-card__name st-t-strong" data-part="name">${row.name}</span>
       <span class="shelf-card__tracking st-t-small st-t-sub" data-part="tracking">${what ? fmt(SHELL.head.tracking, { what }) : SHELL.head.trackingNone}</span>
       <span class="st-t-small st-t-sub" data-part="updated">${updated}${SEP}${fmt(T.sources, { n: row.sources ?? 0 })}</span>
+      ${place ? html`<span class=${`shelf-card__queue st-t-small st-queue-state st-queue-state--${place.state}`} data-part="queue" data-queue-state=${place.state} data-position=${place.position ?? 1}><span class="st-queue-dot" aria-hidden="true"></span>${queueWords(place)}</span>` : null}
       <span class=${`shelf-card__problem st-t-small ${problem ? 'st-t-wait' : 'st-t-done'}`} data-part="problem" data-problem=${row.problem ?? 'none'}>
         ${problem ? html`<span class="shelf-card__dot" aria-hidden="true"></span>` : null}${problem ?? T.fine}
       </span>
@@ -46,11 +52,11 @@ function Card({ row, onOpen }) {
 }
 
 export function ShelfScreen() {
-  const { libraries, openLibrary, navigate, newLibrary } = useApp()
+  const { libraries, openLibrary, navigate, newLibrary, queue } = useApp()
   const rows = Array.isArray(libraries?.data) ? libraries.data : null
   const state = rows ? 'ready' : libraries?.status ?? 'loading'
   const actions = html`<${Act} name="new-library" icon="plus" onClick=${() => newLibrary()}>${T.newButton}<//>`
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="shelf" />`}>
+  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="shelf" />`} panel=${html`<${RightPanel} />`}>
     <${Main} screen="shelf" state=${state} labelledby="shelf-title">
       <${TopBar} title=${T.title} subtitle=${rows ? fmt(T.subtitle, { n: rows.length }) : null} titleTag="h1" titleId="shelf-title" actions=${actions} />
       <div class="st-main__body shelf-body">
@@ -63,7 +69,7 @@ export function ShelfScreen() {
           </div>
         </div>` : null}
         ${rows && rows.length ? html`<div class="shelf-grid">
-          ${rows.map(r => html`<${Card} key=${r.id} row=${r} onOpen=${() => openLibrary(r.id)} />`)}
+          ${rows.map(r => html`<${Card} key=${r.id} row=${r} queue=${queue?.data ?? null} onOpen=${() => openLibrary(r.id)} />`)}
           <button type="button" class="shelf-card shelf-card--new" data-action="new-card" onClick=${() => navigate('chat')}>
             <${Icon} name="plus" /><span>${T.newCard}</span>
           </button>

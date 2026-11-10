@@ -13,6 +13,7 @@
 
 import { LANGUAGE_SETTINGS } from './locale.mjs'
 import { isAppearance, isThemeId } from '../shared/themes.mjs'
+import { isPanelPatch } from './settings.mjs'
 
 export const CHANNEL_PREFIX = 'streams:'
 
@@ -78,6 +79,8 @@ export const BRIDGE_METHODS = Object.freeze({
   // v2 package K2: light · dark · system
   setAppearance: Object.freeze({ args: 1, check: ([a]) => isAppearance(a) }),
   setShowDeveloperInfo: Object.freeze({ args: 1, check: ([on]) => typeof on === 'boolean' }),
+  // v2 package L: the right panel folded / unfolded or another tab — { open?: boolean, tab?: progress|decide|detail|files }
+  setPanel: Object.freeze({ args: 1, check: ([p]) => isPanelPatch(p) }),
   copyDiagnostics: Object.freeze({ args: 0 }),
   // the about part's 「由 Starry Digital 开发」: opens the maker's site (a fixed address; the page gives none)
   openMakerPage: Object.freeze({ args: 0 }),
@@ -130,6 +133,8 @@ export const BRIDGE_METHODS = Object.freeze({
   // the timed round (services/schedule.mjs; docs/desktop.md §4.3): { enabled, time: 'HH:MM' } with 00:00–23:59, nothing else
   getSchedule: Object.freeze({ args: 0 }),
   setSchedule: Object.freeze({ args: 1, check: ([s]) => schedule(s) }),
+  // v2 package L: the one queue of every library — the round that runs, the libraries waiting (why, since), the next slots
+  getQueue: Object.freeze({ args: 0 }),
   // the libraries the app knows (v2 package A; services/library.mjs, services/schedule.mjs; docs/desktop.md §4.4): every
   // method above works on the current library; these name one by its registry id. addLibrary takes only the folder the
   // last chooseLibraryFolder gave
@@ -173,6 +178,10 @@ export const BRIDGE_METHODS = Object.freeze({
   // v2 package H (docs/desktop.md §4.9): a note's file in the file manager (an id of the index; the path is the core's);
   // 「打开原文」 in the reading window or the system browser (an http(s) item of the library)
   showNoteInFolder: Object.freeze({ args: 1, check: ([id]) => id200(id) }),
+  // v2 package L: the right panel's 「文件」 — the current library told as a structure (read only); its program records' folder
+  // in the file manager (nothing in it is listed or opened)
+  getLibraryOutline: Object.freeze({ args: 0 }),
+  revealProgramRecords: Object.freeze({ args: 0 }),
   openReader: Object.freeze({ args: 2, check: ([url, how]) => httpUrl(url) && (how === 'reader' || how === 'browser') }),
   // 待规范 (docs/desktop.md §4.3, S8): a file name the core lists as needing a header; the header the page edited, or null
   applyHeader: Object.freeze({ args: 2, check: ([file, header]) => nonEmptyShort(300)(file) && (header === null || smallObject(header, 20_000)) }),

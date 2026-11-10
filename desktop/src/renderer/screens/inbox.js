@@ -10,6 +10,10 @@
 // Test hooks: article[data-card][data-url][data-current], [data-waiting], [data-unverified], [data-ai-instruction][title], [data-maybe-duplicate],
 // [data-action=open|keep|dismiss|later], the dialog [data-dialog="dismiss"] with [data-field="reason"] and
 // [data-action=confirm-dismiss|cancel-dismiss], the panel [data-part="reasons"] with [data-reason] lines, [data-action="adjust"].
+// v2 package L: the screen's right column is the window's right panel's 「详情」 now (screens/right-panel.js): the current card —
+// each step's score with its reason ([data-part="detail-scores"] [data-detail-score=<id>]), the check and the 「写给 AI 的话」 mark
+// ([data-part="detail-check"][data-verified][data-ai-instruction]), its source ([data-part="detail-source"]), 「这一条的记录」
+// ([data-action="detail-record"]) — then the recent reasons for letting go, as before.
 import { html, useEffect, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
@@ -17,11 +21,13 @@ import { dayText, fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
-import { Dialog, LinkButton, Panel, Tag, TopBar } from '../kit/index.js'
+import { Dialog, LinkButton, Tag, TopBar } from '../kit/index.js'
 import { DAY, ERRORS, NODE_NAMES, SEP } from '../texts/common.js'
 import { INBOX as T } from '../texts/inbox.js'
 import { VerdictDialog, aiPhrases } from './verdict-dialog.js'
 import { LibraryFrame } from './library-frame.js'
+import { DetailBlock } from './right-panel.js'
+import { PANEL } from '../texts/panel.js'
 
 const LONG_WAIT = 14
 const nodeName = id => (Object.hasOwn(NODE_NAMES, id) ? NODE_NAMES[id] : id)
@@ -76,6 +82,41 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onRec
       ${scoreless ? null : html`<${LinkButton} onClick=${onRecord}><span data-action="record">${T.card.record}</span><//>`}
     </div>
   </article>`
+}
+
+/** v2 package L, 详情: the current card's steps (score, a bar for a number, the reason), its check, its source. */
+function CardDetail({ item, onRecord }) {
+  const D = PANEL.detail.inbox
+  const scores = item.scores ?? {}
+  const ids = ['relevance', 'substance', 'freshness', ...Object.keys(scores).filter(k => !['relevance', 'substance', 'freshness'].includes(k))].filter(id => scores[id])
+  const scoreless = item.scoreless === true
+  const verified = scoreless || !item.verification ? 'none' : item.verification.passed === false ? 'failed' : 'passed'
+  const ai = item.aiInstruction === true
+  return html`<${DetailBlock} where=${PANEL.detail.where.inbox} title=${item.title} part="detail-inbox">
+    <section class="st-rp-section" data-part="detail-scores" data-url=${item.url}>
+      <h3 class="st-rp-heading">${D.scores}</h3>
+      ${ids.length ? ids.map(id => {
+        const sc = scores[id]
+        const n = typeof sc.score === 'number' && Number.isFinite(sc.score) ? sc.score : null
+        const value = n !== null ? scoreText(n) : (Object.hasOwn(T.card.freshness, sc.value) ? T.card.freshness[sc.value] : String(sc.value ?? ''))
+        return html`<div key=${id} class="st-rp-gate" data-detail-score=${id}>
+          <span class="st-rp-gate__name">${nodeName(id)}</span>
+          <span class="st-rp-gate__bar" aria-hidden="true">${n !== null ? html`<i style=${{ width: `${Math.max(0, Math.min(100, Math.round(n * 100)))}%` }}></i>` : null}</span>
+          <b class="st-rp-gate__value">${value}</b>
+          ${sc.reason ? html`<p class="st-rp-gate__reason">${sc.reason}</p>` : null}
+        </div>`
+      }) : html`<p class="st-t-small st-t-muted">${D.scoresNone}</p>`}
+    </section>
+    <section class="st-rp-section" data-part="detail-check" data-verified=${verified} data-ai-instruction=${String(ai)}>
+      <h3 class="st-rp-heading">${D.check}</h3>
+      <p class="st-t-small">${verified === 'passed' ? D.passed : verified === 'failed' ? D.failed : D.unchecked}${SEP}<span class=${ai ? 'st-t-wait' : ''}>${ai ? D.aiYes : D.aiNo}</span></p>
+    </section>
+    <section class="st-rp-section" data-part="detail-source">
+      <h3 class="st-rp-heading">${D.source}</h3>
+      <p class="st-t-small">${fmt(D.sourceLine, { source: item.source ?? '', date: item.date ?? '' })}</p>
+    </section>
+    ${scoreless ? null : html`<${Act} name="detail-record" icon="file" onClick=${onRecord}>${D.record}<//>`}
+  <//>`
 }
 
 function DismissDialog({ reason, setReason, busy, onConfirm, onCancel }) {
@@ -171,7 +212,9 @@ export function InboxScreen() {
   }, [])
 
   const reasons = inbox.data?.recentDismissReasons ?? []
-  const panel = html`<${Panel} label=${T.panel.title}>
+  // v2 package L: the right panel's 详情 — the current card, then the recent reasons for letting go
+  const detail = html`${cur ? html`<${CardDetail} item=${cur} onRecord=${() => setRecord({ url: cur.url, title: cur.title })} />`
+    : inbox.data ? html`<p class="st-t-small st-t-sub st-rp-none" data-part="detail-none">${PANEL.detail.inbox.empty}</p>` : null}
     <div class="inbox-panel" data-part="reasons">
       <h2 class="st-t-small st-t-sub st-t-strong">${T.panel.title}</h2>
       ${reasons.length ? html`<ul class="inbox-panel__list">
@@ -181,10 +224,9 @@ export function InboxScreen() {
         <span class="st-t-small st-t-sub">${T.panel.ask}</span>
         <${Act} name="adjust" onClick=${() => navigate('pipeline')}>${T.panel.adjust}<//>
       </div>
-    </div>
-  <//>`
+    </div>`
   const state = inbox.data ? 'ready' : inbox.status
-  return html`<${LibraryFrame} tab="inbox" state=${state} labelledby="inbox-title" panel=${panel}>
+  return html`<${LibraryFrame} tab="inbox" state=${state} labelledby="inbox-title" detail=${detail}>
       <${TopBar} title=${inbox.data ? `${T.title}${SEP}${fmt(T.count, { n: items.length })}` : T.title} subtitle=${T.subtitle} titleTag="h2" titleId="inbox-title"
         actions=${html`<span class="inbox-keys st-t-small st-t-muted" data-part="keys">${T.keys}</span>`} />
       <div class="st-main__body inbox-body" ref=${listRef} data-count=${items.length}>

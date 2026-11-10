@@ -5,8 +5,11 @@
 // catch-up owes at most one round per library however long the app was closed, oldest slot first; a library whose folder
 // is gone is skipped and said, the others still run; a library without its own schedule gets settings.json's written into
 // its streams.json (the other keys deep-equal); the close button goes to the tray when any library's schedule is on; the
-// page's 「现在跑一轮」 starts at once when the queue is idle and is refused (bad_arguments) when it is busy; the notification
-// names the library. Each rule first gets the input that would break it.
+// page's 「开始」 starts at once when the queue is idle and — v2 package L (维护者 11-10, feedback #1) — puts the library at the end
+// of the queue when it is busy (it was refused with bad_arguments until then), never twice, the tray the same; the maintainer's own
+// morning (「流息Test」 catching up, 「安省中小企业补助」 waiting, 开始 pressed in 安省) answers 「排在第 2 位」; getQueue and
+// queue-changed say the round that runs, the queue and the next slots; the notification names the library. Each rule first
+// gets the input that would break it.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -46,6 +49,8 @@ function holdingPipeline(now) {
   const p = { order: [], active: [], maxActive: 0, schedule: null }
   p.isRunning = () => p.active.length > 0
   p.runningLibrary = () => p.active[0]?.libraryId ?? null
+  // v2 package L: what getQueue reads of the round that runs (the real pipeline: its last round-progress)
+  p.current = () => (p.active[0] ? { roundId: p.active[0].roundId, libraryId: p.active[0].libraryId, phase: 'gate:relevance', calls: 7, cap: 50, startedAt: now().toISOString() } : null)
   p.startRoundIn = async entry => {
     p.order.push(entry.id)
     const roundId = `d-${p.order.length}`
@@ -213,18 +218,28 @@ test('the close button into the tray: when any library\'s schedule is on; all of
   assert.equal(s.enabled(), false, 'the one on is gone')
 })
 
-test('「现在跑一轮」 goes through the queue: idle → the current library at once; busy → refused (the page gets bad_arguments), never queued; a slot during it waits', async () => {
+// v2 package L: this test replaces package A's 「busy → refused (the page gets bad_arguments), never queued」 — the rule changed
+// (维护者 11-10, feedback #1 「没能开始」): busy, the page's and the tray's 开始 put the current library at the END of the queue.
+test('「开始」 goes through the queue: idle → the current library at once; busy → queued at the end (not refused), never twice; the tray answers the same; a slot during it waits behind', async () => {
   const { time, pipeline: p, schedule: s, ids, library, w } = await setup({ a: { schedule: ON('08:00') }, b: { schedule: ON('08:05') } }, { start: at(2026, 11, 4, 7, 59) })
   assert.equal(library.current().libraryId, ids.b, 'b, opened last, is the current one')
   const r = await s.startCurrent('the page')
   assert.deepEqual([r.started, p.order], [true, [ids.b]])
-  // busy: the tray and the page are refused; nothing is queued for them
-  assert.deepEqual(await s.startOne('the tray menu'), { started: false, reason: 'running' })
-  assert.deepEqual(s.queue(), { running: ids.b, waiting: [] })
-  // the page's startRound, through the real pipeline service's gate: v1.0's 「a round is running」
+  // b runs: its own 开始 again is 「runs already」, from the page and from the tray alike; nothing is queued
+  assert.deepEqual(await s.startOne('the tray menu'), { started: false, already: 'running' })
   const page = createPipelineService({ library, connections: { active: () => null }, emit: w.emit, log: w.log, shell: w.shell, locale: () => w.locale, roundGate: () => s.startCurrent('the page') })
-  await assert.rejects(async () => page.handlers.startRound(), err => err.code === 'bad_arguments')
-  // a's slot comes during the manual round: queued behind it
+  assert.deepEqual(await page.handlers.startRound(), { started: false, already: 'running' }, 'the page through the real pipeline gate: no bad_arguments')
+  assert.deepEqual(s.queue(), { running: ids.b, waiting: [] })
+  // a is the current library now: busy (b runs) → a goes to the end of the queue, place 2
+  library.handlers.setActiveLibrary(ids.a)
+  const q = await page.handlers.startRound()
+  assert.deepEqual(q, { started: false, queued: true, position: 2, runningLibraryId: ids.b })
+  assert.deepEqual(s.queue(), { running: ids.b, waiting: [ids.a] })
+  // pressed again (page or tray): the same place, not queued twice
+  assert.deepEqual(await page.handlers.startRound(), { started: false, already: 'queued', position: 2 })
+  assert.deepEqual(await s.startOne('the tray menu'), { started: false, already: 'queued', position: 2 })
+  assert.deepEqual(s.queue().waiting, [ids.a])
+  // a's slot comes while it waits: not queued a second time
   s.arm()
   time.set(at(2026, 11, 4, 8, 0))
   time.fire()
@@ -232,13 +247,55 @@ test('「现在跑一轮」 goes through the queue: idle → the current library
   assert.deepEqual(s.queue(), { running: ids.b, waiting: [ids.a] })
   assert.equal(p.maxActive, 1)
   await p.finish()
-  assert.deepEqual(p.order, [ids.b, ids.a])
-  // still busy (a runs): refused again; control: once idle, the page's gate starts it
-  await assert.rejects(async () => page.handlers.startRound(), err => err.code === 'bad_arguments')
+  assert.deepEqual(p.order, [ids.b, ids.a], 'b ended: a, which waited, starts by itself')
   await p.finish()
+  assert.equal(p.maxActive, 1, 'never two rounds at once')
+  // control: idle again, the page's 开始 starts at once
   const again = await page.handlers.startRound()
   assert.equal(again.started, true)
-  assert.deepEqual(p.order, [ids.b, ids.a, ids.b])
+  assert.deepEqual(p.order, [ids.b, ids.a, ids.a])
+})
+
+// v2 package L: The maintainer's morning of 11-10 (docs/feedback/2026-11-10-maintainer-v2-trial.md #1): the app closed overnight, both libraries'
+// 08:30 slots missed; at 09:53 the catch-up runs 「流息Test」 and queues 「安省中小企业补助」; in 安省 he presses 开始. Before package L
+// this was bad_arguments (the page said 「没能开始。」 six times); now: 「already waiting, place 2」, and 安省 runs right after.
+test('维护者\'s scenario: 流息Test catching up, 安省中小企业补助 waiting behind it, 开始 in 安省 → 「already waiting, place 2」; a third library pressed → place 3', async () => {
+  const { pipeline: p, schedule: s, ids, library, w } = await setup({ 流息Test: { schedule: ON('08:30') }, 安省中小企业补助: { schedule: ON('08:30') }, Rust: { schedule: OFF('21:00') } }, { start: at(2026, 11, 10, 9, 53) })
+  const liu = ids['流息Test']
+  const an = ids['安省中小企业补助']
+  const r = s.start()
+  await sleep(0)
+  assert.deepEqual(r.queued, [liu, an], 'the catch-up queues both, 流息Test first')
+  assert.deepEqual(s.queue(), { running: liu, waiting: [an] })
+  library.handlers.setActiveLibrary(an)
+  const page = createPipelineService({ library, connections: { active: () => null }, emit: w.emit, log: w.log, shell: w.shell, locale: () => w.locale, roundGate: () => s.startCurrent('the page') })
+  const answer = await page.handlers.startRound()
+  assert.deepEqual(answer, { started: false, already: 'queued', position: 2 }, 'already waiting, place 2 — not 「a round is running」')
+  for (let i = 0; i < 5; i++) assert.deepEqual(await page.handlers.startRound(), answer, 'pressed again and again: the same answer, nothing more queued')
+  // getQueue: who runs and why, who waits and why, each library's next slot
+  const view = s.handlers.getQueue()
+  assert.equal(view.running.libraryId, liu)
+  assert.equal(view.running.why, 'catch-up')
+  assert.deepEqual([view.running.phase, view.running.calls, view.running.cap], ['gate:relevance', 7, 50], 'the pipeline\'s phase, calls and cap')
+  assert.deepEqual(view.waiting.map(x => [x.libraryId, x.why]), [[an, 'catch-up']])
+  assert.ok(!Number.isNaN(Date.parse(view.waiting[0].since)), 'since when it waits')
+  assert.deepEqual(view.next.map(n => n.libraryId).sort(), [liu, an].sort(), 'the next slot of each library whose schedule is on (Rust is off)')
+  assert.ok(view.next.every(n => n.at === at(2026, 11, 11, 8, 30).toISOString()))
+  // a third library, pressed while two are in the line: the end, place 3, 流息Test named as the one running
+  library.handlers.setActiveLibrary(ids.Rust)
+  assert.deepEqual(await page.handlers.startRound(), { started: false, queued: true, position: 3, runningLibraryId: liu })
+  assert.deepEqual(s.handlers.getQueue().waiting.map(x => [x.libraryId, x.why]), [[an, 'catch-up'], [ids.Rust, 'manual']])
+  // every change of the queue was said to the page
+  const said = w.eventsOf('queue-changed').map(e => e.payload)
+  assert.deepEqual(said.at(-1), { running: liu, waiting: [an, ids.Rust] })
+  assert.ok(said.some(x => x.running === liu && x.waiting.length === 1), 'when the catch-up started 流息Test')
+  await p.finish()
+  await p.finish()
+  await p.finish()
+  assert.deepEqual(p.order, [liu, an, ids.Rust], 'each once, in the order of the line')
+  assert.equal(p.maxActive, 1, 'never two rounds at once')
+  assert.deepEqual(s.handlers.getQueue().running, null)
+  assert.deepEqual(w.eventsOf('queue-changed').at(-1).payload, { running: null, waiting: [] })
 })
 
 test('the notification names the library whose round it was (another one than the current); 0 new cards → none', async () => {

@@ -1,4 +1,5 @@
-// The frame every screen sits in: sidebar (232px) · main · right panel (404px, optional), 12px gutters.
+// The frame every screen sits in: sidebar (232px) · main · right panel (optional). v2 package L: the right panel is the
+// window's (screens/right-panel.js: 380px, or a 52px rail when folded — it sets its own width).
 //
 //   html`<${AppFrame} sidebar=${…} panel=${…}>
 //     <${Main} screen="home" state=${status} labelledby="…">

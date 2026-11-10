@@ -9,8 +9,10 @@
 //     openLibrary, newLibrary; app.js).
 //   Plan A (kept, not used: docs/desktop.md §五「侧栏」): the shelf as the home page and, inside a library, its five parts as
 //   the sidebar's entries — kit/library-sections.js LibrarySections layout="sidebar" draws them with these same parts.
+// v2 package L: a library whose round runs or waits has a second line — 「在跑」 / 「排队中 · 第 n 位」 (the app context's queue).
 // Test hooks: a[data-nav=shelf|chat], [data-badge=chat], [data-library-row=<id>][data-active][aria-current] with
-// [data-library-badge] and [data-problem=<problem>], [data-action="add-library"], .st-sidebar__footer-button.
+// [data-library-badge] and [data-problem=<problem>] and [data-library-queue=running|queued][data-position],
+// [data-action="add-library"], .st-sidebar__footer-button.
 import { html } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { fmt } from '../lib/format.js'
@@ -20,6 +22,8 @@ import { Icon } from './icons.js'
 import { LIBRARY_ROUTES, LibraryMark } from './library-sections.js'
 // v2 package M: the corner above 设置
 import { useQuota } from '../lib/quota.js'
+// v2 package L: the second line of a library (its place in the queue)
+import { queueStateOf, queueWords } from '../lib/queue.js'
 
 /** The two entries above 「我的库」, in order, with their icons; the screen id is the key (screens/index.js registers each). */
 export const NAV_ENTRIES = Object.freeze([['shelf', 'grid'], ['chat', 'chat']])
@@ -60,11 +64,15 @@ export function SidebarLibrary({ name }) {
  * One library of 「我的库」: its mark, its name, an amber dot when it has a problem, its 待看 count.
  * `row`: lib/libraries.js (id, name, icon, color, active, inbox, problem); `isCurrent`: you are on its page.
  */
-export function SidebarLibraryItem({ row, isCurrent, onClick }) {
+export function SidebarLibraryItem({ row, isCurrent, place = null, onClick }) {
   const n = count(row.inbox)
-  return html`<a href="#" class="st-sidebar__lib" data-library-row=${row.id} data-active=${String(row.active === true)} aria-current=${current(isCurrent)} onClick=${prevent(onClick)}>
+  const words = queueWords(place)
+  return html`<a href="#" class=${`st-sidebar__lib${words ? ' st-sidebar__lib--two' : ''}`} data-library-row=${row.id} data-active=${String(row.active === true)} aria-current=${current(isCurrent)} onClick=${prevent(onClick)}>
     <${LibraryMark} icon=${row.icon} color=${row.color} size="s" />
-    <span class="st-sidebar__lib-name">${row.name}</span>
+    <span class="st-sidebar__lib-text">
+      <span class="st-sidebar__lib-name">${row.name}</span>
+      ${words ? html`<span class=${`st-sidebar__lib-state st-queue-state st-queue-state--${place.state}`} data-library-queue=${place.state} data-position=${place.position ?? 1}><span class="st-queue-dot" aria-hidden="true"></span>${words}</span>` : null}
+    </span>
     ${row.problem ? html`<span class="st-sidebar__dot" data-problem=${row.problem} role="img" aria-label=${SHELL.sidebar.problem} title=${SHELL.sidebar.problem}></span>` : null}
     ${n !== null ? html`<span class="st-sidebar__badge" data-library-badge=${row.id} aria-label=${fmt(SHELL.sidebar.inboxBadge, { n })}>${n}</span>` : null}
   </a>`
@@ -120,7 +128,7 @@ export function SidebarQuota({ view }) {
 
 /** The usual sidebar, plan B. `current`: the screen id you are on (default: the route's). */
 export function AppSidebar({ current: where }) {
-  const { route, navigate, libraries, waiting, openLibrary, newLibrary } = useApp()
+  const { route, navigate, libraries, waiting, openLibrary, newLibrary, queue } = useApp()
   const here = where ?? route?.screen ?? null
   const onLibrary = LIBRARY_ROUTES.includes(here)
   const rows = Array.isArray(libraries?.data) ? libraries.data : []
@@ -132,7 +140,7 @@ export function AppSidebar({ current: where }) {
       onClick=${() => navigate(id)}>${SIDEBAR.entries[id]}<//>`)}
     <${SidebarGroup}>${SHELL.sidebar.mine}<//>
     <nav class="st-sidebar__libs" aria-label=${SHELL.sidebar.mine}>
-      ${rows.map(r => html`<${SidebarLibraryItem} key=${r.id} row=${r} isCurrent=${onLibrary && r.active} onClick=${() => openLibrary?.(r.id)} />`)}
+      ${rows.map(r => html`<${SidebarLibraryItem} key=${r.id} row=${r} isCurrent=${onLibrary && r.active} place=${queueStateOf(queue?.data ?? null, r.id)} onClick=${() => openLibrary?.(r.id)} />`)}
     </nav>
     <${SidebarAdd} name="add-library" onClick=${() => newLibrary?.()}>${SHELL.sidebar.newLibrary}<//>
     <${SidebarSpacer} />

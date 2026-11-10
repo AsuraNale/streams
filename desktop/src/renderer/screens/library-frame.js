@@ -1,8 +1,9 @@
 // A library's page (v2 package F, plan B; design P3–P7): the sidebar, then one card — the library's head (its mark, its name,
 // 「在追：…」, the screen's actions on the right), the five tabs (kit/library-sections.js LibrarySections layout="tabs"; 待看's
-// badge is that library's count), and the screen itself (Main: data-screen / data-state, as every screen) with its right
-// panel when it has one. Every tab's screen draws itself inside this frame:
-//   html`<${LibraryFrame} tab="inbox" state=${state} labelledby="inbox-title" actions=${…} panel=${…}>
+// badge is that library's count), and the screen itself (Main: data-screen / data-state, as every screen). v2 package L: the
+// window's right panel (screens/right-panel.js, four tabs) is the frame's third column; what a screen had as its own right
+// column is its 「详情」 now (`detail`). Every tab's screen draws itself inside this frame:
+//   html`<${LibraryFrame} tab="inbox" state=${state} labelledby="inbox-title" actions=${…} detail=${…}>
 //     <${TopBar} title=… titleTag="h2" … />  <div class="st-main__body …">…</div>
 //   <//>`
 // `screen` (default `tab`) is the Main's data-screen: 资料库's graph view is tab 'library', screen 'graph'.
@@ -19,6 +20,7 @@ import { tracking } from '../lib/libraries.js'
 import { AppFrame, AppSidebar, LibraryMark, LibrarySections, Main } from '../kit/index.js'
 import { SHELL } from '../texts/shell.js'
 import { SEP } from '../texts/common.js'
+import { RightPanel } from './right-panel.js'
 
 export function LibraryHead({ row, name, actions }) {
   const what = row ? tracking(row, SEP) : null
@@ -32,7 +34,7 @@ export function LibraryHead({ row, name, actions }) {
   </header>`
 }
 
-export function LibraryFrame({ tab, screen = tab, state, label, labelledby, actions, panel, section, children }) {
+export function LibraryFrame({ tab, screen = tab, state, label, labelledby, actions, detail = null, section, children }) {
   const { appState, libraries, navigate, memory } = useApp()
   const current = appState?.data?.library ?? null
   const id = current?.libraryId ?? null
@@ -74,13 +76,13 @@ export function LibraryFrame({ tab, screen = tab, state, label, labelledby, acti
     const t = e.target
     if (memory && !placing.current && t?.classList?.contains('st-main__body')) memory.scroll.set(scrollKey, t.scrollTop)
   }
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=${screen} />`}>
+  // v2 package L: the right panel beside the page (its 详情 is this screen's `detail`); the page itself has two parts no more
+  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=${screen} />`} panel=${html`<${RightPanel} detail=${detail} />`}>
     <div class="lib-page" data-library=${id ?? ''}>
       <${LibraryHead} row=${row} name=${current?.name ?? null} actions=${actions} />
       <${LibrarySections} layout="tabs" current=${tab} badges=${{ inbox: row?.inbox ?? null }} onSelect=${t => navigate(t)} />
-      <div class=${panel ? 'lib-page__content lib-page__content--panel' : 'lib-page__content'} ref=${content} onScrollCapture=${remember}>
+      <div class="lib-page__content" ref=${content} onScrollCapture=${remember}>
         <${Main} screen=${screen} state=${state} label=${label} labelledby=${labelledby}>${children}<//>
-        ${panel ?? null}
       </div>
     </div>
   <//>`

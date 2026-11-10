@@ -18,7 +18,8 @@ export const SHELL = Object.freeze({
     // `resets` (lib/format.js nextText); {when} of `asOf`: WHEN of texts/common.js
     quota: Object.freeze({
       label: '余量',
-      plan: '套餐余量',
+      // v2 package L: the K1 draft's 「套餐已用」 (the corner shows the used per cent)
+      plan: '套餐已用',
       balance: 'API 余额',
       window: '{span} 已用 {pct}% · {when} 重置',
       resets: Object.freeze({ today: '{hm}', tomorrow: '明天 {hm}', date: '{m}-{d} {hm}' }),

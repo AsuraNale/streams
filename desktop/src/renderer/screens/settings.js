@@ -39,6 +39,8 @@ import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { Act } from '../lib/action.js'
 import { AppFrame, AppSidebar, Button, Dialog, LinkButton, Main, TopBar } from '../kit/index.js'
+// v2 package L: the window's right panel (nothing chosen here: 详情 says so in one sentence)
+import { RightPanel } from './right-panel.js'
 import { CONNECTIONS, NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
 import { SETTINGS as T } from '../texts/settings.js'
 import { SHELL } from '../texts/shell.js'
@@ -487,7 +489,7 @@ export function SettingsScreen() {
   const copy = async () => {
     try { await call('copyDiagnostics'); setCopied(true) } catch { setCopied(false) }
   }
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="settings" />`}>
+  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="settings" />`} panel=${html`<${RightPanel} />`}>
     <${Main} screen="settings" state=${data ? 'ready' : appState.status} labelledby="settings-title">
       <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h1" titleId="settings-title" />
       <div class="st-main__body settings__body">

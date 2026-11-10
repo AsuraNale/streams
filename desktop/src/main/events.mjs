@@ -31,6 +31,8 @@ export const EVENT_TOPICS = Object.freeze({
   'agent-changed': 'a turn of the main agent started or ended: { phase: "started" | "done", turn, libraryId }; the page re-reads getAgentTranscript / getAgentStatus',
   // v2 package M (services/quota.mjs): the corner above 设置
   'quota-changed': 'the plan quota or the API balance of a connection was read, came with a call, or is gone (or the current connection changed): { kind }; the page re-reads getQuota',
+  // v2 package L (services/schedule.mjs): the one queue of the rounds
+  'queue-changed': 'a library was queued, a round of the queue started or ended: { running, waiting } (library ids; running null when none runs); the page re-reads getQueue',
 })
 
 /**

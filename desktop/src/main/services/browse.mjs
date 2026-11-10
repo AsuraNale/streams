@@ -15,9 +15,12 @@
  * @module desktop/main/services/browse
  */
 
-import { dirname, isAbsolute, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { BridgeError, coreCaller } from '../bridge-methods.mjs'
 import * as realCore from '../core.mjs'
+
+/** v2 package L: the folder of the library's program records (the core's own files: the inbox, the logs, the cache). */
+const PROGRAM_RECORDS = '_pipeline'
 
 /** `{ topics?, days? }` as the core takes it (the bridge has checked the shape). */
 const filterOf = (f, keys) => {
@@ -106,6 +109,41 @@ export function createBrowseService({ library, emit, log, hidden = false, shell,
     // v2 package H: 「在资源管理器中显示」 — the note's file selected in its folder (only a note of the index has a file)
     showNoteInFolder(id) {
       const path = noteFile(id)
+      if (hidden) { log(`not opened in a test run: folder ${path}`); return null }
+      shell.showItemInFolder(path)
+      return null
+    },
+    /**
+     * v2 package L (the right panel's 「文件」): the current library as a structure told to a person — read only, nothing
+     * written. The notes (kept and the user's own, from the index) grouped by the topics in their headers (a note with two
+     * topics is in both groups; one with none in the group `topic: null`, 「未分主题」), the biggest group first; how many wait in
+     * 待看; whether there is the library's 「要求与来源」 (its sources and topics: counts only). No file name and no path of the
+     * program's own files is given: the page shows none (V7), and never opens streams.json itself.
+     */
+    getLibraryOutline() {
+      const dir = library.require()
+      const index = call('readIndex', dir).filter(e => e.status === 'kept' || e.status === 'authored')
+      const groups = new Map()
+      const put = (topic, e) => { if (!groups.has(topic)) groups.set(topic, []); groups.get(topic).push({ id: e.id, title: e.title ?? e.id, status: e.status, date: e.date ?? null }) }
+      for (const e of index) {
+        const topics = [...new Set((Array.isArray(e.topics) ? e.topics : []).filter(t => typeof t === 'string' && t.trim() !== '').map(t => t.trim()))]
+        if (topics.length) for (const t of topics) put(t, e)
+        else put(null, e)
+      }
+      const byDate = (a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')) || String(a.title).localeCompare(String(b.title))
+      const list = [...groups].map(([topic, notes]) => ({ topic, count: notes.length, notes: notes.sort(byDate) }))
+        .sort((a, b) => (a.topic === null) - (b.topic === null) || b.count - a.count || String(a.topic).localeCompare(String(b.topic)))
+      let inbox = 0
+      try { inbox = call('listInbox', dir).length } catch (err) { log(`browse: outline: the inbox unreadable: ${String(err?.message ?? err)}`) }
+      let sources = 0
+      let topics = 0
+      try { const cfg = call('readConfig', dir).config ?? {}; sources = (cfg.sources ?? []).length; topics = (cfg.topics ?? []).length } catch (err) { log(`browse: outline: the configuration unreadable: ${String(err?.message ?? err)}`) }
+      const cur = library.current()
+      return { libraryId: cur?.libraryId ?? null, name: cur?.name ?? null, notes: { count: index.length, groups: list }, inbox: { count: inbox }, requirements: { sources, topics } }
+    },
+    /** v2 package L: 「程序记录（不用动）」 → its folder selected in the file manager (only that; nothing in it is listed or opened). */
+    revealProgramRecords() {
+      const path = join(library.require(), PROGRAM_RECORDS)
       if (hidden) { log(`not opened in a test run: folder ${path}`); return null }
       shell.showItemInFolder(path)
       return null

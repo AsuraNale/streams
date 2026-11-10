@@ -21,7 +21,9 @@ import { AppContext } from './lib/app-context.js'
 import { call } from './lib/bridge.js'
 import { useEvent } from './lib/use-events.js'
 import { useLoad } from './lib/use-load.js'
-import { useLibraries, useWaiting } from './lib/libraries.js'
+import { useLibraries, useWaitingItems } from './lib/libraries.js'
+// v2 package L: the one queue of the rounds (the right panel, the sidebar, 库架, 概览)
+import { useQueue } from './lib/queue.js'
 import { ALIASES, FIRST_SCREEN, LIBRARY_FIRST_SCREEN, SCREENS } from './screens/index.js'
 import { FirstRunScreen } from './screens/first-run.js'
 import { LIBRARY_ROUTES } from './kit/index.js'
@@ -82,12 +84,24 @@ function App() {
   useEvent('connections-changed', () => appState.reload())
   const shell = setup === false
   const libraries = useLibraries(shell)
-  const waiting = useWaiting(shell)
+  // v2 package L: the things waiting for you (the right panel's 等你决定 lists them; the badge is their count) and the queue
+  const waitingItems = useWaitingItems(shell)
+  const waiting = waitingItems.count
+  const queue = useQueue(shell)
   const libraryId = appState.data?.library?.libraryId ?? null
   // the route of a library's page is that library's to remember
   useEffect(() => {
     if (libraryId && LIBRARY_ROUTES.includes(route.screen)) memory.current.routes.set(libraryId, route)
   }, [route, libraryId])
+
+  /** v2 package L: the right panel — { open?, tab? } at once on the page, then written (setPanel) for the next start. */
+  const setPanel = async patch => {
+    appState.mutate(d => ({ ...d, panel: { ...(d.panel ?? {}), ...patch } }))
+    try {
+      const panel = await call('setPanel', patch)
+      appState.mutate(d => ({ ...d, panel }))
+    } catch (err) { console.warn(`setPanel: ${err?.code ?? err}`) }
+  }
 
   const navigate = (screen, params = {}) => {
     const next = routeOf(screen, params)
@@ -97,9 +111,12 @@ function App() {
     }
     setRoute(next)
   }
-  /** A library of the sidebar or the shelf: the current one from now on, then its page where you left it (else 待看). */
-  const openLibrary = async id => {
-    const back = () => setRoute(memory.current.routes.get(id) ?? { screen: LIBRARY_FIRST_SCREEN, params: {} })
+  /**
+   * A library of the sidebar or the shelf: the current one from now on, then its page where you left it (else 待看). v2 package
+   * L: `to` — a route of its page to go to instead ({ screen, params }: the right panel's 等你决定 → that library's 概览).
+   */
+  const openLibrary = async (id, to = null) => {
+    const back = () => setRoute(to ?? memory.current.routes.get(id) ?? { screen: LIBRARY_FIRST_SCREEN, params: {} })
     if (id === libraryId) { back(); return true }
     try {
       const lib = await call('setActiveLibrary', id)
@@ -117,6 +134,8 @@ function App() {
   const has = id => routeOf(id) !== null
   const value = {
     route, navigate, has, appState, libraries, waiting, openLibrary, memory: memory.current,
+    // v2 package L: the right panel's lists, the queue; setPanel folds / unfolds the panel or picks a tab (settings.json)
+    waitingItems, queue, setPanel,
     // 新建库, the manual way (v2 package I): its own route; 「取消」 comes back to the screen it was opened from
     newLibrary: () => setRoute(r => (r.screen === 'new-library' ? r : { screen: 'new-library', params: { back: r.screen } })),
   }
