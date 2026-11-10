@@ -1,0 +1,901 @@
+{
+  "measuredBy": "tools/contrast.mjs",
+  "probes": [
+    {
+      "id": "body-page",
+      "kind": "正文",
+      "what": "正文 / 主区底（对话里主 Agent 的话）",
+      "screen": "chat",
+      "sel": "#main .intro-copy",
+      "min": 4.5
+    },
+    {
+      "id": "body-surface",
+      "kind": "正文",
+      "what": "正文 / 卡片（库架卡片的「在追」）",
+      "screen": "shelf",
+      "sel": "#main .tile-track",
+      "min": 4.5
+    },
+    {
+      "id": "body-side",
+      "kind": "正文",
+      "what": "正文 / 左栏（没选中的库名）",
+      "screen": "inbox",
+      "sel": "#sidebar .project-item:not(.active) .project-name",
+      "min": 4.5
+    },
+    {
+      "id": "body-selected",
+      "kind": "正文",
+      "what": "正文 / 选中底（左栏当前的库）",
+      "screen": "inbox",
+      "sel": "#sidebar .project-item.active .project-name",
+      "min": 4.5
+    },
+    {
+      "id": "body-panel-card",
+      "kind": "正文",
+      "what": "正文 / 右栏卡片（等你决定的标题）",
+      "screen": "shelf",
+      "sel": "#panel .decide-card b",
+      "min": 4.5
+    },
+    {
+      "id": "sub-page",
+      "kind": "次要",
+      "what": "次要 / 主区底（页头说明）",
+      "screen": "shelf",
+      "sel": "#main .work-header .header-meta",
+      "min": 3
+    },
+    {
+      "id": "sub-surface",
+      "kind": "次要",
+      "what": "次要 / 卡片（库架卡片「上次更新」）",
+      "screen": "shelf",
+      "sel": "#main .tile-meta",
+      "min": 3
+    },
+    {
+      "id": "sub-side",
+      "kind": "次要",
+      "what": "次要 / 左栏（库名下的状态）",
+      "screen": "inbox",
+      "sel": "#sidebar .project-item:not(.active) .project-meta",
+      "min": 3
+    },
+    {
+      "id": "sub-quota",
+      "kind": "次要",
+      "what": "次要 / 左下角余量（重置时间）",
+      "screen": "shelf",
+      "sel": "#sidebar .quota-row small",
+      "min": 3
+    },
+    {
+      "id": "sub-panel",
+      "kind": "次要",
+      "what": "次要 / 右栏摘要块（小标题）",
+      "screen": "shelf",
+      "sel": "#panel .panel-summary .eyebrow",
+      "min": 3
+    },
+    {
+      "id": "btn-primary",
+      "kind": "按钮",
+      "what": "主按钮字 / 强调色（「新建库」）",
+      "screen": "shelf",
+      "sel": "#main .work-header .btn.primary",
+      "min": 4.5
+    },
+    {
+      "id": "btn-secondary",
+      "kind": "按钮",
+      "what": "次要按钮字 / 按钮底（阅读区「编辑」）",
+      "screen": "library",
+      "sel": "#main .reader-tools .btn",
+      "min": 4.5
+    },
+    {
+      "id": "btn-card",
+      "kind": "按钮",
+      "what": "卡片上的次要按钮（待看「稍后」）",
+      "screen": "inbox",
+      "sel": "#main .source-card:not(.selected) .card-actions .btn:not(.primary)",
+      "min": 4.5
+    },
+    {
+      "id": "btn-tab",
+      "kind": "按钮",
+      "what": "当前标签字 / 选中底（库页「待看」）",
+      "screen": "inbox",
+      "sel": "#main .lib-tabs .tab.active",
+      "min": 4.5
+    },
+    {
+      "id": "state-wait",
+      "kind": "状态",
+      "what": "琥珀字 / 琥珀浅底（「写给 AI 的话」标记）",
+      "screen": "inbox",
+      "sel": "#main .ai-mark",
+      "min": 4.5
+    },
+    {
+      "id": "state-done",
+      "kind": "状态",
+      "what": "绿字 / 绿浅底（「已收藏」）",
+      "screen": "library",
+      "sel": "#main .status-pill--done",
+      "min": 4.5
+    },
+    {
+      "id": "state-cite",
+      "kind": "状态",
+      "what": "紫字 / 紫浅底（问库的出处编号）",
+      "screen": "ask",
+      "sel": "#main .answer .cite",
+      "min": 4.5
+    }
+  ],
+  "result": {
+    "precision-light": {
+      "body-page": {
+        "fg": "#242424",
+        "bg": "#F6F6F3",
+        "ratio": 14.34,
+        "bgStops": 1,
+        "sample": "最近 5 轮「MCP 安全」只进了 3 条，全来"
+      },
+      "body-surface": {
+        "fg": "#242424",
+        "bg": "#FCFCFA",
+        "ratio": 15.11,
+        "bgStops": 1,
+        "sample": "在追：AI Agent 的框架、评测与 MCP "
+      },
+      "body-side": {
+        "fg": "#242424",
+        "bg": "#F0F0ED",
+        "ratio": 13.6,
+        "bgStops": 1,
+        "sample": "安省中小企业补助排队中 · 第 2 位"
+      },
+      "body-selected": {
+        "fg": "#242424",
+        "bg": "#E4E4E2",
+        "ratio": 12.19,
+        "bgStops": 1,
+        "sample": "流息Test在跑"
+      },
+      "body-panel-card": {
+        "fg": "#242424",
+        "bg": "#FCFCFA",
+        "ratio": 15.11,
+        "bgStops": 1,
+        "sample": "改「流息Test」：加 2 个来源"
+      },
+      "sub-page": {
+        "fg": "#555555",
+        "bg": "#F6F6F3",
+        "ratio": 6.89,
+        "bgStops": 1,
+        "sample": "3 个库 · 每个库按自己的时间跑"
+      },
+      "sub-surface": {
+        "fg": "#555555",
+        "bg": "#FCFCFA",
+        "ratio": 7.26,
+        "bgStops": 1,
+        "sample": "上次更新 今天 09:58（补跑中） · 7 个"
+      },
+      "sub-side": {
+        "fg": "#555555",
+        "bg": "#F0F0ED",
+        "ratio": 6.53,
+        "bgStops": 1,
+        "sample": "排队中 · 第 2 位"
+      },
+      "sub-quota": {
+        "fg": "#555555",
+        "bg": "#FCFCFA",
+        "ratio": 7.26,
+        "bgStops": 1,
+        "sample": "14:30 重置"
+      },
+      "sub-panel": {
+        "fg": "#555555",
+        "bg": "#E9E9E6",
+        "ratio": 6.13,
+        "bgStops": 1,
+        "sample": "所有库 / 现在 10:16"
+      },
+      "btn-primary": {
+        "fg": "#FFFFFF",
+        "bg": "#363636",
+        "ratio": 12.08,
+        "bgStops": 1,
+        "sample": "新建库"
+      },
+      "btn-secondary": {
+        "fg": "#242424",
+        "bg": "#E9E9E6",
+        "ratio": 12.76,
+        "bgStops": 1,
+        "sample": "编辑"
+      },
+      "btn-card": {
+        "fg": "#242424",
+        "bg": "#E9E9E6",
+        "ratio": 12.76,
+        "bgStops": 1,
+        "sample": "放弃…"
+      },
+      "btn-tab": {
+        "fg": "#242424",
+        "bg": "#E4E4E2",
+        "ratio": 12.19,
+        "bgStops": 1,
+        "sample": "待看23"
+      },
+      "state-wait": {
+        "fg": "#8F5D10",
+        "bg": "#EFE9DE",
+        "ratio": 4.65,
+        "bgStops": 1,
+        "sample": "这一条里有写给 AI 的话，已忽略"
+      },
+      "state-done": {
+        "fg": "#21714F",
+        "bg": "#E2EBE5",
+        "ratio": 4.87,
+        "bgStops": 1,
+        "sample": "已收藏"
+      },
+      "state-cite": {
+        "fg": "#5B4FA8",
+        "bg": "#E9E7F0",
+        "ratio": 5.48,
+        "bgStops": 1,
+        "sample": "1"
+      }
+    },
+    "precision-dark": {
+      "body-page": {
+        "fg": "#E5E5DF",
+        "bg": "#151515",
+        "ratio": 14.44,
+        "bgStops": 1,
+        "sample": "最近 5 轮「MCP 安全」只进了 3 条，全来"
+      },
+      "body-surface": {
+        "fg": "#E5E5DF",
+        "bg": "#20201F",
+        "ratio": 12.89,
+        "bgStops": 1,
+        "sample": "在追：AI Agent 的框架、评测与 MCP "
+      },
+      "body-side": {
+        "fg": "#E5E5DF",
+        "bg": "#1B1B1A",
+        "ratio": 13.63,
+        "bgStops": 1,
+        "sample": "安省中小企业补助排队中 · 第 2 位"
+      },
+      "body-selected": {
+        "fg": "#E5E5DF",
+        "bg": "#353635",
+        "ratio": 9.6,
+        "bgStops": 1,
+        "sample": "流息Test在跑"
+      },
+      "body-panel-card": {
+        "fg": "#E5E5DF",
+        "bg": "#20201F",
+        "ratio": 12.89,
+        "bgStops": 1,
+        "sample": "改「流息Test」：加 2 个来源"
+      },
+      "sub-page": {
+        "fg": "#A9ABA8",
+        "bg": "#151515",
+        "ratio": 7.89,
+        "bgStops": 1,
+        "sample": "3 个库 · 每个库按自己的时间跑"
+      },
+      "sub-surface": {
+        "fg": "#A9ABA8",
+        "bg": "#20201F",
+        "ratio": 7.05,
+        "bgStops": 1,
+        "sample": "上次更新 今天 09:58（补跑中） · 7 个"
+      },
+      "sub-side": {
+        "fg": "#A9ABA8",
+        "bg": "#1B1B1A",
+        "ratio": 7.45,
+        "bgStops": 1,
+        "sample": "排队中 · 第 2 位"
+      },
+      "sub-quota": {
+        "fg": "#A9ABA8",
+        "bg": "#20201F",
+        "ratio": 7.05,
+        "bgStops": 1,
+        "sample": "14:30 重置"
+      },
+      "sub-panel": {
+        "fg": "#A9ABA8",
+        "bg": "#292928",
+        "ratio": 6.29,
+        "bgStops": 1,
+        "sample": "所有库 / 现在 10:16"
+      },
+      "btn-primary": {
+        "fg": "#191A19",
+        "bg": "#C9CDCE",
+        "ratio": 10.89,
+        "bgStops": 1,
+        "sample": "新建库"
+      },
+      "btn-secondary": {
+        "fg": "#E5E5DF",
+        "bg": "#292928",
+        "ratio": 11.51,
+        "bgStops": 1,
+        "sample": "编辑"
+      },
+      "btn-card": {
+        "fg": "#E5E5DF",
+        "bg": "#292928",
+        "ratio": 11.51,
+        "bgStops": 1,
+        "sample": "放弃…"
+      },
+      "btn-tab": {
+        "fg": "#E5E5DF",
+        "bg": "#353635",
+        "ratio": 9.6,
+        "bgStops": 1,
+        "sample": "待看23"
+      },
+      "state-wait": {
+        "fg": "#E3B464",
+        "bg": "#3F382A",
+        "ratio": 6.06,
+        "bgStops": 1,
+        "sample": "这一条里有写给 AI 的话，已忽略"
+      },
+      "state-done": {
+        "fg": "#6CC9A6",
+        "bg": "#2C3B35",
+        "ratio": 5.91,
+        "bgStops": 1,
+        "sample": "已收藏"
+      },
+      "state-cite": {
+        "fg": "#A79BE8",
+        "bg": "#36343F",
+        "ratio": 4.94,
+        "bgStops": 1,
+        "sample": "1"
+      }
+    },
+    "glass-light": {
+      "body-page": {
+        "fg": "#27334B",
+        "bg": "#F6F8FC",
+        "ratio": 11.89,
+        "bgStops": 1,
+        "sample": "最近 5 轮「MCP 安全」只进了 3 条，全来"
+      },
+      "body-surface": {
+        "fg": "#27334B",
+        "bg": "#FBFCFF",
+        "ratio": 12.32,
+        "bgStops": 1,
+        "sample": "在追：AI Agent 的框架、评测与 MCP "
+      },
+      "body-side": {
+        "fg": "#27334B",
+        "bg": "#EFF2F8",
+        "ratio": 11.27,
+        "bgStops": 1,
+        "sample": "安省中小企业补助排队中 · 第 2 位"
+      },
+      "body-selected": {
+        "fg": "#27334B",
+        "bg": "#CDD1EB",
+        "ratio": 8.38,
+        "bgStops": 2,
+        "sample": "流息Test在跑"
+      },
+      "body-panel-card": {
+        "fg": "#27334B",
+        "bg": "#FBFCFF",
+        "ratio": 12.32,
+        "bgStops": 1,
+        "sample": "改「流息Test」：加 2 个来源"
+      },
+      "sub-page": {
+        "fg": "#53617A",
+        "bg": "#F6F8FC",
+        "ratio": 5.88,
+        "bgStops": 1,
+        "sample": "3 个库 · 每个库按自己的时间跑"
+      },
+      "sub-surface": {
+        "fg": "#53617A",
+        "bg": "#FBFCFF",
+        "ratio": 6.09,
+        "bgStops": 1,
+        "sample": "上次更新 今天 09:58（补跑中） · 7 个"
+      },
+      "sub-side": {
+        "fg": "#53617A",
+        "bg": "#EFF2F8",
+        "ratio": 5.58,
+        "bgStops": 1,
+        "sample": "排队中 · 第 2 位"
+      },
+      "sub-quota": {
+        "fg": "#53617A",
+        "bg": "#FBFCFF",
+        "ratio": 6.09,
+        "bgStops": 1,
+        "sample": "14:30 重置"
+      },
+      "sub-panel": {
+        "fg": "#53617A",
+        "bg": "#E9EDF6",
+        "ratio": 5.33,
+        "bgStops": 1,
+        "sample": "所有库 / 现在 10:16"
+      },
+      "btn-primary": {
+        "fg": "#FFFFFF",
+        "bg": "#495F98",
+        "ratio": 6.22,
+        "bgStops": 1,
+        "sample": "新建库"
+      },
+      "btn-secondary": {
+        "fg": "#27334B",
+        "bg": "#E9EDF6",
+        "ratio": 10.78,
+        "bgStops": 1,
+        "sample": "编辑"
+      },
+      "btn-card": {
+        "fg": "#27334B",
+        "bg": "#E9EDF6",
+        "ratio": 10.78,
+        "bgStops": 1,
+        "sample": "放弃…"
+      },
+      "btn-tab": {
+        "fg": "#27334B",
+        "bg": "#E1E8F7",
+        "ratio": 10.28,
+        "bgStops": 1,
+        "sample": "待看23"
+      },
+      "state-wait": {
+        "fg": "#8F5D10",
+        "bg": "#EEE9E2",
+        "ratio": 4.65,
+        "bgStops": 1,
+        "sample": "这一条里有写给 AI 的话，已忽略"
+      },
+      "state-done": {
+        "fg": "#21714F",
+        "bg": "#E1EBEA",
+        "ratio": 4.88,
+        "bgStops": 1,
+        "sample": "已收藏"
+      },
+      "state-cite": {
+        "fg": "#5B4FA8",
+        "bg": "#E8E7F5",
+        "ratio": 5.49,
+        "bgStops": 1,
+        "sample": "1"
+      }
+    },
+    "glass-dark": {
+      "body-page": {
+        "fg": "#E5E5DF",
+        "bg": "#16191F",
+        "ratio": 13.92,
+        "bgStops": 1,
+        "sample": "最近 5 轮「MCP 安全」只进了 3 条，全来"
+      },
+      "body-surface": {
+        "fg": "#E5E5DF",
+        "bg": "#22262E",
+        "ratio": 11.99,
+        "bgStops": 1,
+        "sample": "在追：AI Agent 的框架、评测与 MCP "
+      },
+      "body-side": {
+        "fg": "#E5E5DF",
+        "bg": "#1B1F26",
+        "ratio": 13.07,
+        "bgStops": 1,
+        "sample": "安省中小企业补助排队中 · 第 2 位"
+      },
+      "body-selected": {
+        "fg": "#E5E5DF",
+        "bg": "#424967",
+        "ratio": 6.98,
+        "bgStops": 2,
+        "sample": "流息Test在跑"
+      },
+      "body-panel-card": {
+        "fg": "#E5E5DF",
+        "bg": "#22262E",
+        "ratio": 11.99,
+        "bgStops": 1,
+        "sample": "改「流息Test」：加 2 个来源"
+      },
+      "sub-page": {
+        "fg": "#A9ABA8",
+        "bg": "#16191F",
+        "ratio": 7.61,
+        "bgStops": 1,
+        "sample": "3 个库 · 每个库按自己的时间跑"
+      },
+      "sub-surface": {
+        "fg": "#A9ABA8",
+        "bg": "#22262E",
+        "ratio": 6.56,
+        "bgStops": 1,
+        "sample": "上次更新 今天 09:58（补跑中） · 7 个"
+      },
+      "sub-side": {
+        "fg": "#A9ABA8",
+        "bg": "#1B1F26",
+        "ratio": 7.14,
+        "bgStops": 1,
+        "sample": "排队中 · 第 2 位"
+      },
+      "sub-quota": {
+        "fg": "#A9ABA8",
+        "bg": "#22262E",
+        "ratio": 6.56,
+        "bgStops": 1,
+        "sample": "14:30 重置"
+      },
+      "sub-panel": {
+        "fg": "#A9ABA8",
+        "bg": "#292F38",
+        "ratio": 5.83,
+        "bgStops": 1,
+        "sample": "所有库 / 现在 10:16"
+      },
+      "btn-primary": {
+        "fg": "#191A19",
+        "bg": "#B2C5EF",
+        "ratio": 10.08,
+        "bgStops": 1,
+        "sample": "新建库"
+      },
+      "btn-secondary": {
+        "fg": "#E5E5DF",
+        "bg": "#292F38",
+        "ratio": 10.66,
+        "bgStops": 1,
+        "sample": "编辑"
+      },
+      "btn-card": {
+        "fg": "#E5E5DF",
+        "bg": "#292F38",
+        "ratio": 10.66,
+        "bgStops": 1,
+        "sample": "放弃…"
+      },
+      "btn-tab": {
+        "fg": "#E5E5DF",
+        "bg": "#303A50",
+        "ratio": 8.99,
+        "bgStops": 1,
+        "sample": "待看23"
+      },
+      "state-wait": {
+        "fg": "#E3B464",
+        "bg": "#413D37",
+        "ratio": 5.64,
+        "bgStops": 1,
+        "sample": "这一条里有写给 AI 的话，已忽略"
+      },
+      "state-done": {
+        "fg": "#6CC9A6",
+        "bg": "#2E4041",
+        "ratio": 5.47,
+        "bgStops": 1,
+        "sample": "已收藏"
+      },
+      "state-cite": {
+        "fg": "#A79BE8",
+        "bg": "#37394C",
+        "ratio": 4.59,
+        "bgStops": 1,
+        "sample": "1"
+      }
+    },
+    "research-light": {
+      "body-page": {
+        "fg": "#283C40",
+        "bg": "#F7F7F3",
+        "ratio": 10.8,
+        "bgStops": 1,
+        "sample": "最近 5 轮「MCP 安全」只进了 3 条，全来"
+      },
+      "body-surface": {
+        "fg": "#283C40",
+        "bg": "#FDFCF9",
+        "ratio": 11.3,
+        "bgStops": 1,
+        "sample": "在追：AI Agent 的框架、评测与 MCP "
+      },
+      "body-side": {
+        "fg": "#283C40",
+        "bg": "#F1F2ED",
+        "ratio": 10.31,
+        "bgStops": 1,
+        "sample": "安省中小企业补助排队中 · 第 2 位"
+      },
+      "body-selected": {
+        "fg": "#283C40",
+        "bg": "#E2EAE5",
+        "ratio": 9.46,
+        "bgStops": 1,
+        "sample": "流息Test在跑"
+      },
+      "body-panel-card": {
+        "fg": "#283C40",
+        "bg": "#FDFCF9",
+        "ratio": 11.3,
+        "bgStops": 1,
+        "sample": "改「流息Test」：加 2 个来源"
+      },
+      "sub-page": {
+        "fg": "#536466",
+        "bg": "#F7F7F3",
+        "ratio": 5.78,
+        "bgStops": 1,
+        "sample": "3 个库 · 每个库按自己的时间跑"
+      },
+      "sub-surface": {
+        "fg": "#536466",
+        "bg": "#FDFCF9",
+        "ratio": 6.05,
+        "bgStops": 1,
+        "sample": "上次更新 今天 09:58（补跑中） · 7 个"
+      },
+      "sub-side": {
+        "fg": "#536466",
+        "bg": "#F1F2ED",
+        "ratio": 5.52,
+        "bgStops": 1,
+        "sample": "排队中 · 第 2 位"
+      },
+      "sub-quota": {
+        "fg": "#536466",
+        "bg": "#FDFCF9",
+        "ratio": 6.05,
+        "bgStops": 1,
+        "sample": "14:30 重置"
+      },
+      "sub-panel": {
+        "fg": "#536466",
+        "bg": "#ECECE5",
+        "ratio": 5.23,
+        "bgStops": 1,
+        "sample": "所有库 / 现在 10:16"
+      },
+      "btn-primary": {
+        "fg": "#FFFFFF",
+        "bg": "#395D62",
+        "ratio": 7.2,
+        "bgStops": 1,
+        "sample": "新建库"
+      },
+      "btn-secondary": {
+        "fg": "#283C40",
+        "bg": "#ECECE5",
+        "ratio": 9.77,
+        "bgStops": 1,
+        "sample": "编辑"
+      },
+      "btn-card": {
+        "fg": "#395D62",
+        "bg": "#FDFCF9",
+        "ratio": 7.02,
+        "bgStops": 1,
+        "sample": "放弃…"
+      },
+      "btn-tab": {
+        "fg": "#283C40",
+        "bg": "#E2EAE5",
+        "ratio": 9.46,
+        "bgStops": 1,
+        "sample": "待看23"
+      },
+      "state-wait": {
+        "fg": "#8F5D10",
+        "bg": "#F0E9DD",
+        "ratio": 4.65,
+        "bgStops": 1,
+        "sample": "这一条里有写给 AI 的话，已忽略"
+      },
+      "state-done": {
+        "fg": "#21714F",
+        "bg": "#E3EBE5",
+        "ratio": 4.88,
+        "bgStops": 1,
+        "sample": "已收藏"
+      },
+      "state-cite": {
+        "fg": "#5B4FA8",
+        "bg": "#EAE7EF",
+        "ratio": 5.49,
+        "bgStops": 1,
+        "sample": "1"
+      }
+    },
+    "research-dark": {
+      "body-page": {
+        "fg": "#E5E5DF",
+        "bg": "#161A19",
+        "ratio": 13.88,
+        "bgStops": 1,
+        "sample": "最近 5 轮「MCP 安全」只进了 3 条，全来"
+      },
+      "body-surface": {
+        "fg": "#E5E5DF",
+        "bg": "#232724",
+        "ratio": 11.97,
+        "bgStops": 1,
+        "sample": "在追：AI Agent 的框架、评测与 MCP "
+      },
+      "body-side": {
+        "fg": "#E5E5DF",
+        "bg": "#1C201E",
+        "ratio": 13.03,
+        "bgStops": 1,
+        "sample": "安省中小企业补助排队中 · 第 2 位"
+      },
+      "body-selected": {
+        "fg": "#E5E5DF",
+        "bg": "#303E38",
+        "ratio": 8.87,
+        "bgStops": 1,
+        "sample": "流息Test在跑"
+      },
+      "body-panel-card": {
+        "fg": "#E5E5DF",
+        "bg": "#232724",
+        "ratio": 11.97,
+        "bgStops": 1,
+        "sample": "改「流息Test」：加 2 个来源"
+      },
+      "sub-page": {
+        "fg": "#A9ABA8",
+        "bg": "#161A19",
+        "ratio": 7.59,
+        "bgStops": 1,
+        "sample": "3 个库 · 每个库按自己的时间跑"
+      },
+      "sub-surface": {
+        "fg": "#A9ABA8",
+        "bg": "#232724",
+        "ratio": 6.54,
+        "bgStops": 1,
+        "sample": "上次更新 今天 09:58（补跑中） · 7 个"
+      },
+      "sub-side": {
+        "fg": "#A9ABA8",
+        "bg": "#1C201E",
+        "ratio": 7.12,
+        "bgStops": 1,
+        "sample": "排队中 · 第 2 位"
+      },
+      "sub-quota": {
+        "fg": "#A9ABA8",
+        "bg": "#232724",
+        "ratio": 6.54,
+        "bgStops": 1,
+        "sample": "14:30 重置"
+      },
+      "sub-panel": {
+        "fg": "#A9ABA8",
+        "bg": "#292E2A",
+        "ratio": 5.98,
+        "bgStops": 1,
+        "sample": "所有库 / 现在 10:16"
+      },
+      "btn-primary": {
+        "fg": "#191A19",
+        "bg": "#B3D0C0",
+        "ratio": 10.56,
+        "bgStops": 1,
+        "sample": "新建库"
+      },
+      "btn-secondary": {
+        "fg": "#E5E5DF",
+        "bg": "#292E2A",
+        "ratio": 10.93,
+        "bgStops": 1,
+        "sample": "编辑"
+      },
+      "btn-card": {
+        "fg": "#B3D0C0",
+        "bg": "#232724",
+        "ratio": 9.16,
+        "bgStops": 1,
+        "sample": "放弃…"
+      },
+      "btn-tab": {
+        "fg": "#E5E5DF",
+        "bg": "#303E38",
+        "ratio": 8.87,
+        "bgStops": 1,
+        "sample": "待看23"
+      },
+      "state-wait": {
+        "fg": "#E3B464",
+        "bg": "#423E2E",
+        "ratio": 5.6,
+        "bgStops": 1,
+        "sample": "这一条里有写给 AI 的话，已忽略"
+      },
+      "state-done": {
+        "fg": "#6CC9A6",
+        "bg": "#2F4139",
+        "ratio": 5.45,
+        "bgStops": 1,
+        "sample": "已收藏"
+      },
+      "state-cite": {
+        "fg": "#A79BE8",
+        "bg": "#383A43",
+        "ratio": 4.58,
+        "bgStops": 1,
+        "sample": "1"
+      }
+    }
+  },
+  "textThree": {
+    "precision-light": {
+      "page": 4.08,
+      "side": 3.87,
+      "color": "#787878"
+    },
+    "precision-dark": {
+      "page": 5.46,
+      "side": 5.16,
+      "color": "#8B8D8B"
+    },
+    "glass-light": {
+      "page": 3.64,
+      "side": 3.45,
+      "color": "#778297"
+    },
+    "glass-dark": {
+      "page": 5.34,
+      "side": 5.01,
+      "color": "#8C8E8D"
+    },
+    "research-light": {
+      "page": 3.61,
+      "side": 3.44,
+      "color": "#778485"
+    },
+    "research-dark": {
+      "page": 5.32,
+      "side": 4.99,
+      "color": "#8C8E8B"
+    }
+  }
+}

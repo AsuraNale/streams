@@ -1,0 +1,62 @@
+/* 三套主题各自的「手感」：颜色都来自 tokens.css，这里只放形状与选中反馈的差别。
+   出处：round11/workbench.css 的 .r11-precision / .r11-glass / .r11-research 三段，加上 round9 各主题的形状（--key-radius、
+   按钮、标签、选中项的记号）；r11 已经把 r9 的硬阴影、渐变底拿掉了的，这里也不加回来。 */
+
+/* ---------- 精密国际主义（默认）：直角、选中项左边一条 3px 的定位条、焦点虚线框 ---------- */
+:root[data-theme="precision"] :is(.project-item.active, .file-row[aria-current], .source-card.selected, .queue-list li.is-here) {
+  box-shadow: inset 3px 0 var(--st-accent);
+}
+:root[data-theme="precision"] :focus-visible { outline: 2px dashed var(--st-focus); }
+:root[data-theme="precision"] .eyebrow { text-transform: uppercase; letter-spacing: .06em; }
+:root[data-theme="precision"] .brandname { letter-spacing: -.04em; }
+:root[data-theme="precision"] .confirm-number,
+:root[data-theme="precision"] .point-index { letter-spacing: .035em; }
+:root[data-theme="precision"] .panel-tabs { gap: 2px; }
+:root[data-theme="precision"] .tab.active { box-shadow: inset 0 -2px var(--st-accent); }
+:root[data-theme="precision"] .step-dots i { border-radius: 0; }
+:root[data-theme="precision"] .reader-section h3,
+:root[data-theme="precision"] .set-group h2 { padding-bottom: 6px; border-bottom: 1px solid var(--st-divider); }
+:root[data-theme="precision"] .theme-card.selected { box-shadow: inset 3px 0 var(--st-accent), inset 0 0 0 1px var(--st-accent); }
+
+/* ---------- 澄明玻璃：圆角、选中项是一层带紫的渐变 + 左边 2px 的光、主按钮胶囊形 ---------- */
+:root[data-theme="glass"] :is(.project-item.active, .file-row[aria-current], .source-card.selected, .queue-list li.is-here, .navitem.active) {
+  background: linear-gradient(105deg, var(--st-selected), color-mix(in srgb, var(--st-selected) 85%, var(--st-accent-alt)));
+  box-shadow: inset 2px 0 var(--st-accent);
+}
+:root[data-theme="glass"] .panel-tabs { padding: 4px; border-radius: var(--st-radius); background: var(--st-surface-2); }
+:root[data-theme="glass"] .panel-tabs .tab { border-radius: var(--st-radius-s); }
+:root[data-theme="glass"] .tab.active { background: var(--st-surface); box-shadow: var(--st-shadow-card); }
+:root[data-theme="glass"] .lib-tabs .tab.active { background: var(--st-selected); box-shadow: none; }
+:root[data-theme="glass"] .btn:not(.primary):not(.quiet) { border-radius: 999px; }
+:root[data-theme="glass"] .btn.small { padding-inline: 13px; }
+:root[data-theme="glass"] .user-message { border-radius: 17px 17px 4px 17px; }
+:root[data-theme="glass"] .phase-index { border-radius: 50%; }
+:root[data-theme="glass"] .step-dots i { border-radius: 50%; }
+:root[data-theme="glass"] :is(.avatar, .brandmark) { border-radius: 50%; }
+:root[data-theme="glass"] .lib-mark { border-radius: 8px; }
+:root[data-theme="glass"] .brandname,
+:root[data-theme="glass"] .confirm-title h2 { -webkit-text-stroke: .18px currentColor; }
+:root[data-theme="glass"] .theme-card.selected { box-shadow: inset 0 0 0 2px var(--st-accent), var(--st-shadow-card); }
+
+/* ---------- 研究对话：次要按钮是带下划线的字、选中项右上角一枚书签、页角 3px 的主按钮 ---------- */
+:root[data-theme="research"] :is(.project-item.active, .file-row[aria-current], .source-card.selected, .queue-list li.is-here) { padding-right: 28px; }
+:root[data-theme="research"] :is(.project-item.active, .file-row[aria-current], .source-card.selected, .queue-list li.is-here)::after {
+  content: ''; position: absolute; top: 0; right: 10px; width: 8px; height: 14px;
+  background: var(--st-accent); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%); pointer-events: none;
+}
+:root[data-theme="research"] .queue-list li { position: relative; }
+:root[data-theme="research"] .btn.quiet,
+:root[data-theme="research"] .card-actions .btn:not(.primary) {
+  background: transparent; box-shadow: none; padding-inline: 6px; color: var(--st-accent);
+  text-decoration: underline; text-decoration-color: var(--st-control-border); text-underline-offset: 4px;
+}
+:root[data-theme="research"] .btn.quiet:hover,
+:root[data-theme="research"] .card-actions .btn:not(.primary):hover { background: var(--st-selected); }
+:root[data-theme="research"] .tab.active { box-shadow: inset 0 -3px var(--st-accent); border-radius: var(--st-radius-s) var(--st-radius-s) 0 0; }
+:root[data-theme="research"] .user-message { border-radius: 14px 14px 3px 14px; }
+:root[data-theme="research"] .reader-callout { box-shadow: inset 3px 0 var(--st-accent); }
+:root[data-theme="research"] .document-link { box-shadow: inset 3px 0 var(--st-control-border); }
+:root[data-theme="research"] .phase-index { border-radius: 0; box-shadow: inset 0 -1px var(--st-control-border); }
+:root[data-theme="research"] .set-group h2,
+:root[data-theme="research"] .reader-title { letter-spacing: -.02em; }
+:root[data-theme="research"] .theme-card.selected { box-shadow: inset 0 0 0 1px var(--st-accent), inset 0 -3px var(--st-accent); }

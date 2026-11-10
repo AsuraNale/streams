@@ -1,0 +1,10 @@
+/* 设计稿自用的切换条：不属于界面，不跟主题变（固定中性灰），截图时用 ?bar=0 收掉。 */
+.design-bar {
+  height: 36px; display: flex; align-items: center; gap: 16px; padding: 0 14px;
+  background: #2b2b2b; color: #f2f2f2; font: 12px/1 'Segoe UI', 'Streams Noto Sans SC', sans-serif;
+  color-scheme: dark; overflow-x: auto; white-space: nowrap;
+}
+.design-bar .db-title { font-weight: 700; letter-spacing: .04em; }
+.design-bar label { display: inline-flex; align-items: center; gap: 6px; color: #cfcfcf; }
+.design-bar select { height: 24px; background: #3a3a3a; color: #fff; border: 1px solid #5a5a5a; border-radius: 3px; font: inherit; }
+.design-bar .db-now { margin-left: auto; color: #bdbdbd; }
