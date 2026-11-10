@@ -61,7 +61,8 @@ test('five groups in the design\'s order, each with its parts; 主 Agent 用这�
     ['connection', SETTINGS.groups.connection, ['connections']],
     ['agent', SETTINGS.groups.agent, ['agent']],
     ['library', SETTINGS.groups.library, ['library-root', 'schedules', 'usage']],
-    ['look', SETTINGS.groups.look, ['theme', 'language']],
+    // v2 package K2: 外观与语言 has 「外观」 (light · dark · system) between the theme and the language
+    ['look', SETTINGS.groups.look, ['theme', 'appearance', 'language']],
     ['software', SETTINGS.groups.software, ['about', 'advanced']],
   ])
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-group="connection"] [data-part="agent-uses"]')?.textContent), SETTINGS.conn.agentUses)

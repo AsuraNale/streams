@@ -69,10 +69,14 @@ function App() {
   }, [appState.data, appState.status])
   // the theme (docs/desktop.md §五「主题」): the first frame already has it (the main process serves index.html with
   // data-theme); a change in 设置 sets it at once, and the app state keeps <html> in step after that
+  // v2 package K2: and data-appearance, the set in force (light | dark: for 跟随系统 what Windows uses — a change there sends
+  // settings-changed, below, and the state comes back with the new scheme)
   useEffect(() => {
     const theme = appState.data?.theme
     if (typeof theme === 'string' && document.documentElement.dataset.theme !== theme) document.documentElement.dataset.theme = theme
-  }, [appState.data?.theme])
+    const scheme = appState.data?.scheme
+    if ((scheme === 'light' || scheme === 'dark') && document.documentElement.dataset.appearance !== scheme) document.documentElement.dataset.appearance = scheme
+  }, [appState.data?.theme, appState.data?.scheme])
   useEvent('settings-changed', () => appState.reload())
   useEvent('library-changed', () => appState.reload())
   useEvent('connections-changed', () => appState.reload())

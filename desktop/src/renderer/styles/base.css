@@ -1,4 +1,7 @@
-/* Base and text styles. */
+/* Base and text styles. v2 package K2: the body weight, the digits and the selection follow the theme (the K1 draft's
+   app.css); the text styles take the theme's display weight and tracking. The design draft keeps --st-fs-title (22px) and
+   --st-fs-heading (26px) for the page's own title; a card's title and a part's heading are smaller there (16–19px), so the two
+   text classes below say their own size. */
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body { margin: 0; height: 100%; }
@@ -8,7 +11,9 @@ body {
   color: var(--st-text);
   font-family: var(--st-font);
   font-size: var(--st-fs-body);
+  font-weight: var(--st-weight-body);
   line-height: var(--st-lh);
+  font-variant-numeric: lining-nums tabular-nums;
   overflow: hidden;
 }
 
@@ -18,21 +23,24 @@ h1, h2, h3, h4, p, figure, blockquote { margin: 0; }
 
 button, input, textarea, select { font: inherit; color: inherit; }
 
+b, strong { font-weight: var(--st-weight-display); }
+
 a { color: var(--st-accent); }
 a:hover { color: var(--st-accent-hover); }
 
-:focus-visible { outline: 2px solid var(--st-accent); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
+::selection { background: var(--st-selected); color: var(--st-text); }
 
 /* slim scrollbars, : a light grey thumb, no track */
 * { scrollbar-width: thin; scrollbar-color: var(--st-control-border) transparent; }
 
 /* text styles (docs/desktop.md §五) */
-.st-t-heading { font-size: var(--st-fs-heading); font-weight: 700; }
-.st-t-title { font-size: var(--st-fs-title); font-weight: 700; }
+.st-t-heading { font-size: 19px; font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); line-height: 1.4; }
+.st-t-title { font-size: 16px; font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); }
 .st-t-body { font-size: var(--st-fs-body); }
 .st-t-small { font-size: var(--st-fs-small); }
 .st-t-tiny { font-size: var(--st-fs-tiny); }
-.st-t-strong { font-weight: 700; }
+.st-t-strong { font-weight: var(--st-weight-display); }
 .st-t-ink { color: var(--st-text); }
 .st-t-sub { color: var(--st-text-2); }
 .st-t-muted { color: var(--st-text-3); }

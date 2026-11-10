@@ -51,8 +51,14 @@ test('the six parts: Electron, Chromium, Node.js from the runtime; Preact, htm a
     ['Preact', pkg('preact').version, pkg('preact').license],
     ['htm', pkg('htm').version, pkg('htm').license],
     ['@mozilla/readability', pkg('@mozilla/readability').version, pkg('@mozilla/readability').license],
+    // v2 package K2: the bundled UI font (its version from the font file)
+    ['Noto Sans SC', '2.04', 'OFL-1.1'],
   ])
-  assert.deepEqual(rows.at(-1), ['@mozilla/readability', '0.6.0', 'Apache-2.0'], 'control: the reading mode\'s part, as desktop/package.json pins it')
+  assert.deepEqual(rows.at(-2), ['@mozilla/readability', '0.6.0', 'Apache-2.0'], 'control: the reading mode\'s part, as desktop/package.json pins it')
+  // v2 package K2: the font's license in full under the table
+  const font = await s.page.evaluate(() => ({ license: document.querySelector('[data-dialog="licenses"] [data-part="font"]')?.dataset.license, text: document.querySelector('[data-part="font-license-text"]')?.textContent ?? '' }))
+  assert.equal(font.license, 'OFL-1.1')
+  assert.match(font.text, /SIL OPEN FONT LICENSE Version 1\.1/)
   assert.equal(versions.electron, '44.0.0', 'control: the pinned Electron')
   const head = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="components"] th')].map(th => th.textContent))
   assert.deepEqual(head, [SETTINGS.licenses.name, SETTINGS.licenses.version, SETTINGS.licenses.license])

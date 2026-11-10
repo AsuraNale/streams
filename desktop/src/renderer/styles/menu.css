@@ -94,3 +94,13 @@
 }
 .st-dialog__error { font-size: var(--st-fs-small); color: var(--st-wait); font-weight: 700; }
 .st-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ==== v2 package K2 (the K1 design draft, docs/design/next/themes/css/app.css): the pop-up menu and the dialog — no border, the menu shadow, the theme's
+   corners; a dialog's title in the display weight ==== */
+.st-menu { border: 0; border-radius: var(--st-radius-s); padding: 5px; box-shadow: var(--st-shadow-menu), 0 0 0 1px var(--st-border); }
+.st-menu__item { border-radius: var(--st-radius-xs); padding: 7px 10px; }
+.st-menu__item:hover, .st-menu__item:focus-visible { background: var(--st-selected); }
+.st-sidebar__more { border-radius: var(--st-radius-xs); }
+.st-dialog { border: 0; border-radius: var(--st-radius); box-shadow: var(--st-shadow-menu); padding: 18px 20px 16px; }
+.st-dialog__title { font-size: 17px; font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); }
+.st-dialog__input { border-radius: var(--st-radius-s); }

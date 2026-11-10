@@ -43,18 +43,22 @@ test('tokens.css and docs/tokens.md name the same tokens, each once', () => {
   assert.ok(inCss.length > 60, `${inCss.length} tokens in tokens.css`)
   assert.deepEqual(inDoc.filter(t => !inCss.includes(t)), [], 'documented but not defined')
   assert.deepEqual(inCss.filter(t => !inDoc.includes(t)), [], 'defined but not in the list')
-  // three sets (docs/desktop.md §五「主题」): :root defines every token once; each [data-theme] block only overrides, each of
-  // its tokens once and every one of them a :root token
+  // v2 package K2 (six sets, generated from the K1 draft: scripts/gen-tokens.mjs): the first block, :root, holds the values all
+  // six share; each of the six set blocks names the same tokens, each once, none of the shared ones; together they are all.
+  // (Before K2: :root was river and two blocks overrode some of its values — rewritten for the new layout.)
   const blocks = tokenBlocks(TOKENS)
-  assert.deepEqual(blocks.map(b => b.selector), [':root', ':root[data-theme="paper"]', ':root[data-theme="night"]'])
-  const root = blocks[0].names
-  assert.deepEqual([...new Set(root)].sort(), [...inCss].sort(), ':root defines every token')
-  for (const b of blocks) {
-    assert.equal(new Set(b.names).size, b.names.length, `${b.selector}: no token defined twice`)
-    assert.deepEqual(b.names.filter(n => !root.includes(n)), [], `${b.selector}: overrides only tokens of :root`)
+  assert.equal(blocks.length, 7)
+  assert.equal(blocks[0].selector, ':root')
+  const shared = blocks[0].names
+  const first = blocks[1].names
+  for (const b of blocks) assert.equal(new Set(b.names).size, b.names.length, `${b.selector}: no token defined twice`)
+  for (const b of blocks.slice(1)) {
+    assert.deepEqual([...b.names].sort(), [...first].sort(), `${b.selector}: the same names as the others`)
+    assert.deepEqual(b.names.filter(n => shared.includes(n)), [], `${b.selector}: none of the shared ones`)
   }
-  // the readers can fail: a token defined twice in a block, an override of a name :root does not have
-  const bad = tokenBlocks(':root {\n  --st-a: #fff;\n  --st-a: #000;\n}\n:root[data-theme="x"] {\n  --st-b: #fff;\n}')
+  assert.deepEqual([...shared, ...first].sort(), [...inCss].sort(), 'shared + one set = every token')
+  // the readers can fail: a token defined twice in a block, a block naming another token than the rest
+  const bad = tokenBlocks(':root {\n  --st-a: #fff;\n  --st-a: #000;\n}\n[data-theme="x"] {\n  --st-b: #fff;\n}')
   assert.deepEqual(bad.map(b => b.names), [['--st-a', '--st-a'], ['--st-b']])
 })
 
@@ -86,8 +90,21 @@ test('the five fetch states (src/shared/fetch-states.mjs) each have a colour and
   }
 })
 
-test('the font and the identity colour are what the maintainer settled (11-02)', () => {
-  assert.match(TOKENS, /--st-font: 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans SC', sans-serif;/)
-  assert.match(TOKENS, /--st-accent: #1F6E8C;/)
-  assert.match(TOKENS, /--st-page: #F2F5F7;/)
+// v2 package K2 (维护者 11-10 #6 「定」: the font is Noto Sans SC, shipped; the default theme 精密国际主义) — replaces the check of
+// 11-02's font (Microsoft YaHei UI) and river's identity colour, which the new themes changed
+test('the font is the bundled Noto Sans SC (styles/fonts.css, loaded through app://) and the default set is 精密国际主义\'s', () => {
+  const sets = TOKENS.match(/--st-font: [^;]+;/g)
+  assert.equal(sets.length, 6)
+  for (const s of sets) assert.equal(s, "--st-font: 'Streams Numerals', 'Streams Noto Sans SC', sans-serif;")
+  const fonts = readFileSync(join(STYLES, 'fonts.css'), 'utf8')
+  const face = /@font-face \{[^}]*font-family: 'Streams Noto Sans SC';[^}]*src: url\('([^']+)'\) format\('truetype'\);[^}]*\}/.exec(fonts)
+  assert.ok(face, 'fonts.css has the face of the bundled font')
+  const file = join(STYLES, face[1])
+  assert.equal(face[1], '../fonts/NotoSansSC-VF.ttf')
+  assert.ok(statSync(file).size > 10_000_000, 'the variable font itself (17.8 MB), next to its license')
+  assert.ok(statSync(join(STYLES, '..', 'fonts', 'OFL-NotoSansSC.txt')).size > 4000)
+  assert.match(readFileSync(join(STYLES, 'app.css'), 'utf8'), /@import url\('\.\/fonts\.css'\);/, 'the page imports it')
+  assert.equal(/@font-face/.test(TOKENS), false, 'not in tokens.css: the reading window\'s pages take tokens.css and load nothing')
+  // the default (精密国际主义 · 浅色) is also :root
+  assert.match(TOKENS, /:root, \[data-theme="precision"\] \{\n  color-scheme: light;\n  --st-page: #F6F6F3;/)
 })

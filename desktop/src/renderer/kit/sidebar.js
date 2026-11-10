@@ -98,9 +98,23 @@ export function SidebarNote({ children }) {
  */
 export function SidebarQuota({ view }) {
   if (!view) return null
-  return html`<section class="st-sidebar__quota" data-part="quota" data-quota-kind=${view.kind} aria-label=${SHELL.sidebar.quota.label} title=${view.asOf ? fmt(SHELL.sidebar.quota.asOf, { when: view.asOf }) : undefined}>
-    <div class="st-sidebar__quota-title">${view.title}</div>
-    ${view.rows.map(r => html`<div key=${r.id} class="st-sidebar__quota-row" data-quota-row=${r.id}>${r.text}</div>`)}
+  const Q = SHELL.sidebar.quota
+  const asOf = view.asOf ? fmt(Q.asOf, { when: view.asOf }) : null
+  // v2 package K2: the K1 draft's card — the title with 「截至 …」 on its right; a plan window as its span, a bar, the per cent
+  // and 「… 重置」 under them (the row's whole sentence is its accessible name); a balance as one line in larger digits
+  return html`<section class="st-sidebar__quota" data-part="quota" data-quota-kind=${view.kind} aria-label=${Q.label} title=${asOf ?? undefined}>
+    <div class="st-sidebar__quota-head">
+      <span class="st-sidebar__quota-title">${view.title}</span>
+      ${asOf ? html`<span class="st-sidebar__quota-as-of" data-quota-as-of>${asOf}</span>` : null}
+    </div>
+    ${view.rows.map(r => (r.span
+      ? html`<div key=${r.id} class="st-sidebar__quota-row" data-quota-row=${r.id} role="group" aria-label=${r.text}>
+          <span class="st-sidebar__quota-span">${r.span}</span>
+          <span class="st-sidebar__quota-track" aria-hidden="true"><span class="st-sidebar__quota-fill" style=${{ width: `${r.used}%` }}></span></span>
+          <span class="st-sidebar__quota-pct">${r.pct}%</span>
+          <span class="st-sidebar__quota-when">${fmt(Q.resetsAt, { when: r.when })}</span>
+        </div>`
+      : html`<div key=${r.id} class="st-sidebar__quota-row st-sidebar__quota-money" data-quota-row=${r.id} aria-label=${r.text}>${r.text}</div>`))}
   </section>`
 }
 

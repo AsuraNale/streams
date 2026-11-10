@@ -30,6 +30,20 @@ test('the page\'s own files are served (control)', async () => {
   }
 })
 
+// v2 package K2: the bundled UI font is served as font/ttf (styles/fonts.css loads it); its license text beside it is not a
+// type the page uses (control); index.html carries the look the handler is given, both attributes
+test('the bundled font is served as font/ttf, byte for byte; the .txt beside it is not; index.html has data-theme and data-appearance', async () => {
+  const h = handler(false)
+  const font = await get(h, 'app://ui/fonts/NotoSansSC-VF.ttf')
+  assert.equal(font.status, 200)
+  assert.equal(font.headers.get('content-type'), 'font/ttf')
+  assert.ok(Buffer.from(await font.arrayBuffer()).equals(readFileSync(join(DESKTOP_DIR, 'src', 'renderer', 'fonts', 'NotoSansSC-VF.ttf'))))
+  assert.equal((await get(h, 'app://ui/fonts/OFL-NotoSansSC.txt')).status, 404, 'control: a .txt is not served')
+  const page = await (await get(createAppProtocolHandler({ rendererDir: join(DESKTOP_DIR, 'src', 'renderer'), sharedDir: join(DESKTOP_DIR, 'src', 'shared'), vendor: vendorFiles(), csp: "default-src 'none'", theme: () => ({ theme: 'research', scheme: 'dark' }) }), 'app://ui/index.html')).text()
+  assert.match(page, /<html lang="zh-CN" data-theme="research" data-appearance="dark">/)
+  assert.match(await (await get(h, 'app://ui/index.html')).text(), /<html lang="zh-CN" data-theme="precision" data-appearance="light">/, 'without a look: the default')
+})
+
 test('D2 · a path naming another machine is refused at once, before the file system: no network share is opened', async () => {
   // 192.0.2.1 is an address nobody answers (TEST-NET-1): handed to the file system as \\192.0.2.1\share\x.png,
   // Windows tries SMB and gives up only after about 21 s — so a fast 404 means no share was opened. A WebDAV-style

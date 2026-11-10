@@ -3,12 +3,14 @@
  *
  *   app://ui/…          src/renderer/…           the page: index.html, app.js, kit/, screens/, texts/, texts-en/, styles/
  *                                                (texts/<name>.js is answered with texts-en/<name>.js while the app runs in
- *                                                English and that file exists: docs/desktop.md��)
+ *                                                English and that file exists: docs/desktop.md��)
  *   app://ui/shared/…   src/shared/…             modules shared with the main process (pure, no Node, no DOM)
  *   app://ui/vendor/…   three files of node_modules, by name (VENDOR); nothing else of node_modules
  *
  * index.html is served with `data-theme="<id>"` on its <html> tag, the theme settings.json names now (theme.mjs withTheme): the
- * page's first frame is in that set, before any script runs (docs/desktop.md §五「主题」).
+ * page's first frame is in that set, before any script runs (docs/desktop.md §五「主题」). v2 package K2: and
+ * `data-appearance="light|dark"`, the appearance in force (the setting, or what Windows uses for 「跟随系统」).
+ * v2 package K2: fonts/NotoSansSC-VF.ttf (the bundled UI font, styles/fonts.css) is served as font/ttf; nothing else of fonts/.
  * GET only. The path rule is safe-path.mjs (docs/desktop.md §二): the path is judged as text first, so nothing
  * reaches the file system that could name another folder or another machine; then only a path inside the folder by
  * its text is looked up, links followed and still inside. Only the file types the page uses are served; the
@@ -58,6 +60,8 @@ const TYPES = Object.freeze({
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  // v2 package K2: the bundled UI font (fonts/NotoSansSC-VF.ttf; its license text, a .txt, is not served)
+  '.ttf': 'font/ttf',
 })
 
 function notFound() {
@@ -79,9 +83,10 @@ export const DEV_ONLY = Object.freeze(['screens/kit.js', 'texts/kit.js', 'styles
  * @param {string} o.csp
  * @param {boolean} [o.dev] - a development run (not packaged): only then are the DEV_ONLY files served
  * @param {() => 'zh-CN'|'en'} [o.locale] - the language the app runs in now (locale.mjs), asked on every request
- * @param {() => string} [o.theme] - the theme settings.json names now (theme.mjs), asked for every index.html
+ * @param {() => {theme: string, scheme: string}} [o.theme] - the look now (main.mjs currentLook: the theme settings.json names
+ *   and the appearance in force, light | dark), asked for every index.html (v2 package K2: it was the theme id alone)
  */
-export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, dev = false, locale = () => 'zh-CN', theme = () => DEFAULT_THEME }) {
+export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, dev = false, locale = () => 'zh-CN', theme = () => ({ theme: DEFAULT_THEME, scheme: 'light' }) }) {
   const headers = type => ({
     'content-type': type,
     'content-security-policy': csp,
@@ -108,7 +113,7 @@ export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, 
       file = segments.length === 2 && Object.hasOwn(vendor, segments[1]) ? vendor[segments[1]] : null
     } else {
       const [root, rest] = segments[0] === 'shared' ? [sharedDir, segments.slice(1)] : [rendererDir, segments]
-      // the page's words in the user's language (docs/desktop.md��): texts/<name>.js is answered with texts-en/<name>.js
+      // the page's words in the user's language (docs/desktop.md��): texts/<name>.js is answered with texts-en/<name>.js
       // while the app runs in English and that file exists; the zh file otherwise (the gallery's words have no en table)
       let found = null
       if (root === rendererDir && rest[0] === 'texts' && rest.length === 2 && locale() === 'en') found = await resolveInside(root, ['texts-en', rest[1]])
@@ -123,7 +128,7 @@ export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, 
     if (!type) return notFound()
     try {
       if (!(await stat(file)).isFile()) return notFound()
-      if (page) return new Response(withTheme(await readFile(file, 'utf8'), theme()), { status: 200, headers: headers(type) })
+      if (page) { const look = theme(); return new Response(withTheme(await readFile(file, 'utf8'), look?.theme, look?.scheme), { status: 200, headers: headers(type) }) }
       return new Response(await readFile(file), { status: 200, headers: headers(type) })
     } catch {
       return notFound()

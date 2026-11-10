@@ -11,7 +11,11 @@
  *   showDeveloperInfo   the advanced switch of the settings page (default off)
  *   schedule            the timed round (A2; docs/core-api.md 5.10): { enabled, time: 'HH:MM' }, default
  *                       { enabled: true, time: '08:30' }; each of the two fields checked on its own
- *   theme               the app's look (theme.mjs): river · paper · night; anything else is DEFAULT_THEME (one line in theme.mjs)
+ *   theme               the app's look (theme.mjs; v2 package K2): precision · glass · research; anything else is DEFAULT_THEME
+ *   appearance          v2 package K2: light · dark · system (follow Windows); anything else is DEFAULT_APPEARANCE. v1.0's
+ *                       theme ids are migrated when the file is read (theme.mjs migrateLook, the maintainer 11-10): none / river / any
+ *                       other value → precision + system, paper → precision + light, night → precision + dark; the next
+ *                       write stores the two new fields. No other field is touched by this.
  *   libraryRoot         v2 package B: where a new library a proposal card makes goes when the card names no folder
  *                       (<libraryRoot>\<the library's name as a folder name>); an absolute path, or null (default) = the
  *                       app's default place (main.mjs: %USERPROFILE%\Documents\Streams in the packaged app). v2 package I: the
@@ -30,7 +34,7 @@ import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { DEFAULT_LANGUAGE, LANGUAGE_SETTINGS } from './locale.mjs'
 import { DEFAULT_SCHEDULE, SETUP_BY, VENDOR_IDS, isScheduleTime } from './core.mjs'
-import { isThemeId, themeOf } from './theme.mjs'
+import { isAppearance, isThemeId, migrateLook } from './theme.mjs'
 
 export const SETTINGS_SCHEMA = 'streams.settings/1'
 export const CONNECTION_KINDS = Object.freeze(['claude-code', 'codex', 'api'])
@@ -144,7 +148,8 @@ export function readSettings(file) {
     connections: normalizeConnections(own(data, 'connections')),
     showDeveloperInfo: own(data, 'showDeveloperInfo') === true,
     schedule: normalizeSchedule(own(data, 'schedule')),
-    theme: themeOf(own(data, 'theme')),
+    // v2 package K2: the theme and the appearance, v1.0's ids migrated (theme.mjs migrateLook); only these two fields
+    ...migrateLook(own(data, 'theme'), own(data, 'appearance')),
     libraryRoot: typeof root === 'string' && isAbsolute(root) ? root : DEFAULTS.libraryRoot,
     setupConnection: setupConnectionOf(own(data, 'setupConnection')),
   }
@@ -168,7 +173,7 @@ function checkConnections(raw) {
 /**
  * Change some settings and write them all.
  * @param {string} file
- * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}, theme?: string, libraryRoot?: string|null, setupConnection?: {by: string, at: string, detail?: string}|null}} patch
+ * @param {{language?: string, libraryPath?: string|null, recentLibraries?: string[], connections?: object, showDeveloperInfo?: boolean, schedule?: {enabled: boolean, time: string}, theme?: string, appearance?: string, libraryRoot?: string|null, setupConnection?: {by: string, at: string, detail?: string}|null}} patch
  * @returns {object} the settings now
  */
 export function writeSettings(file, patch) {
@@ -198,6 +203,11 @@ export function writeSettings(file, patch) {
   if (Object.hasOwn(patch, 'theme')) {
     if (!isThemeId(patch.theme)) throw new TypeError(`no theme ${patch.theme}`)
     next.theme = patch.theme
+  }
+  // v2 package K2: the appearance (light · dark · system)
+  if (Object.hasOwn(patch, 'appearance')) {
+    if (!isAppearance(patch.appearance)) throw new TypeError(`no appearance ${patch.appearance}`)
+    next.appearance = patch.appearance
   }
   if (Object.hasOwn(patch, 'libraryRoot')) {
     if (patch.libraryRoot !== null && (typeof patch.libraryRoot !== 'string' || !isAbsolute(patch.libraryRoot))) throw new TypeError('libraryRoot must be an absolute path, or null')

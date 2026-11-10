@@ -1,0 +1,18 @@
+/* v2 package K2 (维护者 11-10 #6「定」: the UI font is Noto Sans SC, shipped with the app): the bundled variable font,
+   fonts/NotoSansSC-VF.ttf (SIL Open Font License 1.1, full text fonts/OFL-NotoSansSC.txt; 许可证与致谢 shows it), served by
+   app:// (main/protocol.mjs: font/ttf; the CSP's font-src 'self'). The family names are the K1 design draft's
+   (docs/design/next/themes/css/fonts.css): --st-font in tokens.css names them. The digits take the machine's monospaced
+   face when it has one (local() only, nothing downloaded), else Noto's own digits. Only app.css imports this file: the
+   reading window's pages are data: pages that load nothing (main/reader.mjs), so they fall back to the system's sans-serif. */
+@font-face {
+  font-family: 'Streams Noto Sans SC';
+  src: url('../fonts/NotoSansSC-VF.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Streams Numerals';
+  src: local('Cascadia Mono'), local('Consolas');
+  font-weight: 100 900;
+  unicode-range: U+0030-0039;
+}

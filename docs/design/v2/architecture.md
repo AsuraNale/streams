@@ -110,7 +110,7 @@
 
 ## 三、前端计划
 
-技术照 v1.0：Electron 44 + Preact / htm、组件库 `renderer/kit`、中英两张字典、三套主题 token、真窗口截图测试。
+技术照 v1.0：Electron 44 + Preact / htm、组件库 `renderer/kit`、中英两张字典、三套主题 token、真窗口截图测试。**v2 包 K2（11-10）实做**：三套主题换成 K1 设计稿的精密国际主义（默认）· 澄明玻璃 · 研究对话，各有浅 / 深，外观另设（浅色 · 深色 · 跟随系统，默认跟随系统，Windows 换深浅色时实时跟着变）；`tokens.css` 由 `desktop/scripts/gen-tokens.mjs` 从 `docs/design/next/themes/tools/tokens-data.mjs` 生成；字体换成随包的 Noto Sans SC（OFL，许可证页与 THIRD-PARTY-NOTICES 都带）；v1.0 的 `theme` 读设置时迁移（river / 没有 / 别的 → 精密国际主义 + 跟随系统，paper → 浅色，night → 深色）。和 K1 设计稿的差别：只换外观、不改结构——右栏四个标签、资料库两栏、排队说法是包 L；阅读窗口用系统字体（它的页不加载任何东西）。细节：`docs/desktop.md` §五「主题」、`docs/tokens.md`。
 
 | 改动 | 是什么 | 复用 |
 |---|---|---|
@@ -134,7 +134,7 @@
 - 桥：加 `getBrief` / `setBrief` 两个方法（`setBrief` 记 `by: 'you'`）；`getLibrariesOverview` 每行多四个字段 `brief` · `topics` · `sources` · `noOutputStreak`（库架卡片的「在追」「N 个来源」「连续 N 轮没有产出」要用）。
 - 设置：照契约 F4 只做最小改动——定时与上限的编辑拿掉，加「定时一览」（只读，点名字进那个库的来源与要求）和「全部库本月用量合计」。设计稿 P9 里还画着「每轮上限」，按契约挪进了各库。
 - 新建库：左栏「+ 新建库」与库架「手动新建」打开一个对话框，走 v1.0 的建库 / 打开已有文件夹（`chooseLibraryFolder` → `useChosenFolder`），建好后包 A 登记并设为当前库。「新建库 · 和主 Agent 聊着建」卡进「和主 Agent 聊」，那一页本包只放路由和空壳。
-- 库的颜色：`--st-lib-river` · `--st-lib-violet` · `--st-lib-green` · `--st-lib-muted` + 方块上的字 `--st-on-lib`，三套主题都有值（`docs/tokens.md`）。
+- 库的颜色：`--st-lib-river` · `--st-lib-violet` · `--st-lib-green` · `--st-lib-muted` + 方块上的字 `--st-on-lib`，三套主题都有值（`docs/tokens.md`）。v2 包 K2：六组（三套 × 浅 / 深）都有值，库的颜色不随主题变、只分浅深。
 
 **包 I 实做（11-09）与上表的差别**（详见 `docs/desktop.md` §4.10）：
 

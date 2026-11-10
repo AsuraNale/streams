@@ -135,3 +135,24 @@ a.rd-seg__item:not([aria-current="true"]):hover { color: var(--st-accent); }
 .rd-article__body figure { margin: 0 0 1em; }
 .rd-article__body figcaption { color: var(--st-text-2); font-size: var(--st-fs-small); }
 .rd-wait { padding: 40px; color: var(--st-text-2); }
+
+/* ==== v2 package K2 (the K1 design draft): the reading window in the new themes — the bar a quiet strip on the page colour,
+   its buttons and the 阅读模式 | 原网页 switch the draft's controls (no border, the theme's corners, the selected segment
+   on --st-surface), the article on --st-surface. The window's two pages are data: pages that load nothing (main/reader.mjs),
+   so the bundled Noto Sans SC cannot reach them: the system's own Chinese UI face, named here (--st-font's two families
+   are not there). The heading sizes are the article's own (--st-fs-heading is the page title's 26px since K2). ==== */
+body { font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif; font-weight: var(--st-weight-body); }
+.rd-bar-body, .rd-bar { background: var(--st-page); }
+.rd-bar { border-bottom: 1px solid var(--st-divider); }
+.rd-btn { border: 0; border-radius: var(--st-radius-s); background: var(--st-surface-2); font-weight: var(--st-weight-label); }
+.rd-btn:hover { background: var(--st-selected); color: var(--st-text); }
+.rd-url { border: 0; border-radius: var(--st-radius-s); background: var(--st-surface); box-shadow: inset 0 0 0 1px var(--st-control-border); }
+.rd-note { border: 0; border-radius: var(--st-radius-s); box-shadow: inset 0 0 0 1px var(--st-wait-border); }
+.rd-seg { gap: 2px; padding: 2px; border: 0; border-radius: var(--st-radius-s); background: var(--st-surface-2); }
+.rd-seg__item { height: 26px; border-radius: var(--st-radius-xs); background: transparent; }
+.rd-seg__item + .rd-seg__item { border-left: 0; }
+.rd-seg__item[aria-current="true"] { background: var(--st-surface); color: var(--st-text); font-weight: var(--st-weight-label); box-shadow: var(--st-shadow-card); }
+.rd-article__title { font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); }
+.rd-article__body h3, .rd-article__body h4 { font-size: 16px; }
+.rd-article__body blockquote { border-left: 0; box-shadow: inset 3px 0 var(--st-accent); }
+.rd-article__body pre { border-radius: var(--st-radius-s); }

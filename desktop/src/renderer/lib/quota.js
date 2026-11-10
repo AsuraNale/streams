@@ -1,6 +1,8 @@
 // v2 package M (docs/desktop.md §4.11): the corner above 设置 — the current connection's plan windows or API balance in words.
 //   quotaView(q, now)  → { kind: 'plan' | 'balance', title, rows: [{ id, text }], asOf } or null (nothing to show: the corner
-//                        is not drawn at all — no connection, nothing read, no balance endpoint, a shape not known)
+//                        is not drawn at all — no connection, nothing read, no balance endpoint, a shape not known).
+//                        v2 package K2: a plan row also has its parts for the K1 draft's look — { span, used (0–100), pct, when }
+//                        (kit/sidebar.js draws the span, a bar, the per cent and 「… 重置」; `text` stays the row's whole sentence)
 //   useQuota()         → that view for the page, read with getQuota at mount and again on quota-changed / connections-changed
 // Every word comes from texts/shell.js SHELL.sidebar.quota (texts-en in English); no brand name is ever shown.
 import { useEffect, useState } from './html.js'
@@ -38,7 +40,7 @@ export function quotaView(q, now = new Date()) {
     const s = span(q.source === 'codex' ? w?.windowMins : SPAN_MINS[w?.id])
     const when = Number.isInteger(w?.resetsAt) ? nextText(new Date(w.resetsAt * 1000).toISOString(), T.resets, now) : null
     if (!s || !when || !Number.isFinite(w.usedPercent)) continue
-    rows.push({ id: w.id, text: fmt(T.window, { span: s, pct: pct(w.usedPercent), when }) })
+    rows.push({ id: w.id, text: fmt(T.window, { span: s, pct: pct(w.usedPercent), when }), span: s, used: Math.max(0, Math.min(100, w.usedPercent)), pct: pct(w.usedPercent), when })
   }
   return rows.length ? { kind: 'plan', title: T.plan, rows, asOf } : null
 }

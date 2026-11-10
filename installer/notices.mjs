@@ -3,6 +3,8 @@
  * it lists exactly what ships: every npm package (name, version, license, the license and notice files it carries),
  * Electron (Chromium's own notices are the LICENSES.chromium.html shipped next to Streams.exe), and Streams' own parts.
  * The packages under the MPL-2.0 or the LGPL get a first section that says where their source code is.
+ * v2 package K2: and the bundled UI font, Noto Sans SC (resources/app/src/renderer/fonts), with its SIL Open Font License in
+ * full — read from the license file shipped beside the font, so the notices say what ships.
  * @module installer/notices
  */
 
@@ -105,6 +107,7 @@ export function buildNotices({ stage, lockFile, facts }) {
   line(`  3. ${third.length} npm packages: list`)
   line('  4. npm packages: license texts')
   line("  5. Streams' own parts")
+  line('  6. Fonts / 字体')
   line()
 
   line(rule('='))
@@ -194,5 +197,26 @@ export function buildNotices({ stage, lockFile, facts }) {
     }
   }
   line()
-  return { text: `${L.join('\n')}\n`, npm: third.length, copyleft: copyleft.map(p => ({ id: p.id, license: licenseOf(p.pkg), source: urls.get(p.id) ?? null, repository: repoOf(p.pkg) })) }
+
+  // v2 package K2: the bundled font and its license (the files themselves, as shipped)
+  line(rule('='))
+  line('6. Fonts / 字体')
+  line(rule('='))
+  const fontDir = join(resources, 'app', 'src', 'renderer', 'fonts')
+  const fonts = existsSync(fontDir) ? readdirSync(fontDir).filter(n => /\.(ttf|otf|woff2?)$/i.test(n)).sort() : []
+  const fontLicense = join(fontDir, 'OFL-NotoSansSC.txt')
+  if (fonts.length === 0) line('(none in this build)')
+  for (const f of fonts) {
+    line(`* ${f} — Noto Sans SC, the interface font (界面字体), unmodified — SIL Open Font License 1.1 — installed at ${relative(stage, join(fontDir, f))}`)
+    line(`    sha256: ${createHash('sha256').update(readFileSync(join(fontDir, f))).digest('hex')}`)
+  }
+  if (existsSync(fontLicense)) {
+    line()
+    line(rule('-'))
+    line(`Noto Sans SC: ${relative(stage, fontLicense)}`)
+    line(rule('-'))
+    line(readFileSync(fontLicense, 'utf8').replace(/\r\n/g, '\n').trim())
+  }
+  line()
+  return { text: `${L.join('\n')}\n`, npm: third.length, fonts: fonts.length, copyleft: copyleft.map(p => ({ id: p.id, license: licenseOf(p.pkg), source: urls.get(p.id) ?? null, repository: repoOf(p.pkg) })) }
 }

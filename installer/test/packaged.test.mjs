@@ -400,8 +400,14 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   assert.deepEqual(licenses.components.map(c => [c.name, c.version]), [
     ['Electron', runtime.electron], ['Chromium', runtime.chrome], ['Node.js', runtime.node],
     ['Preact', installedVersion('preact')], ['htm', installedVersion('htm')], ['@mozilla/readability', installedVersion('@mozilla/readability')],
+    // v2 package K2: the bundled UI font, its version read from the installed font file
+    ['Noto Sans SC', '2.04'],
   ])
   assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes(`@mozilla/readability@${installedVersion('@mozilla/readability')}`), 'the notices list @mozilla/readability')
+  // v2 package K2: the font and its license installed, and the license in full in the notices
+  const ofl = readFileSync(join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts', 'OFL-NotoSansSC.txt'), 'utf8')
+  assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes(ofl.replace(/\r\n/g, '\n').trim()), 'the notices carry the font\'s OFL in full')
+  assert.equal(licenses.font.license, 'OFL-1.1')
   S.result.licenses = { own: licenses.own.license, components: licenses.components, notices: licenses.notices }
 
   // 待看: C keeps the current card

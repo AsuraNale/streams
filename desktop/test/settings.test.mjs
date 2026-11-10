@@ -6,7 +6,7 @@ import { after, test } from 'node:test'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { RECENT_MAX, SETTINGS_SCHEMA, defaultConnections, normalizeConnections, normalizeRecent, normalizeSchedule, readSettings, withRecent, writeSettings } from '../src/main/settings.mjs'
-import { DEFAULT_THEME } from '../src/main/theme.mjs'
+import { DEFAULT_APPEARANCE, DEFAULT_THEME } from '../src/main/theme.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { tempDir } from '../scripts/lib/temp.mjs'
 
@@ -15,7 +15,7 @@ const folder = () => { const dir = tempDir('st-settings-'); made.push(dir); retu
 after(() => { for (const dir of made) removeTree(dir, { waitMs: 3000 }) })
 const onDisk = file => JSON.parse(readFileSync(file, 'utf8'))
 // v2 package I: settings.json has one more field, setupConnection (首次打开's connection step while there is no library)
-const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, libraryRoot: null, setupConnection: null })
+const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, appearance: DEFAULT_APPEARANCE, libraryRoot: null, setupConnection: null })
 
 test('no file, a broken file, a file of another shape: the defaults', () => {
   const dir = folder()
@@ -123,26 +123,66 @@ test('schedule: default on at 08:30; each field checked on its own; a write take
   assert.deepEqual(readSettings(file).schedule, { enabled: true, time: '00:00' }, '00:00 is a time')
 })
 
-test('theme: one of river · paper · night; anything else reads as DEFAULT_THEME; a write takes an id only', () => {
+// v2 package K2 (the maintainer 11-10): the theme is one of precision · glass · research and the appearance a field of its own; v1.0's
+// river / paper / night are migrated when read (theme.mjs migrateLook). Rewritten from v1.0's 「one of river · paper · night」.
+test('theme and appearance: precision · glass · research and light · dark · system; anything else reads as the defaults; a write takes those only', () => {
   const dir = folder()
   const file = join(dir, 'settings.json')
-  assert.equal(DEFAULT_THEME, 'river', 'the default until the maintainer picks one (plan 5.6 D5)')
-  assert.equal(readSettings(file).theme, DEFAULT_THEME, 'no file: the default')
-  writeFileSync(file, `${JSON.stringify({ theme: 'night' })}
-`)
-  assert.equal(readSettings(file).theme, 'night', 'control: a good theme is read as it is')
-  for (const bad of ['Night', 'dark', '', 7, null, ['paper'], { id: 'paper' }]) {
-    writeFileSync(file, `${JSON.stringify({ theme: bad })}
-`)
+  assert.equal(DEFAULT_THEME, 'precision', '维护者 11-10: 精密国际主义')
+  assert.equal(DEFAULT_APPEARANCE, 'system', '维护者 11-10: 跟随系统')
+  assert.deepEqual([readSettings(file).theme, readSettings(file).appearance], [DEFAULT_THEME, DEFAULT_APPEARANCE], 'no file: the defaults')
+  writeFileSync(file, `${JSON.stringify({ theme: 'research', appearance: 'dark' })}\n`)
+  assert.deepEqual([readSettings(file).theme, readSettings(file).appearance], ['research', 'dark'], 'control: good values are read as they are')
+  for (const bad of ['Glass', 'dark', '', 7, null, ['glass'], { id: 'glass' }]) {
+    writeFileSync(file, `${JSON.stringify({ theme: bad, appearance: 'light' })}\n`)
     assert.equal(readSettings(file).theme, DEFAULT_THEME, JSON.stringify(bad))
   }
+  for (const bad of ['Dark', 'auto', '', 7, null]) {
+    writeFileSync(file, `${JSON.stringify({ theme: 'glass', appearance: bad })}\n`)
+    assert.deepEqual([readSettings(file).theme, readSettings(file).appearance], ['glass', DEFAULT_APPEARANCE], JSON.stringify(bad))
+  }
   writeSettings(file, { language: 'en' })
-  assert.equal(writeSettings(file, { theme: 'paper' }).theme, 'paper')
-  assert.equal(onDisk(file).theme, 'paper')
+  assert.equal(writeSettings(file, { theme: 'glass' }).theme, 'glass')
+  assert.equal(writeSettings(file, { appearance: 'light' }).appearance, 'light')
+  assert.deepEqual([onDisk(file).theme, onDisk(file).appearance], ['glass', 'light'])
   assert.equal(readSettings(file).language, 'en', 'the other fields stay')
   const before = readFileSync(file, 'utf8')
-  for (const bad of ['blue', 'Paper', '', null, undefined]) assert.throws(() => writeSettings(file, { theme: bad }), TypeError, String(bad))
+  for (const bad of ['blue', 'river', 'night', 'Glass', '', null, undefined]) assert.throws(() => writeSettings(file, { theme: bad }), TypeError, String(bad))
+  for (const bad of ['Dark', 'auto', '', null, undefined]) assert.throws(() => writeSettings(file, { appearance: bad }), TypeError, String(bad))
   assert.equal(readFileSync(file, 'utf8'), before, 'a refused write changes nothing on disk')
+})
+
+// v2 package K2: a v1.0 settings.json with every other field set — reading it changes only the theme and the appearance (the maintainer's
+// table: none / river / other → precision + system, paper → precision + light, night → precision + dark); the next write stores
+// the two new fields and keeps the rest. Controls: night is told apart from paper and from river; a mutant mapping night to light
+// would fail the night row.
+test('v1.0\'s theme migrated when read: only theme and appearance change, every other field is as it was', () => {
+  const dir = folder()
+  const file = join(dir, 'settings.json')
+  const lib = join(dir, 'lib')
+  const other = {
+    language: 'en', libraryPath: lib, recentLibraries: [lib], showDeveloperInfo: true, schedule: { enabled: false, time: '21:15' }, libraryRoot: join(dir, 'libs'),
+    connections: { active: 'codex', 'claude-code': { model: 'opus', verifyModel: null }, codex: { model: null, verifyModel: 'mini' }, api: { vendor: 'deepseek', baseUrl: null, model: null, verifyModel: null } },
+    setupConnection: { by: 'chose', at: '2026-11-03T10:00:00.000Z', detail: 'codex' },
+  }
+  const rows = [[undefined, 'precision', 'system'], ['river', 'precision', 'system'], ['paper', 'precision', 'light'], ['night', 'precision', 'dark'], ['sepia', 'precision', 'system']]
+  const seen = {}
+  for (const [old, theme, appearance] of rows) {
+    const raw = old === undefined ? { schema: 'streams.settings/1', ...other } : { schema: 'streams.settings/1', ...other, theme: old }
+    writeFileSync(file, `${JSON.stringify(raw, null, 2)}\n`)
+    const s = readSettings(file)
+    const { theme: t, appearance: a, ...rest } = s
+    assert.deepEqual([t, a], [theme, appearance], String(old))
+    assert.deepEqual(rest, other, `${String(old)}: every other field as written`)
+    seen[String(old)] = a
+    // the next write (any field) stores the migrated two and keeps the rest
+    writeSettings(file, { showDeveloperInfo: true })
+    const disk = onDisk(file)
+    assert.deepEqual([disk.theme, disk.appearance], [theme, appearance], `${String(old)}: on disk after a write`)
+    assert.equal(disk.language, 'en')
+    assert.deepEqual(disk.connections, other.connections)
+  }
+  assert.equal(new Set([seen.night, seen.paper, seen.river]).size, 3, 'control: night, paper and river come out three different ways')
 })
 
 test('libraryRoot (v2 package B): null by default; an absolute path is kept; a relative one reads as null and is refused on write', () => {

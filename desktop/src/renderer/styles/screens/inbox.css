@@ -50,3 +50,19 @@
 .inbox-panel__line { padding: 6px 0; border-bottom: 1px solid var(--st-divider-soft); font-size: var(--st-fs-small); overflow-wrap: anywhere; }
 .inbox-panel__line:last-child { border-bottom: 0; }
 .inbox-panel__ask { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding-top: 6px; border-top: 1px solid var(--st-divider); }
+
+/* ==== v2 package K2 (the K1 design draft, docs/design/next/themes/css/app.css): the cards of 待看 are the draft's source cards — on --st-surface
+   with the card shadow, no border; the current one on --st-selected (each theme adds its own mark: kit.css) ==== */
+[data-screen='inbox'] .st-topbar { padding-left: 28px; padding-right: 28px; }
+.inbox-body { padding: 14px 28px 28px; max-width: 880px; }
+.inbox-card { position: relative; gap: 6px; padding: 15px 18px 13px; border: 0; border-radius: var(--st-radius); background: var(--st-surface); box-shadow: var(--st-shadow-card); }
+.inbox-card--current { background: var(--st-selected); }
+.inbox-card__title { font-size: 16px; }
+.inbox-card__title:hover { color: var(--st-text); text-decoration: underline; text-decoration-color: var(--st-control-border); }
+.inbox-card__unverified { font-size: var(--st-fs-tiny); font-weight: var(--st-weight-label); border: 0; border-radius: var(--st-radius-xs); padding: 1px 7px; }
+.inbox-card__ai { font-weight: 400; border: 0; border-radius: var(--st-radius-xs); padding: 2px 8px; }
+.inbox-score { color: var(--st-text-2); font-size: var(--st-fs-small); }
+.inbox-card__actions { margin-top: 6px; }
+.inbox-reason { border-radius: var(--st-radius-s); }
+.inbox-panel { padding: 16px 16px; }
+.inbox-card__actions .st-button { height: 32px; padding: 0 14px; font-size: var(--st-fs-small); }

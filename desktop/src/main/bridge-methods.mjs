@@ -12,7 +12,7 @@
  */
 
 import { LANGUAGE_SETTINGS } from './locale.mjs'
-import { isThemeId } from '../shared/themes.mjs'
+import { isAppearance, isThemeId } from '../shared/themes.mjs'
 
 export const CHANNEL_PREFIX = 'streams:'
 
@@ -75,6 +75,8 @@ export const BRIDGE_METHODS = Object.freeze({
   setLanguage: Object.freeze({ args: 1, check: ([v]) => LANGUAGE_SETTINGS.includes(v) }),
   // the app's look (theme.mjs; docs/desktop.md §五「主题」): one of the three ids
   setTheme: Object.freeze({ args: 1, check: ([id]) => isThemeId(id) }),
+  // v2 package K2: light · dark · system
+  setAppearance: Object.freeze({ args: 1, check: ([a]) => isAppearance(a) }),
   setShowDeveloperInfo: Object.freeze({ args: 1, check: ([on]) => typeof on === 'boolean' }),
   copyDiagnostics: Object.freeze({ args: 0 }),
   // the about part's 「由 Starry Digital 开发」: opens the maker's site (a fixed address; the page gives none)

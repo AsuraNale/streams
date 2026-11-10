@@ -117,13 +117,20 @@ export const SETTINGS = Object.freeze({
   languageNote: "Changes only Streams' own words; the files in your library and what a model writes are not affected.",
   languageReload: 'The page reloads when you switch.',
 
-  // the app's look (docs/desktop.md §五「主题」): three sets
+  // the app's look (docs/desktop.md §五「主题」). v2 package K2 (维护者 11-10): three themes (English names: Precision · Clear
+  // Glass · Research) and the appearance
   theme: 'Theme',
-  themeHint: 'Which set of colours the app uses',
-  themeLabel: 'Choose a theme',
-  themes: Object.freeze({ river: 'River', paper: 'Paper', night: 'Night' }),
-  themeNote: 'It changes at once and stays when you open Streams again; first-time setup, dialogs, the graph and Ask follow it.',
+  themeHint: 'Which set of colours and shapes the app uses',
+  themeGroup: 'Choose a theme',
+  themes: Object.freeze({ precision: 'Precision', glass: 'Clear Glass', research: 'Research' }),
+  themeDefault: 'Default',
+  appearance: 'Appearance',
+  appearanceHint: 'Follow the system: when Windows turns dark, Streams does too',
+  appearanceGroup: 'Choose an appearance',
+  appearances: Object.freeze({ light: 'Light', dark: 'Dark', system: 'Follow the system' }),
+  themeNote: 'It changes at once and stays when you open Streams again; first-time setup, dialogs, the graph, Ask and the reading window follow it.',
   themeFailed: 'The theme could not be changed.',
+  appearanceFailed: 'The appearance could not be changed.',
 
   advanced: 'Advanced',
   advancedHint: 'For troubleshooting; you can ignore it',
@@ -151,6 +158,8 @@ export const SETTINGS = Object.freeze({
     notices: 'Open the full third-party notices',
     noticesNone: 'A development run has no such file: only an installed Streams carries THIRD-PARTY-NOTICES.txt in its folder.',
     noticesFailed: 'The third-party notices could not be opened.',
+    // v2 package K2: the bundled UI font's license, in full under the table
+    font: 'The interface font {name} ({license}), its license in full:',
     failed: 'The licenses could not be read.',
     close: 'Close',
   }),

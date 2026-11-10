@@ -45,7 +45,7 @@ import { createAgentService } from './services/agent.mjs'
 import { createQuotaService } from './services/quota.mjs'
 import { createTray } from './tray.mjs'
 import { listInbox } from './core.mjs'
-import { nativeSource, windowColour } from './theme.mjs'
+import { nativeSource, resolveAppearance, windowColour } from './theme.mjs'
 import { createReader, isReaderSession, readabilitySource, readerCss } from './reader.mjs'
 import { createReaderService } from './services/reader.mjs'
 import { defaultLibraryRoot as defaultRootOf } from './library-root.mjs'
@@ -179,12 +179,28 @@ function bringToFront() {
 }
 
 // the app's look (theme.mjs; docs/desktop.md §五「主题」): settings.json's theme, read when it is needed — the window's colour
-// before the first frame, Electron's own parts (nativeTheme), index.html's data-theme (protocol.mjs)
-const currentTheme = () => readSettings(layout.settingsFile).theme
-/** The theme on Electron's side: the title bar, native scrollbars and pop-up menus, and every window's background. */
-function applyTheme(id) {
-  nativeTheme.themeSource = nativeSource(id)
-  for (const win of appWindows) if (!win.isDestroyed()) win.setBackgroundColor(windowColour(id))
+// before the first frame, Electron's own parts (nativeTheme), index.html's data-theme (protocol.mjs).
+// v2 package K2: the look is the theme and the appearance (light · dark · system); the set in force is the theme in light or
+// dark — for 'system', what Windows uses now (nativeTheme.shouldUseDarkColors, with themeSource 'system'). The main window,
+// the reading window (reader.mjs) and the served index.html all take it from currentLook.
+const currentLook = () => {
+  const s = readSettings(layout.settingsFile)
+  return { theme: s.theme, appearance: s.appearance, scheme: resolveAppearance(s.appearance, nativeTheme.shouldUseDarkColors) }
+}
+// the reading window's restyle (set once it is made below), and the scheme the windows were last given
+let restyleReader = () => {}
+let lastScheme = null
+/** The windows' side of the look in force: every app window's background, the reading window's pages. */
+function paintLook() {
+  const look = currentLook()
+  for (const win of appWindows) if (!win.isDestroyed()) win.setBackgroundColor(windowColour(look.theme, look.scheme))
+  restyleReader()
+  return look
+}
+/** The look on Electron's side after a change in 设置: the title bar, native scrollbars and pop-up menus, then the windows. */
+function applyTheme() {
+  nativeTheme.themeSource = nativeSource(readSettings(layout.settingsFile).appearance)
+  lastScheme = paintLook().scheme
 }
 
 function createWindow() {
@@ -195,7 +211,7 @@ function createWindow() {
     minWidth: 1280,
     minHeight: 800,
     show: false,
-    backgroundColor: windowColour(currentTheme()),
+    backgroundColor: (look => windowColour(look.theme, look.scheme))(currentLook()),
     autoHideMenuBar: true,
     icon: ICON,
     webPreferences: { ...WEB_PREFERENCES, preload: PRELOAD, devTools: !app.isPackaged },
@@ -224,8 +240,9 @@ app.whenReady().then(() => {
     systemLanguages: () => (DEV_LANGUAGES ? { preferred: DEV_LANGUAGES, fallback: null } : { preferred: app.getPreferredSystemLanguages(), fallback: app.getLocale() }),
   })
   // the theme's native side before the window is made (its background is read in createWindow, the page's in protocol.mjs)
-  nativeTheme.themeSource = nativeSource(currentTheme())
-  const uiHandler = createAppProtocolHandler({ rendererDir: RENDERER_DIR, sharedDir: SHARED_DIR, vendor: vendorFiles(), csp, dev: !app.isPackaged, locale: () => locale.current().resolved, theme: currentTheme })
+  nativeTheme.themeSource = nativeSource(readSettings(layout.settingsFile).appearance)
+  lastScheme = currentLook().scheme
+  const uiHandler = createAppProtocolHandler({ rendererDir: RENDERER_DIR, sharedDir: SHARED_DIR, vendor: vendorFiles(), csp, dev: !app.isPackaged, locale: () => locale.current().resolved, theme: currentLook })
   protocol.handle(APP_SCHEME, request => uiHandler(request))
 
   // the secret store (secrets.mjs), the library (services/library.mjs), the connections (services/connections.mjs), the
@@ -270,18 +287,31 @@ app.whenReady().then(() => {
   // 「打开原文」 (v2 package H; reader.mjs): the isolated reading window, 阅读模式 by @mozilla/readability
   const reader = createReader({
     BrowserWindow, WebContentsView, session, shell, log, hidden: HIDDEN, icon: ICON,
-    locale: () => locale.current().resolved, theme: currentTheme,
+    locale: () => locale.current().resolved, theme: currentLook,
     css: readerCss(RENDERER_DIR), readability: readabilitySource(DESKTOP_DIR),
     onBack: () => { bringToFront() },
   })
   const readerService = createReaderService({ library, reader, log })
   closeReader = () => { reader.window()?.close() }
+  restyleReader = () => reader.restyle()
+  // v2 package K2: 「跟随系统」 follows Windows while the app runs — nativeTheme says when the system's light / dark changed (with
+  // themeSource 'system'); the windows are painted again and the page told (settings-changed: it re-reads the app state,
+  // whose `scheme` app.js puts on <html data-appearance>). A fixed light or dark does not change with it.
+  // Only a change of the set in force repaints: nativeTheme also says `updated` for other reasons (and for themeSource set
+  // here), and painting again would reload the reading window's pages for nothing.
+  nativeTheme.on('updated', () => {
+    if (currentLook().scheme === lastScheme) return
+    const look = paintLook()
+    lastScheme = look.scheme
+    log(`appearance: Windows changed, the app is ${look.scheme} now (${look.appearance})`)
+    emit('settings-changed', null)
+  })
   const sources = createSourcesService({ library, emit, log })
   // the library's chat box (v2 package E): a sentence routed to a change goes to the main agent (made below) with the library's id
   const ask = createAskService({ library, connections, log, agentSend: (text, options) => agent.handlers.agentSend(text, options) })
   const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell, schedule: () => scheduler?.view() ?? null })
   const services = createAppServices({
-    layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets, applyTheme,
+    layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets, applyTheme, scheme: () => currentLook().scheme,
     // 许可证与致谢 (licenses.mjs): the packaged app reads its own copies (resources/app, beside Streams.exe), a development run the repository's
     licenses: { packaged: app.isPackaged, desktopDir: DESKTOP_DIR, installDir: dirname(process.execPath) },
   })

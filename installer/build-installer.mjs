@@ -10,7 +10,8 @@
  * 3. rcedit 5.0.2 (installer/rcedit/setup_rcedit.mjs): the pinned rcedit-x64.exe, its SHA256 checked against the manifest
  *    (installed with npm ci when missing).
  * 4. The stage, installer/dist/stage/: exactly the install folder (docs/installer.md §三) — Electron renamed Streams.exe,
- *    resources/app (the desktop app with its npm dependencies — preact, htm and, v2 package J2, @mozilla/readability —, the icon file assets/icon/streams.ico, Streams' LICENSE),
+ *    resources/app (the desktop app with its npm dependencies — preact, htm and, v2 package J2, @mozilla/readability —, the icon file assets/icon/streams.ico, Streams' LICENSE; v2 package K2: the UI font
+ *    src/renderer/fonts/NotoSansSC-VF.ttf with its OFL text, checked to be there and listed in the notices' section 6),
  *    resources/core (core/src: desktop/src/main/core.mjs imports ../../../core/src/index.mjs, which from
  *    resources/app/src/main is resources/core/src), THIRD-PARTY-NOTICES.txt. Only files git knows (tracked, or new and
  *    not ignored) from desktop/src and core/src; tests, fixtures and the component gallery stay out. Then rcedit gives Streams.exe its icon (the .ico) and
@@ -236,6 +237,11 @@ function stage() {
   const srcFiles = gitFiles('desktop/src').filter(f => !devOnly.some(d => f === `desktop/src/renderer/${d}`))
   for (const f of srcFiles) copySource(f, join(app, relative('desktop', f)))
   counts.desktop = srcFiles.length
+  // v2 package K2: the bundled UI font and its license text go with desktop/src (git knows both); a build without either stops
+  for (const f of ['desktop/src/renderer/fonts/NotoSansSC-VF.ttf', 'desktop/src/renderer/fonts/OFL-NotoSansSC.txt']) {
+    if (!srcFiles.includes(f)) throw new Stop(`${f} is not a file git knows: the app's font must ship with its license`)
+  }
+  counts.font = 2
   // the icon: of desktop/assets/icon only the one file the app reads (desktop/src/main/icon.mjs); the SVG sources and the
   // PNG renders stay out
   const icoFile = `desktop/${ICON_FILE.join('/')}`
@@ -514,7 +520,8 @@ async function main() {
     facts: { appName: RELEASE.app_name, version: RELEASE.version, electron: JSON.parse(readFileSync(join(INSTALLER, 'electron', 'manifest.json'), 'utf8')).electron.version },
   })
   writeFileSync(join(STAGE, 'THIRD-PARTY-NOTICES.txt'), notices.text)
-  say(`  ok  ${notices.npm} npm packages; MPL / LGPL with their source: ${notices.copyleft.map(c => `${c.id} (${c.license})`).join(', ') || 'none'}`)
+  if (notices.fonts < 1) throw new Stop('THIRD-PARTY-NOTICES.txt lists no font (v2 package K2: Noto Sans SC and its OFL)')
+  say(`  ok  ${notices.npm} npm packages, ${notices.fonts} font with its OFL; MPL / LGPL with their source: ${notices.copyleft.map(c => `${c.id} (${c.license})`).join(', ') || 'none'}`)
 
   say('6. checks on the stage')
   const facts = checkStage({ ...staged, branded })

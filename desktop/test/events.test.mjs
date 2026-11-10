@@ -86,7 +86,9 @@ test('open-screen → the page goes to the screen named (an unknown screen is ig
   await ready(s.page, 'overview')
 })
 
-test('D9 · the sidebar keeps its 232px and the main area starts at 244px; nothing overflows the page', async () => {
+// v2 package K2: the main area lies flat on the page right of the sidebar (the K1 draft has no 12px gutter around it), so it
+// starts at 232px, not 244px
+test('D9 · the sidebar keeps its 232px and the main area starts right after it (232px); nothing overflows the page', async () => {
   await ready(s.page, 'overview')
   const m = await s.page.evaluate(() => {
     const r = el => el.getBoundingClientRect()
@@ -100,7 +102,7 @@ test('D9 · the sidebar keeps its 232px and the main area starts at 244px; nothi
       pageOverflow: document.documentElement.scrollWidth - innerWidth,
     }
   })
-  assert.deepEqual(m, { sidebar: 232, sidebarOverflow: 0, entries: 2, mainLeft: 244, pageOverflow: 0 })
+  assert.deepEqual(m, { sidebar: 232, sidebarOverflow: 0, entries: 2, mainLeft: 232, pageOverflow: 0 })
 })
 
 test('no page errors', () => {

@@ -27,6 +27,8 @@ export const SHELL = Object.freeze({
       minutes: '{n} 分钟',
       amount: '{amount} {currency}',
       asOf: '截至 {when}',
+      // v2 package K2: the corner drawn as the K1 draft has it — under each window's bar, when it resets
+      resetsAt: '{when} 重置',
     }),
   }),
 

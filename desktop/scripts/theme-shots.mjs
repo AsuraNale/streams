@@ -5,7 +5,7 @@
 // connection faked) — a fresh world and a fresh start of the app per theme, the theme written into settings.json first, so
 // every picture is the app's own first frame of that set, not a switch made on the page.
 //   npm run shots:themes                     → docs/shots/themes/<theme>/<screen>.png and docs/shots/themes/index.html
-//   -- --themes night,paper   only these     -- --screens today,ask   only these
+//   -- --themes glass,research   only these     -- --screens today,ask   only these
 // The screens: 今日, 待看, 资料库 with a note open, 来源与主题, 运行状态, 设置, 首次设置 (its first step), 问库 after one question,
 // 图谱, and the 许可证与致谢 dialog over 设置. index.html: one row per screen, the three sets in three columns, the set's
 // name under each picture. The worlds live under the OS temp folder and are removed after; the process trees are ended.
@@ -28,7 +28,8 @@ const H = 960
 const POLL = { polling: 100, timeout: 60_000 }
 
 // the sets' names as the settings page gives them (texts/settings.js, texts-en/settings.js)
-const NAMES = { river: '河蓝 River', paper: '素灰 Paper', night: '夜间 Night' }
+// v2 package K2: the three themes of now (their light set; scripts/shots-k2.mjs takes the K2 pictures, both appearances)
+const NAMES = { precision: '精密国际主义 Precision', glass: '澄明玻璃 Clear Glass', research: '研究对话 Research' }
 // each screen: its id on the page, its name in index.html, what the picture needs once the screen is ready
 const SCREENS = [
   // v2 package F: 今日 and 运行状态 are 概览 (the second scrolled to 「运行状态」), 来源与主题 is 来源与要求: `screen` is the page's data-screen
@@ -67,7 +68,7 @@ for (const theme of themes) {
     await seedPlanB(world)
     const env = { STREAMS_WINDOW: 'shown', STREAMS_START_SCREEN: 'today', STREAMS_DEV_CONNECTION: 'fake' }
     // the theme is the settings.json the app starts with: the first frame is that set (backgroundColor, the served data-theme)
-    const started = await launch(world, { env, settings: { theme, connections: { active: 'claude-code' } } })
+    const started = await launch(world, { env, settings: { theme, appearance: 'light', connections: { active: 'claude-code' } } })
     app = started.app
     const page = started.page
     const errors = []
@@ -122,8 +123,8 @@ ${THEME_IDS.map(t => `    <td><a href="${t}/${s.id}.png"><img src="${t}/${s.id}.
 </style>
 </head>
 <body>
-<h1>三套主题并排（河蓝 · 素灰 · 夜间）</h1>
-<p>同一个开发假库、同一组画面，每套主题各起一次真 Electron 窗口（1440×960）拍的，主题在启动前写进 settings.json，所以每张都是那一套的第一帧。点图看原尺寸。默认主题只在 <code>desktop/src/main/theme.mjs</code> 的 <code>DEFAULT_THEME</code> 一行，现在是 river。重拍：<code>cd desktop &amp;&amp; npm run shots:themes</code>。</p>
+<h1>三套主题并排（精密国际主义 · 澄明玻璃 · 研究对话，浅色）</h1>
+<p>同一个开发假库、同一组画面，每套主题各起一次真 Electron 窗口（1440×960）拍的，主题在启动前写进 settings.json，所以每张都是那一套的第一帧。点图看原尺寸。默认主题只在 <code>desktop/src/main/theme.mjs</code> 的 <code>DEFAULT_THEME</code> 一行，现在是 precision。重拍：<code>cd desktop &amp;&amp; npm run shots:themes</code>。</p>
 <table>
   <thead><tr><th></th>${THEME_IDS.map(t => `<th scope="col">${esc(NAMES[t])}</th>`).join('')}</tr></thead>
   <tbody>

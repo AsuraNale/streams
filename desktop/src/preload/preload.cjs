@@ -21,6 +21,7 @@ const METHODS = [
   'getAppState',
   'setLanguage',
   'setTheme',
+  'setAppearance',
   'setShowDeveloperInfo',
   'copyDiagnostics',
   'openMakerPage',

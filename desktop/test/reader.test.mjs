@@ -173,17 +173,18 @@ const CSS = 'body{}'
 
 test('the bar: the address escaped; 阅读模式 only when there is text; the fallback line only when it fell back; links only to its own actions', () => {
   const url = 'https://example.org/a?x="><script>alert(1)</script>'
-  const reading = barPage({ url, mode: 'reading', canRead: true, fallback: false, words: WORDS, theme: 'river', css: CSS })
+  const reading = barPage({ url, mode: 'reading', canRead: true, fallback: false, words: WORDS, look: { theme: 'precision', scheme: 'light' }, css: CSS })
   assert.ok(!reading.includes('<script>'), 'escaped')
   assert.ok(reading.includes('&lt;script&gt;'))
   assert.ok(!reading.includes(WORDS.fallback))
   assert.match(reading, /data-reader-action="reading" aria-current="true"/)
   assert.match(reading, new RegExp(`data-reader-action="original" href="${ACTION_ORIGIN}/original"`))
-  const fell = barPage({ url, mode: 'original', canRead: false, fallback: true, words: WORDS, theme: 'night', css: CSS })
+  const fell = barPage({ url, mode: 'original', canRead: false, fallback: true, words: WORDS, look: { theme: 'glass', scheme: 'dark' }, css: CSS })
   assert.ok(fell.includes(`data-reader-note role="status">${WORDS.fallback}<`))
   assert.match(fell, /data-reader-action="reading" aria-disabled="true"/)
-  assert.match(fell, /data-theme="night"/)
-  assert.match(barPage({ url, mode: 'original', canRead: true, fallback: false, words: WORDS, theme: 'bogus', css: CSS }), /data-theme="river"/, 'an unknown theme is the default')
+  // v2 package K2: the look is the theme and the appearance in force (was the theme id alone): both on <html>, both checked
+  assert.match(fell, /data-theme="glass" data-appearance="dark"/)
+  assert.match(barPage({ url, mode: 'original', canRead: true, fallback: false, words: WORDS, look: { theme: 'night', scheme: '"><b>' }, css: CSS }), /data-theme="precision" data-appearance="light"/, 'an unknown theme and scheme are the defaults')
   for (const page of [reading, fell]) for (const href of page.matchAll(/href="([^"]*)"/g)) assert.ok(href[1].startsWith(`${ACTION_ORIGIN}/`), href[1])
   assert.equal(WORDS.fallback, '这一页抽不出正文，显示的是原网页')
   assert.equal(readerWords('en').fallback.length > 0, true)
@@ -191,7 +192,7 @@ test('the bar: the address escaped; 阅读模式 only when there is text; the fa
 })
 
 test('the reading page: a CSP with no script, frame or form; the title escaped; the article as cleaned; a data: URL in base64', () => {
-  const html = readingPage({ article: { title: '<b>标题</b>', byline: '作者', siteName: '站', content: '<p>正文</p>', lang: 'zh-CN', dir: '' }, words: WORDS, theme: 'paper', css: CSS })
+  const html = readingPage({ article: { title: '<b>标题</b>', byline: '作者', siteName: '站', content: '<p>正文</p>', lang: 'zh-CN', dir: '' }, words: WORDS, look: { theme: 'research', scheme: 'light' }, css: CSS })
   assert.ok(html.includes(`content="${READER_PAGE_CSP}"`))
   assert.match(READER_PAGE_CSP, /default-src 'none'/)
   assert.doesNotMatch(READER_PAGE_CSP, /script-src/, 'no script source at all (default-src none)')
@@ -200,7 +201,7 @@ test('the reading page: a CSP with no script, frame or form; the title escaped; 
   assert.ok(html.includes('&lt;b&gt;标题&lt;/b&gt;'))
   assert.ok(html.includes('<p>正文</p>'))
   assert.ok(html.includes(`站 · 作者 · ${WORDS.readingNote}`))
-  assert.match(html, /data-theme="paper"/)
+  assert.match(html, /data-theme="research" data-appearance="light"/)
   const url = dataUrl(html)
   assert.ok(url.startsWith('data:text/html;charset=utf-8;base64,'))
   assert.equal(Buffer.from(url.split(',')[1], 'base64').toString('utf8'), html)

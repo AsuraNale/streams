@@ -1,6 +1,12 @@
-/* The component kit (src/renderer/kit/). Measurements from the shell this kit came from; colours only via tokens. */
+/* The component kit (src/renderer/kit/). Colours only via tokens.
+   v2 package K2: restyled after the approved design draft (docs/design/next/themes/css/app.css and themes.css, K1): the main
+   area lies flat on --st-page (no framed card), cards are --st-surface with --st-shadow-card and no border, controls are
+   --st-surface-2 without a border, the current place is --st-selected; the weights, the corners and the icon strokes come from
+   the theme's tokens. One set of components for all three themes: what differs is in the tokens, and the few marks of each
+   theme's own (精密国际主义's 3px bar, 澄明玻璃's glow, 研究对话's bookmark and underlined quiet buttons) are the last
+   section of this file. The class names and the structure are as they were. */
 
-/* ---- frame: 232px sidebar · main · (404px panel), 12px gutters ---------------------------------- */
+/* ---- frame: 232px sidebar · main · (panel) ---------------------------------------------------------- */
 .st-frame {
   display: grid;
   grid-template-columns: var(--st-col-sidebar) minmax(0, 1fr);
@@ -16,13 +22,11 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  margin: var(--st-gutter);
-  background: var(--st-surface);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius);
+  margin: 0;
+  background: var(--st-page);
 }
-.st-frame--panel > .st-main { margin-right: 0; }
-.st-panel { overflow: hidden; }
+/* the right panel: the sidebar's colour, as the draft's context panel */
+.st-panel { overflow: hidden; background: var(--st-sidebar); }
 .st-main__body,
 .st-panel__body { flex-grow: 1; min-height: 0; overflow: auto; }
 
@@ -32,56 +36,59 @@
   color: var(--st-sidebar-text);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 14px 10px;
+  gap: 3px;
+  padding: 18px 14px 12px;
   min-height: 0;
   overflow-y: auto;
 }
+/* the brand: the mark (the accent square), the name, 「STREAMS」 under it */
 .st-sidebar__brand {
-  display: flex;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 11px;
   align-items: center;
-  gap: 10px;
-  padding: 4px 8px 14px;
+  padding: 4px 4px 16px;
   border-bottom: 1px solid var(--st-sidebar-divider);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 .st-sidebar__mark {
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--st-radius);
-  background: var(--st-surface);
-  color: var(--st-sidebar-selected-title);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 14px;
+  grid-row: 1 / 3;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--st-radius-s);
+  background: var(--st-accent);
+  color: var(--st-on-accent);
+  font-weight: var(--st-weight-display);
+  font-size: 19px;
 }
-.st-sidebar__name { font-weight: 700; font-size: var(--st-fs-title); letter-spacing: 1px; }
-.st-sidebar__tagline { margin-left: auto; font-size: var(--st-fs-tiny); color: var(--st-sidebar-text-2); }
+.st-sidebar__name { align-self: end; font-size: 21px; font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); line-height: 1.15; }
+.st-sidebar__tagline { align-self: start; margin-top: 3px; font-size: var(--st-fs-tiny); font-weight: 500; letter-spacing: 0.14em; line-height: 1.3; color: var(--st-sidebar-text-2); }
 
 .st-sidebar__nav {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 10px;
-  margin-bottom: 6px;
-  border-radius: var(--st-radius);
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 11px;
+  border-radius: var(--st-radius-s);
   color: var(--st-sidebar-text);
+  font-weight: var(--st-weight-label);
   text-decoration: none;
 }
 .st-sidebar__new {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: var(--st-control-h);
-  padding: 0 10px;
-  border: 1px solid var(--st-sidebar-button-border);
-  border-radius: var(--st-radius);
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--st-radius-s);
   background: var(--st-sidebar-button);
   color: var(--st-sidebar-text);
+  font-weight: var(--st-weight-label);
   cursor: pointer;
 }
 /* the library line under the brand: the folder's name, or 「未打开库」 (kit/sidebar.js SidebarLibrary) */
@@ -89,10 +96,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
-  padding: 0 10px;
+  min-height: 34px;
+  padding: 0 11px;
   margin-bottom: 8px;
-  border-radius: var(--st-radius);
+  border-radius: var(--st-radius-s);
   background: var(--st-sidebar-button);
   color: var(--st-sidebar-text);
   font-size: var(--st-fs-small);
@@ -100,20 +107,23 @@
 .st-sidebar__library[data-library='none'] { color: var(--st-sidebar-text-2); }
 .st-sidebar__library-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-sidebar__group {
+  margin: 18px 0 7px;
+  padding: 0 11px;
   font-size: var(--st-fs-tiny);
+  font-weight: var(--st-weight-label);
+  letter-spacing: 0.04em;
   color: var(--st-sidebar-text-2);
-  letter-spacing: 1px;
-  padding: 14px 8px 4px;
 }
 .st-sidebar__project {
+  position: relative;
   display: block;
   padding: 8px 10px;
-  border-radius: var(--st-radius);
+  border-radius: var(--st-radius-s);
   color: var(--st-sidebar-text);
   text-decoration: none;
 }
 /* a long name without a break point wraps inside the 232px column (it must never widen it) */
-.st-sidebar__project-title { line-height: 1.45; overflow-wrap: anywhere; }
+.st-sidebar__project-title { line-height: 1.45; overflow-wrap: anywhere; font-weight: var(--st-weight-label); }
 .st-sidebar__project-sub span { min-width: 0; overflow-wrap: anywhere; }
 .st-sidebar__project-sub {
   display: flex;
@@ -124,25 +134,39 @@
   margin-top: 2px;
   color: var(--st-sidebar-text-2);
 }
+/* a count on an entry: 和主 Agent 聊's things waiting (amber, the draft's badge--wait) */
 .st-sidebar__badge {
   flex-shrink: 0;
-  color: var(--st-wait);
-  background: var(--st-wait-bg);
-  border-radius: var(--st-radius-xs);
+  min-width: 19px;
+  height: 19px;
   padding: 0 5px;
-  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--st-radius-xs);
+  background: var(--st-wait-bg);
+  color: var(--st-wait);
+  box-shadow: inset 0 0 0 1px var(--st-wait-border);
+  font: 600 var(--st-fs-tiny)/1 var(--st-font-mono);
 }
-.st-sidebar__spacer { flex-grow: 1; }
+.st-sidebar__spacer { flex-grow: 1; min-height: 16px; }
 .st-sidebar__footer-button {
-  height: var(--st-control-h);
-  padding: 0 10px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  margin-top: 9px;
+  padding: 0 11px;
   border: 0;
-  border-radius: var(--st-radius);
+  border-radius: var(--st-radius-s);
   background: transparent;
-  color: var(--st-sidebar-text-2);
+  color: var(--st-sidebar-text);
+  font-weight: var(--st-weight-label);
   text-align: left;
   cursor: pointer;
 }
+/* the line above 设置 (the draft's side-footer) */
+.st-sidebar__footer-button::before { content: ''; position: absolute; left: 0; right: 0; top: -5px; border-top: 1px solid var(--st-sidebar-divider); }
 .st-sidebar__note {
   padding: 10px 8px 4px;
   border-top: 1px solid var(--st-sidebar-divider);
@@ -150,62 +174,79 @@
   line-height: 1.6;
   color: var(--st-sidebar-text-2);
 }
-/* v2 package M: the corner above 设置 (kit/sidebar.js SidebarQuota), in the note's quiet style; the new themes restyle it in K2 */
+/* v2 package M: the corner above 设置 (kit/sidebar.js SidebarQuota). v2 package K2: the draft's small card — the title and
+   「截至 …」, then one row per window: its span, a bar, the per cent, when it resets under them */
 .st-sidebar__quota {
-  margin: 0 0 6px;
-  padding: 8px 8px 6px;
-  border-top: 1px solid var(--st-sidebar-divider);
+  margin: 0 0 4px;
+  padding: 10px 11px 9px;
+  border-radius: var(--st-radius-s);
+  background: var(--st-surface);
+  box-shadow: var(--st-shadow-card);
   font-size: var(--st-fs-tiny);
-  line-height: 1.6;
-  color: var(--st-sidebar-text-2);
+  line-height: 1.5;
+  color: var(--st-text-2);
 }
-.st-sidebar__quota-title { font-weight: 700; }
-.st-sidebar__quota-row { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* the current place: a white card */
+.st-sidebar__quota-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-bottom: 6px; }
+.st-sidebar__quota-title { color: var(--st-text); font-weight: var(--st-weight-label); font-size: var(--st-fs-small); }
+.st-sidebar__quota-as-of { color: var(--st-text-2); white-space: nowrap; }
+.st-sidebar__quota-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) 34px; align-items: center; column-gap: 7px; margin-top: 4px; }
+.st-sidebar__quota-span { color: var(--st-text); white-space: nowrap; }
+.st-sidebar__quota-track { position: relative; height: 5px; border-radius: var(--st-radius-xs); background: var(--st-step-todo); overflow: hidden; }
+.st-sidebar__quota-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--st-accent); }
+.st-sidebar__quota-pct { font-family: var(--st-font-mono); text-align: right; color: var(--st-text); }
+.st-sidebar__quota-when { grid-column: 2 / 4; color: var(--st-text-2); }
+.st-sidebar__quota-money { display: block; font: 600 18px/1.3 var(--st-font-mono); color: var(--st-text); }
+
+/* hover and the current place: --st-selected (the draft's --pick) */
+.st-sidebar__nav:hover,
+.st-sidebar__lib:hover,
+.st-sidebar__add:hover,
+.st-sidebar__project:hover,
+.st-sidebar__footer-button:hover { background: var(--st-selected); color: var(--st-sidebar-text); }
 .st-sidebar__nav[aria-current],
 .st-sidebar__new[aria-current],
 .st-sidebar__project[aria-current],
 .st-sidebar__footer-button[aria-current] {
-  background: var(--st-surface);
+  background: var(--st-selected);
   color: var(--st-sidebar-selected-title);
-  font-weight: 700;
 }
-.st-sidebar__new[aria-current] { border-color: var(--st-surface); }
-.st-sidebar__project[aria-current] { font-weight: 400; }
-.st-sidebar__project[aria-current] .st-sidebar__project-title { font-weight: 700; }
 .st-sidebar__project[aria-current] .st-sidebar__project-sub { color: var(--st-sidebar-selected-sub); }
-.st-sidebar__project[aria-current] .st-sidebar__badge { background: transparent; padding: 0; }
-.st-sidebar :focus-visible { outline-color: var(--st-surface); }
+.st-sidebar :focus-visible { outline-color: var(--st-focus); }
 
 /* v2 (package F, plan B): 「我的库」 — one line per library (its mark, its name, an amber dot, its 待看 count), 「+ 新建库」 */
 .st-sidebar__nav .st-sidebar__nav-text { flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.st-sidebar__libs { display: flex; flex-direction: column; gap: 2px; }
+.st-sidebar__libs { display: flex; flex-direction: column; gap: 3px; }
 .st-sidebar__lib {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 4px 10px;
-  border-radius: var(--st-radius);
+  gap: 10px;
+  min-height: 40px;
+  padding: 7px 10px;
+  border-radius: var(--st-radius-s);
   color: var(--st-sidebar-text);
+  font-weight: var(--st-weight-label);
   text-decoration: none;
 }
 .st-sidebar__lib-name { flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.st-sidebar__lib[aria-current] { background: var(--st-surface); color: var(--st-sidebar-selected-title); font-weight: 700; }
-.st-sidebar__lib:hover:not([aria-current]), .st-sidebar__nav:hover:not([aria-current]), .st-sidebar__add:hover { background: var(--st-sidebar-button); color: var(--st-sidebar-text); }
-.st-sidebar__lib .st-lib-mark { box-shadow: 0 0 0 1px var(--st-sidebar-button-border); }
-.st-sidebar__dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--st-wait-border); box-shadow: 0 0 0 1px var(--st-wait); }
+.st-sidebar__lib[aria-current] { background: var(--st-selected); color: var(--st-sidebar-selected-title); }
+.st-sidebar__lib .st-lib-mark { width: 24px; height: 24px; font-size: 12px; }
+/* a library's 待看 count: quiet digits (the draft's .count) */
+.st-sidebar__lib .st-sidebar__badge { min-width: 0; height: auto; padding: 0; background: transparent; box-shadow: none; color: var(--st-sidebar-text-2); font-weight: 400; }
+.st-sidebar__dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--st-wait); }
 .st-sidebar__add {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: var(--st-radius);
-  color: var(--st-sidebar-text-2);
+  gap: 10px;
+  min-height: 38px;
+  margin-top: 8px;
+  padding: 0 11px;
+  border-radius: var(--st-radius-s);
+  background: var(--st-sidebar-button);
+  color: var(--st-sidebar-text);
+  font-weight: var(--st-weight-label);
   text-decoration: none;
 }
-.st-sidebar__footer-button { display: flex; align-items: center; gap: 8px; }
 
 /* a library's mark: its one or two characters on a square of its colour (kit/library-sections.js LibraryMark) */
 .st-lib-mark {
@@ -213,7 +254,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--st-radius);
+  border-radius: var(--st-radius-xs);
   color: var(--st-on-lib);
   background: var(--st-lib-river);
   font-weight: 700;
@@ -223,68 +264,67 @@
 .st-lib-mark--violet { background: var(--st-lib-violet); }
 .st-lib-mark--green { background: var(--st-lib-green); }
 .st-lib-mark--muted { background: var(--st-lib-muted); }
-.st-lib-mark--s { width: 20px; height: 20px; font-size: var(--st-fs-tiny); border-radius: var(--st-radius-s); }
-.st-lib-mark--m { width: 30px; height: 30px; font-size: var(--st-fs-title); }
-.st-lib-mark--l { width: 40px; height: 40px; font-size: 18px; }
+.st-lib-mark--s { width: 20px; height: 20px; font-size: var(--st-fs-tiny); }
+.st-lib-mark--m { width: 30px; height: 30px; font-size: 15px; border-radius: var(--st-radius-s); }
+.st-lib-mark--l { width: 40px; height: 40px; font-size: 18px; border-radius: var(--st-radius-s); }
 
 /* a library's five parts as tabs across its page (plan B; kit/library-sections.js LibrarySections layout="tabs") */
-.st-lib-tabs { display: flex; align-items: stretch; gap: 4px; padding: 0 14px; border-bottom: 1px solid var(--st-border); background: var(--st-surface); }
+.st-lib-tabs { display: flex; align-items: center; gap: 4px; padding: 0 28px 12px; border-bottom: 1px solid var(--st-divider); background: var(--st-page); }
 .st-lib-tabs__tab {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  height: 38px;
-  padding: 0 12px;
+  min-height: 34px;
+  padding: 0 13px;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--st-radius-s);
   background: transparent;
-  color: var(--st-text-2);
+  color: var(--st-text);
+  font-weight: var(--st-weight-label);
+  white-space: nowrap;
   cursor: pointer;
 }
-.st-lib-tabs__tab:hover { color: var(--st-text); }
-.st-lib-tabs__tab[aria-current] { color: var(--st-accent); border-bottom-color: var(--st-accent); font-weight: 700; }
-.st-lib-tabs__badge { color: var(--st-wait); background: var(--st-wait-bg); border-radius: var(--st-radius-xs); padding: 0 5px; font-size: var(--st-fs-tiny); font-weight: 700; }
+.st-lib-tabs__tab:hover { background: var(--st-selected); }
+.st-lib-tabs__tab[aria-current] { background: var(--st-selected); }
+/* the 待看 count after the tab's name (the draft's tab-count) */
+.st-lib-tabs__badge { font: 500 var(--st-fs-tiny)/1 var(--st-font-mono); color: var(--st-wait); }
 
-/* ---- top bar --------------------------------------------------------------------------------------- */
+/* ---- top bar: the draft's work-header — on the page, the title in the display weight ------------------- */
 .st-topbar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--st-border);
-  background: var(--st-surface-2);
+  align-items: flex-start;
+  gap: 16px;
+  padding: 22px 28px 14px;
+  background: var(--st-page);
 }
 .st-topbar__text { flex-grow: 1; min-width: 0; overflow-wrap: anywhere; }
-.st-topbar__title { margin: 0; font-size: var(--st-fs-title); font-weight: 700; }
-.st-topbar__subtitle { font-size: var(--st-fs-small); color: var(--st-text-2); }
+.st-topbar__title { margin: 0; font-size: var(--st-fs-title); font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); line-height: 1.35; }
+.st-topbar__subtitle { margin-top: 3px; font-size: var(--st-fs-small); color: var(--st-text-2); }
 
-/* ---- buttons ---------------------------------------------------------------------------------------- */
+/* ---- buttons: the draft's .btn — no border; secondary on --st-surface-2, primary on the accent ----------- */
 .st-button {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   height: var(--st-control-h);
-  padding: 0 14px;
-  border: 1px solid var(--st-control-border);
+  padding: 0 16px;
+  border: 0;
   border-radius: var(--st-radius-s);
-  background: var(--st-surface);
+  background: var(--st-surface-2);
   color: var(--st-text);
+  font-weight: var(--st-weight-label);
   white-space: nowrap;
   cursor: pointer;
 }
-.st-button:hover { background: var(--st-surface-2); }
-.st-button--primary {
-  padding: 0 16px;
-  border: 0;
-  background: var(--st-accent);
-  color: var(--st-on-accent);
-  font-weight: 700;
-}
-.st-button--primary:hover { background: var(--st-accent-hover); }
+.st-button:hover:not(:disabled) { background: var(--st-selected); }
+.st-button--primary { background: var(--st-accent); color: var(--st-on-accent); border-radius: var(--st-radius-key); }
+.st-button--primary:hover:not(:disabled) { background: var(--st-accent-hover); }
+.st-button:active:not(:disabled) { transform: scale(0.985); }
 .st-button--wide { padding: 0 24px; }
-.st-button:disabled { opacity: 0.5; cursor: default; }
+.st-button:disabled { background: var(--st-surface-2); color: var(--st-text-2); cursor: default; }
 
 /* a plain text button that looks like a link */
 .st-link-button {
@@ -293,97 +333,97 @@
   background: transparent;
   color: var(--st-accent);
   text-decoration: underline;
+  text-decoration-color: var(--st-control-border);
+  text-underline-offset: 4px;
   cursor: pointer;
 }
-.st-link-button:hover { color: var(--st-accent-hover); }
+.st-link-button:hover { color: var(--st-accent-hover); text-decoration-color: currentColor; }
 
-/* ---- panel tabs ------------------------------------------------------------------------------------- */
-.st-tabs { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; border-bottom: 1px solid var(--st-border); }
+/* ---- panel tabs (the draft's panel-tabs) ------------------------------------------------------------- */
+.st-tabs { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 3px; padding: 12px 12px 8px; }
 .st-tabs__tab {
-  height: var(--st-control-h);
+  min-height: 36px;
   border: 0;
-  background: var(--st-surface-2);
-  color: var(--st-text-2);
+  border-radius: var(--st-radius-s);
+  background: transparent;
+  color: var(--st-text);
+  font-size: var(--st-fs-small);
+  font-weight: var(--st-weight-label);
   cursor: pointer;
 }
-.st-tabs__tab[aria-current] {
-  border-bottom: 2px solid var(--st-accent);
-  background: var(--st-surface);
-  color: var(--st-text);
-  font-weight: 700;
-}
+.st-tabs__tab:hover { background: var(--st-selected); }
+.st-tabs__tab[aria-current] { background: var(--st-selected); }
 
-/* ---- card frame (cards with a head line) ----------------------------------------------------- */
+/* ---- card frame (cards with a head line): the draft's confirmation card -------------------------------- */
 .st-cardframe {
-  border: 1px solid var(--st-border);
-  border-top: 4px solid var(--st-wait);
-  border-radius: var(--st-radius-s);
+  border-radius: var(--st-radius);
   background: var(--st-surface);
+  box-shadow: var(--st-shadow-card);
+  overflow: hidden;
 }
-.st-cardframe--answered { border-top-color: var(--st-line-todo); }
-.st-cardframe--plain { border-top-width: 1px; border-top-color: var(--st-border); }
+.st-cardframe--answered { opacity: 0.92; }
+.st-cardframe--plain { box-shadow: inset 0 0 0 1px var(--st-border); }
 .st-cardframe__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--st-divider);
+  padding: 10px 16px;
   background: var(--st-card-head);
 }
-.st-cardframe__label { font-size: var(--st-fs-small); font-weight: 700; color: var(--st-text-2); }
-.st-cardframe__status { display: inline-flex; align-items: center; gap: 5px; font-size: var(--st-fs-small); font-weight: 700; color: var(--st-wait); }
+.st-cardframe__label { font-size: var(--st-fs-small); font-weight: var(--st-weight-label); color: var(--st-text-2); }
+.st-cardframe__status { display: inline-flex; align-items: center; gap: 5px; font-size: var(--st-fs-small); font-weight: var(--st-weight-label); color: var(--st-wait); }
 .st-cardframe--answered .st-cardframe__status { color: var(--st-done); }
-.st-cardframe__body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.st-cardframe__body { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
 
 /* ---- steps: the small squares (and the bars of the progress panel) ------------------------------------ */
 .st-steps { display: flex; gap: var(--st-step-gap); align-items: center; }
-.st-step { display: block; width: var(--st-step); height: var(--st-step); background: var(--st-step-todo); }
+.st-step { display: block; width: var(--st-step); height: var(--st-step); border-radius: var(--st-radius-xs); background: var(--st-step-todo); }
 .st-step--bar { width: auto; }
 .st-step--done { background: var(--st-accent); }
 .st-step--done-past { background: var(--st-step-done-past); }
-.st-step--active { border: 2px dashed var(--st-accent); background: var(--st-active-fill); }
-.st-step--awaiting { border: 2px solid var(--st-wait); background: var(--st-wait-bg); }
+.st-step--active { background: var(--st-surface); box-shadow: inset 0 0 0 1.5px var(--st-accent); }
+.st-step--awaiting { background: var(--st-wait-bg); box-shadow: inset 0 0 0 1.5px var(--st-wait); }
 .st-step--todo { background: var(--st-step-todo); }
 
 /* one row per stage: name over its squares */
 .st-stagerow { display: flex; gap: 22px; font-size: var(--st-fs-tiny); line-height: 1.3; }
 .st-stagerow__stage { display: flex; flex-direction: column; gap: 4px; }
-.st-stagerow__name { color: var(--st-text-3); }
-.st-stagerow__name--current { color: var(--st-text); font-weight: 700; }
+.st-stagerow__name { color: var(--st-text-2); }
+.st-stagerow__name--current { color: var(--st-text); font-weight: var(--st-weight-label); }
 
-/* ---- tags --------------------------------------------------------------------------------------------- */
+/* ---- tags: small labels on the theme's smallest corner, no border (the draft's .fresh, .status-pill) ------ */
 .st-tag {
   flex-shrink: 0;
   font-size: var(--st-fs-small);
-  font-weight: 700;
-  border: 1px solid transparent;
-  border-radius: var(--st-radius-s);
+  font-weight: var(--st-weight-label);
+  border: 0;
+  border-radius: var(--st-radius-xs);
   padding: 1px 8px;
+  background: var(--st-surface-2);
+  color: var(--st-text-2);
 }
-.st-tag--wait { color: var(--st-wait); border-color: var(--st-wait-border); background: var(--st-wait-bg); }
-.st-tag--done { color: var(--st-done); border-color: var(--st-done-border); background: var(--st-done-bg); }
+.st-tag--wait { color: var(--st-wait); background: var(--st-wait-bg); box-shadow: inset 0 0 0 1px var(--st-wait-border); }
+.st-tag--done { color: var(--st-done); background: var(--st-done-bg); }
 .st-tag--recommend {
   font-size: var(--st-fs-tiny);
   font-weight: 400;
   line-height: 18px;
   padding: 0 6px;
-  border: 0;
-  border-radius: var(--st-radius-xs);
   background: var(--st-accent);
   color: var(--st-on-accent);
 }
 
-/* ---- notices ------------------------------------------------------------------------------------------- */
-.st-notice { padding: 8px 10px; border: 1px solid; border-radius: var(--st-radius-s); }
-.st-notice--wait { border-color: var(--st-wait-border); background: var(--st-wait-bg); }
-.st-notice--plain { border-color: var(--st-divider); background: var(--st-surface-2); color: var(--st-text-2); font-size: var(--st-fs-small); }
+/* ---- notices (the draft's banner) ---------------------------------------------------------------------- */
+.st-notice { padding: 10px 12px; border: 0; border-radius: var(--st-radius-s); }
+.st-notice--wait { background: var(--st-wait-bg); box-shadow: inset 0 0 0 1px var(--st-wait-border); }
+.st-notice--plain { background: var(--st-surface-2); color: var(--st-text-2); font-size: var(--st-fs-small); }
 
-/* ---- icons --------------------------------------------------------------------------------------------- */
-.st-icon { flex-shrink: 0; }
+/* ---- icons: the theme's line ends, corners and weight (the draft's .ico) ---------------------------------- */
+.st-icon { flex-shrink: 0; stroke-width: var(--st-icon-weight); stroke-linecap: var(--st-icon-cap); stroke-linejoin: var(--st-icon-join); }
 
 /* ---- the steps of a step-by-step sidebar (a first-run wizard, when there is one) ---------------------------------------- */
-.st-sidebar__step { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: var(--st-radius); color: var(--st-sidebar-text); }
+.st-sidebar__step { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: var(--st-radius-s); color: var(--st-sidebar-text); }
 .st-sidebar__step-mark {
   flex-shrink: 0;
   width: 20px;
@@ -397,9 +437,9 @@
 }
 .st-sidebar__step-name { line-height: 1.45; }
 .st-sidebar__step-sub { font-size: var(--st-fs-tiny); color: var(--st-sidebar-text-2); margin-top: 2px; }
-.st-sidebar__step--current { background: var(--st-surface); color: var(--st-sidebar-selected-title); }
+.st-sidebar__step--current { background: var(--st-selected); color: var(--st-sidebar-selected-title); }
 .st-sidebar__step--current .st-sidebar__step-mark { background: var(--st-accent); color: var(--st-on-accent); font-weight: 700; }
-.st-sidebar__step--current .st-sidebar__step-name { font-weight: 700; }
+.st-sidebar__step--current .st-sidebar__step-name { font-weight: var(--st-weight-label); }
 .st-sidebar__step--current .st-sidebar__step-sub { color: var(--st-sidebar-selected-sub); }
 .st-sidebar__step--todo .st-sidebar__step-mark { border: 1.5px solid var(--st-sidebar-text-2); color: var(--st-sidebar-text-2); }
 .st-sidebar__step--done .st-sidebar__step-mark { background: var(--st-sidebar-text-2); color: var(--st-sidebar); }
@@ -410,13 +450,67 @@
   align-items: center;
   gap: 5px;
   font-size: var(--st-fs-small);
-  font-weight: 700;
+  font-weight: var(--st-weight-label);
   padding: 1px 8px;
-  border-radius: var(--st-radius-s);
+  border-radius: var(--st-radius-xs);
 }
-.st-fetch::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.st-fetch::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .st-fetch--ok { color: var(--st-fetch-ok); background: var(--st-fetch-ok-bg); }
 .st-fetch--empty { color: var(--st-fetch-empty); background: var(--st-fetch-empty-bg); }
 .st-fetch--gap { color: var(--st-fetch-gap); background: var(--st-fetch-gap-bg); }
 .st-fetch--failed { color: var(--st-fetch-failed); background: var(--st-fetch-failed-bg); }
 .st-fetch--blocked { color: var(--st-fetch-blocked); background: var(--st-fetch-blocked-bg); }
+
+/* ==== v2 package K2: each theme's own marks (the draft's css/themes.css), colours from the tokens ==================== */
+/* the current thing of a list: the library in the sidebar, the card under the keys in 待看, a row of a list */
+/* 精密国际主义 (the default): square corners, a 3px bar on the left of the current thing, a dashed focus ring */
+:root[data-theme='precision'] :is(.st-sidebar__lib[aria-current], .st-sidebar__project[aria-current], .inbox-card--current, .lib-row--current .lib-row__link) { box-shadow: inset 3px 0 var(--st-accent); }
+:root[data-theme='precision'] .settings__theme[data-checked='true'] { box-shadow: inset 3px 0 var(--st-accent), inset 0 0 0 1px var(--st-accent); }
+:root[data-theme='precision'] :focus-visible { outline: 2px dashed var(--st-focus); }
+:root[data-theme='precision'] :is(.st-lib-tabs__tab, .st-tabs__tab)[aria-current] { box-shadow: inset 0 -2px var(--st-accent); }
+:root[data-theme='precision'] .st-sidebar__name { letter-spacing: -0.04em; }
+:root[data-theme='precision'] .st-step { border-radius: 0; }
+:root[data-theme='precision'] .settings__group-name { padding-bottom: 6px; border-bottom: 1px solid var(--st-divider); }
+
+/* 澄明玻璃: round corners, the current thing a glow of the selected colour toward violet with a 2px light on its left,
+   secondary buttons as pills, round marks */
+:root[data-theme='glass'] :is(.st-sidebar__lib[aria-current], .st-sidebar__nav[aria-current], .st-sidebar__footer-button[aria-current], .st-sidebar__project[aria-current], .inbox-card--current, .lib-row--current .lib-row__link) {
+  background: linear-gradient(105deg, var(--st-selected), color-mix(in srgb, var(--st-selected) 85%, var(--st-accent-alt)));
+  box-shadow: inset 2px 0 var(--st-accent);
+}
+:root[data-theme='glass'] .inbox-card--current { box-shadow: inset 2px 0 var(--st-accent), var(--st-shadow-card); }
+:root[data-theme='glass'] .st-tabs { padding: 4px; margin: 12px 12px 8px; border-radius: var(--st-radius); background: var(--st-surface-2); }
+:root[data-theme='glass'] .st-tabs__tab[aria-current] { background: var(--st-surface); box-shadow: var(--st-shadow-card); }
+:root[data-theme='glass'] .st-button:not(.st-button--primary) { border-radius: 999px; }
+:root[data-theme='glass'] :is(.st-sidebar__mark, .agent-av, .ask-a__mark) { border-radius: 50%; }
+:root[data-theme='glass'] .st-lib-mark { border-radius: 8px; }
+:root[data-theme='glass'] .st-sidebar__name { -webkit-text-stroke: 0.18px currentColor; }
+:root[data-theme='glass'] .settings__theme[data-checked='true'] { box-shadow: inset 0 0 0 2px var(--st-accent), var(--st-shadow-card); }
+
+/* 研究对话: a bookmark on the right top corner of the current thing, quiet buttons as underlined words, 3px primary corners */
+:root[data-theme='research'] :is(.st-sidebar__lib[aria-current], .st-sidebar__project[aria-current], .inbox-card--current, .lib-row--current .lib-row__link)::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 10px;
+  width: 8px;
+  height: 14px;
+  background: var(--st-accent);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%);
+  pointer-events: none;
+}
+:root[data-theme='research'] :is(.inbox-card__actions, .pc-actions, .sc-actions) .st-button:not(.st-button--primary) {
+  background: transparent;
+  padding-inline: 6px;
+  color: var(--st-accent);
+  text-decoration: underline;
+  text-decoration-color: var(--st-control-border);
+  text-underline-offset: 4px;
+}
+:root[data-theme='research'] :is(.inbox-card__actions, .pc-actions, .sc-actions) .st-button:not(.st-button--primary):hover:not(:disabled) { background: var(--st-selected); }
+:root[data-theme='research'] :is(.st-lib-tabs__tab, .st-tabs__tab)[aria-current] { box-shadow: inset 0 -3px var(--st-accent); border-radius: var(--st-radius-s) var(--st-radius-s) 0 0; }
+:root[data-theme='research'] :is(.chat-me, .ask-q) { border-radius: 14px 14px 3px 14px; }
+:root[data-theme='research'] .settings__theme[data-checked='true'] { box-shadow: inset 0 0 0 1px var(--st-accent), inset 0 -3px var(--st-accent); }
+:root[data-theme='glass'] :is(.chat-me, .ask-q) { border-radius: 17px 17px 4px 17px; }
+/* the bookmark sits where the count would be: make room for it (the draft's padding-right: 28px) */
+:root[data-theme='research'] :is(.st-sidebar__lib[aria-current], .inbox-card--current) { padding-right: 28px; }

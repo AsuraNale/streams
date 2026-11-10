@@ -30,7 +30,8 @@
 //       reader-reading   the reading window in 阅读模式 (its bar and its page laid one above the other by the script)
 //       reader-fallback  the reading window on a page with no text: the original page and the line saying so
 //       inbox-ai         待看 with the 「写给 AI 的话」 mark on one card
-//   --theme river | paper | night   the theme settings.json starts with (default: the app's default)
+//   --theme precision | glass | research   the theme settings.json starts with (default: the app's default; v2 package K2:
+//                  the three new themes — v1.0's ids are migrated when read; the K2 pictures: scripts/shots-k2.mjs)
 //   --lang en      the app in English            --out <file.png>   where the picture goes
 // The app runs on a world under the OS temp folder, removed after; the process tree is ended (scripts/lib/close-app.mjs).
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'

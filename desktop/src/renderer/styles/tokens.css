@@ -1,219 +1,536 @@
-/* Design tokens of 流息 Streams — the names follow the shell's kit (docs/tokens.md is the list: name · value ·
-   where it is used); the values are the product plan's palette (方案/src/head.html: bg, surface, sunk, sunk2, ink,
-   muted, faint, rule, river, green, amber, red, violet, shadow). Use these names; do not repeat a colour in a
-   component or screen file (test/kit.test.mjs). Changing the look = changing the values here, nothing else.
-   Three sets (plan 5.6 D5; docs/desktop.md §五「主题」): :root is 河蓝 river, the set the app always had; 素灰 paper and
-   夜间 night override only the values they change, on <html data-theme="…"> (the main process serves index.html with the
-   attribute, so the first frame is already the set chosen). The names are the same in all three. */
+/* Design tokens of 流息 Streams — GENERATED, do not edit: desktop/scripts/gen-tokens.mjs writes this file from the approved
+   design draft's one token data source, docs/design/next/themes/tools/tokens-data.mjs (v2 package K2; docs/tokens.md is
+   the list: name · value per set · where it comes from). Use these names; no colour is written in any other style file
+   (test/kit.test.mjs). Three themes (精密国际主义 precision, the default · 澄明玻璃 glass · 研究对话 research) × light / dark
+   = six sets, all with the same names; the page says which on <html data-theme="…" data-appearance="light|dark"> (the main
+   process serves index.html with both, so the first frame is already the set in force: main/theme.mjs withTheme). */
+
 :root {
-  color-scheme: light;
-  /* the identity colour: the sidebar and the accent (river, the plan's primary) */
-  --st-sidebar: #1F6E8C;             /* river */
-  --st-accent: #1F6E8C;              /* river */
-  --st-accent-hover: #1A5E77;        /* river, one step darker (derived) */
-  --st-on-accent: #FFFFFF;           /* river-ink: the words of a primary button and the other marks on the accent */
-  --st-on-accent-2: #E1EEF4;         /* river-soft: light words on the accent */
-
-  /* text */
-  --st-text: #16222B;                /* ink */
-  --st-text-2: #56646F;              /* muted */
-  --st-text-3: #8794A0;              /* faint */
-  --st-text-dark-2: #56646F;         /* muted */
-  --st-line-todo: #8794A0;           /* faint */
-
-  /* lines and surfaces */
-  --st-page: #F2F5F7;                /* bg */
-  --st-surface: #FFFFFF;             /* surface */
-  --st-surface-2: #E9EEF2;           /* sunk */
-  --st-card-head: #E9EEF2;           /* sunk */
-  --st-table-head: #DFE6EB;          /* sunk2 */
-  --st-row-head: #E9EEF2;            /* sunk */
-  --st-border: #D5DEE4;              /* rule */
-  --st-control-border: #D5DEE4;      /* rule */
-  --st-divider: #D5DEE4;             /* rule */
-  --st-divider-soft: #DFE6EB;        /* sunk2 */
-
-  /* sidebar (on river): white words, river-soft for the second line; the lighter lines and buttons are white at an
-     opacity, so they follow whatever --st-sidebar becomes */
-  --st-sidebar-text: #FFFFFF;        /* river-ink */
-  --st-sidebar-text-2: #E1EEF4;      /* river-soft */
-  --st-sidebar-divider: rgba(255, 255, 255, 0.22);
-  --st-sidebar-button: rgba(255, 255, 255, 0.12);
-  --st-sidebar-button-border: rgba(255, 255, 255, 0.35);
-  --st-sidebar-selected-title: #1F6E8C;   /* river, on the white card of the current entry */
-  --st-sidebar-selected-sub: #56646F;     /* muted */
-
-  /* states: waiting for the user (amber), done / kept (green), something wrong (red) */
-  --st-wait: #9A6412;                /* amber */
-  --st-wait-bg: #FBF0DA;             /* amber-soft */
-  --st-wait-border: #E7CC95;         /* amber-rule */
-  --st-done: #237A5B;                /* green */
-  --st-done-bg: #DDF1E8;             /* green-soft */
-  --st-done-border: #237A5B;         /* green */
-  --st-danger: #B23E36;              /* red */
-  --st-danger-bg: #F8E2DF;           /* red-soft */
-  --st-active-fill: #E1EEF4;         /* river-soft */
-  --st-step-todo: #DFE6EB;           /* sunk2 */
-  --st-step-done-past: #8794A0;      /* faint */
-  /* the second accent (violet): marks on the graph and the ask page, never a state */
-  --st-accent-alt: #5B4FA8;          /* violet */
-  --st-accent-alt-soft: #E8E5F6;     /* violet-soft */
-
-  /* the five fetch states of a source (plan 1.7: 正常 · 没新内容 · 地址有问题 · 暂时失败 · 被拒绝) */
-  --st-fetch-ok: #237A5B;            /* green */
-  --st-fetch-ok-bg: #DDF1E8;         /* green-soft */
-  --st-fetch-empty: #56646F;         /* muted */
-  --st-fetch-empty-bg: #E9EEF2;      /* sunk */
-  --st-fetch-gap: #9A6412;           /* amber */
-  --st-fetch-gap-bg: #FBF0DA;        /* amber-soft */
-  --st-fetch-failed: #9A6412;        /* amber */
-  --st-fetch-failed-bg: #FBF0DA;     /* amber-soft */
-  --st-fetch-blocked: #B23E36;       /* red */
-  --st-fetch-blocked-bg: #F8E2DF;    /* red-soft */
-
-  /* charts: river and four lighter steps of it (derived), the rest from the palette */
-  --st-chart-against: #B23E36;       /* red */
-  --st-chart-background: #DFE6EB;    /* sunk2 */
-  --st-chart-gap: #8794A0;           /* faint */
-  --st-chart-1: #1F6E8C;
-  --st-chart-2: #4A8AA3;
-  --st-chart-3: #78A7BA;
-  --st-chart-4: #A6C4D1;
-  --st-chart-5: #D3E1E8;
-
-  /* a library's colour (v2 package A: the registry names one of core LIBRARY_COLORS; package F draws it): the square of its
-     mark in the sidebar, the shelf and its page's head, and the words on it (each pair at least 4.5 : 1 in every set) */
-  --st-lib-river: #1F6E8C;           /* river: 5.73 : 1 with on-lib */
-  --st-lib-violet: #5B4FA8;          /* violet: 6.71 : 1 */
-  --st-lib-green: #237A5B;           /* green: 5.24 : 1 */
-  --st-lib-muted: #56646F;           /* muted: 6.09 : 1 */
-  --st-on-lib: #FFFFFF;              /* river-ink */
-
-  /* the dim behind a dialog and the shadow of a menu (ink at an opacity; the plan's shadow) */
-  --st-scrim: rgba(22, 34, 43, 0.38);
-  --st-shadow-menu: 0 1px 2px rgba(22, 34, 43, 0.06), 0 8px 24px rgba(22, 34, 43, 0.07);
-
-  /* type (the maintainer 11-02: the font stays the shell's) */
-  --st-font: 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans SC', sans-serif;
-  --st-font-mono: 'Cascadia Mono', Consolas, ui-monospace, monospace;
-  --st-fs-body: 13px;
   --st-fs-small: 12px;
   --st-fs-tiny: 11px;
-  --st-fs-title: 15px;
-  --st-fs-heading: 16px;
-  --st-lh: 1.55;
-
-  /* shape */
-  --st-radius: 4px;
-  --st-radius-s: 3px;
-  --st-radius-xs: 2px;
-  --st-control-h: 40px;
+  --st-fs-title: 22px;
+  --st-fs-heading: 26px;
+  --st-lh: 1.65;
+  --st-control-h: 38px;
   --st-gutter: 12px;
   --st-col-sidebar: 232px;
-  --st-col-panel: 404px;
+  --st-col-panel: 380px;
   --st-step: 8px;
   --st-step-gap: 3px;
 }
 
-/* 素灰 paper: river's light page with a light sidebar — the sidebar on sunk, its words ink and muted; its lines and buttons
-   are ink at an opacity (white at an opacity cannot be seen on a light sidebar). The current entry stays a white card with
-   river words, and the accent stays river. Amber and green one step darker than river's (river's amber on amber-soft is
-   4.42 : 1, its green on green-soft 4.45 : 1, under the 4.5 the three sets are held to; river itself keeps the plan's values).
-   Everything else is river's. */
-:root[data-theme="paper"] {
+/* 精密国际主义 precision */
+:root, [data-theme="precision"] {
   color-scheme: light;
-  --st-sidebar: #E9EEF2;             /* sunk */
-  --st-sidebar-text: #16222B;        /* ink */
-  --st-sidebar-text-2: #56646F;      /* muted */
-  --st-sidebar-divider: rgba(22, 34, 43, 0.14);
-  --st-sidebar-button: rgba(22, 34, 43, 0.05);
-  --st-sidebar-button-border: rgba(22, 34, 43, 0.24);
-  --st-wait: #956112;                /* amber, one step darker (derived): 4.65 : 1 on amber-soft */
-  --st-done: #22765A;                /* green, one step darker (derived): 4.68 : 1 on green-soft */
-  --st-done-border: #22765A;
-  --st-fetch-ok: #22765A;
-  --st-fetch-gap: #956112;
-  --st-fetch-failed: #956112;
+  --st-page: #F6F6F3;
+  --st-surface: #FCFCFA;
+  --st-surface-2: #E9E9E6;
+  --st-card-head: #E9E9E6;
+  --st-table-head: #E9E9E6;
+  --st-row-head: #F0F0ED;
+  --st-selected: #E4E4E2;
+  --st-active-fill: #E4E4E2;
+  --st-border: rgba(36, 36, 36, 0.12);
+  --st-control-border: rgba(36, 36, 36, 0.18);
+  --st-divider: rgba(36, 36, 36, 0.12);
+  --st-divider-soft: rgba(36, 36, 36, 0.07);
+  --st-sidebar: #F0F0ED;
+  --st-sidebar-text: #242424;
+  --st-sidebar-text-2: #555555;
+  --st-sidebar-divider: rgba(36, 36, 36, 0.12);
+  --st-sidebar-button: #E9E9E6;
+  --st-sidebar-button-border: transparent;
+  --st-sidebar-selected-title: #242424;
+  --st-sidebar-selected-sub: #555555;
+  --st-text: #242424;
+  --st-text-2: #555555;
+  --st-text-3: #787878;
+  --st-text-dark-2: #555555;
+  --st-line-todo: #787878;
+  --st-accent: #363636;
+  --st-accent-hover: #343434;
+  --st-on-accent: #FFFFFF;
+  --st-on-accent-2: #D3D3D3;
+  --st-focus: #363636;
+  --st-wait: #8F5D10;
+  --st-wait-bg: #EFE9DE;
+  --st-wait-border: #D6C4A8;
+  --st-done: #21714F;
+  --st-done-bg: #E2EBE5;
+  --st-done-border: #21714F;
+  --st-danger: #A93A33;
+  --st-danger-bg: #F2E5E2;
+  --st-step-todo: #E9E9E6;
+  --st-step-done-past: #787878;
+  --st-accent-alt: #5B4FA8;
+  --st-accent-alt-soft: #E9E7F0;
+  --st-fetch-ok: #21714F;
+  --st-fetch-ok-bg: #E2EBE5;
+  --st-fetch-empty: #555555;
+  --st-fetch-empty-bg: #E9E9E6;
+  --st-fetch-gap: #8F5D10;
+  --st-fetch-gap-bg: #EFE9DE;
+  --st-fetch-failed: #8F5D10;
+  --st-fetch-failed-bg: #EFE9DE;
+  --st-fetch-blocked: #A93A33;
+  --st-fetch-blocked-bg: #F2E5E2;
+  --st-chart-against: #A93A33;
+  --st-chart-background: #E9E9E6;
+  --st-chart-gap: #787878;
+  --st-chart-1: #363636;
+  --st-chart-2: #5E5E5D;
+  --st-chart-3: #858584;
+  --st-chart-4: #ADADAC;
+  --st-chart-5: #D4D4D3;
+  --st-lib-river: #1F6E8C;
+  --st-lib-violet: #5B4FA8;
+  --st-lib-green: #237A5B;
+  --st-lib-muted: #56646F;
+  --st-on-lib: #FFFFFF;
+  --st-scrim: rgba(36, 36, 36, 0.32);
+  --st-shadow-menu: 0 1px 2px rgba(36, 36, 36, 0.06), 0 12px 32px -12px rgba(36, 36, 36, 0.28);
+  --st-shadow-card: 0 6px 22px -13px rgba(26, 32, 48, 0.18);
+  --st-radius: 0px;
+  --st-radius-s: 0px;
+  --st-radius-xs: 0px;
+  --st-radius-key: 0px;
+  --st-font: 'Streams Numerals', 'Streams Noto Sans SC', sans-serif;
+  --st-font-mono: 'Cascadia Mono', Consolas, 'Streams Noto Sans SC', monospace;
+  --st-fs-body: 14px;
+  --st-weight-body: 400;
+  --st-weight-display: 650;
+  --st-tracking-display: -0.035em;
+  --st-weight-label: 550;
+  --st-icon-cap: butt;
+  --st-icon-join: miter;
+  --st-icon-weight: 1.6;
 }
-
-/* 夜间 night: the plan's dark palette (方案/src/head.html lines 25–44, docs/tokens.md 附录) through the same mapping as river.
-   Derived here: the sidebar on the dark river-soft with ink words, the current entry a dark surface card with river words,
-   river-ink words on the accent (it is light now), the hover one step lighter instead of darker, the five chart steps from
-   river toward the surface, the untouched squares on rule (sunk2 is not seen on the dark surface), the scrim and the shadow. */
-:root[data-theme="night"] {
+[data-theme="precision"][data-appearance="dark"] {
   color-scheme: dark;
-  --st-sidebar: #16303C;             /* river-soft (dark) */
-  --st-accent: #74B7D3;              /* river (dark) */
-  --st-accent-hover: #97C9DE;        /* river (dark), one step lighter (derived) */
-  --st-on-accent: #0F161B;           /* river-ink (dark) */
-  --st-on-accent-2: #16303C;         /* river-soft (dark) */
-
-  --st-text: #E3E9ED;                /* ink */
-  --st-text-2: #9CAAB5;              /* muted */
-  --st-text-3: #6F7D88;              /* faint */
-  --st-text-dark-2: #9CAAB5;         /* muted */
-  --st-line-todo: #6F7D88;           /* faint */
-
-  --st-page: #0F161B;                /* bg */
-  --st-surface: #171F26;             /* surface */
-  --st-surface-2: #121A20;           /* sunk */
-  --st-card-head: #121A20;           /* sunk */
-  --st-table-head: #1B252D;          /* sunk2 */
-  --st-row-head: #121A20;            /* sunk */
-  --st-border: #28343D;              /* rule */
-  --st-control-border: #28343D;      /* rule */
-  --st-divider: #28343D;             /* rule */
-  --st-divider-soft: #1B252D;        /* sunk2 */
-
-  --st-sidebar-text: #E3E9ED;        /* ink */
-  --st-sidebar-text-2: #9CAAB5;      /* muted */
-  --st-sidebar-divider: rgba(255, 255, 255, 0.14);
-  --st-sidebar-button: rgba(255, 255, 255, 0.06);
-  --st-sidebar-button-border: rgba(255, 255, 255, 0.24);
-  --st-sidebar-selected-title: #74B7D3;   /* river, on the dark card of the current entry */
-  --st-sidebar-selected-sub: #9CAAB5;     /* muted */
-
-  --st-wait: #E3B464;                /* amber */
-  --st-wait-bg: #2A2316;             /* amber-soft */
-  --st-wait-border: #5B4722;         /* amber-rule */
-  --st-done: #6CC9A6;                /* green */
-  --st-done-bg: #143026;             /* green-soft */
-  --st-done-border: #6CC9A6;         /* green */
-  --st-danger: #E88A81;              /* red */
-  --st-danger-bg: #2E1B1A;           /* red-soft */
-  --st-active-fill: #16303C;         /* river-soft */
-  --st-step-todo: #28343D;           /* rule (derived: sunk2 is not seen on the dark surface) */
-  --st-step-done-past: #6F7D88;      /* faint */
-  --st-accent-alt: #A79BE8;          /* violet */
-  --st-accent-alt-soft: #241F3C;     /* violet-soft */
-
-  --st-fetch-ok: #6CC9A6;            /* green */
-  --st-fetch-ok-bg: #143026;         /* green-soft */
-  --st-fetch-empty: #9CAAB5;         /* muted */
-  --st-fetch-empty-bg: #121A20;      /* sunk */
-  --st-fetch-gap: #E3B464;           /* amber */
-  --st-fetch-gap-bg: #2A2316;        /* amber-soft */
-  --st-fetch-failed: #E3B464;        /* amber */
-  --st-fetch-failed-bg: #2A2316;     /* amber-soft */
-  --st-fetch-blocked: #E88A81;       /* red */
-  --st-fetch-blocked-bg: #2E1B1A;    /* red-soft */
-
-  --st-chart-against: #E88A81;       /* red */
-  --st-chart-background: #1B252D;    /* sunk2 */
-  --st-chart-gap: #6F7D88;           /* faint */
-  --st-chart-1: #74B7D3;             /* river (dark) */
-  --st-chart-2: #619AB0;             /* river toward the surface, 20 % (derived) */
-  --st-chart-3: #4F7A8E;             /* 40 % */
-  --st-chart-4: #3C5C6B;             /* 60 % */
-  --st-chart-5: #2A3D49;             /* 80 % */
-
-  /* a library's colour: the dark palette's light ones, with the dark river-ink on them (as on the accent) */
-  --st-lib-river: #74B7D3;           /* river (dark): 8.22 : 1 with on-lib */
-  --st-lib-violet: #A79BE8;          /* violet (dark): 7.38 : 1 */
-  --st-lib-green: #6CC9A6;           /* green (dark): 9.16 : 1 */
-  --st-lib-muted: #9CAAB5;           /* muted (dark): 7.67 : 1 */
-  --st-on-lib: #0F161B;              /* river-ink (dark) */
-
+  --st-page: #151515;
+  --st-surface: #20201F;
+  --st-surface-2: #292928;
+  --st-card-head: #292928;
+  --st-table-head: #292928;
+  --st-row-head: #1B1B1A;
+  --st-selected: #353635;
+  --st-active-fill: #353635;
+  --st-border: rgba(229, 229, 223, 0.12);
+  --st-control-border: rgba(229, 229, 223, 0.18);
+  --st-divider: rgba(229, 229, 223, 0.12);
+  --st-divider-soft: rgba(229, 229, 223, 0.07);
+  --st-sidebar: #1B1B1A;
+  --st-sidebar-text: #E5E5DF;
+  --st-sidebar-text-2: #A9ABA8;
+  --st-sidebar-divider: rgba(229, 229, 223, 0.12);
+  --st-sidebar-button: #292928;
+  --st-sidebar-button-border: transparent;
+  --st-sidebar-selected-title: #E5E5DF;
+  --st-sidebar-selected-sub: #A9ABA8;
+  --st-text: #E5E5DF;
+  --st-text-2: #A9ABA8;
+  --st-text-3: #8B8D8B;
+  --st-text-dark-2: #A9ABA8;
+  --st-line-todo: #8B8D8B;
+  --st-accent: #C9CDCE;
+  --st-accent-hover: #CCD0D0;
+  --st-on-accent: #191A19;
+  --st-on-accent-2: #404141;
+  --st-focus: #C9CDCE;
+  --st-wait: #E3B464;
+  --st-wait-bg: #3F382A;
+  --st-wait-border: #6E5B3B;
+  --st-done: #6CC9A6;
+  --st-done-bg: #2C3B35;
+  --st-done-border: #6CC9A6;
+  --st-danger: #E88A81;
+  --st-danger-bg: #40312F;
+  --st-step-todo: #292928;
+  --st-step-done-past: #8B8D8B;
+  --st-accent-alt: #A79BE8;
+  --st-accent-alt-soft: #36343F;
+  --st-fetch-ok: #6CC9A6;
+  --st-fetch-ok-bg: #2C3B35;
+  --st-fetch-empty: #A9ABA8;
+  --st-fetch-empty-bg: #292928;
+  --st-fetch-gap: #E3B464;
+  --st-fetch-gap-bg: #3F382A;
+  --st-fetch-failed: #E3B464;
+  --st-fetch-failed-bg: #3F382A;
+  --st-fetch-blocked: #E88A81;
+  --st-fetch-blocked-bg: #40312F;
+  --st-chart-against: #E88A81;
+  --st-chart-background: #292928;
+  --st-chart-gap: #8B8D8B;
+  --st-chart-1: #C9CDCE;
+  --st-chart-2: #A7AAAB;
+  --st-chart-3: #858888;
+  --st-chart-4: #646565;
+  --st-chart-5: #424342;
+  --st-lib-river: #74B7D3;
+  --st-lib-violet: #A79BE8;
+  --st-lib-green: #6CC9A6;
+  --st-lib-muted: #9CAAB5;
+  --st-on-lib: #0F161B;
   --st-scrim: rgba(0, 0, 0, 0.55);
   --st-shadow-menu: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --st-shadow-card: 0 6px 22px -13px rgba(0, 0, 0, 0.6);
+  --st-radius: 0px;
+  --st-radius-s: 0px;
+  --st-radius-xs: 0px;
+  --st-radius-key: 0px;
+  --st-font: 'Streams Numerals', 'Streams Noto Sans SC', sans-serif;
+  --st-font-mono: 'Cascadia Mono', Consolas, 'Streams Noto Sans SC', monospace;
+  --st-fs-body: 14px;
+  --st-weight-body: 360;
+  --st-weight-display: 610;
+  --st-tracking-display: -0.035em;
+  --st-weight-label: 550;
+  --st-icon-cap: butt;
+  --st-icon-join: miter;
+  --st-icon-weight: 1.6;
+}
+
+/* 澄明玻璃 glass */
+[data-theme="glass"] {
+  color-scheme: light;
+  --st-page: #F6F8FC;
+  --st-surface: #FBFCFF;
+  --st-surface-2: #E9EDF6;
+  --st-card-head: #E9EDF6;
+  --st-table-head: #E9EDF6;
+  --st-row-head: #EFF2F8;
+  --st-selected: #E1E8F7;
+  --st-active-fill: #E1E8F7;
+  --st-border: rgba(39, 51, 75, 0.12);
+  --st-control-border: rgba(39, 51, 75, 0.18);
+  --st-divider: rgba(39, 51, 75, 0.12);
+  --st-divider-soft: rgba(39, 51, 75, 0.07);
+  --st-sidebar: #EFF2F8;
+  --st-sidebar-text: #27334B;
+  --st-sidebar-text-2: #53617A;
+  --st-sidebar-divider: rgba(39, 51, 75, 0.12);
+  --st-sidebar-button: #E9EDF6;
+  --st-sidebar-button-border: transparent;
+  --st-sidebar-selected-title: #27334B;
+  --st-sidebar-selected-sub: #53617A;
+  --st-text: #27334B;
+  --st-text-2: #53617A;
+  --st-text-3: #778297;
+  --st-text-dark-2: #53617A;
+  --st-line-todo: #778297;
+  --st-accent: #495F98;
+  --st-accent-hover: #455A8F;
+  --st-on-accent: #FFFFFF;
+  --st-on-accent-2: #D7DCE8;
+  --st-focus: #495F98;
+  --st-wait: #8F5D10;
+  --st-wait-bg: #EEE9E2;
+  --st-wait-border: #D5C4AB;
+  --st-done: #21714F;
+  --st-done-bg: #E1EBEA;
+  --st-done-border: #21714F;
+  --st-danger: #A93A33;
+  --st-danger-bg: #F1E5E7;
+  --st-step-todo: #E9EDF6;
+  --st-step-done-past: #778297;
+  --st-accent-alt: #5B4FA8;
+  --st-accent-alt-soft: #E8E7F5;
+  --st-fetch-ok: #21714F;
+  --st-fetch-ok-bg: #E1EBEA;
+  --st-fetch-empty: #53617A;
+  --st-fetch-empty-bg: #E9EDF6;
+  --st-fetch-gap: #8F5D10;
+  --st-fetch-gap-bg: #EEE9E2;
+  --st-fetch-failed: #8F5D10;
+  --st-fetch-failed-bg: #EEE9E2;
+  --st-fetch-blocked: #A93A33;
+  --st-fetch-blocked-bg: #F1E5E7;
+  --st-chart-against: #A93A33;
+  --st-chart-background: #E9EDF6;
+  --st-chart-gap: #778297;
+  --st-chart-1: #495F98;
+  --st-chart-2: #6D7EAD;
+  --st-chart-3: #909EC1;
+  --st-chart-4: #B4BDD6;
+  --st-chart-5: #D7DDEA;
+  --st-lib-river: #1F6E8C;
+  --st-lib-violet: #5B4FA8;
+  --st-lib-green: #237A5B;
+  --st-lib-muted: #56646F;
+  --st-on-lib: #FFFFFF;
+  --st-scrim: rgba(39, 51, 75, 0.32);
+  --st-shadow-menu: 0 1px 2px rgba(39, 51, 75, 0.06), 0 12px 32px -12px rgba(39, 51, 75, 0.28);
+  --st-shadow-card: 0 6px 22px -13px rgba(26, 32, 48, 0.18);
+  --st-radius: 16px;
+  --st-radius-s: 12px;
+  --st-radius-xs: 8px;
+  --st-radius-key: 20px;
+  --st-font: 'Streams Numerals', 'Streams Noto Sans SC', sans-serif;
+  --st-font-mono: 'Cascadia Mono', Consolas, 'Streams Noto Sans SC', monospace;
+  --st-fs-body: 15px;
+  --st-weight-body: 400;
+  --st-weight-display: 600;
+  --st-tracking-display: 0.025em;
+  --st-weight-label: 600;
+  --st-icon-cap: round;
+  --st-icon-join: round;
+  --st-icon-weight: 1.65;
+}
+[data-theme="glass"][data-appearance="dark"] {
+  color-scheme: dark;
+  --st-page: #16191F;
+  --st-surface: #22262E;
+  --st-surface-2: #292F38;
+  --st-card-head: #292F38;
+  --st-table-head: #292F38;
+  --st-row-head: #1B1F26;
+  --st-selected: #303A50;
+  --st-active-fill: #303A50;
+  --st-border: rgba(229, 229, 223, 0.12);
+  --st-control-border: rgba(229, 229, 223, 0.18);
+  --st-divider: rgba(229, 229, 223, 0.12);
+  --st-divider-soft: rgba(229, 229, 223, 0.07);
+  --st-sidebar: #1B1F26;
+  --st-sidebar-text: #E5E5DF;
+  --st-sidebar-text-2: #A9ABA8;
+  --st-sidebar-divider: rgba(229, 229, 223, 0.12);
+  --st-sidebar-button: #292F38;
+  --st-sidebar-button-border: transparent;
+  --st-sidebar-selected-title: #E5E5DF;
+  --st-sidebar-selected-sub: #A9ABA8;
+  --st-text: #E5E5DF;
+  --st-text-2: #A9ABA8;
+  --st-text-3: #8C8E8D;
+  --st-text-dark-2: #A9ABA8;
+  --st-line-todo: #8C8E8D;
+  --st-accent: #B2C5EF;
+  --st-accent-hover: #B8C9ED;
+  --st-on-accent: #191A19;
+  --st-on-accent-2: #3B4048;
+  --st-focus: #B2C5EF;
+  --st-wait: #E3B464;
+  --st-wait-bg: #413D37;
+  --st-wait-border: #6F5F44;
+  --st-done: #6CC9A6;
+  --st-done-bg: #2E4041;
+  --st-done-border: #6CC9A6;
+  --st-danger: #E88A81;
+  --st-danger-bg: #42363B;
+  --st-step-todo: #292F38;
+  --st-step-done-past: #8C8E8D;
+  --st-accent-alt: #A79BE8;
+  --st-accent-alt-soft: #37394C;
+  --st-fetch-ok: #6CC9A6;
+  --st-fetch-ok-bg: #2E4041;
+  --st-fetch-empty: #A9ABA8;
+  --st-fetch-empty-bg: #292F38;
+  --st-fetch-gap: #E3B464;
+  --st-fetch-gap-bg: #413D37;
+  --st-fetch-failed: #E3B464;
+  --st-fetch-failed-bg: #413D37;
+  --st-fetch-blocked: #E88A81;
+  --st-fetch-blocked-bg: #42363B;
+  --st-chart-against: #E88A81;
+  --st-chart-background: #292F38;
+  --st-chart-gap: #8C8E8D;
+  --st-chart-1: #B2C5EF;
+  --st-chart-2: #95A5C8;
+  --st-chart-3: #7885A2;
+  --st-chart-4: #5C667B;
+  --st-chart-5: #3F4655;
+  --st-lib-river: #74B7D3;
+  --st-lib-violet: #A79BE8;
+  --st-lib-green: #6CC9A6;
+  --st-lib-muted: #9CAAB5;
+  --st-on-lib: #0F161B;
+  --st-scrim: rgba(0, 0, 0, 0.55);
+  --st-shadow-menu: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --st-shadow-card: 0 6px 22px -13px rgba(0, 0, 0, 0.6);
+  --st-radius: 16px;
+  --st-radius-s: 12px;
+  --st-radius-xs: 8px;
+  --st-radius-key: 20px;
+  --st-font: 'Streams Numerals', 'Streams Noto Sans SC', sans-serif;
+  --st-font-mono: 'Cascadia Mono', Consolas, 'Streams Noto Sans SC', monospace;
+  --st-fs-body: 15px;
+  --st-weight-body: 360;
+  --st-weight-display: 560;
+  --st-tracking-display: 0.025em;
+  --st-weight-label: 600;
+  --st-icon-cap: round;
+  --st-icon-join: round;
+  --st-icon-weight: 1.65;
+}
+
+/* 研究对话 research */
+[data-theme="research"] {
+  color-scheme: light;
+  --st-page: #F7F7F3;
+  --st-surface: #FDFCF9;
+  --st-surface-2: #ECECE5;
+  --st-card-head: #ECECE5;
+  --st-table-head: #ECECE5;
+  --st-row-head: #F1F2ED;
+  --st-selected: #E2EAE5;
+  --st-active-fill: #E2EAE5;
+  --st-border: rgba(40, 60, 64, 0.12);
+  --st-control-border: rgba(40, 60, 64, 0.18);
+  --st-divider: rgba(40, 60, 64, 0.12);
+  --st-divider-soft: rgba(40, 60, 64, 0.07);
+  --st-sidebar: #F1F2ED;
+  --st-sidebar-text: #283C40;
+  --st-sidebar-text-2: #536466;
+  --st-sidebar-divider: rgba(40, 60, 64, 0.12);
+  --st-sidebar-button: #ECECE5;
+  --st-sidebar-button-border: transparent;
+  --st-sidebar-selected-title: #283C40;
+  --st-sidebar-selected-sub: #536466;
+  --st-text: #283C40;
+  --st-text-2: #536466;
+  --st-text-3: #778485;
+  --st-text-dark-2: #536466;
+  --st-line-todo: #778485;
+  --st-accent: #395D62;
+  --st-accent-hover: #37595E;
+  --st-on-accent: #FFFFFF;
+  --st-on-accent-2: #D3DBDC;
+  --st-focus: #395D62;
+  --st-wait: #8F5D10;
+  --st-wait-bg: #F0E9DD;
+  --st-wait-border: #D7C4A7;
+  --st-done: #21714F;
+  --st-done-bg: #E3EBE5;
+  --st-done-border: #21714F;
+  --st-danger: #A93A33;
+  --st-danger-bg: #F3E5E1;
+  --st-step-todo: #ECECE5;
+  --st-step-done-past: #778485;
+  --st-accent-alt: #5B4FA8;
+  --st-accent-alt-soft: #EAE7EF;
+  --st-fetch-ok: #21714F;
+  --st-fetch-ok-bg: #E3EBE5;
+  --st-fetch-empty: #536466;
+  --st-fetch-empty-bg: #ECECE5;
+  --st-fetch-gap: #8F5D10;
+  --st-fetch-gap-bg: #F0E9DD;
+  --st-fetch-failed: #8F5D10;
+  --st-fetch-failed-bg: #F0E9DD;
+  --st-fetch-blocked: #A93A33;
+  --st-fetch-blocked-bg: #F3E5E1;
+  --st-chart-against: #A93A33;
+  --st-chart-background: #ECECE5;
+  --st-chart-gap: #778485;
+  --st-chart-1: #395D62;
+  --st-chart-2: #607D80;
+  --st-chart-3: #879D9E;
+  --st-chart-4: #AFBCBD;
+  --st-chart-5: #D6DCDB;
+  --st-lib-river: #1F6E8C;
+  --st-lib-violet: #5B4FA8;
+  --st-lib-green: #237A5B;
+  --st-lib-muted: #56646F;
+  --st-on-lib: #FFFFFF;
+  --st-scrim: rgba(40, 60, 64, 0.32);
+  --st-shadow-menu: 0 1px 2px rgba(40, 60, 64, 0.06), 0 12px 32px -12px rgba(40, 60, 64, 0.28);
+  --st-shadow-card: 0 6px 22px -13px rgba(26, 32, 48, 0.18);
+  --st-radius: 9px;
+  --st-radius-s: 6px;
+  --st-radius-xs: 3px;
+  --st-radius-key: 3px;
+  --st-font: 'Streams Numerals', 'Streams Noto Sans SC', sans-serif;
+  --st-font-mono: 'Cascadia Mono', Consolas, 'Streams Noto Sans SC', monospace;
+  --st-fs-body: 14px;
+  --st-weight-body: 400;
+  --st-weight-display: 600;
+  --st-tracking-display: -0.02em;
+  --st-weight-label: 500;
+  --st-icon-cap: round;
+  --st-icon-join: round;
+  --st-icon-weight: 1.65;
+}
+[data-theme="research"][data-appearance="dark"] {
+  color-scheme: dark;
+  --st-page: #161A19;
+  --st-surface: #232724;
+  --st-surface-2: #292E2A;
+  --st-card-head: #292E2A;
+  --st-table-head: #292E2A;
+  --st-row-head: #1C201E;
+  --st-selected: #303E38;
+  --st-active-fill: #303E38;
+  --st-border: rgba(229, 229, 223, 0.12);
+  --st-control-border: rgba(229, 229, 223, 0.18);
+  --st-divider: rgba(229, 229, 223, 0.12);
+  --st-divider-soft: rgba(229, 229, 223, 0.07);
+  --st-sidebar: #1C201E;
+  --st-sidebar-text: #E5E5DF;
+  --st-sidebar-text-2: #A9ABA8;
+  --st-sidebar-divider: rgba(229, 229, 223, 0.12);
+  --st-sidebar-button: #292E2A;
+  --st-sidebar-button-border: transparent;
+  --st-sidebar-selected-title: #E5E5DF;
+  --st-sidebar-selected-sub: #A9ABA8;
+  --st-text: #E5E5DF;
+  --st-text-2: #A9ABA8;
+  --st-text-3: #8C8E8B;
+  --st-text-dark-2: #A9ABA8;
+  --st-line-todo: #8C8E8B;
+  --st-accent: #B3D0C0;
+  --st-accent-hover: #B9D3C4;
+  --st-on-accent: #191A19;
+  --st-on-accent-2: #3B423E;
+  --st-focus: #B3D0C0;
+  --st-wait: #E3B464;
+  --st-wait-bg: #423E2E;
+  --st-wait-border: #705F3E;
+  --st-done: #6CC9A6;
+  --st-done-bg: #2F4139;
+  --st-done-border: #6CC9A6;
+  --st-danger: #E88A81;
+  --st-danger-bg: #433733;
+  --st-step-todo: #292E2A;
+  --st-step-done-past: #8C8E8B;
+  --st-accent-alt: #A79BE8;
+  --st-accent-alt-soft: #383A43;
+  --st-fetch-ok: #6CC9A6;
+  --st-fetch-ok-bg: #2F4139;
+  --st-fetch-empty: #A9ABA8;
+  --st-fetch-empty-bg: #292E2A;
+  --st-fetch-gap: #E3B464;
+  --st-fetch-gap-bg: #423E2E;
+  --st-fetch-failed: #E3B464;
+  --st-fetch-failed-bg: #423E2E;
+  --st-fetch-blocked: #E88A81;
+  --st-fetch-blocked-bg: #433733;
+  --st-chart-against: #E88A81;
+  --st-chart-background: #292E2A;
+  --st-chart-gap: #8C8E8B;
+  --st-chart-1: #B3D0C0;
+  --st-chart-2: #96AEA1;
+  --st-chart-3: #798C82;
+  --st-chart-4: #5D6B62;
+  --st-chart-5: #404943;
+  --st-lib-river: #74B7D3;
+  --st-lib-violet: #A79BE8;
+  --st-lib-green: #6CC9A6;
+  --st-lib-muted: #9CAAB5;
+  --st-on-lib: #0F161B;
+  --st-scrim: rgba(0, 0, 0, 0.55);
+  --st-shadow-menu: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --st-shadow-card: 0 6px 22px -13px rgba(0, 0, 0, 0.6);
+  --st-radius: 9px;
+  --st-radius-s: 6px;
+  --st-radius-xs: 3px;
+  --st-radius-key: 3px;
+  --st-font: 'Streams Numerals', 'Streams Noto Sans SC', sans-serif;
+  --st-font-mono: 'Cascadia Mono', Consolas, 'Streams Noto Sans SC', monospace;
+  --st-fs-body: 14px;
+  --st-weight-body: 360;
+  --st-weight-display: 560;
+  --st-tracking-display: -0.02em;
+  --st-weight-label: 500;
+  --st-icon-cap: round;
+  --st-icon-join: round;
+  --st-icon-weight: 1.65;
 }

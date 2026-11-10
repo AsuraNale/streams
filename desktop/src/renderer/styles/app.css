@@ -2,6 +2,8 @@
    A new screen adds its own file under screens/ and one @import line here (docs/desktop.md §五).
    (The gallery's screens/kit.css is not here: screens/kit.js links it, in development only.) */
 @import url('./tokens.css');
+/* v2 package K2: the bundled UI font (Noto Sans SC) */
+@import url('./fonts.css');
 @import url('./base.css');
 @import url('./kit.css');
 @import url('./menu.css');

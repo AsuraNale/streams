@@ -43,7 +43,10 @@ const corner = () => s.page.evaluate(() => {
   if (!q) return null
   const kids = [...q.parentElement.children]
   return {
-    kind: q.dataset.quotaKind, title: q.querySelector('.st-sidebar__quota-title')?.textContent, rows: [...q.querySelectorAll('[data-quota-row]')].map(r => [r.dataset.quotaRow, r.textContent]),
+    // v2 package K2: a plan row is drawn in parts (span · bar · per cent · 「… 重置」); its whole sentence is its accessible name
+    kind: q.dataset.quotaKind, title: q.querySelector('.st-sidebar__quota-title')?.textContent, rows: [...q.querySelectorAll('[data-quota-row]')].map(r => [r.dataset.quotaRow, r.getAttribute('aria-label')]),
+    parts: [...q.querySelectorAll('[data-quota-row]')].map(r => [r.querySelector('.st-sidebar__quota-span')?.textContent ?? null, r.querySelector('.st-sidebar__quota-pct')?.textContent ?? null, r.querySelector('.st-sidebar__quota-fill')?.style.width ?? null]),
+    asOf: q.querySelector('[data-quota-as-of]')?.textContent ?? null,
     hover: q.getAttribute('title'), text: q.textContent,
     // where it is: right before 设置, after 新建库
     next: q.nextElementSibling?.classList.contains('st-sidebar__footer-button') ?? false,
@@ -63,9 +66,10 @@ test('quotaView: the lines in the Chinese table\'s words; null for nothing, a sh
   const v = quotaView(DEV['claude-code'], now)
   assert.equal(v.title, SHELL.sidebar.quota.plan)
   const resets = sec => nextText(new Date(sec * 1000).toISOString(), SHELL.sidebar.quota.resets, now)
+  // v2 package K2: each plan row also carries its parts for the K1 look (span, used 0–100, pct, when)
   assert.deepEqual(v.rows, [
-    { id: 'five_hour', text: fmt(SHELL.sidebar.quota.window, { span: fmt(SHELL.sidebar.quota.hours, { n: 5 }), pct: '5', when: resets(soon) }) },
-    { id: 'seven_day', text: fmt(SHELL.sidebar.quota.window, { span: fmt(SHELL.sidebar.quota.days, { n: 7 }), pct: '11', when: resets(later) }) },
+    { id: 'five_hour', text: fmt(SHELL.sidebar.quota.window, { span: fmt(SHELL.sidebar.quota.hours, { n: 5 }), pct: '5', when: resets(soon) }), span: fmt(SHELL.sidebar.quota.hours, { n: 5 }), used: 5, pct: '5', when: resets(soon) },
+    { id: 'seven_day', text: fmt(SHELL.sidebar.quota.window, { span: fmt(SHELL.sidebar.quota.days, { n: 7 }), pct: '11', when: resets(later) }), span: fmt(SHELL.sidebar.quota.days, { n: 7 }), used: 11, pct: '11', when: resets(later) },
   ])
   assert.match(v.rows[0].text, /^5 小时 已用 5% · \d\d:\d\d 重置$/, 'today: the time only (contract: 「5 小时 已用 5% · 14:30 重置」)')
   assert.equal(quotaView(DEV.codex, now).rows[0].text.startsWith('7 天 已用 28%'), true)
@@ -80,6 +84,9 @@ test('numbers: Claude Code\'s two windows, then Codex\'s one, right above 设置
   assert.equal(c.title, SHELL.sidebar.quota.plan)
   assert.deepEqual(c.rows.map(r => r[0]), ['five_hour', 'seven_day'])
   assert.deepEqual(c.rows.map(r => r[1]), quotaView(DEV['claude-code']).rows.map(r => r.text))
+  // v2 package K2: the K1 card — the span, the per cent and a bar as wide as the per cent; 「截至 …」 in the head
+  assert.deepEqual(c.parts, [[fmt(SHELL.sidebar.quota.hours, { n: 5 }), '5%', '5%'], [fmt(SHELL.sidebar.quota.days, { n: 7 }), '11%', '11%']])
+  assert.equal(c.asOf, c.hover)
   assert.ok(c.next, 'right before 设置')
   assert.ok(c.afterAdd, 'after 新建库')
   assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar__footer-button')?.textContent.trim()), SIDEBAR.settings)

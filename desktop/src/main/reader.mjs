@@ -32,6 +32,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { themeOf, windowColour } from './theme.mjs'
+import { isScheme } from '../shared/themes.mjs'
 import { APP } from './texts/app.js'
 import { APP as APP_EN } from './texts-en/app.js'
 
@@ -191,9 +192,12 @@ export const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ESCAPES[
 /** The CSP of the pages the reader writes: no script, no frame, no form; pictures from the web. */
 export const READER_PAGE_CSP = "default-src 'none'; img-src http: https: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; frame-ancestors 'none'"
 
-function page({ words, theme, css, title, bodyClass, lang, dir, body }) {
+// v2 package K2: `look` is { theme, scheme } (main.mjs currentLook): <html> gets data-theme and data-appearance (light | dark),
+// both checked, so the reading window is in the same set as the app's
+function page({ words, look, css, title, bodyClass, lang, dir, body }) {
   const d = dir === 'rtl' ? ' dir="rtl"' : ''
-  return `<!doctype html><html lang="${escapeHtml(lang || words.lang)}"${d} data-theme="${themeOf(theme)}"><head><meta charset="utf-8">`
+  const scheme = isScheme(look?.scheme) ? look.scheme : 'light'
+  return `<!doctype html><html lang="${escapeHtml(lang || words.lang)}"${d} data-theme="${themeOf(look?.theme)}" data-appearance="${scheme}"><head><meta charset="utf-8">`
     + `<meta http-equiv="Content-Security-Policy" content="${READER_PAGE_CSP}">`
     + `<meta name="referrer" content="no-referrer"><title>${escapeHtml(title)}</title><style>${css}</style></head>`
     + `<body class="${bodyClass}">${body}</body></html>`
@@ -203,7 +207,7 @@ function page({ words, theme, css, title, bodyClass, lang, dir, body }) {
  * The bar's page. `mode`: 'loading' | 'reading' | 'original'; `canRead`: the text was taken out (阅读模式 can be chosen);
  * `fallback`: it could not be, so the original page is shown with the line saying so.
  */
-export function barPage({ url, mode, canRead, fallback, words, theme, css }) {
+export function barPage({ url, mode, canRead, fallback, words, look, css }) {
   const action = name => `${ACTION_ORIGIN}/${name}`
   const seg = (name, label, enabled) => {
     const cur = mode === name
@@ -218,22 +222,22 @@ export function barPage({ url, mode, canRead, fallback, words, theme, css }) {
     + `<span class="rd-seg" role="group" aria-label="${escapeHtml(words.modes)}">${seg('reading', words.reading, canRead)}${seg('original', words.original, mode !== 'loading')}</span>`
     + `<a class="rd-btn" data-reader-action="browser" href="${action('browser')}">${escapeHtml(words.browser)}</a>`
     + '</nav>'
-  return page({ words, theme, css, title: words.windowTitle, bodyClass: 'rd-bar-body', body })
+  return page({ words, look, css, title: words.windowTitle, bodyClass: 'rd-bar-body', body })
 }
 
 /** The page under the bar while the text is being taken out. */
-export function waitPage({ words, theme, css }) {
-  return page({ words, theme, css, title: words.windowTitle, bodyClass: 'rd-page', body: `<p class="rd-wait" data-reader-wait>${escapeHtml(words.loading)}</p>` })
+export function waitPage({ words, look, css }) {
+  return page({ words, look, css, title: words.windowTitle, bodyClass: 'rd-page', body: `<p class="rd-wait" data-reader-wait>${escapeHtml(words.loading)}</p>` })
 }
 
 /** The reading page: the title, a line (site · byline · what 阅读模式 is), the cleaned text. */
-export function readingPage({ article, words, theme, css }) {
+export function readingPage({ article, words, look, css }) {
   const meta = [article.siteName, article.byline, words.readingNote].map(s => String(s ?? '').trim()).filter(Boolean)
   const body = `<article class="rd-article" data-reader-article>`
     + `<h1 class="rd-article__title">${escapeHtml(article.title)}</h1>`
     + `<p class="rd-article__meta">${escapeHtml(meta.join(' · '))}</p>`
     + `<div class="rd-article__body">${article.content}</div></article>`
-  return page({ words, theme, css, title: article.title || words.windowTitle, bodyClass: 'rd-page', lang: article.lang, dir: article.dir, body })
+  return page({ words, look, css, title: article.title || words.windowTitle, bodyClass: 'rd-page', lang: article.lang, dir: article.dir, body })
 }
 
 /** A page as a data: URL (base64: Chinese text stays a third larger, not nine times). */
@@ -352,7 +356,8 @@ const withTimeout = (promise, ms, what) => {
  * @param {boolean} [o.hidden] - a test run: the window is not shown and the system browser is not opened (the log says so)
  * @param {string} [o.icon]
  * @param {() => string} o.locale - 'zh-CN' | 'en'
- * @param {() => string} o.theme - the theme id (settings.json)
+ * @param {() => {theme: string, scheme: string}} o.theme - the look in force (main.mjs currentLook; v2 package K2: the theme and
+ *   light | dark — it was the theme id alone)
  * @param {string} o.css - readerCss()
  * @param {string} o.readability - readabilitySource()
  * @param {() => void} [o.onBack] - 「回到条目」: the app's window to the front
@@ -377,10 +382,10 @@ export function createReader({ BrowserWindow, WebContentsView, session, shell, l
   const load = (contents, url) => contents.loadURL(url).catch(err => log(`reader: load of ${short(url.startsWith('data:') ? 'a page of its own' : url)}: ${String(err?.code ?? err?.message ?? err)}`))
   const renderBar = () => {
     if (!win || win.isDestroyed() || !state) return
-    load(win.webContents, dataUrl(barPage({ url: state.url, mode: state.mode, canRead: Boolean(state.article), fallback: state.fallback, words: words(), theme: theme(), css })))
+    load(win.webContents, dataUrl(barPage({ url: state.url, mode: state.mode, canRead: Boolean(state.article), fallback: state.fallback, words: words(), look: theme(), css })))
   }
   const showReading = () => {
-    const html = readingPage({ article: state.article, words: words(), theme: theme(), css })
+    const html = readingPage({ article: state.article, words: words(), look: theme(), css })
     const url = dataUrl(html)
     if (url.length > MAX_DATA_URL) { log('reader: the reading page is too large; the original page instead'); state.article = null; showOriginal(true); return }
     state.mode = 'reading'
@@ -418,7 +423,7 @@ export function createReader({ BrowserWindow, WebContentsView, session, shell, l
       minHeight: 480,
       show: false,
       title: words().windowTitle,
-      backgroundColor: windowColour(theme()),
+      backgroundColor: windowColour(theme().theme, theme().scheme),
       autoHideMenuBar: true,
       ...(icon ? { icon } : {}),
       webPreferences: { ...READER_WEB_PREFERENCES },
@@ -485,7 +490,7 @@ export function createReader({ BrowserWindow, WebContentsView, session, shell, l
       const token = ++seq
       state = { url, article: null, mode: 'loading', fallback: false }
       renderBar()
-      load(view.webContents, dataUrl(waitPage({ words: words(), theme: theme(), css })))
+      load(view.webContents, dataUrl(waitPage({ words: words(), look: theme(), css })))
       if (!hidden) { win.show(); win.focus() }
       const fetched = await fetchPage(url)
       const article = fetched ? await extract(fetched.html, fetched.url) : null
@@ -497,6 +502,19 @@ export function createReader({ BrowserWindow, WebContentsView, session, shell, l
       return { mode: state.mode, fallback: state.fallback }
     },
     openExternal,
+    /**
+     * v2 package K2: the look changed (设置, or Windows under 「跟随系统」): the open window's background and its pages drawn
+     * again in the set now in force — the bar, and the reading page (or the wait page) under it; the original page is the
+     * site's own and is left as it is.
+     */
+    restyle() {
+      if (!win || win.isDestroyed() || !state) return
+      const look = theme()
+      win.setBackgroundColor(windowColour(look.theme, look.scheme))
+      if (state.mode === 'reading' && state.article) { showReading(); return }
+      renderBar()
+      if (state.mode === 'loading' && view) load(view.webContents, dataUrl(waitPage({ words: words(), look, css })))
+    },
     /** The window, for main.mjs and the tests (null when closed). */
     window: () => (win && !win.isDestroyed() ? win : null),
   }

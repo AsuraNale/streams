@@ -135,8 +135,7 @@
 .settings__setup { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 2px 24px; }
 .settings__setup-name { align-self: start; }
 
-/* 主题 (docs/desktop.md §五): the three sets in one drop-down */
-.settings__select--theme { min-width: 180px; }
+/* 主题 (docs/desktop.md §五): v2 package K2 — the drop-down became three cards and 「外观」 (the K2 block at the end) */
 
 /* 许可证与致谢 (mockup S14): a wider dialog; the license text scrolls inside it */
 .st-dialog[data-dialog='licenses'] { width: min(680px, 100%); max-height: calc(100vh - 48px); }
@@ -162,3 +161,46 @@
 .settings__components th { text-align: left; font-weight: 700; color: var(--st-text-2); background: var(--st-table-head); }
 .settings__components th,
 .settings__components td { padding: 5px 16px 5px 8px; border-bottom: 1px solid var(--st-divider-soft); }
+
+/* ==== v2 package K2 (the K1 design draft, docs/design/next/themes/css/app.css): 设置 — each group is a card (--st-surface, the card shadow),
+   its name in the display weight; the language and connection choices are tinted cards, the chosen one --st-selected with an
+   accent ring; 「主题」 is three cards each drawn in its own set, 「外观」 a segmented control ==== */
+[data-screen='settings'] .st-topbar { padding-left: 28px; padding-right: 28px; }
+.settings__body { padding: 4px 28px 28px; }
+.settings__list { max-width: 900px; gap: 18px; }
+.settings__group { padding: 6px 20px 8px; border-radius: var(--st-radius); background: var(--st-surface); box-shadow: var(--st-shadow-card); }
+.settings__group-name { margin: 10px 0 2px; padding: 0 0 6px; border-bottom: 0; font-size: 17px; font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); color: var(--st-text); }
+.settings__part { grid-template-columns: 170px minmax(0, 1fr); gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--st-divider-soft); }
+.settings__name { font-weight: var(--st-weight-label); }
+.settings__model { border: 0; border-radius: var(--st-radius); background: var(--st-surface-2); }
+.settings__model[data-checked='true'] { padding: 13px 15px; border: 0; background: var(--st-selected); box-shadow: inset 0 0 0 2px var(--st-accent); }
+.settings__default { border: 0; background: var(--st-surface-2); color: var(--st-text-2); }
+.settings__field, .settings__select { border-radius: var(--st-radius-s); }
+.settings__conn { border: 0; border-radius: var(--st-radius); background: var(--st-surface-2); }
+.settings__conn--active { padding: 12px 14px; border: 0; background: var(--st-selected); box-shadow: inset 0 0 0 2px var(--st-accent); }
+.settings__update-box { border: 0; border-radius: var(--st-radius-s); }
+.settings__update-box--ready { box-shadow: inset 0 0 0 1px var(--st-accent); }
+.settings__update-wait { border: 0; box-shadow: inset 0 0 0 1px var(--st-wait-border); font-weight: var(--st-weight-label); }
+.settings__license-text { border: 0; }
+.settings__components th { font-weight: var(--st-weight-label); }
+/* the radio of a card or a segment: there for the keyboard and the screen reader, not seen (the card shows the choice) */
+.settings__choice-input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.settings__themes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.settings__theme { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 7px; border-radius: var(--st-radius); background: var(--st-surface-2); cursor: pointer; }
+.settings__theme:hover { background: var(--st-selected); }
+.settings__theme[data-checked='true'] { background: var(--st-selected); box-shadow: inset 0 0 0 2px var(--st-accent); }
+.settings__theme:has(:focus-visible), .settings__seg-item:has(:focus-visible) { outline: 2px solid var(--st-focus); outline-offset: 2px; }
+.settings__theme-name { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; padding: 0 3px 2px; font-weight: var(--st-weight-label); }
+.settings__theme-name small { font-size: var(--st-fs-tiny); font-weight: 400; color: var(--st-text-2); }
+/* the small picture: drawn with the card's own set (data-theme / data-appearance on it): sidebar · page with two cards · panel */
+.settings__theme-preview { position: relative; display: grid; grid-template-columns: 22% minmax(0, 1fr) 24%; height: 62px; border-radius: var(--st-radius-s); overflow: hidden; background: var(--st-page); box-shadow: inset 0 0 0 1px var(--st-border); }
+.settings__theme-preview i { display: block; }
+.settings__tp-side, .settings__tp-panel { background: var(--st-sidebar); }
+.settings__tp-main { display: flex; flex-direction: column; gap: 5px; padding: 9px 8px; }
+.settings__tp-main b { display: block; height: 8px; border-radius: var(--st-radius-xs); background: var(--st-surface); box-shadow: var(--st-shadow-card); }
+.settings__tp-main b:first-child { width: 60%; height: 5px; background: var(--st-text); box-shadow: none; }
+.settings__tp-key { position: absolute; left: 30%; bottom: 8px; width: 26px; height: 10px; border-radius: var(--st-radius-key); background: var(--st-accent); }
+.settings__seg { display: inline-flex; align-self: flex-start; gap: 2px; padding: 3px; border-radius: var(--st-radius-s); background: var(--st-surface-2); }
+.settings__seg-item { position: relative; padding: 6px 16px; border-radius: var(--st-radius-xs); color: var(--st-text-2); cursor: pointer; }
+.settings__seg-item:hover { color: var(--st-text); }
+.settings__seg-item[data-checked='true'] { background: var(--st-surface); color: var(--st-text); font-weight: var(--st-weight-label); box-shadow: var(--st-shadow-card); }

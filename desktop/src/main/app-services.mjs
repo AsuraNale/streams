@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { diagnosticsText } from './diagnostics.mjs'
 import { readSettings, writeSettings } from './settings.mjs'
 import { BridgeError } from './bridge-methods.mjs'
-import { isThemeId } from './theme.mjs'
+import { DEFAULT_THEME, isAppearance, isThemeId } from './theme.mjs'
 import { licensesView, noticesFileOf } from './licenses.mjs'
 
 /**
@@ -29,13 +29,16 @@ import { licensesView, noticesFileOf } from './licenses.mjs'
  * @param {{current: () => {libraryId: string, path: string, name: string}|null, entries: () => object[]}} o.library - services/library.mjs
  * @param {{diagnosticLines: () => string[]}} o.connections - services/connections.mjs
  * @param {{list: () => string[], get: (name: string) => string|null}} o.secrets - secrets.mjs
- * @param {(id: string) => void} [o.applyTheme] - the theme on Electron's side (main.mjs: nativeTheme, the windows' background)
+ * @param {() => void} [o.applyTheme] - the look on Electron's side, from settings.json (main.mjs: nativeTheme, the windows'
+ *   background, the reading window). v2 package K2: no argument — the theme and the appearance are both read there
+ * @param {() => string} [o.scheme] - v2 package K2: the appearance in force now, 'light' | 'dark' (main.mjs: the setting, or
+ *   what Windows uses for 'system')
  * @param {{packaged: boolean, desktopDir: string, installDir: string}} o.licenses - where licensesView reads (main.mjs)
  */
 /** The maker's site (README and the about part: 「由 Starry Digital 开发」, 维护者 11-02). */
 export const MAKER_URL = 'https://starrydigital.ca'
 
-export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets, applyTheme = () => {}, licenses }) {
+export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets, applyTheme = () => {}, scheme = () => 'light', licenses }) {
   const settings = () => readSettings(layout.settingsFile)
 
   const appState = () => {
@@ -57,8 +60,13 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       // the app's own version (version.mjs: release.json's) and whether this is a development run
       version: version.version,
       devBuild: version.dev,
-      // the app's look (theme.mjs): one of THEME_IDS
+      // the app's look (theme.mjs): one of THEME_IDS; v2 package K2: the appearance setting (light · dark · system) and the
+      // set in force now (light · dark), which the page puts on <html data-appearance> (app.js)
       theme: s.theme,
+      appearance: s.appearance,
+      scheme: scheme(),
+      // 设置 marks the default theme's card 「默认」 (theme.mjs DEFAULT_THEME, the one place it is defined)
+      defaultTheme: DEFAULT_THEME,
     }
   }
 
@@ -70,14 +78,26 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       emit('settings-changed', null)
       return r
     },
-    /** 「主题」: write the setting, then the theme on Electron's side; the page sets its own data-theme at once. */
+    /**
+     * 「主题」: write the setting, then the look on Electron's side; the page sets its own data-theme at once. v2 package K2:
+     * the answer is the whole look — { theme, appearance, scheme } — so the page sets data-theme and data-appearance from it.
+     */
     setTheme(id) {
       if (!isThemeId(id)) throw new BridgeError('bad_arguments')
-      const theme = writeSettings(layout.settingsFile, { theme: id }).theme
-      applyTheme(theme)
-      log(`theme: ${theme}`)
+      const s = writeSettings(layout.settingsFile, { theme: id })
+      applyTheme()
+      log(`theme: ${s.theme}`)
       emit('settings-changed', null)
-      return { theme }
+      return { theme: s.theme, appearance: s.appearance, scheme: scheme() }
+    },
+    /** v2 package K2 「外观」: light · dark · system written, Electron's side follows (nativeTheme.themeSource), then the page. */
+    setAppearance(a) {
+      if (!isAppearance(a)) throw new BridgeError('bad_arguments')
+      const s = writeSettings(layout.settingsFile, { appearance: a })
+      applyTheme()
+      log(`appearance: ${s.appearance} (${scheme()})`)
+      emit('settings-changed', null)
+      return { theme: s.theme, appearance: s.appearance, scheme: scheme() }
     },
     /** 许可证与致谢: Streams' own license, the parts that ship with it, whether the full notices are there (licensesView). */
     getLicenses: () => licensesView(licenses),

@@ -14,7 +14,9 @@
 // [data-part="usage"][data-calls] with [data-usage-library=<id>]; [data-part="library"] [data-library-path],
 // [data-action=new-library|open-folder|rebuild], [data-recent=<path>], [data-part="setup"][data-setup="none"|"recorded"] with
 // [data-setup-step=<step>][data-by=<by>]; the language radios' ids `settings-language-<setting>`; [data-part="theme"]
-// select[data-field="theme"] (setTheme, docs/desktop.md §五「主题」); [data-action="licenses"] → [data-dialog="licenses"] with
+// v2 package K2: three cards [data-theme-card=<id>][data-checked] each with input[name="theme"] (setTheme), and
+// [data-part="appearance"] [data-appearance-choice=light|dark|system][data-checked] with input[name="appearance"]
+// (setAppearance; docs/desktop.md §五「主题」); [data-action="licenses"] → [data-dialog="licenses"] with
 // [data-part=license-text|components|notices], [data-component=<name>], [data-action=open-notices|close-licenses].
 // v2 package I (contract I2; design P9): five groups, top to bottom, each a [data-group=<id>] with its parts —
 //   connection  连接方式 (v1.0's three connections, two model slots each) + 「主 Agent 用这条连接的主模型」 [data-part="agent-uses"]
@@ -41,7 +43,7 @@ import { CONNECTIONS, NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
 import { SETTINGS as T } from '../texts/settings.js'
 import { SHELL } from '../texts/shell.js'
 import { AboutUpdate } from './settings-update.js'
-import { THEME_IDS } from '../../shared/themes.mjs'
+import { APPEARANCES, THEME_IDS } from '../../shared/themes.mjs'
 
 const KINDS = ['claude-code', 'codex', 'api']
 // 首次设置's six records (core SETUP_STEPS), in the wizard's order
@@ -365,17 +367,38 @@ function LanguagePart({ language, onChange }) {
   <//>`
 }
 
-/** 「主题」 (docs/desktop.md §五): the three sets; a choice is setTheme at once (the page's <html data-theme> follows). */
-function ThemePart({ theme, failed, onChange }) {
+/**
+ * 「主题」 (docs/desktop.md §五). v2 package K2 (维护者 11-10; K1 design draft 设置): three cards — each a small picture of the
+ * window drawn in its own set (the card carries data-theme and the appearance in force, so tokens.css colours it), its
+ * name, 「默认」 on the default — instead of v1.0's drop-down. A choice is setTheme at once (<html data-theme> follows).
+ */
+function ThemePart({ theme, scheme, defaultTheme, failed, onChange }) {
   const current = THEME_IDS.includes(theme) ? theme : THEME_IDS[0]
   return html`<${Part} id="theme" name=${T.theme} hint=${T.themeHint}>
-    <div class="settings__row">
-      <label class="st-t-small st-t-sub" for="settings-theme">${T.themeLabel}</label>
-      <select id="settings-theme" class="settings__select settings__select--theme" data-field="theme" value=${current} onChange=${e => onChange(e.currentTarget.value)}>
-        ${THEME_IDS.map(id => html`<option key=${id} value=${id} selected=${id === current}>${T.themes[id]}</option>`)}
-      </select>
-      ${failed ? html`<span class="settings__error" role="alert">${T.themeFailed}</span>` : null}
+    <div class="settings__themes" role="radiogroup" aria-label=${T.themeGroup}>
+      ${THEME_IDS.map(id => html`<label key=${id} class="settings__theme" for=${`settings-theme-${id}`} data-theme-card=${id} data-checked=${String(id === current)}>
+        <input type="radio" class="settings__choice-input" name="theme" id=${`settings-theme-${id}`} value=${id} checked=${id === current} onChange=${() => onChange(id)} />
+        <span class="settings__theme-preview" data-theme=${id} data-appearance=${scheme === 'dark' ? 'dark' : 'light'} aria-hidden="true">
+          <i class="settings__tp-side"></i><i class="settings__tp-main"><b></b><b></b><b></b></i><i class="settings__tp-panel"></i><i class="settings__tp-key"></i>
+        </span>
+        <span class="settings__theme-name"><b>${T.themes[id]}</b>${id === defaultTheme ? html`<small data-default>${T.themeDefault}</small>` : null}</span>
+      </label>`)}
     </div>
+    ${failed ? html`<span class="settings__error" role="alert">${T.themeFailed}</span>` : null}
+  <//>`
+}
+
+/** v2 package K2 「外观」: 浅色 · 深色 · 跟随系统 (Windows' light / dark, live); a choice is setAppearance at once. */
+function AppearancePart({ appearance, failed, onChange }) {
+  const current = APPEARANCES.includes(appearance) ? appearance : 'system'
+  return html`<${Part} id="appearance" name=${T.appearance} hint=${T.appearanceHint}>
+    <div class="settings__seg" role="radiogroup" aria-label=${T.appearanceGroup}>
+      ${APPEARANCES.map(a => html`<label key=${a} class="settings__seg-item" for=${`settings-appearance-${a}`} data-appearance-choice=${a} data-checked=${String(a === current)}>
+        <input type="radio" class="settings__choice-input" name="appearance" id=${`settings-appearance-${a}`} value=${a} checked=${a === current} onChange=${() => onChange(a)} />
+        <span>${T.appearances[a]}</span>
+      </label>`)}
+    </div>
+    ${failed ? html`<span class="settings__error" role="alert">${T.appearanceFailed}</span>` : null}
     <div class="st-t-small st-t-sub">${T.themeNote}</div>
   <//>`
 }
@@ -407,6 +430,10 @@ function LicensesDialog({ onClose }) {
           </tr>`)}</tbody>
         </table>
       </section>
+      ${d.font ? html`<section class="settings__licenses-part" data-part="font" data-license=${d.font.license}>
+        <div class="st-t-small st-t-sub">${fmt(T.licenses.font, { name: d.font.name, license: d.font.license })}</div>
+        <pre class="settings__license-text" data-part="font-license-text" tabindex="0">${d.font.text}</pre>
+      </section>` : null}
       <div class="settings__row" data-part="notices" data-available=${String(d.notices.available === true)}>
         <${Act} name="open-notices" disabled=${d.notices.available !== true} onClick=${open}>${T.licenses.notices}<//>
         ${d.notices.available !== true ? html`<span class="st-t-small st-t-sub" data-notices-why>${T.licenses.noticesNone}</span>` : null}
@@ -421,6 +448,7 @@ export function SettingsScreen() {
   const [devInfo, setDevInfo] = useState(data?.showDeveloperInfo ?? false)
   const [copied, setCopied] = useState(false)
   const [themeFailed, setThemeFailed] = useState(false)
+  const [appearanceFailed, setAppearanceFailed] = useState(false)
   const [licenses, setLicenses] = useState(false)
   useEffect(() => { if (data) setDevInfo(data.showDeveloperInfo) }, [data?.showDeveloperInfo])
   const changeTheme = async id => {
@@ -429,7 +457,18 @@ export function SettingsScreen() {
       const r = await call('setTheme', id)
       // at once, before the app state comes back (app.js keeps it in step from then on)
       document.documentElement.dataset.theme = r.theme
+      document.documentElement.dataset.appearance = r.scheme
     } catch { setThemeFailed(true) }
+    appState.reload()
+  }
+  // v2 package K2: 「外观」 — the answer says which set is in force now (for 跟随系统: what Windows uses)
+  const changeAppearance = async a => {
+    setAppearanceFailed(false)
+    try {
+      const r = await call('setAppearance', a)
+      document.documentElement.dataset.theme = r.theme
+      document.documentElement.dataset.appearance = r.scheme
+    } catch { setAppearanceFailed(true) }
     appState.reload()
   }
   const changeLanguage = async v => {
@@ -463,7 +502,8 @@ export function SettingsScreen() {
             ${data ? html`<${LibraryRootPart} /><${SchedulesPart} /><${UsagePart} />` : null}
           <//>
           <${Group} id="look" name=${T.groups.look}>
-            ${data ? html`<${ThemePart} theme=${data.theme} failed=${themeFailed} onChange=${changeTheme} />` : null}
+            ${data ? html`<${ThemePart} theme=${data.theme} scheme=${data.scheme} defaultTheme=${data.defaultTheme} failed=${themeFailed} onChange=${changeTheme} />` : null}
+            ${data ? html`<${AppearancePart} appearance=${data.appearance} failed=${appearanceFailed} onChange=${changeAppearance} />` : null}
             <${LanguagePart} language=${data?.language} onChange=${changeLanguage} />
           <//>
           <${Group} id="software" name=${T.groups.software}>

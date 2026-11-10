@@ -126,13 +126,20 @@ export const SETTINGS = Object.freeze({
   languageNote: '只改流息自己写的字；库里的文件和模型写的内容不受影响。',
   languageReload: '切换后这一页会重新载入。',
 
-  // the app's look (docs/desktop.md §五「主题」): three sets
+  // the app's look (docs/desktop.md §五「主题」). v2 package K2 (维护者 11-10): three themes (the K1 design draft's names) and
+  // the appearance — 浅色 · 深色 · 跟随系统
   theme: '主题',
-  themeHint: '界面用哪一套颜色',
-  themeLabel: '选择主题',
-  themes: Object.freeze({ river: '河蓝', paper: '素灰', night: '夜间' }),
-  themeNote: '选了马上换，下次打开还是它；首次设置、对话框、图谱和问库都跟着换。',
+  themeHint: '界面用哪一套颜色和形状',
+  themeGroup: '选择主题',
+  themes: Object.freeze({ precision: '精密国际主义', glass: '澄明玻璃', research: '研究对话' }),
+  themeDefault: '默认',
+  appearance: '外观',
+  appearanceHint: '跟随系统：Windows 换深色，流息跟着换',
+  appearanceGroup: '选择外观',
+  appearances: Object.freeze({ light: '浅色', dark: '深色', system: '跟随系统' }),
+  themeNote: '选了马上换，下次打开还是它；首次打开、对话框、图谱、问库和阅读窗口都跟着换。',
   themeFailed: '没能换主题。',
+  appearanceFailed: '没能换外观。',
 
   advanced: '高级',
   advancedHint: '给排查问题用，平时不用管',
@@ -161,6 +168,8 @@ export const SETTINGS = Object.freeze({
     notices: '打开完整的第三方声明',
     noticesNone: '开发版没有这个文件：装好的流息才在安装目录里带着 THIRD-PARTY-NOTICES.txt。',
     noticesFailed: '没能打开第三方声明。',
+    // v2 package K2: the bundled UI font's license, in full under the table
+    font: '界面字体 {name}（{license}），许可证全文：',
     failed: '没能读出许可证。',
     close: '关闭',
   }),

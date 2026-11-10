@@ -19,6 +19,8 @@ export const SHELL = Object.freeze({
       minutes: '{n} min',
       amount: '{amount} {currency}',
       asOf: 'As of {when}',
+      // v2 package K2: the corner drawn as the K1 draft has it — under each window's bar, when it resets
+      resetsAt: 'resets {when}',
     }),
   }),
 
