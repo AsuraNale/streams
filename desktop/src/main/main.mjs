@@ -46,6 +46,7 @@ import { listInbox } from './core.mjs'
 import { nativeSource, windowColour } from './theme.mjs'
 import { createReader, isReaderSession, readabilitySource, readerCss } from './reader.mjs'
 import { createReaderService } from './services/reader.mjs'
+import { defaultLibraryRoot as defaultRootOf } from './library-root.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const RENDERER_DIR = join(DESKTOP_DIR, 'src', 'renderer')
@@ -227,8 +228,10 @@ app.whenReady().then(() => {
   const secrets = createSecretStore({ dir: layout.secretsDir, safeStorage })
   const currentLocale = () => locale.current()
   // where a new library goes when settings.json has no libraryRoot (v2 packages B and I): a development run never falls back to
-  // the real Documents folder
-  const defaultLibraryRoot = app.isPackaged ? join(app.getPath('documents'), 'Streams') : (DEV_LIBRARY_ROOT ?? join(layout.appData, 'libraries'))
+  // the real Documents folder. v2 package J2: worked out when first needed, not at start — the packaged app did not start
+  // where Windows could not give the Documents folder; now it falls back to <home>Streams, then <app data>libraries, with a
+  // line in the log (library-root.mjs)
+  const defaultLibraryRoot = defaultRootOf({ packaged: app.isPackaged, getPath: name => app.getPath(name), devRoot: DEV_LIBRARY_ROOT, appData: layout.appData, log })
   // the libraries the app knows (v2 package A): the registry in layout.librariesFile, made from settings.json the first time
   const library = createLibraryService({
     // 新建库默认放在 (v2 package I): shown and changed on 设置, never inside the protected folder
@@ -286,7 +289,7 @@ app.whenReady().then(() => {
   // a confirm reaches the registry and the queue through the library service and the scheduler
   const proposals = createProposalsService({
     appDataDir: layout.appData, library, scheduler: () => scheduler, emit, log, now: clock, locale: currentLocale,
-    libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot,
+    libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
     fallbackSchedule: () => readSettings(layout.settingsFile).schedule,
     devProposals: DEV_PROPOSALS,
   })

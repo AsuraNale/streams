@@ -4,15 +4,22 @@
 //
 //   node --test --test-concurrency=1 "installer/test/*.test.mjs"
 //
-// The older version is built here, from the same sources, by the same script: node installer/build-installer.mjs with
+// The older version is built here, by the same script: node installer/build-installer.mjs with
 // STREAMS_INSTALLER_VERSION=0.9.0 and STREAMS_INSTALLER_OUT=<this run's folder> (release.json is not changed).
+// v2 package J2: and with STREAMS_INSTALLER_APP_REF=<V1_REF>, v1.0's own app (desktop/src and core/src as git holds them at
+// the commit before v2 package A), so the update is v1.0 → v2 as a user of the v1.0 test version has it, and the data the
+// older app leaves is v1.0's: one library named by settings.json (libraryPath, recentLibraries, schedule) and no
+// libraries.json. v2 package A migrates it at v2's first start (docs/desktop.md §4.4): that is checked in 6.
 // Everything runs as a user whose folders are inside this run's folder: the setup programs, the app and the app the setup
 // program opens again all get USERPROFILE, APPDATA, LOCALAPPDATA, TEMP there — so the Start menu, the desktop and the app's
 // data resolve into it (checked first: Windows is asked where those folders are for that environment). What cannot move is
 // HKCU — the uninstall entry and the toast activator key are the real ones — so the guard is the same as packaged.test.mjs's.
 //   0. guards; the older build; where the user's folders resolve
 //   1. 0.9.0 installed silently: its uninstall entry (0.9.0), its shortcuts in the test user's Start menu and desktop
-//   2. 0.9.0 first start (installer/test/harness.mjs): use case A to a kept note; 设置 → 关于 says 0.9.0
+//   2. 0.9.0 first start (installer/test/harness.mjs): use case A to a kept note (v1.0's 首次设置); 设置 → 关于 says 0.9.0;
+//      v2 package J2: 设置's 定时 set to a time of its own (not the default 08:30, so a migration that ignores it shows);
+//      settings.json then holds v1.0's libraryPath / recentLibraries / schedule, and there is no libraries.json and no
+//      schedule in the library's streams.json (the controls: what 6 finds there, v2 made)
 //   3. the stand-in for GitHub (installer/test/github-standin.mjs) gives 1.0.0 with a WRONG sha256: 检查更新 → 有新版本 →
 //      下载 → verify_failed, the file deleted, nothing started; then the right sha256: 检查更新 → 下载 → ready, the file in
 //      <appData>\updates is the 1.0.0 installer byte for byte; the app asked GitHub's real addresses (the harness's record)
@@ -26,7 +33,11 @@
 //      Restart Manager looked, the Restart Manager found no application holding our files, the older copy's files were
 //      removed first and the app was opened again
 //   6. a start of 1.0.0 (harness): packaged, 1.0.0, 关于 says 1.0.0; the library and its note, the settings — still there;
-//      updates\ emptied; nothing asked of GitHub at start
+//      updates\ emptied; nothing asked of GitHub at start. v2 package J2, the migration of v1.0's data (made by the 1.0.0 that
+//      the setup program opened again, its first start): libraries.json made from settings.json — the library registered
+//      and current, nothing else; the app opens on its 概览, the sidebar (plan B) has its row and 库架 its card; its
+//      schedule moved into its streams.json (the time set in 2, also what getSchedule answers); settings.json's libraryPath,
+//      recentLibraries and schedule as 0.9.0 left them (read, not written)
 //   7. silent uninstall: entry, files, shortcuts, toast activator key gone; nothing of Streams left on the real machine
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
@@ -41,7 +52,7 @@ import {
 } from './machine.mjs'
 import { startGitHub } from './github-standin.mjs'
 import { appEnv, startFeed, startTrap, trapsUntouched } from './world.mjs'
-import { firstRunToInbox, keepCurrent, openAbout, updateState } from './use-case-a.mjs'
+import { keepCurrent, openAbout, updateState, v1FirstRunToInbox } from './use-case-a.mjs'
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const imp = p => import(pathToFileURL(join(REPO, p)).href)
@@ -57,6 +68,16 @@ const NEW_SETUP = join(REPO, NEW_RECORD.installer.file)
 const NEW_MANIFEST = JSON.parse(readFileSync(join(DIST, 'stage-manifest.json'), 'utf8'))
 const RELEASE = NEW_RECORD.release
 const OLDER = '0.9.0'
+// v2 package J2: the older version's app is v1.0's — the commit before v2 package A (fe66f16), whose desktop/ and core/ are
+// those of the last v1.0 commit (4d4dd53)
+const V1_REF = 'b3b5512700d31e13327087729e2585a5873626bf'
+// v2 package J2: the schedule 0.9.0 is given in 2 — not v1.0's default (08:30), twelve hours from now (no round of either
+// version falls due while the test runs)
+const V1_SCHEDULE = (() => {
+  const d = new Date(Date.now() + 12 * 3_600_000)
+  const t = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return { enabled: true, time: t === '08:30' ? '08:31' : t }
+})()
 // how long the older app's exit is held after 开始更新 (the harness's slowExitMs): the busy machine of the update's handshake
 const SLOW_EXIT_MS = 8000
 const GITHUB_LATEST = 'https://api.github.com/repos/AsuraNale/streams/releases/latest'
@@ -112,16 +133,19 @@ before(async () => {
   S.startMenu = join(S.folders.Programs, `${RELEASE.app_name}.lnk`)
   S.desktop = join(S.folders.DesktopDirectory, `${RELEASE.app_name}.lnk`)
 
-  // the older version: the same sources, the same script, another version number, written into this run's folder
+  // the older version: the same script, another version number, written into this run's folder; v2 package J2: v1.0's app
+  // (V1_REF), not the working tree's
   const t0 = Date.now()
   const build = spawnSync(process.execPath, [join(REPO, 'installer', 'build-installer.mjs')], {
     encoding: 'utf8', windowsHide: true, timeout: 900_000, maxBuffer: 64 << 20,
-    env: { ...process.env, STREAMS_INSTALLER_VERSION: OLDER, STREAMS_INSTALLER_OUT: W.older },
+    env: { ...process.env, STREAMS_INSTALLER_VERSION: OLDER, STREAMS_INSTALLER_OUT: W.older, STREAMS_INSTALLER_APP_REF: V1_REF },
   })
   assert.equal(build.status, 0, `the older build failed:\n${(build.stdout + build.stderr).slice(-3000)}`)
   S.olderRecord = JSON.parse(readFileSync(join(W.older, 'build-record.json'), 'utf8'))
   S.olderSetup = join(W.older, `Streams-${OLDER}-setup.exe`)
   assert.equal(S.olderRecord.release.version, OLDER)
+  assert.equal(S.olderRecord.from.app_ref, V1_REF, 'the older build is v1.0\'s app')
+  assert.deepEqual(Object.keys(S.olderRecord.stage.copied).filter(k => k.startsWith('@mozilla/')), [], 'control: v1.0 had no @mozilla/readability (the older stage is not the working tree\'s)')
   assert.equal(S.olderRecord.installer.sha256, sha256File(S.olderSetup))
   assert.notEqual(S.olderRecord.installer.sha256, NEW_RECORD.installer.sha256)
   S.result.olderBuild = { seconds: Math.round((Date.now() - t0) / 1000), sha256: S.olderRecord.installer.sha256, bytes: S.olderRecord.installer.bytes }
@@ -188,16 +212,30 @@ test(`2 · ${OLDER} first start: use case A to a kept note; 设置 → 关于 sa
   S.appEnv = env
   A = await launchInstalled({ exe: W.exe, env, hook: hook(1, { setupSpawn: 'run', setupLog: join(ROOT, 'setup-update.log'), slowExitMs: SLOW_EXIT_MS }), chromiumProxy: S.trap.url, repo: REPO, cwd: W.install })
   assert.equal(await A.evaluate("require('electron').app.getVersion()"), OLDER)
-  await firstRunToInbox(A.page, { feedUrl: S.feed.feed })
+  // v2 package J2: 0.9.0 is v1.0's app, so v1.0's 首次设置 (the folder first, then the connection skipped, …)
+  await v1FirstRunToInbox(A.page, { feedUrl: S.feed.feed })
   S.kept = await keepCurrent(A.page)
   const notes = readdirSync(join(W.library, 'notes')).filter(n => n.endsWith('.md'))
   assert.equal(notes.length, 1)
   S.note = { file: join(W.library, 'notes', notes[0]), text: readFileSync(join(W.library, 'notes', notes[0]), 'utf8') }
-  S.settings = JSON.parse(readFileSync(join(W.appData, 'settings.json'), 'utf8'))
-  assert.ok(same(S.settings.libraryPath, W.library))
   const about = await openAbout(A.page)
   assert.equal(about.version, OLDER)
   assert.ok(about.text.includes(`流息 ${OLDER}（Windows 版）`) && !about.text.includes('开发版'), about.text)
+  // v2 package J2: v1.0's 设置 → 定时, the time changed (a change event saves it: setSchedule)
+  const settingsFile = join(W.appData, 'settings.json')
+  assert.deepEqual(JSON.parse(readFileSync(settingsFile, 'utf8')).schedule, { enabled: true, time: '08:30' }, 'control: 定时 → 完成 took the default')
+  await A.page.fill('input[data-field="schedule-time"]', V1_SCHEDULE.time)
+  await until(A.page, t => document.querySelector('[data-schedule-note]') !== null && document.querySelector('input[data-field="schedule-time"]')?.value === t, V1_SCHEDULE.time)
+  for (let i = 0; i < 50 && JSON.parse(readFileSync(settingsFile, 'utf8')).schedule?.time !== V1_SCHEDULE.time; i += 1) await sleep(200)
+  // what v1.0 leaves: settings.json names the one library (libraryPath, recentLibraries) and holds the schedule; no
+  // libraries.json; the library's streams.json has no schedule of its own
+  S.settings = JSON.parse(readFileSync(settingsFile, 'utf8'))
+  assert.ok(same(S.settings.libraryPath, W.library), JSON.stringify(S.settings))
+  assert.ok(Array.isArray(S.settings.recentLibraries) && S.settings.recentLibraries.some(p => same(p, W.library)), `recentLibraries: ${JSON.stringify(S.settings.recentLibraries)}`)
+  assert.deepEqual(S.settings.schedule, V1_SCHEDULE, '设置 → 定时 saved the time in settings.json (v1.0)')
+  assert.equal(existsSync(join(W.appData, 'libraries.json')), false, 'control: v1.0 has no libraries.json')
+  assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(W.library, 'streams.json'), 'utf8')), 'schedule'), false, 'control: v1.0 keeps no schedule in the library')
+  S.result.v1Settings = { libraryPath: S.settings.libraryPath, recentLibraries: S.settings.recentLibraries, schedule: S.settings.schedule }
 })
 
 // ---------------------------------------------------------------- 3. check and download
@@ -342,14 +380,35 @@ test(`6 · a start of ${RELEASE.version}: packaged, 关于 says ${RELEASE.versio
     assert.equal(await B.evaluate("require('electron').app.getVersion()"), RELEASE.version)
     assert.equal(await B.evaluate("require('electron').app.isPackaged"), true)
     await until(B.page, () => document.querySelector('main[data-state="ready"]'))
-    assert.equal(await B.page.evaluate(() => document.querySelector('main').dataset.screen), 'today', 'the library opens at start (no 首次设置)')
-    assert.equal(await B.page.evaluate(() => document.querySelector('.st-sidebar__library-name')?.textContent), '我的库')
+    // v2 package J2: the migrated library is current, so v2 opens on its 概览 (v1.0 opened on 今日; v2 shows 首次打开 only
+    // when no library is registered); the sidebar of plan B has the library's row, current
+    assert.equal(await B.page.evaluate(() => document.querySelector('main').dataset.screen), 'overview', 'the library opens at start (no 首次打开)')
+    assert.deepEqual(await B.page.evaluate(() => [...document.querySelectorAll('[data-library-row]')].map(r => [r.dataset.active, r.querySelector('.st-sidebar__lib-name')?.textContent])), [['true', '我的库']], 'the sidebar\'s one library row, current')
+    // v2 package J2, the migration (docs/desktop.md §4.4): libraries.json made from v1.0's settings.json — the library v1.0
+    // had open, registered and current, named after its folder, and nothing else (recentLibraries held only it)
+    const registry = JSON.parse(readFileSync(join(W.appData, 'libraries.json'), 'utf8'))
+    assert.equal(registry.schema, 'streams.libraries/1')
+    assert.deepEqual(registry.libraries.map(l => [resolve(l.path).toLowerCase(), l.name]), [[resolve(W.library).toLowerCase(), '我的库']], `registered: ${JSON.stringify(registry)}`)
+    assert.equal(registry.active, registry.libraries[0].id, 'and current')
+    assert.match(readFileSync(join(W.appData, 'logs', 'main.log'), 'utf8'), /library: the registry made from settings\.json: 1 libraries, current /, 'main.log: made from settings.json')
+    // the schedule moved into the library's own streams.json (the time 0.9.0 was given, not the default), and that is what
+    // the app now answers
+    const config = JSON.parse(readFileSync(join(W.library, 'streams.json'), 'utf8'))
+    assert.deepEqual(config.schedule, V1_SCHEDULE, 'the schedule moved into the library\'s streams.json')
+    const sched = (await B.page.evaluate(() => window.streams.getSchedule())).data
+    assert.deepEqual({ enabled: sched.enabled, time: sched.time }, V1_SCHEDULE, 'getSchedule answers the moved schedule')
+    // settings.json's v1.0 fields: read, not written — as 0.9.0 left them
+    const settings = JSON.parse(readFileSync(join(W.appData, 'settings.json'), 'utf8'))
+    assert.deepEqual({ libraryPath: settings.libraryPath, recentLibraries: settings.recentLibraries, schedule: settings.schedule }, S.result.v1Settings, 'settings.json keeps libraryPath, recentLibraries and schedule as v1.0 wrote them')
+    // 库架: the library's card, current
+    await B.page.click('.st-sidebar [data-nav="shelf"]')
+    await until(B.page, () => document.querySelector('main[data-screen="shelf"][data-state="ready"]') && document.querySelectorAll('[data-shelf-card]').length > 0)
+    const shelf = await B.page.evaluate(() => [...document.querySelectorAll('[data-shelf-card]')].map(c => ({ id: c.dataset.shelfCard, active: c.dataset.active, name: c.querySelector('[data-part="name"]')?.textContent })))
+    assert.deepEqual(shelf, [{ id: registry.active, active: 'true', name: '我的库' }], '库架: the migrated library')
+    S.result.migration = { registry, schedule: config.schedule, settings: S.result.v1Settings, shelf }
     const about = await openAbout(B.page)
     assert.equal(about.version, RELEASE.version)
     assert.ok(about.text.includes(`流息 ${RELEASE.version}（Windows 版）`), about.text)
-    const settings = JSON.parse(readFileSync(join(W.appData, 'settings.json'), 'utf8'))
-    assert.ok(same(settings.libraryPath, S.settings.libraryPath), 'settings.json keeps the library')
-    assert.deepEqual(settings.schedule, S.settings.schedule, 'and the schedule')
     assert.equal(readFileSync(S.note.file, 'utf8'), S.note.text, 'the kept note is still there, unchanged')
     const id = S.note.file.split(/[\\/]/).pop().replace(/\.md$/, '')
     assert.ok(core.readIndex(W.library).some(e => e.id === id && e.source === S.kept), 'the library\'s index has the kept note')

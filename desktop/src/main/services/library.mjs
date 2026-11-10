@@ -93,7 +93,8 @@ function usable(path) {
  * @param {string|null} [o.devChooseFolder] - STREAMS_DEV_CHOOSE_FOLDER
  * @param {string|null} [o.agentUsageFile] - the main agent's usage.jsonl (v2 package C: <appData>/agent/usage.jsonl), counted in
  *   getUsageTotal on its own line (`agent`) and in the total
- * @param {string|null} [o.defaultLibraryRoot] - v2 package I: where a new library goes while settings.json has no libraryRoot
+ * @param {string|null|(() => string)} [o.defaultLibraryRoot] - v2 package I: where a new library goes while settings.json has no libraryRoot
+ *   (v2 package J2: or a function, asked each time the default is needed — main.mjs gives library-root.mjs's, worked out at first use)
  *   (main.mjs: Documents\Streams packaged; a development run: STREAMS_DEV_LIBRARY_ROOT or a folder in its app data)
  * @param {string[]} [o.protectedDirs] - v2 package I: folders a libraryRoot may not be in (layout.protectedDirs: the app data);
  *   default: the settings file's folder
@@ -157,10 +158,12 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
   }
 
   // ---- 新建库默认放在 (v2 package I) ----
+  // v2 package J2: the default may be a function (main.mjs: library-root.mjs), asked only when the default is needed
+  const defaultRoot = () => (typeof defaultLibraryRoot === 'function' ? defaultLibraryRoot() : defaultLibraryRoot)
   /** { path, isDefault }: settings.json's libraryRoot, else the default place. */
   const rootView = () => {
     const set = readSettings(settingsFile).libraryRoot
-    return set ? { path: set, isDefault: false } : { path: defaultLibraryRoot, isDefault: true }
+    return set ? { path: set, isDefault: false } : { path: defaultRoot(), isDefault: true }
   }
   /** libraryRoot = `path` (an absolute path outside the protected folders) or null (the default); else bad_arguments. */
   const setRoot = path => {
@@ -170,7 +173,7 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
       if (protectedDirs.some(d => isInside(path, d))) throw new BridgeError('bad_arguments', 'libraryRoot may not be inside the app data folder')
     }
     writeSettings(settingsFile, { libraryRoot: path })
-    log(`library: new libraries go to ${path ?? `the default place (${defaultLibraryRoot})`}`)
+    log(`library: new libraries go to ${path ?? `the default place (${defaultRoot()})`}`)
     emit('settings-changed', null)
     return rootView()
   }

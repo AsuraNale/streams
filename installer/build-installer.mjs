@@ -10,7 +10,7 @@
  * 3. rcedit 5.0.2 (installer/rcedit/setup_rcedit.mjs): the pinned rcedit-x64.exe, its SHA256 checked against the manifest
  *    (installed with npm ci when missing).
  * 4. The stage, installer/dist/stage/: exactly the install folder (docs/installer.md §三) — Electron renamed Streams.exe,
- *    resources/app (the desktop app with preact and htm, the icon file assets/icon/streams.ico, Streams' LICENSE),
+ *    resources/app (the desktop app with its npm dependencies — preact, htm and, v2 package J2, @mozilla/readability —, the icon file assets/icon/streams.ico, Streams' LICENSE),
  *    resources/core (core/src: desktop/src/main/core.mjs imports ../../../core/src/index.mjs, which from
  *    resources/app/src/main is resources/core/src), THIRD-PARTY-NOTICES.txt. Only files git knows (tracked, or new and
  *    not ignored) from desktop/src and core/src; tests, fixtures and the component gallery stay out. Then rcedit gives Streams.exe its icon (the .ico) and
@@ -33,6 +33,11 @@
  * app under another version number (release.json itself is not changed: version, output_base_filename and app_ver_name are
  * taken over for this one run), and STREAMS_INSTALLER_OUT=<absolute folder> puts everything this build writes there
  * instead of installer/dist. Both are build-time variables of this script; the app never reads them.
+ * v2 package J2: STREAMS_INSTALLER_APP_REF=<git commit> (the update test only, with the two above) takes the app — desktop/src,
+ * desktop/package.json and its lock, the icon file, LICENSE, core/src and core/package.json — from that commit as git holds
+ * it (git ls-tree / git cat-file), not from the working tree, so the older version of the update test is v1.0's own code
+ * (its single-library settings.json is what v2 package A migrates). The npm packages are still copied from desktop/node_modules
+ * and must be the versions that commit's lock names; Electron, rcedit, Inno Setup and streams.iss are this checkout's.
  */
 
 import { spawnSync } from 'node:child_process'
@@ -78,6 +83,10 @@ const RELEASE = VERSION_OVERRIDE
       app_ver_name: RELEASE_FILE_JSON.app_ver_name.split(RELEASE_FILE_JSON.version).join(VERSION_OVERRIDE),
     }
   : RELEASE_FILE_JSON
+// v2 package J2: the app of another commit (see the header); '' = the working tree, as always
+const APP_REF_GIVEN = process.env.STREAMS_INSTALLER_APP_REF ?? ''
+const APP_REF = APP_REF_GIVEN ? resolveRef(APP_REF_GIVEN) : ''
+if (APP_REF && !(OUT_OVERRIDE && VERSION_OVERRIDE)) throw new Error('STREAMS_INSTALLER_APP_REF goes with STREAMS_INSTALLER_VERSION and STREAMS_INSTALLER_OUT (the update test\'s older build): installer/dist is always the working tree\'s app')
 for (const key of ['version', 'app_name', 'app_ver_name', 'publisher', 'copyright', 'app_guid', 'install_folder', 'exe_name', 'output_base_filename']) {
   if (typeof RELEASE[key] !== 'string' || !RELEASE[key].trim()) throw new Error(`installer/setup/release.json has no "${key}"`)
 }
@@ -129,16 +138,50 @@ function run(label, command, args, options = {}) {
 
 // ---------------------------------------------------------------- what goes in
 
-/** Files git knows below `dir` (tracked, or new and not ignored), present in the working tree; repo-relative, `/`. */
+/** v2 package J2: a commit's full id (STREAMS_INSTALLER_APP_REF), or the build stops. */
+function resolveRef(ref) {
+  const r = spawnSync('git', ['-C', REPO, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { encoding: 'utf8', windowsHide: true })
+  const id = r.stdout.trim()
+  if (r.status !== 0 || !/^[0-9a-f]{40}$/.test(id)) throw new Error(`STREAMS_INSTALLER_APP_REF: ${ref} is not a commit of this repository`)
+  return id
+}
+
+/**
+ * Files git knows below `dir` (tracked, or new and not ignored), present in the working tree; repo-relative, `/`.
+ * v2 package J2: with STREAMS_INSTALLER_APP_REF, the files of that commit below `dir` instead.
+ */
 function gitFiles(dir) {
+  if (APP_REF) {
+    const t = spawnSync('git', ['-C', REPO, 'ls-tree', '-r', '-z', '--name-only', APP_REF, '--', dir], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 << 20 })
+    if (t.status !== 0) throw new Stop(`git ls-tree ${APP_REF} ${dir}: ${t.stderr}`)
+    return [...new Set(t.stdout.split('\0').filter(Boolean))].sort()
+  }
   const r = spawnSync('git', ['-C', REPO, 'ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', dir], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 << 20 })
   if (r.status !== 0) throw new Stop(`git ls-files ${dir}: ${r.stderr}`)
   return [...new Set(r.stdout.split('\0').filter(Boolean))].filter(p => existsSync(join(REPO, p))).sort()
 }
 
-function copyInto(src, dest) {
+/** A repo-relative file's bytes: the working tree's, or (v2 package J2, STREAMS_INSTALLER_APP_REF) that commit's blob. */
+function sourceBytes(path) {
+  if (!APP_REF) return readFileSync(join(REPO, path))
+  const r = spawnSync('git', ['-C', REPO, 'cat-file', 'blob', `${APP_REF}:${path}`], { windowsHide: true, maxBuffer: 256 << 20 })
+  if (r.status !== 0) throw new Stop(`git cat-file ${APP_REF}:${path}: ${String(r.stderr)}`)
+  return r.stdout
+}
+const sourceJson = path => JSON.parse(sourceBytes(path).toString('utf8'))
+
+/** v2 package J2: STREAMS_INSTALLER_APP_REF's desktop/package-lock.json as a file in this build's output folder (for buildNotices). */
+function appRefLock() {
+  const file = join(DIST, 'app-ref-package-lock.json')
+  writeFileSync(file, sourceBytes('desktop/package-lock.json'))
+  return file
+}
+
+/** Copy a repo-relative source file (sourceBytes) to `dest`. */
+function copySource(path, dest) {
   mkdirSync(dirname(dest), { recursive: true })
-  copyFileSync(src, dest)
+  if (APP_REF) writeFileSync(dest, sourceBytes(path))
+  else copyFileSync(join(REPO, path), dest)
 }
 
 /** Copy a folder as it is on disk; a link anywhere stops the build. */
@@ -165,7 +208,7 @@ function writeJson(path, value) {
 
 /** The component gallery's files (development only: desktop/src/main/protocol.mjs DEV_ONLY), read from the source. */
 function devOnlyFiles() {
-  const text = readFileSync(join(REPO, 'desktop', 'src', 'main', 'protocol.mjs'), 'utf8')
+  const text = sourceBytes('desktop/src/main/protocol.mjs').toString('utf8')
   const m = /export const DEV_ONLY = Object\.freeze\(\[([^\]]*)\]\)/.exec(text)
   if (!m) throw new Stop('desktop/src/main/protocol.mjs has no DEV_ONLY list')
   return [...m[1].matchAll(/'([^']+)'/g)].map(x => x[1])
@@ -182,7 +225,7 @@ function stage() {
 
   // the desktop app
   const app = join(STAGE, 'resources', 'app')
-  const desktopPkg = JSON.parse(readFileSync(join(REPO, 'desktop', 'package.json'), 'utf8'))
+  const desktopPkg = sourceJson('desktop/package.json')
   // the version the packaged app reports (app.getVersion() reads this package.json) is release.json's, the one source;
   // desktop/package.json's own version is npm's and is not compared (it would make a second place to bump for every release)
   writeJson(join(app, 'package.json'), {
@@ -191,15 +234,15 @@ function stage() {
   })
   const devOnly = devOnlyFiles()
   const srcFiles = gitFiles('desktop/src').filter(f => !devOnly.some(d => f === `desktop/src/renderer/${d}`))
-  for (const f of srcFiles) copyInto(join(REPO, f), join(app, relative('desktop', f)))
+  for (const f of srcFiles) copySource(f, join(app, relative('desktop', f)))
   counts.desktop = srcFiles.length
   // the icon: of desktop/assets/icon only the one file the app reads (desktop/src/main/icon.mjs); the SVG sources and the
   // PNG renders stay out
   const icoFile = `desktop/${ICON_FILE.join('/')}`
   if (!gitFiles('desktop/assets/icon').includes(icoFile)) throw new Stop(`${icoFile} is not a file git knows (desktop/assets/icon/README.md)`)
-  copyInto(join(REPO, icoFile), ICON_STAGED)
+  copySource(icoFile, ICON_STAGED)
   counts.icon = 1
-  const desktopLock = JSON.parse(readFileSync(join(REPO, 'desktop', 'package-lock.json'), 'utf8')).packages
+  const desktopLock = sourceJson('desktop/package-lock.json').packages
   for (const name of Object.keys(desktopPkg.dependencies)) {
     const installed = JSON.parse(readFileSync(join(REPO, 'desktop', 'node_modules', name, 'package.json'), 'utf8')).version
     if (installed !== desktopLock[`node_modules/${name}`]?.version) throw new Stop(`desktop/node_modules/${name} is ${installed}, the lock says ${desktopLock[`node_modules/${name}`]?.version}`)
@@ -207,7 +250,7 @@ function stage() {
   }
   // Streams' own license, next to the app's package.json (Electron's LICENSE is the one at the top of the install folder)
   if (!gitFiles('LICENSE').includes('LICENSE')) throw new Stop('LICENSE is not a file git knows')
-  copyInto(join(REPO, 'LICENSE'), join(app, 'LICENSE'))
+  copySource('LICENSE', join(app, 'LICENSE'))
   counts.license = 1
 
   // the core (core/src): the desktop app reaches it by a relative path (desktop/src/main/core.mjs:
@@ -216,8 +259,8 @@ function stage() {
   const coreDir = join(STAGE, 'resources', 'core')
   const coreFiles = gitFiles('core/src')
   if (!coreFiles.includes('core/src/index.mjs')) throw new Stop('core/src/index.mjs is not a file git knows')
-  for (const f of coreFiles) copyInto(join(REPO, f), join(coreDir, relative('core', f)))
-  const corePkg = JSON.parse(readFileSync(join(REPO, 'core', 'package.json'), 'utf8'))
+  for (const f of coreFiles) copySource(f, join(coreDir, relative('core', f)))
+  const corePkg = sourceJson('core/package.json')
   if (Object.keys(corePkg.dependencies ?? {}).length) throw new Stop(`core/package.json has dependencies (${Object.keys(corePkg.dependencies).join(', ')}): the stage does not carry them`)
   writeJson(join(coreDir, 'package.json'), { name: corePkg.name, version: RELEASE.version, private: true, license: corePkg.license, type: corePkg.type })
   counts.core = coreFiles.length
@@ -408,7 +451,9 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     '## 安装与卸载 / Install and uninstall',
     '',
     `- 按用户安装，不要管理员权限：默认装到 ${tick}%LOCALAPPDATA%\\Programs\\${RELEASE.install_folder}${tick}；开始菜单与桌面有「${RELEASE.app_name}」。安装本身不联网。`,
-    `- 卸载：「设置 → 应用 → 已安装的应用」里找「${RELEASE.app_ver_name}」→ 卸载。最后会问是否同时删除应用数据（API key、设置、缓存），默认「否」；你的库（Markdown 文件夹）不会被删除。`,
+    // v2 package J2: the app data of v2 also holds the library register (libraries.json) and the main agent's conversation
+    `- 卸载：「设置 → 应用 → 已安装的应用」里找「${RELEASE.app_ver_name}」→ 卸载。最后会问是否同时删除应用数据（API key、设置、登记了哪些库、和主 Agent 的对话记录、缓存），默认「否」；你的库（Markdown 文件夹）不会被删除，选「是」也只是忘了登记过哪些库。`,
+    '- 装过 v1.0 测试版：直接装这个安装包，不用先卸载；第一次打开时，v1.0 用的那个库会登记进库架，它的定时搬进这个库自己的设置（v1.0 的设置文件只读不改）。',
     '- 以后的版本可以在应用里「设置 → 关于 → 检查更新」直接更新，不用先卸载。',
     '',
   ].join('\n')
@@ -442,7 +487,7 @@ async function main() {
   if (process.platform !== 'win32') throw new Stop('the Windows installer is built on Windows')
   const head = spawnSync('git', ['-C', REPO, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).stdout.trim()
   const dirty = spawnSync('git', ['-C', REPO, 'status', '--porcelain'], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean)
-  say(`Streams ${RELEASE.version} installer, from ${head}${dirty.length ? ` with ${dirty.length} uncommitted change(s)` : ''}`)
+  say(`Streams ${RELEASE.version} installer, from ${head}${dirty.length ? ` with ${dirty.length} uncommitted change(s)` : ''}${APP_REF ? `; the app (desktop/src, core/src) of commit ${APP_REF}` : ''}`)
 
   say('1. Electron')
   run('setup_electron.mjs verify', process.execPath, [join(INSTALLER, 'electron', 'setup_electron.mjs'), 'verify'])
@@ -464,7 +509,8 @@ async function main() {
 
   say('5. THIRD-PARTY-NOTICES.txt')
   const notices = buildNotices({
-    stage: STAGE, lockFile: join(REPO, 'desktop', 'package-lock.json'),
+    // v2 package J2: with STREAMS_INSTALLER_APP_REF, that commit's lock (written beside this build's other output)
+    stage: STAGE, lockFile: APP_REF ? appRefLock() : join(REPO, 'desktop', 'package-lock.json'),
     facts: { appName: RELEASE.app_name, version: RELEASE.version, electron: JSON.parse(readFileSync(join(INSTALLER, 'electron', 'manifest.json'), 'utf8')).electron.version },
   })
   writeFileSync(join(STAGE, 'THIRD-PARTY-NOTICES.txt'), notices.text)
@@ -537,7 +583,7 @@ async function main() {
   const record = {
     built: new Date().toISOString(),
     seconds: Math.round((Date.now() - started) / 1000),
-    from: { head, uncommitted: dirty },
+    from: { head, uncommitted: dirty, ...(APP_REF ? { app_ref: APP_REF } : {}) },
     release: RELEASE,
     app_user_model_id: APP_USER_MODEL_ID,
     toast_activator_clsid: TOAST_ACTIVATOR_CLSID,

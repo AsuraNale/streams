@@ -1,7 +1,9 @@
 /**
  * The world an installer test runs the installed app in (docs/installer.md §五):
  *
- *   startFeed()        an RSS feed on this machine (127.0.0.1, a port of its own): three items, each with its page
+ *   startFeed()        an RSS feed on this machine (127.0.0.1, a port of its own): three items, each with its page — v2
+ *                      package J2: an article long enough for the reading window's 阅读模式 (well over its 200 characters),
+ *                      inside a menu and a script; the script, if it ever ran, would ask /script-ran (itemPage below)
  *   startTrap()        the egress trap: an HTTP proxy that refuses everything and records what came (requests, CONNECTs).
  *                      The app runs with HTTP_PROXY / HTTPS_PROXY pointing at it (and NODE_USE_ENV_PROXY=1, so Node's own
  *                      fetch takes the proxy too) and Chromium with --proxy-server at it; loopback is never proxied.
@@ -19,6 +21,24 @@ import { join } from 'node:path'
 import { SYSTEM32 } from './machine.mjs'
 
 const DAY_MS = 24 * 60 * 60 * 1000
+// v2 package J2: what the page's script would ask if it ran (the reading window's 阅读模式 runs no script of the page)
+export const SCRIPT_RAN = '/script-ran'
+/** v2 package J2: the text of item n's article, a sentence that only its page carries (the reading page must show it). */
+export const articleLine = n => `Item ${n} of the installer check reads as an article: the reading window takes this text out of the page.`
+
+/** v2 package J2: item n's page — a menu, a script and an article of four paragraphs (was one short line in v1.0). */
+function itemPage(n) {
+  const paras = [
+    articleLine(n),
+    'The second paragraph says what the installed app does with it: the reader asks this page from the feed on this machine, through its own session, and nothing else.',
+    'The third paragraph is here so that the article is well over the two hundred characters the reading mode wants before it shows a page of its own.',
+    'The last paragraph closes the article. None of these words are links, so the page is not mostly links either.',
+  ]
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Item ${n}</title></head><body>
+    <nav><a href="/">Home</a> <a href="/news">News</a> <a href="/about">About us</a></nav>
+    <script>fetch('${SCRIPT_RAN}')</script>
+    <article><h1>Streams installer check: item ${n}</h1>${paras.map(p => `<p>${p}</p>`).join('')}</article></body></html>`
+}
 export const FEED_ITEMS = Object.freeze([
   { n: 1, title: 'Streams installer check: the first item' },
   { n: 2, title: 'Streams installer check: the second item' },
@@ -37,7 +57,7 @@ export async function startFeed() {
       return
     }
     const m = /^\/item\/(\d+)$/.exec(req.url ?? '')
-    if (m) { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(`<html><body><p>Body of item ${m[1]}. Nothing else.</p></body></html>`); return }
+    if (m) { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(itemPage(Number(m[1]))); return }
     res.writeHead(404).end('no')
   })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
@@ -99,7 +119,11 @@ export function appEnv({ profile, tmp, trapUrl, traps }) {
   }
   const roaming = join(profile, 'AppData', 'Roaming')
   const local = join(profile, 'AppData', 'Local')
-  for (const d of [roaming, local, tmp]) mkdirSync(d, { recursive: true })
+  // v2 package J2: and the profile's Documents, as every Windows profile has it — a new library's default place is
+  // Documents\Streams (desktop/src/main/library-root.mjs); with USERPROFILE moved it resolves to this folder, not the real
+  // one (packaged.test.mjs 3 checks getLibraryRoot). Before library-root.mjs the packaged v2 did not start at all without
+  // it ("Failed to get 'documents' path"); packaged.test.mjs 4b starts the installed app with this folder removed
+  for (const d of [roaming, local, tmp, join(profile, 'Documents')]) mkdirSync(d, { recursive: true })
   Object.assign(env, {
     USERPROFILE: profile, HOME: profile, HOMEDRIVE: profile.slice(0, 2), HOMEPATH: profile.slice(2), APPDATA: roaming, LOCALAPPDATA: local, TEMP: tmp, TMP: tmp,
     PATH: [SYSTEM32, join(SYSTEM32, 'Wbem'), join(SYSTEM32, 'WindowsPowerShell', 'v1.0')].join(';'),
