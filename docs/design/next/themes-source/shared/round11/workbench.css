@@ -1,0 +1,82 @@
+/* The roles are shared; the pigment and accent geometry belong to each family. */
+.r11.r11 {
+  --paper:#fcfcfa;--bench:#f6f6f3;--panel:#f0f0ed;--well:#e9e9e6;--ink11:#292c2d;
+  --sub11:#5a6063;--accent11:#384854;--pick:#e1e6e8;--inverse11:#fff;
+  --rule11:color-mix(in srgb,var(--ink11) 12%,transparent);--float11:0 6px 22px -13px #1a20302e;
+  --text-ink:var(--ink11);--secondary-ink:var(--sub11);--focus:var(--accent11);--focus-shadow:0 0 0 1px var(--accent11),0 0 0 4px color-mix(in srgb,var(--accent11) 14%,transparent);
+  --surface:var(--paper);--surface2:var(--bench);--bg:var(--bench);--ink:var(--ink11);--muted:var(--sub11);--line:var(--rule11);
+  --selected-ink:var(--ink11);--selected-surface:var(--pick);--selected-edge:transparent;--selected-shadow:none;--accent:var(--accent11);
+}
+.r11-glass.r11 {--paper:#fbfcff;--bench:#f6f8fc;--panel:#eff2f8;--well:#e9edf6;--ink11:#27334b;--sub11:#53617a;--accent11:#495f98;--pick:#e1e8f7}
+.r11-research.r11 {--paper:#fdfcf9;--bench:#f7f7f3;--panel:#f1f2ed;--well:#ecece5;--ink11:#283c40;--sub11:#536466;--accent11:#395d62;--pick:#e2eae5}
+.r11-precision.r11 {--accent11:#363636;--ink11:#242424;--sub11:#555;--pick:#e4e4e2}
+.r11.r11[data-appearance=dark] {
+  color-scheme:dark;--bench:#151515;--panel:#1b1b1a;--paper:#20201f;--well:#292928;
+  --ink11:#e5e5df;--sub11:#a9aba8;--accent11:#c9cdce;--pick:#353635;--inverse11:#191a19;
+  --dark-copy:'Workbench Numerals','Yunzhi Noto',sans-serif;
+}
+.r11-glass.r11[data-appearance=dark] {--bench:#16191f;--panel:#1b1f26;--paper:#22262e;--well:#292f38;--accent11:#b2c5ef;--pick:#303a50}
+.r11-research.r11[data-appearance=dark] {--bench:#161a19;--panel:#1c201e;--paper:#232724;--well:#292e2a;--accent11:#b3d0c0;--pick:#303e38}
+.r11.r11[data-appearance=dark] :is(.intro-copy,.decision-points dd,.reader-section p,.user-message,.step-line,.file-text,.composer textarea,.source-card p) {font-family:var(--dark-copy);font-weight:360}
+.r11.r11[data-appearance=dark] :is(.btn,.navitem,.project-name,.tab,.speaker,.filter) {font-family:var(--dark-copy);font-weight:460}
+.r11.r11[data-appearance=dark] :is(.confirm-title h2,.project-heading h1,.panel-summary h2,.reader-title) {font-weight:calc(var(--display-weight) - 40)}
+.r11.r11,.r11.r11 :is(.app,.workspace,.thread-scroll,.reader-scroll,.composer-wrap,.panel-scroll,.home-content,.new-content) {background:var(--bench);color:var(--ink11)}
+.r11.r11 :is(.sidebar,.context-panel,.panel-scroll,.panel-tabs) {background:var(--panel);border-color:transparent;box-shadow:none}
+.r11.r11 :is(.work-header,.confirm-footer,.composer-tools .chip,.reader-header,.dialog-head,.profile-circle,.phase-heading,.file-chip) {background:var(--bench);border-color:transparent;color:var(--sub11);box-shadow:none}
+.r11.r11 :is(.confirmation,.reader-paper,.draft-preview,.project-tile,.composer,.source-card,.dialog,.phase-row,.field input,.field select,.field textarea,.search-field) {background:var(--paper);color:var(--ink11);border-color:transparent;box-shadow:var(--float11)}
+.r11.r11 :is(.confirmation,.phase-row,.source-card,.project-item,.document-link,.tab,.filter,.file-row,.phase-index,.project-tile) {outline:none}
+.r11.r11 :is(.confirm-top,.panel-summary,.phase-row.current .phase-heading,.reader-callout,.user-message,.annotation,.upload-area) {background:var(--well);color:var(--ink11);border-color:transparent;box-shadow:none}
+.r11.r11 .confirm-top::before,.r11.r11 .work-header::after,.r11.r11 .work-header::before {content:none}
+.r11.r11 .panel-summary {padding:15px 16px;border-radius:var(--key-radius)}
+.r11.r11 :is(.confirm-title h2,.reader-title,.project-heading h1,.panel-summary h2,.project-name,.phase-label,.file-text,.source-card h3,.project-tile h3,.reader-section h3,.home-title,.speaker,.brandname) {color:var(--ink11)}
+.r11.r11 :is(.confirm-title small,.confirm-number,.decision-points dt,.phase-label small,.project-meta,.header-meta,.eyebrow,.side-footer .navitem,.status-chip,.file-text small,.brand small,.point-index,.source-card p,.activity-row small,.reader-meta,.reader-note,.reader-table th) {color:var(--sub11)}
+.r11.r11 :is(.confirm-number,.status-chip,.phase-index,.point-index,.file-icon,.confirm-title>.ico,.brandmark,.avatar,.reader-table th) {background:var(--paper);border-color:transparent;box-shadow:none;color:var(--accent11)}
+.r11.r11 :is(.btn:not(.primary),.document-link,.icon-btn,.attach-btn,.tab,.filter) {color:var(--ink11);background:var(--well);border-color:transparent;box-shadow:none}
+.r11.r11 :is(.btn.primary,.send-btn,.navitem.new) {background:var(--accent11);color:var(--inverse11);border-color:transparent;box-shadow:none}
+.r11.r11 :is(.tab.active,.filter.active,.project-item.active,.file-row[aria-current],.source-card.selected,.navitem.active) {background:var(--pick);color:var(--ink11);border-color:transparent;box-shadow:none;outline:0}
+.r11-glass.r11 :is(.project-item.active,.file-row[aria-current],.source-card.selected) {background:linear-gradient(105deg,var(--pick),color-mix(in srgb,var(--pick) 85%,#b5aeca));box-shadow:inset 2px 0 var(--accent11)}
+.r11-precision.r11 :is(.project-item.active,.file-row[aria-current],.source-card.selected) {box-shadow:inset 3px 0 var(--accent11)}
+.r11-precision.r11 :is(.project-item.active,.tab.active)::before,.r11-precision.r11 :is(.project-item.active,.tab.active)::after {content:none}
+.r11-research.r11 :is(.project-item.active,.file-row[aria-current],.source-card.selected)::after {background:var(--accent11)}
+.r11.r11 :is(.document-link,.navitem,.tab,.filter,.icon-btn,.attach-btn,.project-item,.file-row,.source-card,.btn):hover:not(:disabled) {color:var(--ink11);background:var(--pick);border-color:transparent;box-shadow:none}
+.r11.r11 :is(.btn.primary,.send-btn,.navitem.new):hover:not(:disabled) {background:color-mix(in srgb,var(--accent11) 88%,var(--ink11));color:var(--inverse11);transform:none;box-shadow:none}
+.r11.r11 :is(.btn.primary,.send-btn,.navitem.new):active:not(:disabled) {transform:scale(.985);box-shadow:inset 0 1px 3px #1114}
+.r11.r11 :is(.btn,a,summary,button):focus-visible {outline:2px solid var(--accent11);outline-offset:3px}
+.r11.r11 .composer:focus-within,.r11.r11 .search-field:focus-within,.r11.r11 .field :is(input,textarea,select):focus {outline:none;border-color:transparent;box-shadow:var(--focus-shadow)}
+.r11.r11 :is(.composer,.search-field) :is(textarea,input):focus {outline:0}
+.r11.r11 :is(.reader-section p,.intro-copy,.decision-points dd,.user-message,.source-card p) {text-wrap:pretty}
+.r11.r11 :is(.phase-index,.header-meta,.project-meta,.reader-meta,.progress-caption,.file-text small,.confirm-number,.point-index,[data-badge]) {font-variant-numeric:tabular-nums}
+.r11.r11 .ico {vertical-align:-.125em}
+.r11.r11 .resize-handle,.r11.r11 .app {transition:none}
+@supports selector(details::details-content) {
+  .r11 .phase-row::details-content {display:grid;grid-template-rows:0fr;overflow:hidden;transition:grid-template-rows 210ms cubic-bezier(.215,.61,.355,1),content-visibility 210ms allow-discrete}
+  .r11 .phase-row[open]::details-content {grid-template-rows:1fr}
+  .r11 .phase-details {min-height:0;overflow:hidden}
+  .r11 .phase-row:not([open]) .phase-details {padding-block:0}
+}
+.r11 .ink-glyph {animation:r11-ink 90ms cubic-bezier(.215,.61,.355,1) both}
+@keyframes r11-ink {from{filter:blur(6px);opacity:0}to{filter:blur(0);opacity:1}}
+.r11 .r11-stamp {display:inline-block;margin-inline-end:.45em;animation:r11-stamp 360ms both;font-weight:650}
+@keyframes r11-stamp {0%{transform:scale(.55)}55%{transform:scale(1.13)}82%{transform:scale(.97)}100%{transform:scale(1)}}
+.r11 .r11-ack {animation:r11-clear 2.5s both}
+@keyframes r11-clear {0%,90%{opacity:1}100%{opacity:0}}
+.r11-appearance {display:none}
+.r11 .r11-appearance {display:inline-block}
+.r11[data-appearance=dark] :is(.reader-table td,.progress-alert,.btn.quiet,.navitem,.filter,.cite,.project-tile,.record,.limit-note,.document-link small,.confirm-footer small) {color:var(--ink11)}
+.r11[data-appearance=dark] :is(.reader-table td,.selection-tools,.record,.prototype-bar,.activity-row,.checklist,.empty-state,.dialog-body,.form-footer) {background:var(--paper);border-color:var(--rule11)}
+.r11[data-appearance=dark] :is(.composer textarea,.field textarea,.field input,.field select,.search-field input,select) {color:var(--ink11);background:var(--paper)}
+.r11[data-appearance=dark] :is(.decision-points>div,.section-label,.reader-section h3,.project-tile-footer,.side-footer,.thread .date-line,.panel-section) {border-color:var(--rule11)}
+.r11[data-appearance=dark] :is(.panel-summary p,.step-line,.phase-heading small,.intro-copy,.reader-section p,.progress-caption,.after-card,.navitem,.phase-index,.decision-points dd,.reader-callout,.user-message,.brand,.file-row,.annotation,.section-label,.profile,.dialog h2,.draft-preview h3) {color:var(--ink11)}
+.r11[data-appearance=dark] :is(.tab,.file-icon,.sidebar-symbol,.tab.active .ico,.document-link .ico,.after-card button,.composer-tools .chip,.step-line .ico) {color:var(--accent11)}
+.r11[data-appearance=dark] #trialRail {color-scheme:light}
+@media(prefers-reduced-motion:reduce){.r11 .phase-row::details-content,.r11 .ink-glyph,.r11 .r11-ack,.r11 .r11-stamp{animation:none!important;transition:none!important}}
+.r11[data-appearance=dark] .sidebar .navitem.new {color:var(--inverse11)}
+.r11[data-appearance=dark] .tab.active .ico {color:var(--ink11)}
+.r11[data-appearance=dark] #trialRail select {color:#323830;background:white}
+.r11[data-appearance=dark] :is(.chart-row,.chart-row b,.section-label button,.compose-help,.field>span) {color:var(--sub11)}
+.r11[data-appearance=dark] :is(.chart-track,.progress-line span:not(.now):not(.done)) {background:var(--well)}
+.r11[data-appearance=dark] .chart-bar {background-color:var(--accent11)}
+.r11 .ink-glyph {display:inline-block;white-space:pre-wrap}
+.r11 .phase-label small {display:flex;align-items:center;flex-wrap:wrap;gap:3px 8px}
+.r11 .phase-label .step-dots {display:inline-flex;align-items:center;gap:3px;margin:0;flex:none}
+.r11 .phase-label .step-dots i {width:6px;height:6px}

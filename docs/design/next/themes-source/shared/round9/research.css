@@ -1,0 +1,112 @@
+.r9-research {
+  --chinese: 'Microsoft YaHei UI';
+  --display-chinese: 'Noto Serif SC', 'SimSun';
+  --display-weight: 600;
+  --display-spacing: -.02em;
+  --label-weight: 500;
+  --text-ink: #27313f;
+  --secondary-ink: #5f6d80;
+  --icon-weight: 1.65;
+  --small-icon-weight: 1.85;
+  --cap: round;
+  --join: round;
+  --key-radius: 7px;
+  --focus: #316bb3;
+  --highlight: #d6e8fc;
+  --selected-ink: #244f85;
+  --selected-edge: #a5c0de;
+  --selected-surface: #f3f8fe;
+  --floating-surface: #fff;
+  --selected-shadow: inset 3px 0 0 #3976bb, 0 2px 5px #17395f10;
+  --primary-surface: #285f9f;
+  --primary-edge: #24568f;
+  --primary-hover: #214f87;
+  --primary-down: #1e4674;
+  --key-shadow: 0 2px 3px #183b661c;
+  --key-hover-shadow: 0 4px 9px #183b662b;
+  --key-down-shadow: inset 0 2px 3px #163c6b4d;
+  --focus-shadow: 0 0 0 3px #dceafa;
+  --accent: #315f99;
+}
+.r9-research .sidebar { background: #f7f8fa; border-right: 1px solid #e0e5eb; }
+.r9-research .brandmark, .r9-research .avatar {
+  background: #345f93; color: #fff; border-radius: 8px;
+  box-shadow: inset 0 1px 0 #ffffff38;
+}
+.r9-research .navitem.new, .r9-research .btn.quiet, .r9-research .document-link {
+  color: #315d91; border: 1px solid #c9d6e5; background: #fff;
+  border-radius: var(--key-radius); box-shadow: 0 1px 2px #182e4908;
+}
+.r9-research .navitem.new:hover, .r9-research .btn.quiet:hover, .r9-research .document-link:hover {
+  background: #f2f7fd; border-color: #97b4d5; box-shadow: 0 3px 6px #183b6614;
+}
+.r9-research .project-item.active { border: 1px solid; border-radius: 7px; }
+.r9-research .project-meta [data-badge]:not(:empty) { background: #ddeafa; color: #254f84; }
+.r9-research .work-header { border-bottom: 1px solid #d7e0ea; }
+.r9-research .status-chip { background: #edf4fc; color: #345e8d; border: 1px solid #d6e4f3; }
+.r9-research .user-message { border-radius: 14px 14px 3px 14px; background: #eef3f9; }
+.r9-research .confirmation { border: 1px solid #cbd7e4; border-radius: 10px; }
+.r9-research .confirm-top { background: #fcfdff; border-bottom: 1px solid #dbe4ee; }
+.r9-research .confirm-title > .ico, .r9-research .file-icon {
+  color: #345f93; background: #edf3fa; border: 1px solid #d3dfec; border-radius: 5px;
+}
+.r9-research .confirm-number { color: #345f93; background: #eef4fb; border: 1px solid #d8e5f2; }
+.r9-research .confirm-footer { background: #fbfcfe; }
+.r9-research .confirm-title small, .r9-research .document-link small { color: #5b708a; }
+.r9-research .point-index { color: #346599; }
+.r9-research .context-panel { background: #fbfcfe; }
+.r9-research .panel-tabs { padding: 11px 12px; height: 61px; border-bottom: 1px solid #dce4ee; background: #f6f8fb; }
+.r9-research .tab { padding: 0; height: 36px; border: 1px solid transparent; border-radius: 5px; color: #52627a; }
+.r9-research.r9 .tab.active { box-shadow: inset 0 -2px 0 #3976bb; background: #fff; }
+.r9-research .phase-row.current { border: 1px solid var(--selected-edge); box-shadow: 0 3px 7px #17395f0c; }
+.r9-research .phase-row.current .phase-heading { background: var(--selected-surface); box-shadow: inset 3px 0 0 #3976bb; }
+.r9-research .current .phase-index { color: #fff; background: #345f93; }
+.r9-research .phase-index, .r9-research .filter { border-radius: 4px; }
+.r9-research .reader-paper { background: #fff; border: 1px solid #d9e1ea; border-radius: 7px; }
+.r9-research .reader-title { font-size: 34px; }
+.r9-research .reader-callout { border-left: 3px solid #3976bb; background: #f2f7fc; color: #324e71; }
+.r9-research .reader-section h3 { padding-bottom: 7px; border-bottom: 1px solid #e0e7ef; }
+.r9-research .cite { color: #315f99; text-underline-offset: 3px; text-decoration: underline; }
+.r9-research .reader-table th { color: #385475; background: #eef4fa; }
+.r9-research .composer { border: 1px solid #cdd9e5; border-radius: 12px; background: white; }
+.r9-research .field :is(input,textarea,select), .r9-research .search-field, .r9-research .upload-area {
+  color: #29394e; border: 1px solid #cbd7e4; background: #fff; border-radius: 7px;
+}
+.r9-research .source-card, .r9-research .draft-preview, .r9-research .project-tile, .r9-research .dialog {
+  border-color: #cedae8; border-radius: 9px; background: white;
+}
+/* Bound pages, marginal notes and ribbon tabs. */
+.r9-research.r9 :is(.btn:not(.primary),.after-card button,.section-label button,.selection-tools button) {
+  color: #335b89; background: transparent; border: 0; border-radius: 0; box-shadow: none;
+  text-decoration: underline; text-decoration-color: #9aaec5; text-underline-offset: 4px;
+}
+.r9-research.r9 :is(.navitem.new,.btn.primary,.send-btn) {
+  border-radius: 3px; color: #fff; border: 1px solid #284869; background: #345678; box-shadow: inset 0 -2px #243f5c;
+}
+.r9-research.r9 :is(.icon-btn,.attach-btn,.file-chip) { color: #365a80; background: #f6f8fa; border: 1px solid #bccbdb; border-radius: 2px 6px 2px 2px; box-shadow: none; }
+.r9-research.r9 .document-link { color: #30557c; border: 0; border-left: 3px double #7590af; border-radius: 0; background: #f3f6fa; box-shadow: none; }
+.r9-research.r9 .filters { border-bottom: 1px solid #c5d1de; gap: 2px; }
+.r9-research.r9 .filter, .r9-research.r9 .tab { border-radius: 0; border: 0; background: transparent; }
+.r9-research.r9 :is(.filter.active,.tab.active) {
+  border: 0; color: #284e79; background: #e8eff6; box-shadow: inset 0 -3px #40658c; border-radius: 4px 4px 0 0;
+}
+.r9-research.r9 :is(.project-item.active,.source-card.selected,.file-row[aria-current]) {
+  position: relative; padding-right: 24px; border: 1px solid #ccd6e2; border-radius: 2px;
+  background: #fbfcfd; box-shadow: inset 3px 0 #557798;
+}
+.r9-research.r9 :is(.project-item.active,.source-card.selected,.file-row[aria-current])::after {
+  content: ''; position: absolute; top: 0; right: 9px; width: 8px; height: 14px;
+  background: #47698c; clip-path: polygon(0 0,100% 0,100% 100%,50% 75%,0 100%); pointer-events: none;
+}
+.r9-research.r9 .phase-index { border-radius: 0; border-bottom: 1px solid #9bafc5; }
+.r9-research.r9 details[open] .phase-heading { text-decoration: underline; text-decoration-color: #bbcad9; text-underline-offset: 4px; }
+.r9-research.r9 .selection-tools { background: #fcfcfa; border-radius: 2px; border: 1px solid #9bafc3; border-left: 3px double #526e89; }
+.r9-research.r9 .readable mark { background: #eff3f8; border: 0; text-decoration: underline wavy #55799b; text-underline-offset: 3px; }
+.r9-research.r9 .annotation { border: 0; border-left: 3px double #7091ae; border-radius: 0; background: #f1f5f8; }
+.r9-research.r9 :is(.navitem:not(.new),.icon-btn,.attach-btn,.file-chip button,.btn:not(.primary),.after-card button,.section-label button,.selection-tools button,.filter,.file-row,.source-card,.project-tile,.document-link,.annotation,.phase-heading):hover {
+  background-color: #edf2f7; text-decoration: underline; text-decoration-color: #7291ad; text-underline-offset: 4px;
+}
+.r9-research.r9 :is(button,a,summary):focus-visible { outline: 2px solid #4e7196; outline-offset: 3px; }
+.r9-research.r9 :is(button:not(:disabled),.navitem,.attach-btn,.phase-heading):active { box-shadow: inset 0 -2px #496886; transform: translateY(1px); }
+.r9-research.r9 .composer-tools .chip { color: #47627e; background: transparent; border: 0; border-bottom: 1px solid #aabccc; border-radius: 0; }
+.r9-research.r9 .panel-scroll :is(.btn,.document-link)[aria-current] { text-decoration: underline double; text-underline-offset: 4px; }

@@ -1,0 +1,98 @@
+.r9-precision {
+  --chinese: 'Yunzhi Noto';
+  --display-chinese: 'Yunzhi Noto';
+  --display-weight: 650;
+  --display-spacing: -.035em;
+  --label-weight: 550;
+  --text-ink: #252525;
+  --secondary-ink: #555;
+  --icon-weight: 1.6;
+  --small-icon-weight: 1.95;
+  --cap: butt;
+  --join: miter;
+  --key-radius: 0;
+  --focus: #444;
+  --highlight: #dedede;
+  --selected-ink: #191919;
+  --selected-edge: #626262;
+  --selected-surface: #fff;
+  --floating-surface: #fff;
+  --selected-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3px #dedede, 2px 2px 0 #c5c5c5;
+  --primary-surface: #242424;
+  --primary-edge: #191919;
+  --primary-hover: #363636;
+  --primary-down: #191919;
+  --key-shadow: inset 0 0 0 1px #666, 2px 2px 0 #a8a8a8;
+  --key-hover-shadow: inset 0 0 0 1px #999, 3px 3px 0 #aaa;
+  --key-down-shadow: inset 0 2px 3px #0005, 0 0 0 1px #888;
+  --focus-shadow: 0 0 0 2px white, 0 0 0 3px #777;
+}
+.r9-precision.r9 .tab.active {
+  background: #242424; color: #fff; border: 1px solid #111;
+  box-shadow: var(--key-shadow);
+}
+.r9-precision.r9 .tab.active:after { background: #222; }
+.r9-precision .tab.active .ico { color: #fff; }
+.r9-precision .panel-tabs { padding-inline: 11px; gap: 3px; }
+.r9-precision .brandmark, .r9-precision .file-icon { border-radius: 0; }
+.r9-precision .brandname { letter-spacing: -.04em; }
+.r9-precision .confirm-top {
+  background: repeating-linear-gradient(90deg,#232323 0 6px,#272727 6px 7px);
+}
+.r9-precision .confirm-title small { color: #d5d5d5; }
+.r9-precision .confirm-number { padding: 5px 9px; }
+.r9-precision .source-card, .r9-precision .file-row, .r9-precision .reader-table,
+.r9-precision .record { border-radius: 0; }
+.r9-precision .source-card.selected, .r9-precision .filter.active {
+  border: 1px solid var(--selected-edge); outline-offset: 2px;
+}
+.r9-precision .phase-row.current { box-shadow: var(--selected-shadow); }
+.r9-precision .phase-row.current .phase-heading { border-bottom: 1px solid #c8c8c8; }
+.r9-precision .current .phase-index, .r9-precision .project-meta [data-badge]:not(:empty) {
+  color: #fff; background: #222; border: 1px solid #222;
+}
+.r9-precision .btn.quiet, .r9-precision .document-link, .r9-precision .navitem.new {
+  background: #fff; color: #222; border: 1px solid #929292;
+  box-shadow: inset 0 0 0 1px #fff, 1px 1px 0 #ddd;
+}
+.r9-precision .btn.quiet:hover, .r9-precision .document-link:hover { box-shadow: 2px 2px 0 #b7b7b7; }
+.r9-precision .btn.quiet:active, .r9-precision .document-link:active { transform: translateY(1px); box-shadow: none; }
+.r9-precision .reader-meta, .r9-precision .project-tile-footer { border-top: 1px solid #ddd; padding-top: 9px; }
+.r9-precision .reader-section h3 { padding-top: 12px; border-top: 1px solid #aaa; }
+.r9-precision .reader-callout { border-left: 3px solid #282828; background: #f7f7f7; }
+.r9-precision .search-field, .r9-precision .upload-area, .r9-precision .field :is(input,textarea,select) {
+  border: 1px solid #b0b0b0; border-radius: 0; background: #fff;
+}
+.r9-precision .confirm-number, .r9-precision .point-index, .r9-precision .document-link small {
+  letter-spacing: .035em;
+}
+/* Instrument keys have a hard lower edge; selected rows carry a registration rail. */
+.r9-precision.r9 :is(.icon-btn,.attach-btn,.btn:not(.primary),.navitem.new,.selection-tools,.file-chip,.document-link,.filter) {
+  border: 1px solid #787878; border-radius: 0; background: #fafafa; color: #202020; box-shadow: 2px 2px 0 #bebebe;
+}
+.r9-precision.r9 .attach-btn { background: #eee; }
+.r9-precision.r9 .filter { box-shadow: none; }
+.r9-precision.r9 :is(.btn.primary,.send-btn) { border-radius: 0; box-shadow: inset 0 0 0 1px #545454, 2px 2px 0 #a5a5a5; }
+.r9-precision.r9 :is(.filter.active,.tab.active) {
+  border-radius: 0; background: #252525; color: white; border: 1px solid #171717;
+  box-shadow: inset 0 -3px #777; 
+}
+.r9-precision.r9 :is(.file-row[aria-current],.source-card.selected,.project-item.active) {
+  border-radius: 0; border: 1px solid #555; color: #151515;
+  background: linear-gradient(to right,#292929 4px,transparent 4px),#f5f5f5;
+  box-shadow: inset -2px 0 #aaa, 2px 2px 0 #d3d3d3;
+}
+.r9-precision.r9 .file-row[aria-current] .file-icon { background: #242424; color: #fff; }
+.r9-precision.r9 .phase-index { border-radius: 0; border: 1px solid #777; }
+.r9-precision.r9 details[open] .phase-heading > .ico { color: #181818; background: #ddd; }
+.r9-precision.r9 .resize-handle:before { height: 30px; width: 3px; border-radius: 0; background: repeating-linear-gradient(#606060 0 2px, transparent 2px 5px); }
+.r9-precision.r9 .readable mark { background: #eee; border-block: 1px solid #656565; }
+.r9-precision.r9 .annotation { background: #f7f7f7; border: 1px solid #aaa; border-left: 4px double #252525; }
+.r9-precision.r9 :is(.after-card,.section-label) button { padding: 2px 5px; border-bottom: 1px solid #888; color: #222; }
+.r9-precision.r9 :is(.navitem,.icon-btn,.btn:not(.primary),.attach-btn,.file-chip button,.after-card button,.section-label button,.selection-tools button,.filter:not(.active),.file-row,.source-card,.project-tile,.document-link,.annotation,.phase-heading):hover {
+  color: #111; background-color: #e8e8e8; box-shadow: inset 0 -2px #626262;
+}
+.r9-precision.r9 :is(button,a,summary):focus-visible { outline: 2px dashed #202020; outline-offset: 3px; }
+.r9-precision.r9 :is(button:not(:disabled),.navitem,.attach-btn,.phase-heading):active { transform: translate(1px,2px); box-shadow: inset 1px 1px 0 #555; }
+.r9-precision.r9 .composer-tools .chip { color: #333; background: #f5f5f5; border: 1px solid #999; border-radius: 0; }
+.r9-precision.r9 .panel-scroll :is(.btn,.document-link)[aria-current] { outline: 3px double #444; outline-offset: 2px; }

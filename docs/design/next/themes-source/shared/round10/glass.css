@@ -1,0 +1,52 @@
+/* Curved refracting edges sit on the glass; reading surfaces are opaque. */
+.r10-glass.r9 {
+  --text-ink:#243552; --secondary-ink:#4e617c; --focus:#495ba0;
+  --display-weight:600; --display-spacing:.025em;
+  --primary-surface:linear-gradient(165deg,#7284df 4%,#4c61b4 55%,#414d9a);
+  --primary-hover:linear-gradient(160deg,#758ce9,#4658aa 76%);
+  --primary-down:linear-gradient(165deg,#46519a,#556ab5); --primary-edge:#495b9f;
+  --key-shadow:inset 0 1px 1px #f3f7ffb3, inset 0 -2px 3px #233b742a,0 4px 10px -4px #394e9970;
+}
+.r10-glass .app {background:radial-gradient(ellipse at 2% 2%,#cfe7f4,transparent 48%),radial-gradient(ellipse at 96% 16%,#e2dcf7,transparent 59%),#f0f4fb}
+.r10-glass .sidebar {background:linear-gradient(155deg,#eef8ffc4,#e1eafaab 60%,#eae9f5b8);border-right:1px solid #fff;box-shadow:inset -2px 0 0 #bccce343}
+.r10-glass .workspace {background:#fbfcff}
+.r10-glass .context-panel {background:linear-gradient(155deg,#f2f1fa,#edf5fb 73%);border-left:1px solid white}
+.r10-glass .work-header {background:linear-gradient(105deg,#fff 15%,#eff5ff 75%,#ecebfa);border-bottom:1px solid #d7e1f1}
+.r10-glass .brandmark,.r10-glass .avatar {background:linear-gradient(142deg,#f9fdff,#c8e8ef 38%,#b7b7e6 87%);color:#354c80;border:1px solid white;box-shadow:inset 1px 2px 2px #fff9,0 3px 7px #56758a25}
+.r10-glass.r9 .confirmation,.r10-glass .reader-paper,.r10-glass .draft-preview {border:1px solid #c8d6e8;border-radius:18px;background:#fff;box-shadow:0 2px 4px #324f8510,0 12px 28px -16px #283e7d48}
+.r10-glass .confirm-top {
+  position:relative;isolation:isolate;overflow:hidden;min-height:82px;
+  background:linear-gradient(110deg,#e8f5fc,#eff4fd 45%,#e7e1f4);border-bottom:1px solid #ccd6eb;
+}
+.r10-glass .confirm-top::before {
+  content:'';position:absolute;pointer-events:none;z-index:-1;width:45%;height:230%;right:10%;top:-103%;
+  border:1px solid #ffffffd1;border-radius:50%;transform:rotate(-19deg);
+  box-shadow:3px 5px 6px #ffffffa1,9px 13px 16px #a5b3d150,15px 20px 1px #ffffff63;
+}
+.r10-glass.r9 .confirm-title h2,.r10-glass.r9 .panel-summary h2 {color:#223a62;letter-spacing:.04em}
+.r10-glass .confirm-number {color:#435887;border:1px solid white;border-radius:100px;background:#f9fcffb5;padding:5px 11px}
+.r10-glass.r9 .decision-points dt {color:#455f85}
+.r10-glass .point-index {background:#edf4fc;border-radius:100px;padding:1px 7px;color:#4b6488}
+.r10-glass .user-message {background:#e8eff9;color:#304764;border-radius:17px 17px 4px 17px}
+.r10-glass.r9 :is(.project-item.active,.source-card.selected,.file-row[aria-current],.navitem.active) {
+  color:#273e6b;border:1px solid #9aadd5;border-radius:13px;
+  background:radial-gradient(ellipse at 90% 20%,#e1dcfa,transparent 63%),linear-gradient(120deg,#fff 10%,#dfeefb);
+  box-shadow:inset 3px 0 0 #879ada,inset 0 1px 1px white,inset 0 -2px 3px #b5c8e952,0 6px 13px -7px #415e9959;
+}
+.r10-glass.r9 :is(.tab.active,.filter.active) {background:linear-gradient(150deg,#e5eaff,#c1d4f6);color:#233d71;border:1px solid #9fb1de;box-shadow:inset 0 2px 2px #8195c53b,inset 0 -1px 1px white}
+.r10-glass.r9 :is(.btn.primary,.send-btn,.navitem.new) {
+  color:white;border:1px solid var(--primary-edge);background:var(--primary-surface);box-shadow:var(--key-shadow);
+}
+.r10-glass.r9 :is(.btn,.icon-btn,.document-link,.project-item,.file-row,.source-card,.tab,.filter,.navitem,.send-btn,.attach-btn) {
+  transition:transform 170ms cubic-bezier(.2,.75,.15,1),box-shadow 170ms ease,background-color 140ms;
+}
+.r10-glass.r9 :is(.btn,.icon-btn,.document-link,.navitem,.attach-btn,.send-btn):hover:not(:disabled) {
+  transform:translateY(-1px);box-shadow:inset 0 1px 2px white,0 5px 14px -4px #5268a47a;
+}
+.r10-glass.r9 :is(.btn.primary,.send-btn,.navitem.new):hover:not(:disabled) {background:var(--primary-hover)}
+.r10-glass.r9 :is(button:not(:disabled),.navitem,.attach-btn):active {transform:scale(.978);box-shadow:inset 0 2px 5px #293f845e,0 0 0 2px #c5d6f590;transition-duration:65ms}
+.r10-glass.r9 :is(.btn.primary,.navitem.new,.send-btn):active:not(:disabled) {background:var(--primary-down);transform:scale(.978);box-shadow:inset 0 3px 6px #263a7359,0 0 0 2px #cfdbfa}
+.r10-glass.r9 :is(button,a,summary):focus-visible {outline:2px solid #687dc8;outline-offset:3px}
+.r10-glass .composer {border-radius:19px;background:#fff;box-shadow:inset 0 1px white,0 6px 17px -8px #4f65a54d}
+.r10-glass .phase-row.current .phase-heading {background:linear-gradient(100deg,#f8fdff,#e0e8fb);box-shadow:inset 3px 0 #849bd4}
+.r10-glass .reader-callout,.r10-glass.r9 .annotation {border-radius:10px;background:linear-gradient(110deg,#eef8fb,#edf0fb);border-left:3px solid #8d9ece}

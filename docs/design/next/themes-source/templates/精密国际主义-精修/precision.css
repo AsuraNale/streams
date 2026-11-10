@@ -1,0 +1,161 @@
+/* Resolve digits at glyph level, including inside free text, file names and
+   form controls. This avoids rewriting text nodes used by reader annotations. */
+@font-face {
+  font-family: 'Precision Digits';
+  src: local('Cascadia Mono'), local('Consolas'), local('Menlo'), local('DejaVu Sans Mono');
+  font-weight: 100 900;
+  unicode-range: U+0030-0039;
+}
+
+:root {
+  --body-font: 'Precision Digits', 'Segoe UI', 'Yunzhi Noto', sans-serif;
+  --heading-font: var(--body-font);
+  --mono: 'Precision Digits', 'Cascadia Mono', 'Consolas', 'Yunzhi Noto', monospace;
+  --hairline: #cbcbcb;
+  --secondary-ink: #626262;
+  --caption-size: 11px;
+}
+
+.precision-detail {
+  font-family: var(--body-font);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.precision-detail :is(button, input, textarea, select, option, h1, h2, h3, p, dd, th, td) {
+  font-family: var(--body-font);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.precision-detail :is(.eyebrow, .point-index, .phase-index, .confirm-number,
+  .confirm-title small, .document-link small, .header-meta, .reader-meta,
+  .source-card .eyebrow, .cite, .status-chip, .project-meta, .progress-caption,
+  .chart-row b, .activity-row small, .file-text small, .record small,
+  .project-tile-footer, .navitem small, [data-badge], .composer-tools small) {
+  font-family: var(--mono);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.precision-detail :is(.project-heading h1, .reader-title, .home-title,
+  .new-content h2, .confirm-title h2, .panel-summary h2, .dialog-head h2) {
+  font-family: var(--heading-font);
+  font-weight: 600;
+  letter-spacing: -.035em;
+}
+
+.precision-detail :is(.project-name, .phase-label, .source-card h3,
+  .reader-section h3, .file-text, .project-tile h3, .field > span) {
+  font-weight: 550;
+  letter-spacing: -.012em;
+}
+
+.precision-detail :is(.decision-points dd, .intro-copy, .reader-section p, .user-message) {
+  color: #292929;
+  font-weight: 400;
+  line-height: 1.85;
+}
+
+.precision-detail :is(.decision-points dt, .section-label, .filters .filter, .reader-table th) {
+  font-weight: 500;
+  letter-spacing: .035em;
+}
+
+.precision-detail :is(.header-meta, .project-meta, .file-text small, .reader-meta,
+  .activity-row small, .progress-caption, .record small) {
+  font-size: var(--caption-size);
+  color: var(--secondary-ink);
+}
+
+.precision-detail .confirm-title small {
+  color: #d4d4d4;
+  font-size: var(--caption-size);
+  font-weight: 400;
+}
+
+.precision-detail .document-link small {
+  padding: 2px 6px;
+  border-inline: 1px solid var(--hairline);
+  color: #4b4b4b;
+  font-size: var(--caption-size);
+  font-weight: 450;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.precision-detail .ico {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  stroke-miterlimit: 3;
+  fill: none;
+  flex-shrink: 0;
+}
+
+.precision-detail :is(.step-line, .phase-index, .section-label, .after-card,
+  .source-card .eyebrow, .composer-tools, .file-row, .prototype-bar) .ico {
+  stroke-width: 1.9;
+}
+
+.precision-detail :is(.document-link, .btn, .file-icon, .navitem, .selection-tools button) .ico {
+  width: 16px;
+  height: 16px;
+}
+
+.precision-detail .confirm-title > .ico {
+  width: 36px;
+  height: 40px;
+  padding: 8px;
+}
+
+.precision-detail :is(.file-icon, .avatar, .profile-circle) {
+  border: 1px solid var(--hairline);
+  border-radius: 0;
+  background: #fafafa;
+  color: #424242;
+  box-shadow: none;
+}
+
+.precision-detail .profile-circle {
+  font: 500 13px var(--mono);
+}
+
+.precision-detail :is(.filter, .search-field, .selection-tools, .selection-tools button,
+  .form-row select, .file-chip, .record, .toast, .reader-note, .source-card, .upload-area) {
+  border-radius: 0;
+}
+
+.precision-detail :is(.filter.active, .source-card.selected) {
+  border-color: #555;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px #dcdcdc;
+}
+
+.precision-detail .reader-table th {
+  color: #414141;
+  background: #f5f5f5;
+  border-bottom-color: #8c8c8c;
+}
+
+.precision-detail .reader-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.precision-detail .cite {
+  color: #393939;
+  text-underline-offset: 3px;
+}
+
+.precision-detail .record {
+  border-bottom: 1px solid #ddd;
+}
+
+.precision-detail .selection-tools {
+  border: 1px solid #6f6f6f;
+  background: #fff;
+  box-shadow: 2px 2px 0 #ccc;
+}
+
+.precision-detail .annotation {
+  border-left: 2px solid #414141;
+  border-radius: 0;
+  background: #fafafa;
+}
