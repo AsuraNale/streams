@@ -5,7 +5,7 @@
 //   name, its 待看 count or an amber dot, one line under it: 运行中 · <当前环节> / 排队中 · 第 n 位 / 来源异常 / n 条待看 —
 //   then at the foot the current connection's 套餐用量 (v2 package M; nothing at all when there is none) and 设置.
 //   Everything comes from the app context (useApp: libraries, openLibrary, newLibrary, queue; app.js).
-// `Sidebar` (the frame with the brand) is also the wizard's sidebar (screens/new-library.js WizardSidebar).
+// `Sidebar` (the frame with the brand) is the one sidebar; redesign R4a removed the wizards' own (首次打开 and 新建库 use AppSidebar).
 // Test hooks (the st- classes are hooks only, no style): aside.st-sidebar, a[data-nav=shelf|chat] (.st-sidebar__nav-text),
 // [data-nav-count=shelf], .st-sidebar__group, [data-library-row=<id>][data-active][aria-current] with .st-sidebar__lib-name,
 // .st-lib-mark, [data-library-badge], [data-problem=<problem>], [data-library-line] and [data-library-queue=running|queued]

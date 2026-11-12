@@ -326,7 +326,8 @@ test('库架 with no library registered: one line and two buttons (the files of 
   // v2 package I: 手动新建 is 新建库's own flow (screens/new-library.js), no longer a dialog; 取消 comes back to 库架
   await s.page.click('[data-action="empty-manual"] button')
   await ready(s.page, 'new-library')
-  assert.equal(await s.page.evaluate(() => document.querySelector('.fr-body')?.dataset.step), 'folder')
+  // redesign R4a: 新建库 is one page now (no first step 'folder'): the form is there, no step of a wizard
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="new-library"] [data-field="brief"]') !== null && document.querySelector('.fr-body, [data-step]') === null), true)
   await s.page.click('[data-action="cancel-new"] button')
   await ready(s.page, 'shelf')
 })

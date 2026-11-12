@@ -385,6 +385,55 @@ const MUTANTS = [
     edits: [['src/main/reader.mjs', '  const body = `<nav class="reader-header rd-bar" data-reader-bar', '  const body = `<nav class="rd-bar" data-reader-bar']],
     test: ['test/ui-reader.test.mjs', '--test-name-pattern=opens the reading window in'],
   },
+  // redesign R4a (docs/checks/2026-11-12-r4a/contract.md 「测」)
+  {
+    id: 'r4a-pick-when-signed-in',
+    what: '首次打开 shows 连接选择 even when a signed-in connection was found (it does not choose one without asking)',
+    edits: [['src/renderer/screens/first-run.js', '      else if (first) {', '      else if (first && false) {']],
+    test: ['test/ui-first-run.test.mjs', '--test-name-pattern=R4a-1 signed in'],
+  },
+  {
+    id: 'r4a-no-pick-when-none',
+    what: '首次打开 goes to the one screen when no connection is usable (连接选择 never shows on its own)',
+    edits: [['src/renderer/screens/first-run.js', "      } else setView('pick')", "      } else setView('home')"]],
+    test: ['test/ui-first-run.test.mjs', '--test-name-pattern=found but not signed in'],
+  },
+  {
+    id: 'r4a-example-sends',
+    what: 'an example of 首次打开 is sent to the main agent at once instead of only filling the box',
+    edits: [['src/renderer/screens/first-run.js', 'onClick=${() => fill(t)}>', "onClick=${() => navigate('chat', { send: t })}>"]],
+    test: ['test/ui-first-run.test.mjs', '--test-name-pattern=an example only fills'],
+  },
+  {
+    id: 'r4a-create-only-runs',
+    what: '仅创建 also puts the new library\'s first run in the queue',
+    edits: [['src/main/services/new-library.mjs', '      if (f.run) {', '      if (true) {']],
+    test: ['test/services-new-library.test.mjs', '--test-name-pattern=仅创建'],
+  },
+  {
+    id: 'r4a-empty-brief-creates',
+    what: 'a library can be made with an empty 追踪要求 (the main process fills in a placeholder)',
+    edits: [['src/main/services/new-library.mjs', '    try { stored = checkNewLibrary({ brief: form.brief, topics, sources }) }', "    try { stored = checkNewLibrary({ brief: String(form.brief ?? '').trim() || '（未填写）', topics, sources }) }"]],
+    test: ['test/services-new-library.test.mjs', '--test-name-pattern=empty brief'],
+  },
+  {
+    id: 'r4a-empty-brief-page',
+    what: '新建库\'s create buttons work with 追踪要求 empty (the page does not require it)',
+    edits: [['src/renderer/screens/new-library.js', "  const briefEmpty = brief.trim() === ''", '  const briefEmpty = false']],
+    test: ['test/ui-new-library.test.mjs', '--test-name-pattern=追踪要求 is required'],
+  },
+  {
+    id: 'r4a-raw-fetch-message',
+    what: 'a source row says the fetcher\'s own message instead of V3\'s 怎么办',
+    edits: [['src/renderer/screens/new-library.js', ': hintWords(r.hint)', ': (r.message || hintWords(r.hint))']],
+    test: ['test/ui-new-library.test.mjs', '--test-name-pattern=来源: typed'],
+  },
+  {
+    id: 'r4a-edit-order-back',
+    what: '编辑笔记\'s foot is 保存 · 取消 again (保存 not on the right, P11)',
+    edits: [['src/renderer/screens/edit-dialog.js', /(<span class="st-act" data-action="cancel-edit">[^\n]*<\/span>)\n(\s*)(<span class="st-act" data-action="save-edit">[^\n]*<\/span>)/, '$3\n$2$1']],
+    test: ['test/ui-library.test.mjs', '--test-name-pattern=R3-3 编辑笔记'],
+  },
 ]
 
 function runTest(desktop, test) {

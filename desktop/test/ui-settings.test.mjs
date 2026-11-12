@@ -1,3 +1,4 @@
+// redesign R4a: the test 「库: 新建库 …」 goes through the one-page 新建库 (更改… · 名称 · 追踪要求 · 仅创建) instead of its four old steps.
 // redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // 设置 (screens/settings.js) on the seeded world opened through settings.json's libraryPath (not the development hook, so a
 // library chosen on the page can replace it): the three connection rows with their state, the radio 打分用这一条 → the active
@@ -109,24 +110,21 @@ test('运行 (v2: on the library\'s 来源与要求, not 设置): the cap writte
   await ready(s.page, 'settings')
 })
 
-test('库: 新建库 on the folder the hook gives → the sidebar carries the new name (v2 package I: through 新建库, not a settings part)', async () => {
+// redesign R4a: 新建库 is one page (screens/new-library.js): 更改… takes the folder the hook gives, the name and 追踪要求 are typed,
+// 仅创建 makes it and the app goes to its 待看 (v2 package I's four steps — folder → pack → round → 定时 — are gone); what is checked
+// is as before: a library was made there, it is the current one, the sidebar carries its name
+test("库: 新建库 on the folder the hook gives → the sidebar carries the new name (v2 package I: through 新建库, not a settings part; redesign R4a: the one-page form)", async () => {
   const another = join(s.world.root, 'another')
   await s.page.click('.st-sidebar [data-action="add-library"]')
   await ready(s.page, 'new-library')
-  await click('[data-action="choose-folder"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
-  await click('[data-action="next"]')
-  await s.page.waitForFunction(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === 'pack', null, POLL)
+  await click('[data-action="change-folder"]')
+  await s.page.waitForFunction(p => document.querySelector('[data-part="location"]')?.dataset.path === p, another, POLL)
+  await s.page.fill('[data-field="name"]', basename(another))
+  await s.page.fill('[data-field="brief"]', '追踪电池价格。')
+  await click('[data-action="create-only"]')
+  await ready(s.page, 'inbox')
   assert.ok(existsSync(join(another, 'streams.json')), 'a library was made there')
   assert.equal(activeLibrary(), another)
-  await s.page.click('[data-pack="blank"]')
-  await click('[data-action="apply"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="tried"]') !== null, null, POLL)
-  await click('[data-action="continue"]')
-  await click('[data-action="skip-trial"]')
-  await s.page.waitForFunction(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === 'schedule', null, POLL)
-  await click('[data-action="go-today"]')
-  await ready(s.page, 'inbox')
   await s.page.waitForFunction(name => document.querySelector('[data-library-row][data-active="true"] .st-sidebar__lib-name')?.textContent === name, basename(another), POLL)
   // back to 设置 for the next test (新建库 ends on the new library's page)
   await s.page.click('.st-sidebar__footer-button')

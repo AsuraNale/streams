@@ -13,7 +13,8 @@
 //     「有 N 张提议没出（格式不对）」 · 「会话接不上，已从记录里接着」 · the connection's problem with 「去设置」.
 //   - The input (1–4000 characters) and 发送; while a turn runs (this page's or another's: 问库's change, 交给主 Agent) 「主
 //     Agent 在想…」 shows and nothing can be sent. No connection chosen → v1.0's line 「还没选连接方式」 with 「去设置」.
-//   - v2 package I (contract I1, 首次打开's second step): while the app knows no library, a guide above the conversation —
+//   - redesign R4a: params.send (首次打开's 发送) — that sentence is sent once when the page opens.
+//   - v2 package I (contract I1, 首次打开's second step): while the app knows no library and you have said nothing yet, a guide above the conversation —
 //     「告诉主 Agent 你想持续跟踪什么…」, three example sentences (a click puts one in the input and nothing is sent) and
 //     「也可以手动新建」 (→ 新建库, app.js newLibrary()). No connection chosen in settings.json (getAppState().activeConnection) →
 //     the guide says 「还没有连接，主 Agent 用不了」 with 「去设置」 (and the input's own v1.0 line is not drawn twice).
@@ -315,6 +316,15 @@ export function ChatScreen({ params = {} }) {
     }
   }
 
+  // redesign R4a: 首次打开's 发送 opens this page with the sentence (params.send): it is sent once, as if typed here — the first
+  // real call of the connection (there is no separate 试一次)
+  const handed = useRef(false)
+  useEffect(() => {
+    if (handed.current || typeof params.send !== 'string' || params.send.trim() === '') return
+    handed.current = true
+    void send(params.send)
+  }, [])
+
   const rows = entries ?? []
   // the open question: the main Agent's latest one, with no words of yours after it
   let askAt = -1
@@ -361,8 +371,9 @@ export function ChatScreen({ params = {} }) {
   const waitingSuggestions = [...suggestions.items, ...keptSuggestions.filter(k => !suggestions.items.some(x => x.libraryId === k.libraryId && x.key === k.key))]
   const shownWaiting = waitingCards.length + waitingSuggestions.length
   const noConnection = problem === 'no_connection' || (agent.status && agent.status.connection === null)
-  // 首次打开's second step: the app knows no library yet
-  const guide = Array.isArray(libraries?.data) && libraries.data.length === 0
+  // 首次打开's second step: the app knows no library yet. Redesign R4a: 首次打开 is one screen with these examples on it, so the guide
+  // goes once you have said something here (a sentence of yours in the record, or one being sent)
+  const guide = Array.isArray(libraries?.data) && libraries.data.length === 0 && sending.length === 0 && !rows.some(r => r.role === 'you')
   const guideNoConnection = guide && Boolean(appState?.data) && !appState.data.activeConnection
   const fill = t => {
     setText(t)

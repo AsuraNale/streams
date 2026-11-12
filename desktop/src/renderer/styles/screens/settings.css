@@ -204,3 +204,7 @@
 .settings__seg-item { position: relative; padding: 6px 16px; border-radius: var(--st-radius-xs); color: var(--st-text-2); cursor: pointer; }
 .settings__seg-item:hover { color: var(--st-text); }
 .settings__seg-item[data-checked='true'] { background: var(--st-surface); color: var(--st-text); font-weight: var(--st-weight-label); box-shadow: var(--st-shadow-card); }
+
+/* the login loop (screens/settings.js LoginLoop; R4a moved it here from first-run.css, which went with v1.0's wizard) */
+.st-login { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.st-login__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

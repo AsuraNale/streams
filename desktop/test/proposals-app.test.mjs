@@ -41,7 +41,10 @@ test('the development cards are there, by dev, pending; the page cannot make one
   assert.equal(list[1].libraryId, 'dev', 'the current library (the world\'s, not registered: id dev)')
   const names = await s.page.evaluate(() => Object.keys(window.streams))
   assert.ok(names.includes('confirmProposal'))
-  assert.ok(!names.some(n => /^create/i.test(n)), 'no createProposal on the bridge')
+  // redesign R4a: the bridge has createNewLibrary now (新建库's form: the user's own action, no card); what must not be there is a
+  // way for the page to make a card — the check names cards (was: no method starting with 「create」 at all)
+  assert.ok(!names.some(n => /^(create|draft|make|add|new)\w*proposal/i.test(n)), 'no createProposal on the bridge')
+  assert.ok(names.includes('createNewLibrary') && !names.some(n => /proposal/i.test(n) && !['listProposals', 'confirmProposal', 'declineProposal', 'reviseProposal'].includes(n)), 'the only card methods are the four answers')
 })
 
 test('confirm through the bridge: the brief written, proposals-changed sent; a second confirm is bad_arguments; decline makes no library', async () => {

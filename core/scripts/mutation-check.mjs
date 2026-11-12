@@ -80,6 +80,25 @@ const MUTANTS = [
     edits: [['src/library/edit.mjs', "export const EDITABLE_KEYS = ['title', 'topics', 'body'];", "export const EDITABLE_KEYS = ['title', 'topics', 'body', 'source'];"]],
     test: ['test/r3-library.test.mjs', '--test-name-pattern=R3-3'],
   },
+  // redesign R4a (docs/checks/2026-11-12-r4a/contract.md 「测」)
+  {
+    id: 'r4a-standard-0707',
+    what: '标准 is 0.7 / 0.7 instead of 0.5 / 0.6',
+    edits: [['src/pipeline/strictness.mjs', 'standard: Object.freeze({ relevance: 0.5, substance: 0.6 }),', 'standard: Object.freeze({ relevance: 0.7, substance: 0.7 }),']],
+    test: ['test/r4a-new-library.test.mjs', '--test-name-pattern=R4a-4'],
+  },
+  {
+    id: 'r4a-read-rewrites',
+    what: 'reading a library\'s strictness writes 标准 over numbers that are no level (an existing library\'s thresholds changed)',
+    edits: [['src/pipeline/strictness.mjs', '  const thresholds = thresholdsOf(pipelineConfig(libraryDir));\n  return { level: strictnessOf(thresholds), thresholds };', "  let thresholds = thresholdsOf(pipelineConfig(libraryDir));\n  if (strictnessOf(thresholds) === 'custom') { savePipelineConfig(libraryDir, withThresholds(pipelineConfig(libraryDir), STRICTNESS.standard)); thresholds = thresholdsOf(pipelineConfig(libraryDir)); }\n  return { level: strictnessOf(thresholds), thresholds };"]],
+    test: ['test/r4a-new-library.test.mjs', '--test-name-pattern=reading an existing library'],
+  },
+  {
+    id: 'r4a-card-old-default',
+    what: 'a create_library card that names no thresholds leaves the pipeline\'s 0.7 / 0.6 (the new library is not 标准)',
+    edits: [['src/library/new-library.mjs', "  step('thresholds', () => savePipelineConfig(dir, withThresholds(pipelineConfig(dir), spec.thresholds ?? STRICTNESS[DEFAULT_STRICTNESS])));", "  step('thresholds', () => { if (spec.thresholds && spec.thresholds !== STRICTNESS[DEFAULT_STRICTNESS]) savePipelineConfig(dir, withThresholds(pipelineConfig(dir), spec.thresholds)); });"], ['src/library/new-library.mjs', "    thresholds: { ...STRICTNESS[DEFAULT_STRICTNESS], ...(thresholds ?? {}) },", "    thresholds: thresholds ?? STRICTNESS[DEFAULT_STRICTNESS],"]],
+    test: ['test/r4a-new-library.test.mjs', '--test-name-pattern=new libraries start at'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

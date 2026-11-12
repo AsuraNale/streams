@@ -41,3 +41,5 @@ export * from './proposals/index.mjs';
 export * from './suggest/index.mjs';
 // v2 package C: the main agent (core-api 5.15, 2026-11-05); its session mode is exported with connect/ above.
 export * from './agent/index.mjs';
+// redesign R4a: a new library's settings, the same for 新建库's form and a confirmed card (core-api 5.18, 2026-11-12).
+export { newLibrarySettings, fillNewLibrary, checkNewLibrary } from './library/new-library.mjs';

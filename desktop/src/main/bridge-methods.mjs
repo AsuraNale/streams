@@ -160,6 +160,15 @@ export const BRIDGE_METHODS = Object.freeze({
   getLibraryRoot: Object.freeze({ args: 0 }),
   chooseLibraryRoot: Object.freeze({ args: 0 }),
   setLibraryRoot: Object.freeze({ args: 1, check: ([path]) => path === null || nonEmptyShort(2000)(path) }),
+  // redesign R4a (services/new-library.mjs; docs/desktop.md §4.16): 新建库's one-page form — the defaults it opens with, the folder
+  // 创建 would use for a name, the first run's estimate from what the tries found, and the library made from the form (the
+  // form's shape is judged here, its values by the service and the core: an empty brief, a source the core would not store)
+  getNewLibraryDefaults: Object.freeze({ args: 0 }),
+  newLibraryFolder: Object.freeze({ args: 1, check: ([name]) => shortString(100)(name) }),
+  estimateNewLibrary: Object.freeze({ args: 2, check: ([items, cap]) => Number.isInteger(items) && items >= 0 && items <= 100_000 && Number.isInteger(cap) && cap > 0 && cap <= 10_000 }),
+  createNewLibrary: Object.freeze({ args: 1, check: ([form]) => smallObject(form, 60_000) && onlyKeys(form, ['name', 'brief', 'strictness', 'topics', 'sources', 'packId', 'schedule', 'cap', 'run'])
+    && nonEmptyShort(100)(form.name) && shortString(8000)(form.brief) && strings(form.topics, { items: 50, max: 100 }) && Array.isArray(form.sources) && form.sources.length <= 100
+    && (form.packId === null || nonEmptyShort(80)(form.packId)) && schedule(form.schedule) && typeof form.run === 'boolean' && Number.isInteger(form.cap) }),
   // the proposal cards (v2 package B; services/proposals.mjs; docs/desktop.md §4.5): the list, the three answers — only
   // confirmProposal changes anything, and only for a pending card — and 「谁定的」 of the current library
   listProposals: Object.freeze({ args: 1, check: ([filter]) => proposalFilter(filter) }),

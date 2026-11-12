@@ -40,6 +40,7 @@ import { APP_USER_MODEL_ID, TOAST_ACTIVATOR_CLSID } from './app-id.mjs'
 import { iconPath } from './icon.mjs'
 import { createScheduleService } from './services/schedule.mjs'
 import { createProposalsService } from './services/proposals.mjs'
+import { createNewLibraryService } from './services/new-library.mjs'
 import { createAgentService } from './services/agent.mjs'
 // v2 package M: the plan quota / API balance of the current connection
 import { createQuotaService } from './services/quota.mjs'
@@ -94,6 +95,9 @@ const DEV_AGENT_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_AGENT
 // redesign R3 (services/connections.mjs), development and tests only: with STREAMS_DEV_CONNECTION=fake, what 问库's prompt is answered
 // (a JSON file: the answer of the core's ask). A packaged app ignores it
 const DEV_ASK_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_ASK_SCRIPT === 'string' && isAbsolute(process.env.STREAMS_DEV_ASK_SCRIPT) ? process.env.STREAMS_DEV_ASK_SCRIPT : null
+// redesign R4a (services/connections.mjs), development and tests only: what the connection detection says (a JSON file laid over
+// what it found: found or not, logged in or not, the version) — 首次打开's three cases without a real CLI. A packaged app ignores it
+const DEV_DETECT = !app.isPackaged && typeof process.env.STREAMS_DEV_DETECT === 'string' && isAbsolute(process.env.STREAMS_DEV_DETECT) ? process.env.STREAMS_DEV_DETECT : null
 // v2 package M (services/quota.mjs; docs/desktop.md §4.11), development and tests only: a JSON file of quotas taken as read at
 // start (the corner's three states without a real codex or a real key); with it nothing real is read. A packaged app ignores it
 const DEV_QUOTA = !app.isPackaged && typeof process.env.STREAMS_DEV_QUOTA === 'string' && isAbsolute(process.env.STREAMS_DEV_QUOTA) ? process.env.STREAMS_DEV_QUOTA : null
@@ -272,7 +276,7 @@ app.whenReady().then(() => {
   // v2 package M: the corner above 设置 (services/quota.mjs) — made right after the connections, which hand it every call's quota
   let quota = null
   const connections = createConnectionsService({
-    settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION, devAskScript: DEV_ASK_SCRIPT,
+    settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION, devAskScript: DEV_ASK_SCRIPT, devDetect: DEV_DETECT,
     // a probe made from the page counts in the open library's usage (core createUsageCounter), under `probe`
     usageWrap: c => { const d = library.dir(); return d ? createUsageCounter(d).wrap(c, 'probe') : c },
     onQuota: (kind, q) => quota?.record(kind, q),
@@ -342,6 +346,11 @@ app.whenReady().then(() => {
     fallbackSchedule: () => readSettings(layout.settingsFile).schedule,
     devProposals: DEV_PROPOSALS,
   })
+  // redesign R4a: 新建库's one-page form — the same core function as a confirmed create_library card (services/new-library.mjs)
+  const newLibrary = createNewLibraryService({
+    library, scheduler: () => scheduler, settingsFile: layout.settingsFile, locale: currentLocale, log, now: clock,
+    libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
+  })
   // the main agent (v2 package C): one conversation, one turn at a time; its cards go through createProposal above, so only
   // the user's 「确认」 changes anything
   agent = createAgentService({ appDataDir: layout.appData, library, connections, proposals, emit, log, now: clock, locale: currentLocale, devScript: DEV_AGENT_SCRIPT })
@@ -404,6 +413,7 @@ app.whenReady().then(() => {
       ...status.handlers,
       ...scheduler.handlers,
       ...proposals.handlers,
+      ...newLibrary.handlers,
       ...agent.handlers,
       // v2 package M
       ...quota.handlers,

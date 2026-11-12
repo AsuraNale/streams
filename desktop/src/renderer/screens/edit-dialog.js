@@ -1,8 +1,8 @@
 // 编辑笔记 — redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-3; design 03-页面稿 P11, 07-模板版 「编辑笔记」, F36): the
 // template's dialog (a <dialog> opened with showModal: its own backdrop, focus kept inside, Esc closes) over 资料库, with the
 // template's form parts — 标题 (field), 主题 (filters: each topic with ✕; 「＋ 添加主题」 opens a field that takes a new topic or one
-// the library already has, from a list), 正文（Markdown） (field), and in the footer 保存 · 插入链接 · 取消 and the line 「仅可修改标题、
-// 主题、正文和链接；来源、日期、评分为记录字段，不可修改。」. 插入链接 searches the library (searchLibrary) and puts `[[<title>]]` where
+// the library already has, from a list), 正文（Markdown） (field), under it 插入链接 and the line 「仅可修改标题、
+// 主题、正文和链接；来源、日期、评分为记录字段，不可修改。」, at the foot 取消 · 保存 (redesign R4a: P11's order). 插入链接 searches the library (searchLibrary) and puts `[[<title>]]` where
 // the cursor is in the body. The rule is the core's and is not touched: only the title, the topics and the body (the [[links]]
 // live in the body) are sent — editNote(id, { title?, topics?, body? }) — and only a file that is there and conforms can be edited
 // (core editNote → writeNoteFile by 'edit', V2). 「保存」 sends only what changed, then the dialog closes and the screen reads again.
@@ -132,6 +132,10 @@ export function EditDialog({ note, topics, onClose, onSaved }) {
         <label class="field"><span>${T.bodyLabel}</span>
           <textarea data-field="body" rows="10" value=${body} ref=${bodyRef}
             onInput=${ev => { setBody(ev.currentTarget.value); remember() }} onKeyUp=${remember} onClick=${remember} onSelect=${remember} onBlur=${remember}></textarea></label>
+        <div class="st-edit__tools" data-part="body-tools">
+          <span class="st-act" data-action="insert-link"><button type="button" class="btn" disabled=${busy} onClick=${() => { remember(); setLinking(v => !v) }}>${T.insertLink}</button></span>
+          <small data-part="record">${T.record}</small>
+        </div>
         ${linking ? html`<div class="st-edit__link" data-part="link-search">
           <label class="field"><span>${T.linkSearch}</span><input data-field="link-search" placeholder=${T.linkPlaceholder} value=${linkQuery} onInput=${ev => setLinkQuery(ev.currentTarget.value)} /></label>
           ${linkQuery.trim() && !options.length ? html`<p class="limit-note">${T.linkNone}</p>` : null}
@@ -139,11 +143,9 @@ export function EditDialog({ note, topics, onClose, onSaved }) {
             <span class="file-icon"><${TIcon} name="file" /></span><span class="file-text">${fmt(T.linkPick, { title: o.title })}</span></button>`)}
         </div>` : null}
         ${error ? html`<p class="progress-alert" role="alert" data-part="edit-error">${error}</p>` : null}
-        <div class="form-footer">
-          <span class="st-act" data-action="save-edit"><button type="button" class="btn primary" disabled=${!ready} onClick=${save}>${busy ? T.saving : T.save}</button></span>
-          <span class="st-act" data-action="insert-link"><button type="button" class="btn" disabled=${busy} onClick=${() => { remember(); setLinking(v => !v) }}>${T.insertLink}</button></span>
+        <div class="form-footer st-edit__footer">
           <span class="st-act" data-action="cancel-edit"><button type="button" class="btn quiet" disabled=${busy} onClick=${onClose}>${T.cancel}</button></span>
-          <small data-part="record">${T.record}</small>
+          <span class="st-act" data-action="save-edit"><button type="button" class="btn primary" disabled=${!ready} onClick=${save}>${busy ? T.saving : T.save}</button></span>
         </div>
       </form>
     </div>

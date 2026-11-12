@@ -644,6 +644,35 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 测试：`test/connect-quota.test.mjs`（Claude Code 四种：有事件 / 无事件 / 字段坏 / 多条取最后一条，结果与改前同形，会话模式也带；Codex 用假 app-server `test/support/fake-app-server.mjs`：正常 / 不答 / 答错 / 报错 / 自己退了 / 起不来，「只发三条」与反向——核心的一份副本多发一条，检查变红；API 只用 127.0.0.1 上的假服务器：两家的文档形状、别的形状、401 引 key、没 key、没有接口的五家一个请求都不发）；`test/connect-claude-code.test.mjs`（参数 = 改前的 v1.0 参数只把 `json` 换成 `stream-json --verbose`）。
 
+## 5.18 严格程度与新建库的设置（重设计 R4a）· 有（11-12）
+
+<!-- redesign R4a: 契约 docs/checks/2026-11-12-r4a/contract.md R4a-3、R4a-4；维护者 11-11 第 5、8 题，功能地图 N01、F56、O15 -->
+
+**严格程度**（`src/pipeline/strictness.mjs`）：一个库的严格程度就是两个评分环节的通过阈值（相关度 = id 为 `relevance` 的关，没有就按位置第一个；实质 = `substance`，没有就第二个，与 `thresholdsOf` / 设置页同一读法）。
+
+| 档 | 相关度 | 实质 |
+|---|---|---|
+| `loose` 宽松（收录更多） | 0.4 | 0.5 |
+| `standard` 标准（默认，`DEFAULT_STRICTNESS`） | 0.5 | 0.6 |
+| `strict` 严格（仅收录高度相关） | 0.7 | 0.7 |
+
+- `STRICTNESS` · `STRICTNESS_LEVELS`（`['loose', 'standard', 'strict']`）· `DEFAULT_STRICTNESS`（`'standard'`）。
+- `strictnessOf({ relevance, substance })` → 两个数**正好**是某一档的才是那一档，否则 `'custom'`（自定义；少一个也是）。
+- `readStrictness(libraryDir)` → `{ level, thresholds }`：**只读，从不写**。R4a 之前建的库（流水线自己的默认 0.7 / 0.6）读出来是 `custom`，`streams.json` 逐字节不变。
+- `saveStrictness(libraryDir, level)` → 同上：把那一档的两个阈值写进 `pipeline`（`savePipelineConfig`，其余键原样）；档名不对 `bad-argument`。来源与要求页的开关（R4b）用它。
+- `withThresholds(cfg, { relevance?, substance? })` → 新的流水线配置（给了的才改；没有对应的关 `bad-config`）。原在 `proposals.mjs` 里，搬到这里共用。
+- **读的时候的默认不变**：没写 `pipeline` 的库仍按 `DEFAULT_PIPELINE`（0.7 / 0.6）跑——已有的库阈值一个都不改；「新库默认标准」是建库时写进去的（下）。
+
+**新建库的设置**（`src/library/new-library.mjs`，O15：手动建与主 Agent 建同一个函数，默认值不会分叉）：
+- `newLibrarySettings({ thresholds?, schedule?, cap? }, { fallbackSchedule? })` → `{ thresholds, schedule, cap }`：给的阈值盖在**标准**之上（一个都没给 = 0.5 / 0.6）；定时给了用给的，否则用应用的（`fallbackSchedule`，逐字段 `scheduleOf`）；上限给了是数，否则 `null`（= 流水线默认 120，不写）。
+- `checkNewLibrary({ brief, topics, sources })` → 来源按 `addSource` 会存的样子：建之前先判——追踪要求 `isBrief`（空、全是空格 → `bad-argument`）、主题名（重名 `duplicate-topic`）、每个来源对着主题与前面的来源 `checkSource`（`bad-source` 等）。纯函数，不碰磁盘。
+- `fillNewLibrary(dir, { brief, topics, sources, thresholds, schedule, cap? }, { step? })`：`streams.json` 已在（`createLibrary` / `importFolder` 之后）的文件夹上依次 brief → topics → sources → thresholds（没给 = 标准）→ schedule → cap（是数才写）；每步经 `step(name, fn)`（提议卡用它计步与回滚）。只写 `streams.json`，不碰笔记文件夹。
+- **提议卡 `create_library`**（5.13）的建库步骤改由它做：卡上没写阈值的新库是**标准 0.5 / 0.6**（R4a 之前是流水线的 0.7 / 0.6）；写了的盖在标准之上（只写相关度 0.75 → 0.75 / 0.6）。「谁定的」照旧只在卡写了阈值时记 `thresholds` 一行。
+
+**首次运行的预估**（`src/pipeline/estimate.mjs`）：`estimateFirstRound({ items, cap })` → `{ expectedCalls: [lo, hi], items, cap }`。还没建的库没有历史可算：`items` = 表单上各来源试抓到的条数之和；`lo = 1 + min(cap, items)`、`hi = 1 + min(cap, 4 × items)`（1 = 运行前自检那一次，`SELF_CHECK_CALLS`；每条 1–4 次同 `CALLS_PER_ITEM`）。页面稿 P04 的「2 条 → 预计 3–9 次」就是它。
+
+测试：`test/r4a-new-library.test.mjs`（三档的数与写入、两个数对上才是档否则 custom、读已有库逐字节不变、手动 / 卡建出的新库默认标准与卡写的阈值盖在标准上、两条路建出的 `pipeline` / `schedule` / `cap` 相同、预估、空要求被拒）。变异（`node core/scripts/mutation-check.mjs <id>`）：`r4a-standard-0707`（标准改成 0.7 / 0.7）· `r4a-read-rewrites`（读的时候把非三档的改写成标准）· `r4a-card-old-default`（卡没写阈值时留流水线的 0.7 / 0.6）。
+
 ## 六、桌面桥（desktop 主进程 → 页面）
 
 页面唯一入口 `window.streams`；主进程把上面每个函数包成桥方法（名字同核心函数，加 `library:` / `fetch:` / `connect:` / `pipeline:` / `ask:` 前缀），事件：`round-progress`、`inbox-changed`、`status-changed`、`settings-changed`、`update`；v2 加了 `libraries-changed`、`proposals-changed`、`agent-changed`，和某个库有关的事件都带 `libraryId`（桥里有「当前库」，跨库的方法显式带 id：architecture 第三节「包 A 实做」）。桥方法表与事件表写在 `docs/desktop.md` §四。

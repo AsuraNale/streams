@@ -424,6 +424,10 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
   return {
     handlers, dir, current, require, entries, entryOf, usable,
     chosen: () => (chosen ? { ...chosen } : null),
+    /** Redesign R4a: 新建库's form forgets a folder chosen before it opened (services/new-library.mjs). */
+    clearChosen: () => { chosen = null },
+    /** Redesign R4a: 首次打开's connection record copied into a library 新建库's form made (as useChosenFolder does). */
+    inheritConnection: path => inheritConnection(path),
     /** The library with this id (bridge-free: the scheduler, later the agent), or null. */
     find: id => entries().find(l => l.id === id) ?? null,
     /**

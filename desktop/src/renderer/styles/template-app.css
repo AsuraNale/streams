@@ -13,6 +13,9 @@
       the current card, the marks, the bar after 放弃, the funnel's labels, the banner's rows.
    7. Redesign R3 — 资料库 (the list and the reading area), 缺少文件头, 图谱, 编辑笔记 (the template's <dialog>), 问库, a note's Markdown,
       the folded 核验记录, the proposal's buttons in 待确认.
+   8. Redesign R4a — 首次打开 (one screen), 连接选择, 新建库's one-page form (screens/first-run.js, new-library.js): the template's
+      new-content / field / file-row / after-card / filters / search-field / document-link / form-footer / home-context; here only
+      the rows' widths, the inline inputs of the topics and the schedule, the footer's wrapping.
    Colours: only the template's variables. */
 
 /* 1 */
@@ -188,7 +191,10 @@
 .st-edit__topics .filter { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .st-edit__x { padding: 0 2px; font-size: 10px; line-height: 1; color: inherit; }
 .st-edit .form-footer { flex-wrap: wrap; margin-top: 18px; padding-top: 16px; }
-.st-edit .form-footer small { flex: 1 1 200px; min-width: 0; }
+/* redesign R4a (R3's review): P11's order — 插入链接 beside the body with the record line, then 取消 · 保存 at the foot, 保存 on the right */
+.st-edit__tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+.st-edit__tools small { flex: 1 1 240px; min-width: 0; font-size: 11px; color: var(--sub11); }
+.st-edit .form-footer.st-edit__footer { justify-content: flex-end; }
 .st-edit__link .file-row { padding: 8px 0; }
 /* 问库 */
 .st-ask { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -222,3 +228,40 @@
    R2's 待看 (the bar after 放弃, the banner, the run's notes), R3's pages and the right panel's alike — it takes the dark well instead */
 .r11[data-appearance="dark"] :is(.lib-page, .context-panel) .progress-alert { background: var(--well); color: var(--ink11); }
 .r11[data-appearance="dark"] [data-part="detail-ask"] [data-part="demands"] .activity-row { color: var(--ink11); }
+
+/* 8 — Redesign R4a: 首次打开 · 连接选择 · 新建库 on the template's parts (screens/first-run.js, new-library.js). R1's interim
+   styles/screens/first-run.css (the wizard's steps, cards, packs) is deleted. Sizes, places and the template's own variables only. */
+.st-first-center { min-height: 0; }
+.st-first-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.st-first-body > .st-first { flex: 1 0 auto; margin: 0 auto; }
+.st-first .section-label { margin-top: 22px; }
+.st-first .field { margin: 14px 0 0; }
+.st-first .field textarea { min-height: 120px; }
+.st-first-rows { display: grid; }
+.st-first-rows > .file-row, .st-first-current { width: 100%; text-align: left; }
+.st-first .file-row { align-items: center; }
+.st-first .file-row .file-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.st-first .file-row :is(.btn, .status-chip, .st-act) { flex: none; }
+.st-first .file-row .status-chip { white-space: nowrap; }
+.st-first-current { margin-top: 18px; gap: 10px; }
+.st-first .after-card { margin: 0 0 6px; align-items: center; flex-wrap: wrap; }
+.st-first .after-card button { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.st-first .form-footer { flex-wrap: wrap; }
+.st-first .filters { margin: 8px 0 0; }
+.st-first .filters .filter { cursor: pointer; }
+.st-first .search-field { margin-top: 8px; }
+.st-first .search-field input { flex: 1 1 0; min-width: 0; }
+.st-first .document-link { margin-top: 10px; cursor: pointer; }
+.st-first .document-link:disabled { cursor: default; opacity: .6; }
+.st-nl-source .file-text small { line-height: 1.7; }
+.st-nl-source .btn.quiet { padding-left: 8px; padding-right: 8px; }
+.st-nl-topics { align-items: center; }
+.st-nl-topics .filter { display: inline-flex; align-items: center; gap: 4px; }
+.st-nl-topic-input { font: inherit; font-size: 12px; padding: 5px 10px; min-width: 200px; border: 1px solid var(--rule11); border-radius: 6px; background: var(--paper); color: var(--ink11); }
+.st-nl-location { margin-top: 6px; }
+.st-nl-schedule { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; }
+.st-nl-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.st-first .field.st-nl-small { margin: 0; display: inline-flex; }
+.st-first .field.st-nl-small input { width: 84px; }
+.st-nl-footer small { flex: 1 1 220px; min-width: 0; text-align: right; }
+.st-nl-footer [data-action="cancel-new"] { margin-right: auto; }

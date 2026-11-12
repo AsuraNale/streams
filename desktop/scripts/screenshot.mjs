@@ -8,15 +8,15 @@
 //       shelf                      库架
 //       lib-overview | lib-inbox | lib-library | lib-ask | lib-sources   a library's page on each of its five tabs
 //       (today, status and pipeline are v1.0's ids: 概览, 概览 scrolled to 「运行状态」, 来源与要求 scrolled to 「关卡」)
-//       first-run   no library registered: 首次打开, its connection step (v2 package I; v1.0: the wizard's second step)
+//       first-run   no library registered: 首次打开 (redesign R4a: one screen — or 连接选择 when no connection is usable)
 //       run         概览 with the 「跑一轮」 dialog open
 //       error       概览 after a round that could not start (STREAMS_DEV_CONNECTION=login-expired): the S13 card
 //       library | edit | sources | pipeline | status | ask | graph   plan B's screens on the seeded world plus its extras
 //                   (test/support/seed.mjs seedPlanB): library = 资料库 with the MemGPT note open; edit = its 编辑 dialog;
 //                   ask = after one question
 //       settings-run        设置 on the seeded world, the schedule on (setSchedule), scrolled to 「定时一览」 (A2, 11-04; v2 package F)
-//       first-run-schedule  新建库 walked to its last screen 「定时」 (v2 package I: 首次打开's connection skipped → 和主 Agent 聊 →
-//                           也可以手动新建 → the folder, the blank pack, the round)
+//       first-run-schedule  redesign R4a: 新建库's one page from 首次打开's 「手动创建」 (its 定时 line at the bottom; v2 package I walked
+//                           four steps to a last screen 「定时」, gone with the wizard)
 //       import      资料库 · 待规范 (S8) on a folder of .md files imported as a library: one card per file (11-04)
 //       settings-theme   设置 scrolled to 「主题」 (the three sets; docs/desktop.md §五) (11-04)
 //       settings-setup   来源与要求 scrolled to 「这个库」 with 「首次设置」: six records written by the core before the start (plan A1,
@@ -149,7 +149,7 @@ try {
   const page = started.page
   if (screen === 'first-run') {
     await ready(page, 'first-run')
-    await page.waitForFunction(() => document.querySelector('main[data-screen="first-run"][data-state="ready"] [data-part="step-connection"] [data-connection]') !== null, null, POLL)
+    await page.waitForFunction(() => ['home', 'pick'].includes(document.querySelector('main[data-screen="first-run"][data-state="ready"] [data-part="first-run"]')?.dataset.view), null, POLL)
   } else if (screen === 'run') {
     await ready(page, 'overview')
     await page.click('[data-action="run"] button')
@@ -189,26 +189,13 @@ try {
     await page.waitForFunction(() => document.querySelector('[data-part="schedules"] [data-schedule="on"]') !== null, null, POLL)
     await page.evaluate(() => document.querySelector('[data-part="schedules"]').scrollIntoView({ block: 'start' }))
   } else if (screen === 'first-run-schedule') {
-    const step = id => page.waitForFunction(i => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === i, id, POLL)
+    // redesign R4a: 首次打开 → 手动创建 → 新建库's one page, scrolled to its 定时 line
     await ready(page, 'first-run')
-    await page.waitForFunction(() => document.querySelectorAll('[data-connection]').length === 3, null, POLL)
-    await page.click('[data-action="skip"] button')
-    await ready(page, 'chat')
+    await page.waitForFunction(() => ['home', 'pick'].includes(document.querySelector('[data-part="first-run"]')?.dataset.view), null, POLL)
+    if (await page.evaluate(() => document.querySelector('[data-part="first-run"]').dataset.view === 'pick')) await page.click('[data-action="skip-connection"] button')
     await page.click('[data-action="manual-new"] button')
     await ready(page, 'new-library')
-    await page.click('[data-action="choose-folder"] button')
-    await page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
-    await page.click('[data-action="next"] button')
-    await step('pack')
-    await page.click('[data-pack="blank"]')
-    await page.click('[data-action="apply"] button')
-    await page.waitForFunction(() => document.querySelector('[data-part="tried"]') !== null, null, POLL)
-    await page.click('[data-action="continue"] button')
-    await step('trial')
-    await page.click('[data-action="start"] button')
-    await page.waitForFunction(() => document.querySelector('[data-part="round-progress"]')?.dataset.done === 'true', null, POLL)
-    await page.click('[data-action="next"] button')
-    await step('schedule')
+    await page.evaluate(() => document.querySelector('[data-part="schedule"]').scrollIntoView({ block: 'center' }))
   } else if (screen === 'settings-theme' || screen === 'settings-setup') {
     await ready(page, screen === 'settings-theme' ? 'settings' : 'sources')
     const part = screen === 'settings-theme' ? 'theme' : 'this-library'

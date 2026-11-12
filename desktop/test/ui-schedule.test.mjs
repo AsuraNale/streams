@@ -1,3 +1,4 @@
+// redesign R4a: session B no longer walks 新建库's four steps to its last screen (the wizard is gone): it checks the 定时 line of the one-page form (see below).
 // 定时 on the running app (docs/desktop.md §4.3). Session A, the seeded world with the schedule on at 08:30: 设置「运行」 shows
 // the switch on, the time, the next run as getSchedule gives it and the two rules; a new time typed → settings.json; the
 // switch off → settings.json, 「定时没开」; 25:00 through the bridge → bad_arguments and nothing written, and a time the field
@@ -12,10 +13,10 @@
 // bar is the library's head on 概览 ([data-part="next-run"]); 待看 and 概览 are tabs ([data-tab]). The assertions are v1.0's.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NEXT_WHEN } from '../src/renderer/texts/common.js'
-import { FIRST_RUN } from '../src/renderer/texts/first-run.js'
+import { NEW_LIBRARY } from '../src/renderer/texts/first-run.js'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
 import { SHELL } from '../src/renderer/texts/shell.js'
 import { fmt, nextText } from '../src/renderer/lib/format.js'
@@ -115,51 +116,33 @@ test('no page errors (session A)', () => {
   assert.deepEqual(s.errors, [])
 })
 
-// v2 package I: 「定时」 is the last step of 新建库 (the manual way; 首次打开 is the connection and 和主 Agent 聊 now). Session B starts on
-// 新建库 with the world's library open (a library exists, so not 首次打开) and walks folder → blank pack → round → 定时; the
-// assertions are v1.0's, the sidebar has 新建库's four steps (no connection)
+// redesign R4a: 新建库 is one page (screens/new-library.js; design P04, F47): 「定时」 is a line of the form — 每天 [时刻] 自动运行 · 单次运行
+// 最多 [n] 次模型调用 — not the last step of a wizard any more (v2 package I's four steps are gone), so session B checks that line:
+// it starts from the app's schedule (the world's settings.json: 08:30, off — the control), the time and the switch the user sets
+// are what the new library's streams.json gets, and so is the cap. The rule (the library's own schedule, in its streams.json) is
+// the one the old session checked.
 const b = worldSession({
   kind: 'empty',
   waitFor: 'new-library',
   settings: { schedule: { enabled: false, time: '08:30' } },
-  prepare: world => { mkdirSync(join(world.root, 'chosen')) },
-  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: join(world.root, 'chosen'), STREAMS_START_SCREEN: 'new-library' }),
-})
-const stepIs = id => b.page.waitForFunction(i => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === i, id, POLL)
-
-test('新建库: after the first round, 下一步 → the last screen 「定时」: every day at 08:30, in the tray, the rules; four steps in the sidebar', async () => {
-  const steps = await b.page.evaluate(() => [...document.querySelectorAll('.st-sidebar [data-step]')].map(e => e.dataset.step))
-  assert.deepEqual(steps, ['folder', 'pack', 'trial', 'schedule'])
-  await b.page.click('[data-action="choose-folder"] button')
-  await b.page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
-  await b.page.click('[data-action="next"] button')
-  await stepIs('pack')
-  await b.page.click('[data-pack="blank"]')
-  await b.page.click('[data-action="apply"] button')
-  await b.page.waitForFunction(() => document.querySelector('[data-part="tried"]') !== null, null, POLL)
-  await b.page.click('[data-action="continue"] button')
-  await stepIs('trial')
-  await b.page.click('[data-action="start"] button')
-  await b.page.waitForFunction(() => document.querySelector('[data-part="round-progress"]')?.dataset.done === 'true', null, POLL)
-  assert.equal(await b.page.evaluate(() => document.querySelector('[data-action="go-today"]')), null, 'the wizard does not end at the round any more')
-  await b.page.click('[data-action="next"] button')
-  await stepIs('schedule')
-  assert.equal(await b.page.evaluate(() => document.querySelector('.st-sidebar [data-step="schedule"]').dataset.stepState), 'current')
-  const card = await b.page.evaluate(() => { const el = document.querySelector('[data-part="schedule"]'); return { time: el.dataset.time, every: el.querySelector('[data-every]').textContent, text: el.textContent } })
-  assert.equal(card.time, '08:30')
-  assert.equal(card.every, fmt(FIRST_RUN.schedule.every, { time: '08:30' }))
-  assert.ok(card.text.includes(FIRST_RUN.schedule.where), card.text)
-  const rules = await b.page.evaluate(() => document.querySelector('[data-part="schedule-rules"]').textContent)
-  assert.ok(rules.includes(FIRST_RUN.schedule.missed) && rules.includes(FIRST_RUN.schedule.close), rules)
+  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'new-libs'), STREAMS_START_SCREEN: 'new-library' }),
 })
 
-test('新建库 「定时」: 完成 = setSchedule with the default → the new library streams.json (v1.0: settings.json) { enabled: true, time: 08:30 }, then 待看', async () => {
-  const chosen = join(b.world.root, 'chosen')
-  assert.deepEqual(scheduleOf(chosen), { enabled: false, time: '08:30' }, 'control: the world started with it off (settings.json\'s, written into the new library)')
-  await b.page.click('[data-action="go-inbox"] button')
+test("新建库 (redesign R4a): the 定时 line starts from the app's schedule (08:30, off); 每天 checked and 06:45 typed, the cap 30 → the new library's streams.json", async () => {
+  await b.page.waitForFunction(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] [data-part="folder-state"]')?.dataset.state !== '', null, POLL)
+  assert.deepEqual(await b.page.evaluate(() => [document.querySelector('[data-field="daily"]').checked, document.querySelector('[data-field="time"]').value, document.querySelector('[data-field="cap"]').value]), [false, '08:30', '120'], "control: the app's schedule, off")
+  assert.equal(await b.page.evaluate(w => document.querySelector('[data-part="schedule"]').textContent.includes(w), NEW_LIBRARY.capAfter), true)
+  await b.page.fill('[data-field="name"]', '定时库')
+  await b.page.fill('[data-field="brief"]', '追踪电池价格。')
+  await b.page.check('[data-field="daily"]')
+  await b.page.fill('[data-field="time"]', '06:45')
+  await b.page.fill('[data-field="cap"]', '30')
+  await b.page.click('[data-action="create-only"] button')
   await ready(b.page, 'inbox')
-  assert.deepEqual(scheduleOf(chosen), { enabled: true, time: '08:30' })
-  assert.equal((await b.page.evaluate(() => window.streams.getSchedule())).data.enabled, true)
+  const dir = join(b.world.root, 'new-libs', '定时库')
+  assert.deepEqual(scheduleOf(dir), { enabled: true, time: '06:45' })
+  assert.equal(JSON.parse(readFileSync(join(dir, 'streams.json'), 'utf8')).pipeline.cap, 30)
+  assert.deepEqual((await b.page.evaluate(() => window.streams.getSchedule())).data.enabled, true, "the new (current) library's")
 })
 
 test('no page errors (session B)', () => {

@@ -7,8 +7,10 @@
    deleted, the reading window's styles/reader.css names none of these — and the names only they used are gone from here (chart-2…4,
    col-panel, col-sidebar, danger-bg, gutter, lib-*, on-lib, weight-body). What is left is named by 来源与要求 (screens/sources.js,
    pipeline.js), 主 Agent's conversation and the proposal and suggestion cards (chat.js, proposal-card.js, suggestion-card.js:
-   agent.css), 设置 (settings.css), 首次打开 and 新建库 (first-run.css), the kit's dialogs, menus and buttons (kit.css, menu.css),
-   the placeholder screen and the right panel's R1 parts (panel.css, shell.css) — R4–R6 rebuild those. Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
+   agent.css), 设置 (settings.css), the kit's dialogs, menus and buttons (kit.css, menu.css), the placeholder screen and the
+   right panel's R1 parts (panel.css, shell.css) — R4b–R6 rebuild those. Redesign R4a: 首次打开 and 新建库 are rebuilt on the
+   template's parts (template-app.css 8); styles/screens/first-run.css and kit.css's wizard steps are deleted, and the one name
+   only they used (sidebar-selected-sub) is gone from here. Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
    these screens stay readable and usable in every theme until they are rebuilt, each name points at the template's own
    variable of the theme in force (round 11's roles, set on <body>: --bench --panel --paper --well --ink11 --sub11 --accent11
    --pick --inverse11 --rule11 --float11). No colour is defined here: only var() of the template's, and sizes. */
@@ -51,7 +53,6 @@
   --st-sidebar-divider: var(--rule11);
   --st-sidebar-button: var(--well);
   --st-sidebar-selected-title: var(--ink11);
-  --st-sidebar-selected-sub: var(--sub11);
   --st-text: var(--ink11);
   --st-text-2: var(--sub11);
   --st-text-3: var(--sub11);

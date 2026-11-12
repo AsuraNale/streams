@@ -19,6 +19,13 @@
 // 跳过 · 全部写入 · 建议的文件头（可编辑）), the files are not listed a second time on its left, and 我的笔记's number is read back in
 // 资料库 (← 返回资料库). Only the way there and those places changed; what is checked of the cards, the writes and the bodies is
 // as it was. Added: before a header is written, the file is in no list of 资料库 (全部 = the index).
+// Redesign R4a (docs/checks/2026-11-12-r4a/contract.md R4a-3, F57): 新建库 is one page — the folder is chosen with 「更改…」 on its
+// 存储位置 line (the same hook, STREAMS_DEV_CHOOSE_FOLDER), the line says how many .md the folder holds and that nothing is moved or
+// changed (NEW_LIBRARY.folderStates.importable), and 「仅创建」 (with a name and 追踪要求, which the form requires) opens it as a
+// library and goes to its 待看 — v2 package I's 「下一步」 and pack step are gone. Session F reaches 新建库 from 首次打开's
+// 「手动创建」 (首次打开 is one screen now). What is checked of the folder is as it was (nothing written before, every file byte for
+// byte after, notesDir "."), and the files the import adds now include _pipeline/changes.jsonl (the form's settings are the user's
+// own: 「谁定的」, as every change the user makes).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -27,7 +34,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { LIBRARY } from '../src/renderer/texts/library.js'
-import { FIRST_RUN } from '../src/renderer/texts/first-run.js'
+import { NEW_LIBRARY } from '../src/renderer/texts/first-run.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { headerText, parseHeaderText } from '../src/renderer/lib/header-text.js'
 import { ready } from './support/app.mjs'
@@ -98,21 +105,24 @@ async function backToLibrary() {
   return Number(await page().evaluate(() => document.querySelector('[data-view="authored"]').dataset.count))
 }
 
-test('新建库 (v2 package I; v1.0: 设置 「打开已有文件夹」) on a folder of .md files: it says how many and writes nothing; 下一步 imports it, every file as it was', async () => {
-  await click('[data-action="choose-folder"]')
-  await until(() => document.querySelector('.fr-folder') !== null)
-  assert.equal(await page().evaluate(() => document.querySelector('.fr-folder').dataset.folderState), 'importable')
-  assert.equal(await text('[data-folder-note]'), fmt(FIRST_RUN.folder.importable, { n: seeded.mdCount }))
+test("新建库 (v2 package I; redesign R4a: the one-page form's 更改…) on a folder of .md files: it says how many and writes nothing; 仅创建 imports it, every file as it was", async () => {
+  await until(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] [data-part="folder-state"]')?.dataset.state !== '')
+  await click('[data-action="change-folder"]')
+  await until(p => document.querySelector('[data-part="location"]')?.dataset.path === p, vault)
+  assert.equal(await page().evaluate(() => document.querySelector('[data-part="folder-state"]').dataset.state), 'importable')
+  assert.equal(await text('[data-part="folder-state"]'), fmt(NEW_LIBRARY.folderStates.importable, { n: seeded.mdCount }))
   assert.equal(existsSync(join(vault, 'streams.json')), false, 'only said, nothing written yet')
   assert.deepEqual(hashTree(vault), before)
-  await click('[data-action="next"]')
-  await until(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === 'pack')
+  await page().fill('[data-field="name"]', 'vault')
+  await page().fill('[data-field="brief"]', '我自己的笔记。')
+  await click('[data-action="create-only"]')
+  await ready(page(), 'inbox')
   assert.equal((await page().evaluate(() => window.streams.getAppState())).data.library.path, vault)
   const cfg = JSON.parse(readFileSync(join(vault, 'streams.json'), 'utf8'))
   assert.equal(cfg.notesDir, '.')
   untouched(Object.keys(IMPORT_FILES))
   const added = Object.keys(hashTree(vault)).filter(k => !(k in before)).sort()
-  assert.deepEqual(added, ['_pipeline/fetch_log.jsonl', '_pipeline/ledger.jsonl', 'index.jsonl', 'index.meta.json', 'streams.json'])
+  assert.deepEqual(added, ['_pipeline/changes.jsonl', '_pipeline/fetch_log.jsonl', '_pipeline/ledger.jsonl', 'index.jsonl', 'index.meta.json', 'streams.json'])
   pendingBefore = Object.fromEntries(core.listPending(vault).map(p => [p.file, p]))
 })
 
@@ -237,20 +247,21 @@ const f = worldSession({
   env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: vaultF }),
 })
 
-test('首次打开 → 和主 Agent 聊 → 也可以手动新建 → 新建库 step 1 on a folder of .md files: it says how many and that nothing is moved; 下一步 opens it as a library, the files as they were', async () => {
-  await f.page.waitForFunction(() => document.querySelectorAll('[data-connection]').length === 3, null, POLL)
-  await f.page.click('[data-action="skip"] button')
-  await ready(f.page, 'chat')
+test("首次打开 → 手动创建 → 新建库 (redesign R4a: one page) with 更改… on a folder of .md files: it says how many and that nothing is moved; 仅创建 opens it as a library, the files as they were", async () => {
+  await f.page.waitForFunction(() => document.querySelector('[data-part="first-run"]')?.dataset.view === 'home', null, POLL)
   await f.page.click('[data-action="manual-new"] button')
   await ready(f.page, 'new-library')
-  await f.page.click('[data-action="choose-folder"] button')
-  await f.page.waitForFunction(() => document.querySelector('[data-folder-path]') !== null, null, POLL)
-  assert.equal(await f.page.evaluate(() => document.querySelector('.fr-folder').dataset.folderState), 'importable')
-  assert.equal(await f.page.evaluate(() => document.querySelector('[data-folder-note]').textContent), fmt(FIRST_RUN.folder.importable, { n: 6 }))
-  assert.equal(await f.page.evaluate(() => document.querySelector('[data-action="next"] button').disabled), false)
+  await f.page.waitForFunction(() => document.querySelector('[data-part="folder-state"]')?.dataset.state !== '', null, POLL)
+  await f.page.click('[data-action="change-folder"] button')
+  await f.page.waitForFunction(p => document.querySelector('[data-part="location"]')?.dataset.path === p, vaultF, POLL)
+  assert.equal(await f.page.evaluate(() => document.querySelector('[data-part="folder-state"]').dataset.state), 'importable')
+  assert.equal(await f.page.evaluate(() => document.querySelector('[data-part="folder-state"]').textContent), fmt(NEW_LIBRARY.folderStates.importable, { n: 6 }))
   assert.equal(existsSync(join(vaultF, 'streams.json')), false)
-  await f.page.click('[data-action="next"] button')
-  await f.page.waitForFunction(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === 'pack', null, POLL)
+  await f.page.fill('[data-field="name"]', 'vault')
+  await f.page.fill('[data-field="brief"]', '我自己的笔记。')
+  assert.equal(await f.page.evaluate(() => document.querySelector('[data-action="create-only"] button').disabled), false)
+  await f.page.click('[data-action="create-only"] button')
+  await ready(f.page, 'inbox')
   assert.equal(JSON.parse(readFileSync(join(vaultF, 'streams.json'), 'utf8')).notesDir, '.')
   const now = hashTree(vaultF)
   for (const [rel, h] of Object.entries(beforeF)) assert.equal(now[rel], h, rel)

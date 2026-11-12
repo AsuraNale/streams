@@ -15,6 +15,9 @@
  *   STREAMS_DEV_ASK_SCRIPT=<json file>   (with fake only; redesign R3, for the page's tests and pictures of 问库) what the scripted
  *     connector answers to 问库's prompt (the core's ask: one answer object { answer: [{ text, cites }], notInLibrary, missing,
  *     claimed }); every other prompt is answered as before. Read once.
+ *   STREAMS_DEV_DETECT=<json file>   (redesign R4a, for 首次打开's tests and pictures) what the detection says, laid over what it
+ *     found: { "claude-code": { installed, loggedIn, version }, "codex": { … } } — any of the three keys of either kind. Read
+ *     again at every detection, so a test can change it and press 「已登录，重新检测」. Not the API key (that is the secret store's).
  * @module desktop/main/services/connections
  */
 
@@ -60,7 +63,7 @@ export const keyRefOf = vendor => `key-${vendor}`
  * @param {(kind: string, quota: object) => void} [o.onQuota] - v2 package M: the plan's windows a Claude Code call brought
  *   (core deps.onQuota), for the corner of the sidebar (services/quota.mjs record)
  */
-export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, devAskScript = null, connectorDeps = {}, usageWrap = c => c, onQuota = () => {} }) {
+export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, devAskScript = null, devDetect = null, connectorDeps = {}, usageWrap = c => c, onQuota = () => {} }) {
   if (devConnection !== null && !DEV_CONNECTION_MODES.includes(devConnection)) throw new TypeError(`STREAMS_DEV_CONNECTION must be one of ${DEV_CONNECTION_MODES.join(' | ')}`)
   const settings = () => readSettings(settingsFile)
   const devAskAnswer = devConnection === 'fake' && devAskScript ? JSON.parse(readFileSync(devAskScript, 'utf8')) : null
@@ -116,10 +119,26 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
     return { hasKey, keyHint: hint }
   }
 
+  /** Redesign R4a, development only: STREAMS_DEV_DETECT's word on one kind ({} when there is none or it cannot be read). */
+  const devDetectOf = kind => {
+    if (!devDetect || kind === 'api') return {}
+    try {
+      const o = JSON.parse(readFileSync(devDetect, 'utf8'))?.[kind]
+      if (!o || typeof o !== 'object') return {}
+      return Object.fromEntries(Object.entries(o).filter(([k, v]) => (k === 'installed' || k === 'loggedIn') ? typeof v === 'boolean' : k === 'version' && (v === null || typeof v === 'string')))
+    } catch (err) { log(`connections: STREAMS_DEV_DETECT unreadable: ${String(err?.message ?? err)}`); return {} }
+  }
+
   const detectOne = async kind => {
     try {
       const r = await connector(kind).detect()
       const out = { installed: r.installed === true, loggedIn: r.loggedIn === true, version: r.version ?? null, code: r.code ?? null }
+      const over = devDetectOf(kind)
+      if (Object.keys(over).length) {
+        Object.assign(out, over)
+        if (!out.installed) out.loggedIn = false
+        out.code = !out.installed ? 'not-installed' : out.loggedIn ? null : 'not-logged-in'
+      }
       if (r.source) out.source = r.source
       return out
     } catch (err) {

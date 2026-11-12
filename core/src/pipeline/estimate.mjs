@@ -2,14 +2,25 @@
 // The pre-run estimate (mockup S12): sources from streams.json, the new-item range of the last 7 rounds
 // from fetch_log, the items already waiting in the queue from the ledger, the cap from the pipeline config.
 // Calls: every item costs at least gate 1 (×1) and at most gate 1 + body gate + summary + its judge (×4).
+// estimateFirstRound({ items, cap }) -> { expectedCalls:[lo,hi], items, cap }   (redesign R4a, 新建库's 「预计 n–m 次模型调用」)
+//   a library that is not made yet has no rounds to go by: `items` is what one try of each of its sources found (the form's
+//   rows); the run's self-check call (SELF_CHECK_CALLS) plus the items' calls as above, each side at most `cap`.
 import { StreamsError } from '../errors.mjs';
 import { readConfig } from '../library/config.mjs';
 import { readFetchLog } from '../fetch/log.mjs';
-import { pipelineFrom } from './config.mjs';
+import { DEFAULTS, pipelineFrom } from './config.mjs';
 import { buildQueue } from './queue.mjs';
 
 export const RECENT_ROUNDS = 7;
 export const CALLS_PER_ITEM = [1, 4];
+// the run's self-check: one call before anything is fetched (round.mjs selfCheck; the funnel's 「运行前自检 1」)
+export const SELF_CHECK_CALLS = 1;
+
+export function estimateFirstRound({ items = 0, cap = DEFAULTS.cap } = {}) {
+  const n = Number.isInteger(items) && items > 0 ? items : 0;
+  const c = Number.isInteger(cap) && cap > 0 ? cap : DEFAULTS.cap;
+  return { expectedCalls: [SELF_CHECK_CALLS + Math.min(c, n * CALLS_PER_ITEM[0]), SELF_CHECK_CALLS + Math.min(c, n * CALLS_PER_ITEM[1])], items: n, cap: c };
+}
 
 export function recentNewCounts(entries, n = RECENT_ROUNDS) {
   const byRound = new Map();

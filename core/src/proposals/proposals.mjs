@@ -33,7 +33,8 @@
 //
 // APPLY (what confirm runs; draftProposal runs the same on its copy):
 //   create_library   createLibrary → saveBrief → addTopic × n → addSource × the ticked ones → savePipelineConfig with the
-//                    gates' thresholds (only when given) → saveLibrarySchedule → hooks.register → hooks.enqueue
+//                    gates' thresholds (the card's over 标准's; redesign R4a: none given = 标准 0.5 / 0.6, not the pipeline's
+//                    0.7 / 0.6) → saveLibrarySchedule → hooks.register → hooks.enqueue (library/new-library.mjs fillNewLibrary)
 //   add_source       addSource (checkSource inside)      remove_source   removeSource      pause_source   setSourcePaused
 //   edit_topics      per op: addTopic / removeTopic / updateTopic (keywords added to / taken from the topic's list)
 //   edit_brief       saveBrief (brief.mjs)               edit_thresholds savePipelineConfig with the gates' thresholds (v1.0's
@@ -50,7 +51,9 @@ import { createLibrary } from '../library/create.mjs';
 import { addSource, addTopic, checkSource, removeSource, removeTopic, setSourcePaused, updateTopic } from '../library/sources.mjs';
 import { saveBrief } from '../library/brief.mjs';
 import { readLibrarySchedule, saveLibrarySchedule } from '../library/schedule.mjs';
-import { gateNodes, pipelineConfig, savePipelineConfig } from '../pipeline/config.mjs';
+import { pipelineConfig, savePipelineConfig } from '../pipeline/config.mjs';
+import { withThresholds } from '../pipeline/strictness.mjs';
+import { fillNewLibrary, newLibrarySettings } from '../library/new-library.mjs';
 import { scheduleOf } from '../pipeline/schedule.mjs';
 import { listRounds } from '../pipeline/rounds-log.mjs';
 import { fetchSource } from '../fetch/source.mjs';
@@ -155,20 +158,6 @@ export async function trialOf(source, ctx) {
   };
 }
 
-// the gates' thresholds set on a pipeline configuration as pipelineConfig gives it (the way the pipeline page saves them)
-function withThresholds(cfg, { relevance, substance }) {
-  const gates = gateNodes(cfg);
-  const target = (id, i) => gates.find((g) => g.id === id) ?? gates[i];
-  const set = new Map();
-  for (const [key, value, i] of [['relevance', relevance, 0], ['substance', substance, 1]]) {
-    if (value === undefined) continue;
-    const g = target(key, i);
-    if (!g) throw new StreamsError('bad-config', `the pipeline has no gate for ${key}`);
-    set.set(g.id, value);
-  }
-  return { ...cfg, nodes: cfg.nodes.map((n) => (set.has(n.id) ? { ...n, threshold: set.get(n.id) } : n)) };
-}
-
 function topicOf(dir, name) {
   const t = fieldValue(dir, 'topics').find((x) => x.name === name);
   if (!t) throw new StreamsError('not-found', `no topic named ${JSON.stringify(name)}`);
@@ -212,14 +201,13 @@ function applyLibraryKind(kind, p, dir, step) {
   }
 }
 
-// a new library's steps up to its registration, on `dir` (the real folder, or one in the scratch folder)
+// a new library's steps up to its registration, on `dir` (the real folder, or one in the scratch folder). Redesign R4a: the
+// steps after `create` are the core's one way of filling a new library (library/new-library.mjs, the same 新建库's form runs):
+// the card's thresholds laid over 标准's — a card that names none makes a library at 标准 (0.5 / 0.6), as the form does (O15)
 function buildLibrary(p, dir, { language, sources, step }) {
   step('create', () => createLibrary(dir, { name: p.name, language }));
-  step('brief', () => saveBrief(dir, p.brief));
-  step('topics', () => { for (const t of p.topics) addTopic(dir, t); });
-  step('sources', () => { for (const s of sources) addSource(dir, s); });
-  step('thresholds', () => { if (p.thresholds) savePipelineConfig(dir, withThresholds(pipelineConfig(dir), p.thresholds)); });
-  step('schedule', () => saveLibrarySchedule(dir, p.schedule));
+  const { thresholds } = newLibrarySettings({ thresholds: p.thresholds, schedule: p.schedule });
+  fillNewLibrary(dir, { brief: p.brief, topics: p.topics, sources, thresholds, schedule: p.schedule }, { step });
 }
 
 const plainStep = (_name, fn) => fn();

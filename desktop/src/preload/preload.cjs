@@ -90,6 +90,11 @@ const METHODS = [
   'getLibraryRoot',
   'chooseLibraryRoot',
   'setLibraryRoot',
+  // redesign R4a: the one-page form of 新建库
+  'getNewLibraryDefaults',
+  'newLibraryFolder',
+  'estimateNewLibrary',
+  'createNewLibrary',
   // the proposal cards (v2 package B)
   'listProposals',
   'confirmProposal',

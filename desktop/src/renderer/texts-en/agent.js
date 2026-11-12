@@ -33,7 +33,7 @@ export const AGENT = Object.freeze({
       'Keep an eye on the results and new products of a few listed Chinese fashion companies.',
     ]),
     manual: 'Or make one by hand',
-    manualHint: 'Choose the folder, a starter pack and the sources yourself, without the main Agent',
+    manualHint: 'Fill in one form yourself (brief, sources, location), without the main Agent',
     noConnection: 'No connection yet, so the main Agent cannot work.',
     goSettings: 'Go to Settings',
   }),

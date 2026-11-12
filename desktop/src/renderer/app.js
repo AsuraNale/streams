@@ -3,8 +3,9 @@
 // The app state is read again whenever the main process says a setting changed (event `settings-changed`), the
 // library changed (`library-changed`) or the connections did (`connections-changed`).
 // v2 package I (contract I1; docs/desktop.md §五「首次打开」): when the app state first arrives and the app knows no library at all
-// (`libraryCount` 0 — not v1.0's 「no library open」), the app shows 首次打开 (screens/first-run.js: the connection) in place of
-// the sidebar's entries; its end takes the app to 和主 Agent 聊 (the second step: its guide shows while there is no library).
+// (`libraryCount` 0 — not v1.0's 「no library open」), the app opens on 首次打开 (screens/first-run.js). Redesign R4a: it is the
+// route 'first-run' in the usual frame (one screen: the connection on top, what to track, 发送 → 主 Agent with the sentence,
+// 手动创建 → 新建库, 暂不创建 → 库架; docs/desktop.md §4.16).
 // With libraries registered and none current (a removed current library, say) the app opens on 库架 instead. It is decided once:
 // removing every library later does not bring 首次打开 back (库架 then says there is none). 新建库 (`newLibrary()`: the sidebar,
 // the shelf, the chat's guide) is the route 'new-library' (screens/new-library.js, v1.0's steps without the connection).
@@ -25,7 +26,6 @@ import { useLibraries, useWaitingItems } from './lib/libraries.js'
 // v2 package L: the one queue of the rounds (the right panel, the sidebar, 库架, the library's head)
 import { useQueue } from './lib/queue.js'
 import { ALIASES, FIRST_SCREEN, LIBRARY_FIRST_SCREEN, SCREENS } from './screens/index.js'
-import { FirstRunScreen } from './screens/first-run.js'
 import { LIBRARY_ROUTES } from './kit/index.js'
 import { BRAND } from './texts/common.js'
 import { applyLook } from './lib/theme.js'
@@ -59,15 +59,18 @@ function App() {
   const [route, setRoute] = useState(first)
   // per library (its registry id): the last route of its page, and how far each of its screens was scrolled
   const memory = useRef({ routes: new Map(), scroll: new Map() })
-  // 首次打开: decided once, when the app state first arrives — the app knows no library at all; its end goes to 和主 Agent 聊
+  // 首次打开: decided once, when the app state first arrives — the app knows no library at all → the route 'first-run' (redesign
+  // R4a: a screen of the usual frame, the sidebar and the right panel there; its ways out are routes too)
   const [setup, setSetup] = useState(null)
   useEffect(() => {
     if (setup !== null) return
     if (appState.data) {
-      const none = appState.data.libraryCount === 0 && route.screen !== 'kit'
+      const none = appState.data.libraryCount === 0
+      // no library at all: 首次打开 (unless development opened another screen first)
+      if (none && !location.hash) setRoute({ screen: 'first-run', params: {} })
       // libraries registered, none of them current: 库架 (unless development opened another screen first)
-      if (!none && appState.data.library === null && !location.hash) setRoute({ screen: 'shelf', params: {} })
-      setSetup(none)
+      else if (!none && appState.data.library === null && !location.hash) setRoute({ screen: 'shelf', params: {} })
+      setSetup(false)
     } else if (appState.status === 'error') setSetup(false) // the state could not be read: the screens say so themselves
   }, [appState.data, appState.status])
   // the look (docs/desktop.md §五「主题」; redesign R1): the first frame already has it (the main process serves index.html with
@@ -139,11 +142,6 @@ function App() {
     newLibrary: () => setRoute(r => (r.screen === 'new-library' ? r : { screen: 'new-library', params: { back: r.screen } })),
   }
   if (setup === null) return null
-  if (setup === true) {
-    return html`<${AppContext.Provider} value=${value}>
-      <${FirstRunScreen} onDone=${screen => { setSetup(false); appState.reload(); navigate(screen ?? 'chat') }} />
-    <//>`
-  }
   const Screen = screens[route.screen]
   // a library's page starts afresh for another library (nothing of the one before stays on it)
   const key = LIBRARY_ROUTES.includes(route.screen) ? `${libraryId ?? 'none'}:${route.screen}` : route.screen

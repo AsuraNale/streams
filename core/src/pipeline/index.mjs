@@ -11,7 +11,9 @@ export { selfCheck, runRound, previewNode } from './round.mjs';
 export { keep, dismiss, later, recentDismissReasons, slugOf, moveToInbox, listRejected, listManualWaiting, roundOutcome, DISMISS_QUICK } from './decide.mjs';
 export { markLater, readLater, releaseLater, laterPath, LATER_FILE } from './later.mjs';
 export { runFunnel, failedStart, callsAddUp } from './funnel.mjs';
-export { estimateRound, recentNewCounts, RECENT_ROUNDS, CALLS_PER_ITEM } from './estimate.mjs';
+export { estimateRound, estimateFirstRound, recentNewCounts, RECENT_ROUNDS, CALLS_PER_ITEM, SELF_CHECK_CALLS } from './estimate.mjs';
+// redesign R4a: 严格程度 (N01)
+export { STRICTNESS, STRICTNESS_LEVELS, DEFAULT_STRICTNESS, strictnessOf, withThresholds, readStrictness, saveStrictness } from './strictness.mjs';
 export { homeNumbers, noOutputStreak, constantScoreWarning, MIN_CONSTANT_RUN, NO_OUTPUT_ROUNDS } from './numbers.mjs';
 export { roundLog, listRounds, readRounds, renderRoundMd, ROUNDS_FILE, LOGS_DIR } from './rounds-log.mjs';
 export { relatedEntries, titleTokens } from './related.mjs';

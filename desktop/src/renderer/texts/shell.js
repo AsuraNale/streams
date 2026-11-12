@@ -99,8 +99,8 @@ export const SHELL = Object.freeze({
   }),
 
 
-  // 「新建库」 (v2 package I: screens/new-library.js, the manual way — the sidebar, the shelf, 首次打开's 「也可以手动新建」): v1.0's
-  // 首次设置 without its connection step — 库放在哪 → 主题与来源 → 试跑一轮 → 定时 (the steps' words: texts/first-run.js)
+  // 「新建库」 (screens/new-library.js, the manual way — the sidebar, the shelf, 首次打开's 「手动创建」). Redesign R4a: one page (its words:
+  // texts/first-run.js NEW_LIBRARY); v1.0's four steps are gone. Here: its title and 「取消」 (kept for the bridge-free callers)
   newLibrary: Object.freeze({
     title: '新建库',
     cancel: '取消',

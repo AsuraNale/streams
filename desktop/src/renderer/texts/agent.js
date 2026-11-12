@@ -41,7 +41,7 @@ export const AGENT = Object.freeze({
       '帮我盯着几家中国时尚上市公司的财报和新品。',
     ]),
     manual: '也可以手动新建',
-    manualHint: '自己选文件夹、起步包和来源，不经过主 Agent',
+    manualHint: '在一页表单里填写追踪要求、来源和存储位置，不经过主 Agent',
     noConnection: '还没有连接，主 Agent 用不了。',
     goSettings: '去设置',
   }),

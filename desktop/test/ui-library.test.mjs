@@ -204,7 +204,10 @@ test('R3-3 编辑笔记 (the template\'s dialog): title, topics, body, 插入链
     }
   })
   assert.deepEqual(shape.fields, ['title', 'body'])
-  assert.deepEqual(shape.actions, ['close-edit', 'add-topic', 'save-edit', 'insert-link', 'cancel-edit'])
+  // redesign R4a (R3's review, design P11): 插入链接 beside the body, then 取消 · 保存 at the foot with 保存 last (on the right)
+  assert.deepEqual(shape.actions, ['close-edit', 'add-topic', 'insert-link', 'cancel-edit', 'save-edit'])
+  assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('dialog[data-dialog="edit"] .form-footer [data-action]')].map(e => e.dataset.action)), ['cancel-edit', 'save-edit'])
+  assert.equal(await s.page.evaluate(() => document.querySelector('dialog[data-dialog="edit"] [data-part="body-tools"] [data-action="insert-link"]') !== null), true)
   assert.equal(shape.record, EDIT.record)
   assert.equal(shape.record, '仅可修改标题、主题、正文和链接；来源、日期、评分为记录字段，不可修改。')
   assert.equal(shape.title, '编辑笔记')
