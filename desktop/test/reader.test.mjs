@@ -186,9 +186,19 @@ test('the bar: the address escaped; 阅读模式 only when there is text; the fa
   assert.match(fell, /data-theme="glass" data-appearance="dark"/)
   // redesign R1: the default theme is research (was precision); <body> carries the theme's template class and data-appearance
   assert.match(barPage({ url, mode: 'original', canRead: true, fallback: false, words: WORDS, look: { theme: 'night', scheme: '"><b>' }, css: CSS }), /data-theme="research" data-appearance="light"/, 'an unknown theme and scheme are the defaults')
-  assert.match(fell, /<body class="theme-glass r9 r9-glass r10-glass r11 r11-glass rd-bar-body" data-appearance="dark">/)
+  // redesign R3: <body> is the template's as the main window has it (class, data-theme, data-appearance)
+  assert.match(fell, /<body class="theme-glass r9 r9-glass r10-glass r11 r11-glass rd-bar-body" data-theme="glass11" data-appearance="dark"/)
   for (const page of [reading, fell]) for (const href of page.matchAll(/href="([^"]*)"/g)) assert.ok(href[1].startsWith(`${ACTION_ORIGIN}/`), href[1])
-  assert.equal(WORDS.fallback, '这一页抽不出正文，显示的是原网页')
+  // redesign R3 (P20, 05-措辞规范): the bar is the template's reader-header — 返回条目 · the address · 阅读模式 | 原网页 · 在浏览器中打开 —
+  // with its parts' classes; the words are the design's (the fallback line said formally)
+  assert.match(reading, /<nav class="reader-header rd-bar" data-reader-bar data-mode="reading"/)
+  assert.match(reading, /class="btn quiet rd-btn" data-reader-action="back"[^>]*>[^<]*<svg[^>]*>.*?<\/svg> 返回条目</)
+  assert.match(reading, /class="search-field rd-url"/)
+  assert.match(reading, /class="filters rd-seg"/)
+  assert.match(reading, /class="filter active rd-seg__item" data-reader-action="reading" aria-current="true">阅读模式</)
+  assert.match(reading, /data-reader-action="browser"[^>]*>.*? 在浏览器中打开</)
+  assert.deepEqual([WORDS.back, WORDS.browser, WORDS.readingNote], ['返回条目', '在浏览器中打开', '阅读模式：仅保留正文，已移除导航与广告'])
+  assert.equal(WORDS.fallback, '无法从该网页提取正文，已显示原网页。')
   assert.equal(readerWords('en').fallback.length > 0, true)
   assert.equal(readerWords('xx'), WORDS)
 })
@@ -202,7 +212,12 @@ test('the reading page: a CSP with no script, frame or form; the title escaped; 
   assert.match(READER_PAGE_CSP, /form-action 'none'/)
   assert.ok(html.includes('&lt;b&gt;标题&lt;/b&gt;'))
   assert.ok(html.includes('<p>正文</p>'))
-  assert.ok(html.includes(`站 · 作者 · ${WORDS.readingNote}`))
+  // redesign R3: the template's reading paper — the line of 阅读模式 its eyebrow, the title, site · byline, the text in `readable`
+  assert.ok(html.includes(`<span class="eyebrow rd-article__note" data-reader-note-line>${WORDS.readingNote}</span>`))
+  assert.ok(html.includes('<p class="reader-meta rd-article__meta">站 · 作者</p>'))
+  assert.match(html, /<article class="reader-paper rd-article" data-reader-article>/)
+  assert.match(html, /<h1 class="reader-title rd-article__title">/)
+  assert.match(html, /<div class="readable rd-article__body"><p>正文<\/p><\/div>/)
   assert.match(html, /data-theme="research" data-appearance="light"/)
   const url = dataUrl(html)
   assert.ok(url.startsWith('data:text/html;charset=utf-8;base64,'))
@@ -210,13 +225,22 @@ test('the reading page: a CSP with no script, frame or form; the title escaped; 
   assert.equal(escapeHtml(`"'<>&`), '&quot;&#39;&lt;&gt;&amp;')
 })
 
-// redesign R1: the template's round 11 colours (and round 12's for 单线黑白) and the interim names, in place of tokens.css
-test('the styles: the template\'s colours, the interim names and the reader\'s file; Readability\'s own file wrapped into the extraction script', () => {
+// redesign R3: each theme's own template sheets (THEME_TEMPLATE, in order) and the reader's layer — no interim names any more;
+// what would load something (the bundled face's @font-face, url(…)) is taken out of a page that may load nothing
+test('the styles: each theme\'s template sheets and the reader\'s file, nothing that loads; Readability\'s own file wrapped into the extraction script', () => {
   const css = readerCss(join(DESKTOP_DIR, 'src', 'renderer'))
-  assert.match(css, /\.r11-research\.r11 \{--paper:/)
-  assert.match(css, /\.r12-line\.r11\.r11 \{/)
-  assert.match(css, /--st-page: var\(--bench\);/)
-  assert.match(css, /\.rd-bar\b/)
+  assert.equal(typeof css, 'function')
+  assert.match(css('research'), /\.r11-research\.r11 \{--paper:/)
+  assert.doesNotMatch(css('research'), /\.r12-line\.r11\.r11 \{/, 'research has no 单线黑白 sheet')
+  assert.match(css('monoline'), /\.r12-line\.r11\.r11 \{/)
+  assert.match(css('glass'), /r10-glass/)
+  for (const id of ['precision', 'glass', 'research', 'monoline']) {
+    assert.match(css(id), /\.rd-bar\b/)
+    assert.match(css(id), /\.reader-paper\b/)
+    assert.doesNotMatch(css(id), /--st-page/, `${id}: no interim names`)
+    assert.doesNotMatch(css(id), /@font-face|url\(/, `${id}: nothing that would load`)
+  }
+  assert.equal(css('night'), css('research'), 'an unknown theme: the default')
   const src = readabilitySource(DESKTOP_DIR)
   assert.match(src, /function Readability\(doc, options\)/)
   const script = extractionScript(src, '<p>x</p>', 'https://example.org/')

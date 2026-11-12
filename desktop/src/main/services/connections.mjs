@@ -12,11 +12,28 @@
  *     every kind is the core's scripted connector (`fake`: answers in the shape each prompt asks for) or the fake
  *     connector in that mode; detect says installed and logged in (login-expired: not logged in, code login-expired);
  *     openLogin opens nothing and answers { ok: true, pid: 0 }.
+ *   STREAMS_DEV_ASK_SCRIPT=<json file>   (with fake only; redesign R3, for the page's tests and pictures of 问库) what the scripted
+ *     connector answers to 问库's prompt (the core's ask: one answer object { answer: [{ text, cites }], notInLibrary, missing,
+ *     claimed }); every other prompt is answered as before. Read once.
  * @module desktop/main/services/connections
  */
 
+import { readFileSync } from 'node:fs'
 import { BridgeError } from '../bridge-methods.mjs'
-import { VENDORS, VENDOR_IDS, createConnector, createSessionConnector, fakeConnector, modelsFor, resolveModel, scriptedConnector } from '../core.mjs'
+import { ASK_PREAMBLE, ASK_PREAMBLE_EN, VENDORS, VENDOR_IDS, createConnector, createSessionConnector, fakeConnector, modelsFor, resolveModel, scriptedConnector } from '../core.mjs'
+
+/** Development only: the scripted connector, with 问库's prompt (the core's ask preamble first) answered by `answer`. */
+export function withAskAnswer(inner, answer) {
+  const isAsk = req => req.model !== 'verify' && typeof req.prompt === 'string' && (req.prompt.startsWith(ASK_PREAMBLE) || req.prompt.startsWith(ASK_PREAMBLE_EN))
+  return {
+    ...inner,
+    async complete(req) {
+      if (!isAsk(req)) return inner.complete(req)
+      inner.calls?.push({ prompt: req.prompt, system: req.system, model: req.model ?? 'main', format: req.format ?? 'json', at: new Date().toISOString() })
+      return { ok: true, json: structuredClone(answer), text: JSON.stringify(answer), usage: { calls: 1 }, model: inner.connection?.model ?? 'fake-model' }
+    },
+  }
+}
 import { keyHint } from '../secrets.mjs'
 import { CONNECTION_KINDS, readSettings, writeSettings } from '../settings.mjs'
 import { APP } from '../texts/app.js'
@@ -43,9 +60,10 @@ export const keyRefOf = vendor => `key-${vendor}`
  * @param {(kind: string, quota: object) => void} [o.onQuota] - v2 package M: the plan's windows a Claude Code call brought
  *   (core deps.onQuota), for the corner of the sidebar (services/quota.mjs record)
  */
-export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, connectorDeps = {}, usageWrap = c => c, onQuota = () => {} }) {
+export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, devAskScript = null, connectorDeps = {}, usageWrap = c => c, onQuota = () => {} }) {
   if (devConnection !== null && !DEV_CONNECTION_MODES.includes(devConnection)) throw new TypeError(`STREAMS_DEV_CONNECTION must be one of ${DEV_CONNECTION_MODES.join(' | ')}`)
   const settings = () => readSettings(settingsFile)
+  const devAskAnswer = devConnection === 'fake' && devAskScript ? JSON.parse(readFileSync(devAskScript, 'utf8')) : null
   const detected = { 'claude-code': null, codex: null, api: null }
   const probes = { 'claude-code': null, codex: null, api: null }
 
@@ -66,7 +84,7 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
   /** The connector for a kind: the core's, or the development stand-in. */
   const connector = kind => {
     checkKind(kind)
-    if (devConnection === 'fake') return scriptedConnector()
+    if (devConnection === 'fake') return devAskAnswer ? withAskAnswer(scriptedConnector(), devAskAnswer) : scriptedConnector()
     if (devConnection) return fakeConnector({ mode: devConnection })
     // v2 package M: every call's quota (Claude Code's stream) goes to the corner under this kind
     return createConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref), onQuota: q => onQuota(kind, q) })

@@ -57,11 +57,13 @@ test('getStatus: the core view plus the connections; getGraph: the filter and th
   assert.equal(s.lastRound, null)
   assert.deepEqual(s.connections, await connections.handlers.getConnections(), 'the connections as getConnections gives them')
   assert.equal(s.connections.active, 'codex')
-  h.getGraph({ days: 30, status: 'kept', topics: ['评测'], links: false })
+  // redesign R3 (F40): only the time range comes from the page; every file is drawn (status all) and the [[links]] always
+  h.getGraph({ days: 30 })
   const { now, ...rest } = seen[1][1]
-  assert.deepEqual([rest, typeof now], [{ days: 30, status: 'kept', topics: ['评测'], links: false }, 'function'])
+  assert.deepEqual([rest, typeof now], [{ days: 30, status: 'all', topics: [], links: true }, 'function'])
   h.getGraph(null)
-  assert.deepEqual(Object.keys(seen[2][1]), ['now'], 'null filter: the core defaults')
+  const { now: now2, ...rest2 } = seen[2][1]
+  assert.deepEqual([rest2, typeof now2], [{ days: null, status: 'all', topics: [], links: true }, 'function'], 'null filter: every day')
 })
 
 test('getStatus.nextRun (plan C8 「下次运行」): the schedule\'s next slot when it is on; null when it is off or there is none', async () => {
@@ -113,10 +115,10 @@ test('the real core: statusView, graph, verdictsFor on the seeded library', { sk
   assert.deepEqual(s.sources.map(x => x.name), seed.sources)
   assert.equal(typeof s.monthUsage.calls, 'number')
   assert.ok(s.connections.kinds && 'active' in s.connections)
-  const g = h.getGraph({ days: null, status: 'all', topics: [], links: true })
+  const g = h.getGraph({ days: null })
   assert.ok(g.nodes.some(n => n.id === `item:${seed.kept.id}`))
   assert.ok(g.nodes.some(n => n.kind === 'topic') && g.nodes.some(n => n.kind === 'source'))
-  assert.equal(JSON.stringify(h.getGraph({ days: null, status: 'all', topics: [], links: true })), JSON.stringify(g), 'the same twice')
+  assert.equal(JSON.stringify(h.getGraph({ days: null })), JSON.stringify(g), 'the same twice')
   const v = h.getVerdicts(seed.waiting.url)
   assert.ok(Array.isArray(v) && v.length > 0)
   assert.ok(v.every(group => typeof group.node === 'string' && Array.isArray(group.items)))

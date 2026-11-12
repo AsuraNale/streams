@@ -77,14 +77,22 @@ export function createBrowseService({ library, emit, log, hidden = false, shell,
     getLibrary(view, filter) {
       const dir = library.require()
       const listed = call('listLibrary', dir, { view, ...filterOf(filter, ['topics', 'days']), now })
+      // redesign R3 (缺少文件头, P12): each file with its path in the library folder (notes\<file>, or <file> for an imported folder)
+      if (view === 'pending' && Array.isArray(listed.items)) {
+        const folder = call('notesDir', dir)
+        listed.items = listed.items.map(it => ({ ...it, path: relative(dir, join(folder, it.file)) }))
+      }
       return { counts: call('libraryCounts', dir), ...listed }
     },
     searchLibrary(q, filter) {
       const dir = library.require()
       return call('search', dir, q, { ...filterOf(filter, ['view', 'topics', 'days']), now })
     },
+    // redesign R3: and where the file is, relative to the library's folder (资料库's 详情 「文件」: notes\<id>.md)
     readNote(id) {
-      return call('readNote', known(id), id)
+      const dir = known(id)
+      const note = call('readNote', dir, id)
+      return { ...note, path: relative(dir, noteFile(id)) }
     },
     editNote(id, changes) {
       const dir = known(id)

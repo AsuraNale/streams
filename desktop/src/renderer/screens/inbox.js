@@ -38,7 +38,7 @@ import { Dialog } from '../kit/index.js'
 import { DAY, ERRORS, NEXT_WHEN, NODE_NAMES, SEP, WHEN } from '../texts/common.js'
 import { INBOX as T } from '../texts/inbox.js'
 import { PANEL } from '../texts/panel.js'
-import { aiPhrases, VerdictBody, verdictSummary } from './verdict-dialog.js'
+import { aiPhrases, VerdictFold } from './verdict-dialog.js'
 import { LibraryFrame } from './library-frame.js'
 import { DetailBlock } from './right-panel.js'
 import { RunFunnel } from './run-funnel.js'
@@ -178,9 +178,6 @@ function CardDetail({ item, reasons }) {
   const moved = item.moved === 'rejected'
   const verified = scoreless || moved || !item.verification ? 'none' : item.verification.passed === false ? 'failed' : 'passed'
   const ai = item.aiInstruction === true
-  const [open, setOpen] = useState(false)
-  const record = useLoad(() => call('getVerdicts', item.url).catch(() => []), [item.url])
-  const parts = verdictSummary(record.data)
   const seen = item.firstSeen ? whenText(item.firstSeen, WHEN) : null
   return html`<${DetailBlock} where=${D.eyebrow} title=${item.title} part="detail-inbox">
     <div class="panel-section" data-part="detail-scores" data-url=${item.url}>
@@ -195,11 +192,7 @@ function CardDetail({ item, reasons }) {
       <div class="section-label"><span>${D.check}</span></div>
       <div class="step-line"><${TIcon} name=${verified === 'passed' ? 'check' : 'clock'} /><span>${verified === 'passed' ? D.passed : verified === 'failed' ? D.failed : D.unchecked}</span></div>
       <div class="step-line"><${TIcon} name=${ai ? 'clock' : 'check'} /><span>${ai ? D.aiYes : D.aiNo}</span></div>
-      <details class="phase-row" data-part="detail-record" data-open=${String(open)} open=${open} onToggle=${e => setOpen(e.currentTarget.open)}>
-        <summary class="phase-heading"><span class="phase-index"><${TIcon} name="file" /></span>
-          <span class="phase-label">${D.record}<small>${parts.length ? fmt(D.recordParts, { parts: parts.map(p => fmt(D.recordPart, { name: nodeName(p.node), n: p.n })).join(SEP) }) : D.recordNone}</small></span><${TIcon} name="down" /></summary>
-        <div class="phase-details">${open ? html`<${VerdictBody} url=${item.url} />` : null}</div>
-      </details>
+      <${VerdictFold} url=${item.url} />
     </div>
     <div class="panel-section" data-part="detail-source">
       <div class="section-label"><span>${D.source}</span></div>

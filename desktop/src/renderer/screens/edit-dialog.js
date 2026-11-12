@@ -1,17 +1,20 @@
-// 编辑一条 (mockup S7; docs/desktop.md §4.2): a dialog over 资料库 that changes four things only — the title, the topics,
-// the body, and the [[links]], which live in the body. The topics are tags with ×, and 「+ 加主题」 picks from the library's
-// own topics (streams.json, through getSources). 「插入 [[链接]]…」 searches the library (searchLibrary) and puts
-// `[[<title>]]` where the cursor is in the body. The source, the dates and the scores are a record: not here. 「保存」
-// sends only what changed (editNote: `title` / `topics` / `body`), then the dialog closes and the screen reads again.
+// 编辑笔记 — redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-3; design 03-页面稿 P11, 07-模板版 「编辑笔记」, F36): the
+// template's dialog (a <dialog> opened with showModal: its own backdrop, focus kept inside, Esc closes) over 资料库, with the
+// template's form parts — 标题 (field), 主题 (filters: each topic with ✕; 「＋ 添加主题」 opens a field that takes a new topic or one
+// the library already has, from a list), 正文（Markdown） (field), and in the footer 保存 · 插入链接 · 取消 and the line 「仅可修改标题、
+// 主题、正文和链接；来源、日期、评分为记录字段，不可修改。」. 插入链接 searches the library (searchLibrary) and puts `[[<title>]]` where
+// the cursor is in the body. The rule is the core's and is not touched: only the title, the topics and the body (the [[links]]
+// live in the body) are sent — editNote(id, { title?, topics?, body? }) — and only a file that is there and conforms can be edited
+// (core editNote → writeNoteFile by 'edit', V2). 「保存」 sends only what changed, then the dialog closes and the screen reads again.
 // Words: texts/library.js EDIT.
-// Test hooks: [data-dialog="edit"], input[data-field="title"], [data-topic=<name>] with [data-action="remove-topic"],
-// select[data-field="add-topic"], textarea[data-field="body"], [data-action=insert-link|save-edit|cancel-edit],
-// input[data-field="link-search"], [data-link-option=<id>], [data-part="edit-error"].
-import { html, useEffect, useRef, useState } from '../lib/html.js'
+// Test hooks: dialog[data-dialog="edit"], input[data-field="title"], [data-topic=<name>] with [data-action="remove-topic"],
+// [data-action="add-topic"], input[data-field="add-topic"] (its datalist: the library's topics), textarea[data-field="body"],
+// [data-action=insert-link|save-edit|cancel-edit|close-edit], input[data-field="link-search"], [data-link-option=<id>],
+// [data-part=record|edit-error|no-topic|link-search].
+import { html, useEffect, useLayoutEffect, useRef, useState } from '../lib/html.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
-import { Act } from '../lib/action.js'
-import { Dialog, Icon } from '../kit/index.js'
+import { TIcon } from '../lib/template-icons.js'
 import { EDIT as T } from '../texts/library.js'
 
 const SEARCH_DELAY_MS = 200
@@ -29,13 +32,27 @@ export function EditDialog({ note, topics, onClose, onSaved }) {
   const [title, setTitle] = useState(e.title ?? '')
   const [chosen, setChosen] = useState(Array.isArray(e.topics) ? [...e.topics] : [])
   const [body, setBody] = useState(note.body ?? '')
+  const [adding, setAdding] = useState(false)
+  const [newTopic, setNewTopic] = useState('')
   const [linking, setLinking] = useState(false)
   const [linkQuery, setLinkQuery] = useState('')
   const [options, setOptions] = useState([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const box = useRef(null)
   const bodyRef = useRef(null)
   const caret = useRef(null)
+  const close = useRef(onClose)
+  close.current = onClose
+
+  // the template's dialog is a <dialog>: shown modal as it is drawn (the backdrop, the focus inside, Esc is its cancel)
+  useLayoutEffect(() => {
+    const d = box.current
+    const was = document.activeElement
+    if (d && !d.open) d.showModal()
+    d?.querySelector('[data-field="title"]')?.focus()
+    return () => { if (was && document.contains(was) && typeof was.focus === 'function') was.focus() }
+  }, [])
 
   useEffect(() => {
     if (!linking) return undefined
@@ -64,8 +81,14 @@ export function EditDialog({ note, topics, onClose, onSaved }) {
     setOptions([])
     requestAnimationFrame(() => { const el = bodyRef.current; if (el) { el.focus(); el.setSelectionRange(a + text.length, a + text.length) } })
   }
+  const addTopic = () => {
+    const t = newTopic.trim()
+    if (t) setChosen(list => (list.includes(t) ? list : [...list, t]))
+    setNewTopic('')
+    setAdding(false)
+  }
 
-  const addable = (topics ?? []).filter(t => !chosen.includes(t))
+  const known = (topics ?? []).filter(t => !chosen.includes(t))
   const changes = {}
   if (title.trim() !== (e.title ?? '')) changes.title = title.trim()
   if (!sameList(chosen, e.topics ?? [])) changes.topics = chosen
@@ -84,38 +107,45 @@ export function EditDialog({ note, topics, onClose, onSaved }) {
       setBusy(false)
     }
   }
-  const actions = html`<${Act} name="cancel-edit" disabled=${busy} onClick=${onClose}>${T.cancel}<//>
-    <${Act} name="save-edit" variant="primary" disabled=${!ready} onClick=${save}>${busy ? T.saving : T.save}<//>`
-  return html`<${Dialog} name="edit" title=${T.heading} onCancel=${onClose} actions=${actions}>
-    <label class="st-dialog__label" for="edit-title">${T.titleLabel}</label>
-    <input id="edit-title" class="st-dialog__input" data-field="title" value=${title} data-dialog-initial onInput=${ev => setTitle(ev.currentTarget.value)} />
-    <span class="st-dialog__label">${T.topicsLabel}</span>
-    <div class="edit-topics" role="group" aria-label=${T.topicsLabel}>
-      ${chosen.map(t => html`<span key=${t} class="edit-topic" data-topic=${t}>${t}
-        <button type="button" class="edit-topic__x" data-action="remove-topic" aria-label=${fmt(T.removeTopic, { name: t })} onClick=${() => setChosen(list => list.filter(x => x !== t))}><${Icon} name="close" size=${10} /></button>
-      </span>`)}
-      <select class="edit-topics__add" data-field="add-topic" aria-label=${T.addTopic} value="" disabled=${!addable.length}
-        onChange=${ev => { const v = ev.currentTarget.value; if (v) setChosen(list => (list.includes(v) ? list : [...list, v])); ev.currentTarget.value = '' }}>
-        <option value="">${T.addTopic}</option>
-        ${addable.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
-      </select>
+  return html`<dialog class="dialog st-edit" data-dialog="edit" ref=${box} aria-labelledby="edit-title-h"
+    onCancel=${ev => { ev.preventDefault(); close.current() }}>
+    <div class="dialog-head">
+      <h2 id="edit-title-h">${T.heading}</h2>
+      <span class="st-act" data-action="close-edit"><button type="button" class="icon-btn" aria-label=${T.close} title=${T.close} onClick=${onClose}><${TIcon} name="close" fallback="down" /></button></span>
     </div>
-    ${chosen.length ? null : html`<div class="st-dialog__error" data-part="no-topic">${T.noTopic}</div>`}
-    <label class="st-dialog__label" for="edit-body">${T.bodyLabel}</label>
-    <textarea id="edit-body" class="edit-body" data-field="body" rows="12" value=${body} ref=${bodyRef}
-      onInput=${ev => { setBody(ev.currentTarget.value); remember() }} onKeyUp=${remember} onClick=${remember} onSelect=${remember} onBlur=${remember}></textarea>
-    <div class="edit-link">
-      <${Act} name="insert-link" disabled=${busy} onClick=${() => { remember(); setLinking(v => !v) }}>${T.insertLink}<//>
-      ${linking ? html`<div class="edit-link__search" data-part="link-search">
-        <label class="st-dialog__label" for="edit-link-q">${T.linkSearch}</label>
-        <input id="edit-link-q" class="st-dialog__input" data-field="link-search" placeholder=${T.linkPlaceholder} value=${linkQuery} onInput=${ev => setLinkQuery(ev.currentTarget.value)} />
-        ${linkQuery.trim() && !options.length ? html`<div class="st-t-small st-t-muted">${T.linkNone}</div>` : null}
-        <ul class="edit-link__options">
-          ${options.map(o => html`<li key=${o.id}><button type="button" class="edit-link__option" data-link-option=${o.id} onClick=${() => insert(o)}>${fmt(T.linkPick, { title: o.title })}</button></li>`)}
-        </ul>
-      </div>` : null}
+    <div class="dialog-body">
+      <form class="new-content" onSubmit=${ev => ev.preventDefault()}>
+        <label class="field"><span>${T.titleLabel}</span><input data-field="title" value=${title} onInput=${ev => setTitle(ev.currentTarget.value)} /></label>
+        <div class="section-label"><span>${T.topicsLabel}</span></div>
+        <div class="filters st-edit__topics" role="group" aria-label=${T.topicsLabel}>
+          ${chosen.map(t => html`<span key=${t} class="filter active" data-topic=${t}>${t}
+            <button type="button" class="st-edit__x" data-action="remove-topic" aria-label=${fmt(T.removeTopic, { name: t })} onClick=${() => setChosen(list => list.filter(x => x !== t))}>✕</button>
+          </span>`)}
+          <span class="st-act" data-action="add-topic"><button type="button" class="filter" aria-expanded=${String(adding)} onClick=${() => setAdding(v => !v)}>${T.addTopic}</button></span>
+        </div>
+        ${adding ? html`<label class="field st-edit__add"><span>${T.addTopicLabel}</span>
+          <input data-field="add-topic" list="edit-known-topics" placeholder=${T.addTopicPlaceholder} value=${newTopic} maxlength="100"
+            onInput=${ev => setNewTopic(ev.currentTarget.value)} onKeyDown=${ev => { if (ev.key === 'Enter') { ev.preventDefault(); addTopic() } }} />
+          <datalist id="edit-known-topics">${known.map(t => html`<option key=${t} value=${t}></option>`)}</datalist>
+        </label>` : null}
+        ${chosen.length ? null : html`<p class="limit-note" data-part="no-topic" role="alert">${T.noTopic}</p>`}
+        <label class="field"><span>${T.bodyLabel}</span>
+          <textarea data-field="body" rows="10" value=${body} ref=${bodyRef}
+            onInput=${ev => { setBody(ev.currentTarget.value); remember() }} onKeyUp=${remember} onClick=${remember} onSelect=${remember} onBlur=${remember}></textarea></label>
+        ${linking ? html`<div class="st-edit__link" data-part="link-search">
+          <label class="field"><span>${T.linkSearch}</span><input data-field="link-search" placeholder=${T.linkPlaceholder} value=${linkQuery} onInput=${ev => setLinkQuery(ev.currentTarget.value)} /></label>
+          ${linkQuery.trim() && !options.length ? html`<p class="limit-note">${T.linkNone}</p>` : null}
+          ${options.map(o => html`<button type="button" key=${o.id} class="file-row" data-link-option=${o.id} onClick=${() => insert(o)}>
+            <span class="file-icon"><${TIcon} name="file" /></span><span class="file-text">${fmt(T.linkPick, { title: o.title })}</span></button>`)}
+        </div>` : null}
+        ${error ? html`<p class="progress-alert" role="alert" data-part="edit-error">${error}</p>` : null}
+        <div class="form-footer">
+          <span class="st-act" data-action="save-edit"><button type="button" class="btn primary" disabled=${!ready} onClick=${save}>${busy ? T.saving : T.save}</button></span>
+          <span class="st-act" data-action="insert-link"><button type="button" class="btn" disabled=${busy} onClick=${() => { remember(); setLinking(v => !v) }}>${T.insertLink}</button></span>
+          <span class="st-act" data-action="cancel-edit"><button type="button" class="btn quiet" disabled=${busy} onClick=${onClose}>${T.cancel}</button></span>
+          <small data-part="record">${T.record}</small>
+        </div>
+      </form>
     </div>
-    <p class="st-t-small st-t-muted" data-part="record">${T.record}</p>
-    ${error ? html`<div class="st-dialog__error" role="alert" data-part="edit-error">${error}</div>` : null}
-  <//>`
+  </dialog>`
 }

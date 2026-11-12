@@ -21,6 +21,11 @@
 // numbers; 「连续 n 轮没有产出」 is no banner but the 待确认 card; the sources' state is on 来源与要求's rows. Where a step read one
 // of those, it reads the same thing where it is now — except two of UC1 step 5's four numbers (「抓到的」 and the total kept),
 // which the redesign shows nowhere any more: that step checks the two that remain (待看 and the last run's 进入待看).
+// redesign R3：UC4 按 维护者 定第 9 题走待看路径，依据 N6 怎么核里的「已知差别按产品决定核」. 资料库 only holds what is a file of the
+// library (docs/checks/2026-11-11-r3/contract.md R3-1): its 「抓到的」 tab is gone, so 「在流息里读一条，不用 Obsidian」 is walked where an
+// item without a file is read now — 待看: the card's 详情 (source, date, the two steps' scores and reasons), its title opening
+// Streams' reading window in 阅读模式 (原网页 in the same window), 收藏 → notes/ on the disk, and only then, in 资料库, 「更多」 with
+// 在 Obsidian 中打开 and 在资源管理器中显示 (a card in 待看 has neither). The pictures are still uc4-<step>.png.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -376,31 +381,42 @@ test('UC3 step 4 · 确认 both → 来源与要求: the new source and the keyw
 
 // ---------------------------------------------------------------------------------------------------------------------
 // UC4 在流息里读一条，不用 Obsidian
-test('UC4 step 1 · AI Agent 工具 (nothing kept) → 资料库: 「抓到的」, 「在左边选一条来读」, no button in the head', async () => {
+test('UC4 step 1 · AI Agent 工具 (nothing kept) → its page opens on 待看; there is no 「抓到的」 tab; 资料库 says 全部 0 with its empty state', async () => {
   assert.equal(core.libraryCounts(W.tools).kept, 0, 'control: nothing kept')
+  assert.ok(core.listInbox(W.tools).length > 0, 'control: items wait in 待看')
   await openRow(W.ids.tools)
   await onPage('inbox', W.ids.tools)
+  await until(() => document.querySelectorAll('main[data-screen="inbox"] [data-card]').length > 0)
   await tab('library', W.ids.tools)
-  await until(() => document.querySelector('[data-view="caught"]')?.getAttribute('aria-current') === 'true')
-  const rows = await p().evaluate(() => [...document.querySelectorAll('[data-part="list"] [data-row]')].map(e => e.dataset.row))
-  assert.deepEqual(rows.slice().sort(), core.listLibrary(W.tools, { view: 'caught' }).items.map(i => i.url).sort())
-  assert.deepEqual(await p().evaluate(() => [...document.querySelectorAll('[data-part="library-head"] [data-action]')].map(e => e.dataset.action)), [])
-  assert.equal(await p().evaluate(() => document.querySelector('[data-part="reader"] [data-part="pick-one"]')?.textContent), LIBRARY.reader.none)
+  await until(() => document.querySelector('[data-view="all"]')?.dataset.count === '0' && document.querySelector('[data-part="list"] [data-part="empty"]') !== null)
+  assert.equal(await p().evaluate(() => document.querySelector('[data-view="caught"]')), null, 'no 「抓到的」 tab')
+  assert.equal(await p().evaluate(() => document.querySelectorAll('[data-part="list"] [data-row]').length), 0, 'nothing listed: no file yet')
+  await tab('inbox', W.ids.tools)
   await shot('uc4-1')
 })
 
-test('UC4 step 2 · one item: the text on the right; 收藏 / 打开原文 / 更多 (更多 without Obsidian or the file manager)', async () => {
+test('UC4 step 2 · a card of 待看 chosen: 详情 has its source, its date and the two steps\' scores with their reasons', async () => {
   const url = `${site.base}/tools/article`
-  await p().click(`[data-part="list"] [data-row="${url}"] a`)
-  await until(u => document.querySelector(`[data-reader="${u}"]`) !== null && document.querySelector(`[data-part="item-actions"][data-url="${u}"]`) !== null, url)
-  assert.deepEqual(await p().evaluate(() => [...document.querySelectorAll('[data-part="library-head"] [data-action]')].map(e => e.dataset.action)), ['keep', 'source', 'more'])
-  const text = await p().evaluate(() => document.querySelector('[data-part="reader"]').textContent)
-  assert.ok(text.includes(ARTICLE_TITLE), 'the title in the reader')
-  await p().click('[data-part="library-head"] [data-action="more"] button')
-  await until(() => document.querySelector('[data-menu]') !== null)
-  assert.deepEqual(await p().evaluate(() => [...document.querySelectorAll('[data-menu] [data-menu-item]')].map(e => e.dataset.menuItem)), ['browser'])
-  await p().keyboard.press('Escape')
-  await until(() => document.querySelector('[data-menu]') === null)
+  const card = core.listInbox(W.tools).find(c => c.url === url)
+  assert.ok(card, 'control: the article waits in 待看')
+  await until(u => document.querySelector(`[data-card][data-url="${u}"]`) !== null, url)
+  await p().click(`[data-card][data-url="${url}"] .card-body`)
+  await until(u => document.querySelector(`[data-card][data-url="${u}"]`)?.dataset.current === 'true', url)
+  await panelTab('detail')
+  await until(u => document.querySelector('[data-part="detail-scores"]')?.dataset.url === u, url)
+  const d = await p().evaluate(() => ({
+    scores: [...document.querySelectorAll('[data-part="detail-scores"] [data-detail-score]')].map(e => [e.dataset.detailScore, e.querySelector('dd').textContent]),
+    source: document.querySelector('[data-part="detail-source"]').textContent,
+  }))
+  for (const node of ['relevance', 'substance']) {
+    const row = d.scores.find(([id]) => id === node)
+    assert.ok(row, `${node} in 详情`)
+    assert.equal(row[1], card.scores[node].reason, `${node}: its reason`)
+    assert.ok(row[1].length > 0, `${node}: a reason is there`)
+  }
+  assert.ok(d.source.includes(card.source) && d.source.includes(card.date), d.source)
+  // a card in 待看 has no file: none of its buttons opens Obsidian or the file manager
+  assert.deepEqual(await p().evaluate(u => [...document.querySelectorAll(`[data-card][data-url="${u}"] [data-action]`)].map(e => e.dataset.action), url), ['open', 'later', 'dismiss', 'keep'])
   await shot('uc4-2')
 })
 
@@ -437,8 +453,9 @@ const clickInBar = action => W.a.app.evaluate(({ BrowserWindow, session }, [part
   win.webContents.executeJavaScript(`document.querySelector('[data-reader-action="${a}"]').click(); true`).catch(() => {})
 }, [READER_PARTITION, action])
 
-test('UC4 step 3 · 打开原文: the page in Streams, in 阅读模式 (the article without the menu or the ad); 原网页 in the same window', async () => {
-  await p().click('[data-part="item-actions"] [data-action="source"] button')
+test('UC4 step 3 · the card\'s title: the page in Streams, in 阅读模式 (the article without the menu or the ad); 原网页 in the same window', async () => {
+  const url = `${site.base}/tools/article`
+  await p().click(`[data-card][data-url="${url}"] [data-action="open"]`)
   const r = await waitReader('reading')
   assert.ok(r.text.includes(PARAS[1].slice(0, 20)), 'the article\'s text')
   for (const gone of ['关于我们', '限时优惠', '隐私']) assert.equal(r.text.includes(gone), false, `${gone} is not in the reading page`)
@@ -446,22 +463,31 @@ test('UC4 step 3 · 打开原文: the page in Streams, in 阅读模式 (the arti
   await readerShot('uc4-3-reading')
   await clickInBar('original')
   const o = await waitReader('original')
-  assert.equal(o.url, `${site.base}/tools/article`, 'the original address, in the reading window')
+  assert.equal(o.url, url, 'the original address, in the reading window')
   assert.ok(o.text.includes('关于我们'), 'control: the original page has the menu')
   await readerShot('uc4-3-original')
   await W.a.app.evaluate(({ BrowserWindow, session }, partition) => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed() && w.webContents.session === session.fromPartition(partition)) w.close() }, READER_PARTITION)
 })
 
-test('UC4 step 4 · 收藏: the item goes into notes/; only now 更多 has 用 Obsidian 打开 and 在资源管理器中显示', async () => {
+test('UC4 step 4 · 收藏: the item goes into notes/; in 资料库 its 「更多」 has 在 Obsidian 中打开 and 在资源管理器中显示', async () => {
+  const url = `${site.base}/tools/article`
   const before = readdirSync(join(W.tools, 'notes'))
-  await p().click('[data-part="library-head"] [data-action="keep"] button')
-  await until(() => document.querySelector('[data-view="kept"]')?.getAttribute('aria-current') === 'true' && document.querySelector('[data-kept-now="true"]') !== null)
+  await p().click(`[data-card][data-url="${url}"] [data-action="keep"] button`)
+  await until(u => document.querySelector(`[data-card][data-url="${u}"]`) === null, url)
+  const end = Date.now() + 30_000
+  while (readdirSync(join(W.tools, 'notes')).length === before.length && Date.now() < end) await sleep(100)
   const added = readdirSync(join(W.tools, 'notes')).filter(f => !before.includes(f))
   assert.equal(added.length, 1)
-  assert.ok(readFileSync(join(W.tools, 'notes', added[0]), 'utf8').includes(`source: ${site.base}/tools/article`))
-  await p().click('[data-part="library-head"] [data-action="more"] button')
+  assert.ok(readFileSync(join(W.tools, 'notes', added[0]), 'utf8').includes(`source: ${url}`))
+  const id = added[0].replace(/\.md$/, '')
+  await tab('library', W.ids.tools)
+  await until(i => document.querySelector(`[data-part="list"] [data-row="${i}"]`) !== null, id)
+  await p().click(`[data-part="list"] [data-row="${id}"]`)
+  await until(i => document.querySelector(`[data-part="item-actions"][data-id="${i}"]`) !== null, id)
+  await p().click('[data-part="item-actions"] [data-action="more"] button')
   await until(() => document.querySelector('[data-menu]') !== null)
   assert.deepEqual(await p().evaluate(() => [...document.querySelectorAll('[data-menu] [data-menu-item]')].map(e => e.dataset.menuItem)), ['obsidian', 'folder', 'browser'])
+  assert.deepEqual(await p().evaluate(() => [...document.querySelectorAll('[data-menu] [data-menu-item]')].slice(0, 2).map(e => e.textContent)), [LIBRARY.actions.obsidian, LIBRARY.actions.folder])
   await shot('uc4-4')
   await p().keyboard.press('Escape')
 })

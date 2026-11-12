@@ -8,6 +8,10 @@
 //   - A link in the page: not loaded there, the system browser instead (a test run logs it); a new window, a non-http(s)
 //     address, a download: refused. openReader refuses an address that is not an item of the library.
 // Each with its control: the other page, the other mode, the other address.
+// Redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-6; design P20): 资料库 has no 「抓到的」 any more, so the window is opened
+// from where an item that has no file is read now — 待看's card title (F29: every 「查看原文」 opens this window); the app starts on
+// 待看 (was 资料库). The words are the design's (返回条目 · 在浏览器中打开; the fallback line said formally, W.fallback); the pages
+// are the template's reader-header and reader-paper. The isolation checks are as they were.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -21,9 +25,9 @@ const W = APP.reader
 let site = null
 const s = worldSession({
   kind: 'empty',
-  waitFor: 'library',
+  waitFor: 'inbox',
   prepare: async world => { site = await startReaderSite(); world.reader = await seedReaderLibrary(world.library, site); return () => site.close() },
-  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'library' }),
+  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'inbox' }),
 })
 const POLL = { polling: 100, timeout: 60_000 }
 const log = () => readFileSync(join(s.world.appData, 'logs', 'main.log'), 'utf8')
@@ -65,16 +69,16 @@ async function waitFor(fn, ms = 20_000) {
 }
 const clickInBar = action => s.app.evaluate(({ BrowserWindow, session }, { partition, action }) => {
   const win = BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && w.webContents.session === session.fromPartition(partition))
-  // not awaited: 回到条目 closes the window, and with it the script's answer
+  // not awaited: 返回条目 closes the window, and with it the script's answer
   win.webContents.executeJavaScript(`document.querySelector('[data-reader-action="${action}"]').click(); true`).catch(() => {})
   return true
 }, { partition: READER_PARTITION, action })
 
-test('「打开原文」 on an item of 抓到的 opens the reading window in 阅读模式: the article, its picture, no menu, no ad, nothing the page\'s script would have done', async () => {
+test('「查看原文」 (待看\'s card title) opens the reading window in 阅读模式: the article, its picture, no menu, no ad, nothing the page\'s script would have done', async () => {
   const url = site.urls.article
-  await s.page.click(`[data-part="list"] [data-row="${url}"] a`)
-  await s.page.waitForFunction(u => document.querySelector(`[data-part="item-actions"][data-url="${u}"] [data-action="source"] button`) !== null, url, POLL)
-  await s.page.click('[data-part="item-actions"] [data-action="source"] button')
+  // redesign R3: from 待看's card title (资料库's 「抓到的」 is gone)
+  await s.page.waitForFunction(u => document.querySelector(`[data-card][data-url="${u}"] [data-action="open"]`) !== null, url, POLL)
+  await s.page.click(`[data-card][data-url="${url}"] [data-action="open"]`)
   const r = await waitMode('reading')
   assert.ok(r.pageUrl.startsWith('data:text/html'), 'a page the reader wrote, not the address')
   const got = JSON.parse((await reader('null', `JSON.stringify({
@@ -99,6 +103,21 @@ test('「打开原文」 on an item of 抓到的 opens the reading window in 阅
   assert.match(got.csp, /default-src 'none'/)
   assert.equal(site.hits('/script-ran'), 0, 'the page\'s script never ran: its request never arrived')
   assert.ok(log().includes(`reader: ${url}: reading`))
+  // redesign R3 (P20): the template's parts — the bar's reader-header with its three buttons and the two modes, the reading paper
+  // with the line of 阅读模式 — under the main window's theme
+  const look = JSON.parse((await reader(`JSON.stringify({
+    cls: document.body.className, theme: document.body.dataset.theme,
+    actions: [...document.querySelectorAll('.reader-header [data-reader-action]')].map(e => [e.dataset.readerAction, e.textContent.trim()]),
+    address: document.querySelector('.reader-header .search-field [data-reader-url]')?.textContent,
+  })`, `JSON.stringify({ paper: document.querySelector('.reader-scroll .reader-paper[data-reader-article]') !== null, note: document.querySelector('.reader-paper .eyebrow')?.textContent, readable: document.querySelector('.reader-paper .readable') !== null, cls: document.body.className })`)).bar)
+  assert.deepEqual(look.actions, [['back', W.back], ['reading', W.reading], ['original', W.original], ['browser', W.browser]])
+  assert.deepEqual([W.back, W.browser], ['返回条目', '在浏览器中打开'])
+  assert.equal(look.address, url)
+  assert.match(look.cls, /theme-research r9 r9-research r11 r11-research rd-bar-body/)
+  assert.equal(look.theme, 'research11')
+  const pg = JSON.parse((await reader('null', `JSON.stringify({ paper: document.querySelector('.reader-scroll .reader-paper[data-reader-article]') !== null, note: document.querySelector('.reader-paper .eyebrow')?.textContent, readable: document.querySelector('.reader-paper .readable') !== null, cls: document.body.className })`)).page)
+  assert.deepEqual([pg.paper, pg.readable, pg.note], [true, true, '阅读模式：仅保留正文，已移除导航与广告'])
+  assert.match(pg.cls, /r11-research/)
 })
 
 test('the window\'s web contents: sandbox, context isolation, no Node, no preload, no bridge — and the reader\'s own in-memory session, not the app\'s', async () => {
@@ -183,12 +202,12 @@ test('refused in the window: a new window, a non-http(s) address, a download', a
   await waitFor(() => log().includes(`reader: download refused: ${site.urls.download}`))
 })
 
-test('a page with nothing to read: the original page, with 「这一页抽不出正文，显示的是原网页」; 阅读模式 cannot be chosen', async () => {
+test('a page with nothing to read: the original page, with 「无法从该网页提取正文，已显示原网页。」; 阅读模式 cannot be chosen', async () => {
   const r = await s.page.evaluate(u => window.streams.openReader(u, 'reader'), site.urls.plain)
   assert.deepEqual(r, { ok: true, data: { mode: 'original', fallback: true } })
   const o = await waitMode('original', { note: W.fallback })
   assert.equal(o.pageUrl, site.urls.plain)
-  assert.equal(W.fallback, '这一页抽不出正文，显示的是原网页')
+  assert.equal(W.fallback, '无法从该网页提取正文，已显示原网页。') // redesign R3: the design's formal words (was 「这一页抽不出正文，显示的是原网页」)
   const bar = await reader('document.querySelector(\'[data-reader-action="reading"]\').getAttribute("aria-disabled")')
   assert.equal(bar.bar, 'true')
   assert.ok(log().includes('reader: no text taken out'))
@@ -209,7 +228,7 @@ test('openReader: an address that is not an item of the library, or not http(s),
   assert.equal(r.error.code, 'bad_arguments', 'how is reader or browser')
 })
 
-test('回到条目 closes the reading window', async () => {
+test('返回条目 closes the reading window', async () => {
   const open = () => s.app.evaluate(({ BrowserWindow, session }, partition) => BrowserWindow.getAllWindows().some(w => !w.isDestroyed() && w.webContents.session === session.fromPartition(partition)), READER_PARTITION)
   assert.equal(await open(), true, 'control: open before')
   await clickInBar('back')

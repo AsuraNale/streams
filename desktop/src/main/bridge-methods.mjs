@@ -23,10 +23,10 @@ const nonEmpty = v => typeof v === 'string' && v.trim() !== ''
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v)
 const stringOrNull = v => v === null || typeof v === 'string'
 
-// interface B (docs/desktop.md §4.2): the views, the bounds of what the page may send
-const LIBRARY_VIEWS = ['kept', 'authored', 'caught', 'pending']
+// interface B (docs/desktop.md §4.2): the views, the bounds of what the page may send. Redesign R3: 'all' (资料库 「全部」: every
+// file of the library); 'caught' stays for 来源与要求's single test (screens/pipeline.js), 'pending' is 缺少文件头's page
+const LIBRARY_VIEWS = ['kept', 'authored', 'caught', 'pending', 'all']
 const SEARCH_VIEWS = ['kept', 'authored', 'all']
-const GRAPH_STATUSES = ['kept', 'all']
 const shortString = max => v => typeof v === 'string' && v.length <= max
 const nonEmptyShort = max => v => nonEmpty(v) && v.length <= max
 const name100 = nonEmptyShort(100)
@@ -45,7 +45,8 @@ const optional = (o, key, check) => o[key] === undefined || check(o[key])
 /** { topics?, days? } — the filter of getLibrary; null is the same as {} */
 const libraryFilter = f => f === null || (isObject(f) && onlyKeys(f, ['topics', 'days']) && optional(f, 'topics', strings) && optional(f, 'days', days))
 const searchFilter = f => f === null || (isObject(f) && onlyKeys(f, ['view', 'topics', 'days']) && optional(f, 'view', v => SEARCH_VIEWS.includes(v)) && optional(f, 'topics', strings) && optional(f, 'days', days))
-const graphFilter = f => f === null || (isObject(f) && onlyKeys(f, ['days', 'status', 'topics', 'links']) && optional(f, 'days', days) && optional(f, 'status', v => GRAPH_STATUSES.includes(v)) && optional(f, 'topics', strings) && optional(f, 'links', v => typeof v === 'boolean'))
+// redesign R3 (维护者 11-11 第 9 题, F40): the graph has one filter left, the time range; 只看已收藏 / 全部条目 and 显示 [[链接]] are gone
+const graphFilter = f => f === null || (isObject(f) && onlyKeys(f, ['days']) && optional(f, 'days', days))
 /** { title?, topics?, body? }, at least one of them */
 const noteChanges = c => isObject(c) && Object.keys(c).length > 0 && onlyKeys(c, ['title', 'topics', 'body'])
   && optional(c, 'title', nonEmptyShort(300)) && optional(c, 'topics', v => strings(v, { items: 20, max: 100 }) && v.every(nonEmpty)) && optional(c, 'body', shortString(1_000_000))

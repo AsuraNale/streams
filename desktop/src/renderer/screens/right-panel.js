@@ -161,12 +161,49 @@ function ProgressPane() {
 // ---- 待确认 -------------------------------------------------------------------------------------------------------------
 
 /** One thing waiting (a small confirmation card): where it is from, what it is, where it is handled; a click goes there. */
-function DecideCard({ id, kind, libraryId, eyebrow, title, where, onGo }) {
+function DecideCard({ id, kind, libraryId, eyebrow, title, where, onGo, actions = null }) {
   return html`<article class="confirmation st-rp-decide" data-decide=${id} data-kind=${kind} data-library=${libraryId ?? ''} tabindex="0" role="button"
-    onClick=${onGo} onKeyDown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGo() } }}>
+    onClick=${onGo} onKeyDown=${e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onGo() } }}>
     <div class="card-body"><span class="eyebrow">${eyebrow}</span><h3>${title}</h3></div>
-    <div class="confirm-footer"><span class="muted">${where}</span><${TIcon} name="arrow" /></div>
+    <div class="confirm-footer"><span class="muted">${where}</span>${actions ?? html`<${TIcon} name="arrow" />`}</div>
   </article>`
+}
+
+/**
+ * Redesign R3 (P13 · P16: 「同一张卡也在右栏『待确认』；在哪边点都一样」): a proposal is decided here with the calls its card in the
+ * conversation makes — 确认 (创建 for a new library) → confirmProposal, 拒绝 → declineProposal — and the bridge's
+ * proposals-changed reads both places again; 提出修改 needs a sentence: it opens the same card's line where the card is drawn on
+ * this page (问库's conversation), else 主 Agent scrolled to the card.
+ */
+function ProposalActions({ card, onRevise }) {
+  const D = T.decide
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const act = name => async e => {
+    e.stopPropagation()
+    if (busy) return
+    setBusy(true)
+    setFailed(false)
+    try { await call(name, card.id) } catch { setFailed(true) } finally { setBusy(false) }
+  }
+  return html`<div class="row" data-part="decide-actions">
+    ${failed ? html`<span class="muted" role="alert">${D.failed}</span>` : null}
+    <span class="st-act" data-action="decide-decline"><button type="button" class="btn quiet" disabled=${busy} onClick=${act('declineProposal')}>${D.decline}</button></span>
+    <span class="st-act" data-action="decide-revise"><button type="button" class="btn" disabled=${busy} onClick=${e => { e.stopPropagation(); onRevise() }}>${D.revise}</button></span>
+    <span class="st-act" data-action="decide-confirm"><button type="button" class="btn primary" disabled=${busy} onClick=${act('confirmProposal')}><${TIcon} name="approve" fallback="check" />${card.kind === 'create_library' ? D.create : D.confirm}</button></span>
+  </div>`
+}
+
+/** 提出修改 from 待确认: the card's own line where the card is on this page, else 主 Agent scrolled to the card. */
+function reviseCard(id, navigate) {
+  const here = document.querySelector(`.workspace [data-proposal="${id}"]`)
+  const button = here?.querySelector('[data-action="revise"] button')
+  if (here && button) {
+    here.scrollIntoView({ block: 'center' })
+    if (!here.querySelector('[data-part="revise"]')) button.click()
+    return
+  }
+  navigate('chat', { card: id })
 }
 
 function DecidePane() {
@@ -186,7 +223,8 @@ function DecidePane() {
     <div class="st-stack">
       ${cards.map(c => html`<${DecideCard} key=${c.id} id=${c.id} kind="proposal" libraryId=${c.libraryId}
         eyebrow=${`${D.proposal} / ${c.libraryId ? name(c.libraryId) ?? '' : D.newLibrary}`} title=${cardTitle(c, name(c.libraryId))}
-        where=${D.whereChat} onGo=${() => navigate('chat', { card: c.id })} />`)}
+        where=${D.whereChat} onGo=${() => navigate('chat', { card: c.id })}
+        actions=${html`<${ProposalActions} card=${c} onRevise=${() => reviseCard(c.id, navigate)} />`} />`)}
       ${suggestions.map(s => html`<${DecideCard} key=${`${s.libraryId}:${s.key}`} id=${`${s.libraryId}:${s.key}`} kind="suggestion" libraryId=${s.libraryId}
         eyebrow=${`${D.suggestion} / ${name(s.libraryId) ?? ''}`} title=${suggestionSentence(s, name)}
         where=${fmt(D.whereLibrary, { name: name(s.libraryId) ?? '' })} onGo=${() => openLibrary(s.libraryId)} />`)}
@@ -197,10 +235,10 @@ function DecidePane() {
 
 // ---- 详情 ---------------------------------------------------------------------------------------------------------------
 
-/** 详情's frame for a screen that has something chosen: the head (where · the title), then what the screen gives. */
-export function DetailBlock({ where, title, part, children }) {
+/** 详情's frame for a screen that has something chosen: the head (where · the title · a line under it), then what the screen gives. */
+export function DetailBlock({ where, title, lead = null, part, children }) {
   return html`<div class="st-rp-detail" data-part=${part}>
-    <${PanelSummary} part="detail-head" eyebrow=${fmt(T.detail.eyebrow, { where })} title=${title} />
+    <${PanelSummary} part="detail-head" eyebrow=${fmt(T.detail.eyebrow, { where })} title=${title}>${lead ? html`<p data-part="detail-lead">${lead}</p>` : null}<//>
     ${children}
   </div>`
 }

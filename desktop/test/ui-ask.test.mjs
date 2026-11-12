@@ -5,6 +5,12 @@
 // V9 — the notice when the core took sources or sentences out, the numbered superscripts that mark their source — is
 // checked by drawing, in the real page, the Answer component with what the core's own applyFallback makes of an answer that
 // cites [12] among 2 candidates and has a sentence with no source.
+// Redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-5; design P13): the page is the template's conversation; where a check read
+// a place that moved it reads it where it is now — the scope is the line on top ([data-part="scope"], 「我写的」 is 「我的笔记」 and
+// 「不联网」 is said), what the answer used is 详情's line ([data-part="detail-lead"]: 命中 · 引用 · 模型调用 · 核验), the topics wanted
+// are 详情's 待补充主题 ([data-demand]); the words of the check's notices are 05-措辞规范's. 「记到想补的主题」 with a topic written
+// is unchanged (an answer that names none); one that names it, 已加入待补充主题 kept on reopening, 转交主 Agent's card shared with
+// 待确认: test/ui-ask-r3.test.mjs.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { join } from 'node:path'
@@ -33,7 +39,7 @@ const demand = topic => s.page.evaluate(t => { const d = document.querySelector(
 
 test('the scope is the core\'s counts; the topics wanted are the core\'s demands', async () => {
   const c = core.libraryCounts(dir())
-  assert.equal(await s.page.evaluate(() => document.querySelector('.st-topbar__subtitle').textContent), `范围：已收藏 ${c.kept} 条 · 我写的 ${c.authored} 条`)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="scope"]').textContent), `仅基于库内内容回答 · 范围：已收藏 ${c.kept} 条 · 我的笔记 ${c.authored} 条 · 不联网`)
   const shown = await s.page.evaluate(() => [...document.querySelectorAll('[data-demand]')].map(d => [d.dataset.demand, Number(d.dataset.count), d.dataset.suggest]))
   assert.deepEqual(shown, core.demands(dir()).map(d => [d.topic, d.count, String(d.suggest)]))
 })
@@ -56,10 +62,12 @@ test('with the fake connection: 库里没有 is the answer; the right panel says
   assert.ok(got.none.startsWith(ASK.answer.notInLibrary), got.none)
   assert.equal(got.sentences, 0, 'no sentence made up')
   assert.equal(got.demand, true)
-  const used = await s.page.evaluate(() => { const h = document.querySelector('[data-used="hits"]'); return [Number(h.dataset.candidates), document.querySelector('[data-used="calls"]').dataset.calls] })
-  assert.equal(used[0], core.askCandidates(dir(), q).length)
-  assert.ok(used[0] > 0, 'control: the library has candidates for this question')
-  assert.ok(Number(used[1]) >= 1)
+  const lead = await s.page.evaluate(() => document.querySelector('[data-part="detail-ask"] [data-part="detail-lead"]').textContent)
+  const m = /^命中 (\d+) 条 · 引用 (\d+) 条 · 模型调用 (\d+) 次 · (.+) · 模型未获得任何工具权限，未联网$/.exec(lead)
+  assert.ok(m, lead)
+  assert.equal(Number(m[1]), core.askCandidates(dir(), q).length)
+  assert.ok(Number(m[1]) > 0, 'control: the library has candidates for this question')
+  assert.ok(Number(m[3]) >= 1)
   assert.equal(await s.page.evaluate(() => document.querySelector('textarea[data-field="question"]').disabled), false)
 })
 
@@ -115,7 +123,7 @@ test('V9 on the page: what the core\'s fallback took out is said; each superscri
     return { cites, removed, marked, opened }
   }, result)
   assert.deepEqual(out.cites, [[1], [2]])
-  assert.deepEqual(out.removed, ['有 1 处出处不在库里，已删掉。', '有 1 句没有出处，已删掉。'])
+  assert.deepEqual(out.removed, ['有 1 处引用不在库内，已删除。', '有 1 句没有引用，已删除。'])
   assert.deepEqual(out.marked, [2])
   assert.deepEqual(out.opened, [cands[1].id])
 })

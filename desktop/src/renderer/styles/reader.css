@@ -1,158 +1,35 @@
-/* The reading window (src/main/reader.mjs; docs/desktop.md §4.9): its bar and the reading page. Not part of the app's page
-   (app.css does not import it): the main process puts the template's round 11 colours (workbench.css, line.css), the
-   interim names (interim.css) and this file into the two static pages it makes for the window, the theme's template class
-   on <body> (main/reader.mjs readerCss; redesign R1 — its layout is rebuilt on the template in R3). Variables only. */
+/* The reading window's own layer (src/main/reader.mjs; redesign R3, design 03-页面稿 P20 and 07-模板版 「阅读窗口」). Both of its
+   pages are the template's parts under the theme's own sheets (readerCss puts them first): the bar is a `reader-header`
+   (返回条目 · the address in a `search-field` · 阅读模式 | 原网页 as `filters` · 在浏览器中打开), the reading page a `reader-scroll`
+   with a `reader-paper` (its `eyebrow` line, `reader-title`, `reader-meta`, the text in `readable`). This file only places and
+   sizes them for a window of its own (no sidebar, no right panel): no colour is written here — the template's variables give
+   every colour, light and dark (test/kit.test.mjs checks). */
 
-html, body { margin: 0; padding: 0; }
-body {
-  background: var(--st-page);
-  color: var(--st-text);
-  font-size: var(--st-fs-body);
-  line-height: var(--st-lh);
-}
+/* the bar: one row the height of reader.mjs BAR_HEIGHT (60 px), the address taking what is left */
+html, body.rd-bar-body { height: 100%; }
+body.rd-bar-body { margin: 0; overflow: hidden; }
+.rd-bar { box-sizing: border-box; height: 60px; padding: 0 18px; gap: 10px; flex-wrap: nowrap; white-space: nowrap; }
+.rd-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.rd-url { flex: 1 1 0; min-width: 0; padding: 6px 10px; }
+.rd-url__text { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.rd-seg { flex: none; margin: 0; flex-wrap: nowrap; }
+.rd-seg__item { text-decoration: none; cursor: pointer; }
+.rd-seg__item[aria-disabled="true"] { cursor: default; opacity: .45; }
+.rd-note { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
 
-/* the bar: 回到条目 · the address · the note when it fell back · 阅读模式 | 原网页 · 在浏览器里打开 */
-.rd-bar-body { background: var(--st-surface); overflow: hidden; }
-.rd-bar {
-  box-sizing: border-box;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--st-border);
-  background: var(--st-surface);
-}
-.rd-btn {
-  display: inline-flex;
-  align-items: center;
-  height: 30px;
-  padding: 0 12px;
-  border: 1px solid var(--st-control-border);
-  border-radius: var(--st-radius);
-  background: var(--st-surface);
-  color: var(--st-text);
-  text-decoration: none;
-  white-space: nowrap;
-  font-size: var(--st-fs-small);
-}
-.rd-btn:hover { border-color: var(--st-accent); color: var(--st-accent); }
-.rd-url {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 30px;
-  line-height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--st-control-border);
-  border-radius: var(--st-radius);
-  background: var(--st-surface-2);
-  color: var(--st-text-2);
-  font-size: var(--st-fs-small);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.rd-note {
-  flex: 0 1 auto;
-  min-width: 0;
-  padding: 3px 10px;
-  border: 1px solid var(--st-wait-border);
-  border-radius: var(--st-radius);
-  background: var(--st-wait-bg);
-  color: var(--st-wait);
-  font-size: var(--st-fs-small);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.rd-seg {
-  display: inline-flex;
-  border: 1px solid var(--st-control-border);
-  border-radius: var(--st-radius);
-  overflow: hidden;
-}
-.rd-seg__item {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 12px;
-  color: var(--st-text-2);
-  background: var(--st-surface);
-  text-decoration: none;
-  white-space: nowrap;
-  font-size: var(--st-fs-small);
-}
-.rd-seg__item + .rd-seg__item { border-left: 1px solid var(--st-control-border); }
-.rd-seg__item[aria-current="true"] { background: var(--st-accent); color: var(--st-on-accent); font-weight: 600; }
-.rd-seg__item[aria-disabled="true"] { color: var(--st-text-3); }
-a.rd-seg__item:not([aria-current="true"]):hover { color: var(--st-accent); }
-
-/* the reading page: the article in a column, the app's type */
-.rd-page { background: var(--st-surface); }
-.rd-article {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 28px 40px 64px;
-  font-size: 15px;
-  line-height: 1.8;
-}
-.rd-article__title {
-  margin: 0 0 6px;
-  font-size: 24px;
-  line-height: 1.4;
-  color: var(--st-text);
-}
-.rd-article__meta {
-  margin: 0 0 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--st-divider);
-  color: var(--st-text-2);
-  font-size: var(--st-fs-small);
-}
+/* the page under the bar: the template's reading paper, centred, as wide as a reader reads */
+html, body.rd-page { min-height: 100%; }
+body.rd-page { margin: 0; }
+.rd-scroll { box-sizing: border-box; min-height: 100vh; padding: 36px 32px 48px; }
+.rd-article { max-width: 760px; margin: 0 auto; }
+.rd-article__note { display: block; letter-spacing: .5px; text-transform: none; }
 .rd-article__body { overflow-wrap: anywhere; }
-.rd-article__body h1, .rd-article__body h2, .rd-article__body h3, .rd-article__body h4 { line-height: 1.4; margin: 1.4em 0 0.6em; }
-.rd-article__body h1 { font-size: 20px; }
-.rd-article__body h2 { font-size: 18px; }
-.rd-article__body h3, .rd-article__body h4 { font-size: var(--st-fs-heading); }
 .rd-article__body p { margin: 0 0 1em; }
-.rd-article__body a { color: var(--st-accent); }
+.rd-article__body h1, .rd-article__body h2, .rd-article__body h3 { margin: 1.4em 0 .6em; line-height: 1.5; }
+.rd-article__body ul, .rd-article__body ol { padding-left: 1.4em; margin: 0 0 1em; }
 .rd-article__body img { max-width: 100%; height: auto; }
-.rd-article__body blockquote {
-  margin: 0 0 1em;
-  padding: 4px 14px;
-  border-left: 3px solid var(--st-border);
-  color: var(--st-text-2);
-}
-.rd-article__body pre, .rd-article__body code { font-family: var(--st-font-mono); font-size: 13px; }
-.rd-article__body pre {
-  padding: 10px 12px;
-  background: var(--st-surface-2);
-  border-radius: var(--st-radius);
-  overflow-x: auto;
-}
+.rd-article__body pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.rd-article__body blockquote { margin: 1em 0; padding: 0 0 0 14px; border-left: 2px solid currentColor; opacity: .85; }
 .rd-article__body table { border-collapse: collapse; max-width: 100%; }
-.rd-article__body th, .rd-article__body td { border: 1px solid var(--st-border); padding: 4px 8px; }
-.rd-article__body figure { margin: 0 0 1em; }
-.rd-article__body figcaption { color: var(--st-text-2); font-size: var(--st-fs-small); }
-.rd-wait { padding: 40px; color: var(--st-text-2); }
-
-/* ==== v2 package K2 (the K1 design draft): the reading window in the new themes — the bar a quiet strip on the page colour,
-   its buttons and the 阅读模式 | 原网页 switch the draft's controls (no border, the theme's corners, the selected segment
-   on --st-surface), the article on --st-surface. The window's two pages are data: pages that load nothing (main/reader.mjs),
-   so the bundled Noto Sans SC cannot reach them: the system's own Chinese UI face, named here (--st-font's two families
-   are not there). The heading sizes are the article's own (--st-fs-heading is the page title's 26px since K2). ==== */
-body { font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif; font-weight: var(--st-weight-body); }
-.rd-bar-body, .rd-bar { background: var(--st-page); }
-.rd-bar { border-bottom: 1px solid var(--st-divider); }
-.rd-btn { border: 0; border-radius: var(--st-radius-s); background: var(--st-surface-2); font-weight: var(--st-weight-label); }
-.rd-btn:hover { background: var(--st-selected); color: var(--st-text); }
-.rd-url { border: 0; border-radius: var(--st-radius-s); background: var(--st-surface); box-shadow: inset 0 0 0 1px var(--st-control-border); }
-.rd-note { border: 0; border-radius: var(--st-radius-s); box-shadow: inset 0 0 0 1px var(--st-wait-border); }
-.rd-seg { gap: 2px; padding: 2px; border: 0; border-radius: var(--st-radius-s); background: var(--st-surface-2); }
-.rd-seg__item { height: 26px; border-radius: var(--st-radius-xs); background: transparent; }
-.rd-seg__item + .rd-seg__item { border-left: 0; }
-.rd-seg__item[aria-current="true"] { background: var(--st-surface); color: var(--st-text); font-weight: var(--st-weight-label); box-shadow: var(--st-shadow-card); }
-.rd-article__title { font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); }
-.rd-article__body h3, .rd-article__body h4 { font-size: 16px; }
-.rd-article__body blockquote { border-left: 0; box-shadow: inset 3px 0 var(--st-accent); }
-.rd-article__body pre { border-radius: var(--st-radius-s); }
+.rd-article__body th, .rd-article__body td { border: 1px solid currentColor; padding: 4px 8px; }
+.rd-wait { max-width: 760px; margin: 0 auto; }

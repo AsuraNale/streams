@@ -58,6 +58,12 @@ export const PANEL = Object.freeze({
     whereChat: '在「主 Agent」中处理',
     whereLibrary: '在「{name}」中处理',
     thisLibrary: '当前库 · 系统检测',
+    // redesign R3 (P13 · P16): a proposal is decided here as in the conversation (the same card: confirmProposal · …)
+    confirm: '确认',
+    create: '创建',
+    revise: '提出修改',
+    decline: '拒绝',
+    failed: '操作未成功，请重试。',
   }),
 
   // 详情: follows the main area
@@ -65,8 +71,10 @@ export const PANEL = Object.freeze({
     eyebrow: '详情 · {where}',
     where: Object.freeze({
       inbox: '待看 · 选中的这一条',
-      library: '资料库 · 这一篇',
-      ask: '问库 · 答案引用的笔记',
+      // redesign R3 (07-模板版 「资料库」 「问库」 「图谱」 详情): the template's words
+      library: '当前笔记',
+      ask: '当前回答',
+      graph: '当前节点',
       chat: '主 Agent · 本次对话',
     }),
     // the other screens: one sentence

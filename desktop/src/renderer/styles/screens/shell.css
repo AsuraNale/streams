@@ -6,11 +6,6 @@
 
 /* inside the card the screen and its panel lose their own frames: one card, one line between them */
 
-/* 资料库's two views */
-.lib-mode { display: inline-flex; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-s); overflow: hidden; }
-.lib-mode__button { height: 30px; padding: 0 12px; border: 0; background: var(--st-surface); color: var(--st-text-2); cursor: pointer; }
-.lib-mode__button + .lib-mode__button { border-left: 1px solid var(--st-control-border); }
-.lib-mode__button[aria-pressed='true'] { background: var(--st-active-fill); color: var(--st-accent); font-weight: 700; }
 
 /* ---- 库架 ----------------------------------------------------------------------------------------- */
 
@@ -58,10 +53,6 @@
 /* ==== v2 package K2 (the K1 design draft, docs/design/next/themes/css/app.css): a library's page lies flat on the page — its head and
    tabs on --st-page, the screen under them, the right panel in the sidebar's colour; 库架's cards are the draft's tiles ==== */
 
-.lib-mode { gap: 2px; padding: 2px; border: 0; border-radius: var(--st-radius-s); background: var(--st-surface-2); }
-.lib-mode__button { height: 28px; padding: 0 10px; border: 0; border-radius: var(--st-radius-xs); background: transparent; color: var(--st-text-2); }
-.lib-mode__button + .lib-mode__button { border-left: 0; }
-.lib-mode__button[aria-pressed='true'] { background: var(--st-surface); color: var(--st-text); box-shadow: var(--st-shadow-card); font-weight: var(--st-weight-label); }
 
 .stat-kv__row { border: 0; border-radius: var(--st-radius-s); background: var(--st-surface); box-shadow: var(--st-shadow-card); }
 .src-who { border: 0; border-radius: var(--st-radius-xs); background: var(--st-surface-2); }

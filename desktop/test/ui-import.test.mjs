@@ -14,6 +14,11 @@
 // words are FIRST_RUN.folder's), and session F goes 首次打开 → the connection skipped → 和主 Agent 聊 → 「也可以手动新建」. After
 // 下一步 the folder is a library and 新建库 is at its pack step; session M then loads the page again to reach the library's page.
 // Plain Node at the end: lib/header-text.js round trips what the core proposes.
+// Redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-4; design P12): 「待规范」 is no tab of 资料库 any more — the page is reached
+// from 资料库's line 「n 个文件缺少文件头，尚未入库。 去处理」 (only while there are such files), its words are 05-措辞规范's (写入 ·
+// 跳过 · 全部写入 · 建议的文件头（可编辑）), the files are not listed a second time on its left, and 我的笔记's number is read back in
+// 资料库 (← 返回资料库). Only the way there and those places changed; what is checked of the cards, the writes and the bodies is
+// as it was. Added: before a header is written, the file is in no list of 资料库 (全部 = the index).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -81,8 +86,16 @@ async function openPending() {
   }
   await page().click('.st-lib-tabs [data-tab="library"]')
   await ready(page(), 'library')
-  await page().click('[data-view="pending"]')
-  await until(() => document.querySelector('[data-part="tidy"]') !== null && document.querySelectorAll('[data-card]').length > 0)
+  // redesign R3: the line that leads to the page (was the 待规范 tab)
+  await until(() => document.querySelector('[data-part="missing-header-hint"] [data-action="go-missing-header"] button') !== null)
+  await click('[data-part="missing-header-hint"] [data-action="go-missing-header"]')
+  await until(() => document.querySelector('[data-part="missing-header"]') !== null && document.querySelectorAll('[data-card]').length > 0)
+}
+/** ← 返回资料库 (redesign R3), and the number 我的笔记 has there. */
+async function backToLibrary() {
+  await click('[data-action="back-to-library"]')
+  await until(() => document.querySelector('[data-view="authored"]')?.dataset.count !== undefined && document.querySelector('[data-part="missing-header"]') === null)
+  return Number(await page().evaluate(() => document.querySelector('[data-view="authored"]').dataset.count))
 }
 
 test('新建库 (v2 package I; v1.0: 设置 「打开已有文件夹」) on a folder of .md files: it says how many and writes nothing; 下一步 imports it, every file as it was', async () => {
@@ -103,13 +116,24 @@ test('新建库 (v2 package I; v1.0: 设置 「打开已有文件夹」) on a fo
   pendingBefore = Object.fromEntries(core.listPending(vault).map(p => [p.file, p]))
 })
 
-test('待规范 (S8): a card per file, the proposal in the text box, the two that cannot be written say why and have no write button, the sub folder named', async () => {
-  await openPending()
+test('缺少文件头 (S8, redesign R3 P12): a card per file, the proposal in the text box, the two that cannot be written say why and have no write button, the sub folder named', async () => {
+  // redesign R3: before 去处理, 资料库's 全部 lists the index only — none of these files is in it — and the line says how many
   const want = core.listPending(vault).map(p => p.file)
+  await page().evaluate(() => { location.hash = ''; location.reload() })
+  await ready(page(), 'inbox')
+  await page().click('.st-lib-tabs [data-tab="library"]')
+  await ready(page(), 'library')
+  await until(n => document.querySelector('[data-part="missing-header-hint"]')?.dataset.count === String(n), want.length)
+  const listed = await page().evaluate(() => [...document.querySelectorAll('[data-part="list"] [data-row]')].map(e => e.dataset.row))
+  assert.deepEqual(listed, core.listLibrary(vault, { view: 'all' }).items.map(i => i.id))
+  for (const file of want) assert.ok(!listed.includes(file.replace(/\.md$/, '')), `${file}: not in 资料库 before its header is written`)
+  await openPending()
   assert.deepEqual(await cards(), want, 'the cards are the core\'s list, in its order')
-  assert.deepEqual(await page().evaluate(() => [...document.querySelectorAll('[data-part="list"] [data-row]')].map(e => e.dataset.row)), want)
-  assert.equal(await text('#lib-tidy-title'), fmt(T.heading, { n: want.length }))
-  assert.equal(await text('[data-part="tidy"] > p'), T.note)
+  assert.equal(await text('[data-part="missing-header"] #library-title'), fmt(T.heading, { n: want.length }))
+  assert.equal(await text('[data-part="missing-header"] .intro-copy'), T.note)
+  assert.equal(T.note, '这些文件已存在于库文件夹中（例如在 Obsidian 中创建的笔记），流息尚未对其做任何修改。写入文件头后方可入库，正文内容不会被改动。')
+  assert.ok((await text(`${card('untitled.md')} [data-part="card-codes"]`)).includes(T.codes['no-frontmatter']), '缺少文件头 on the card')
+  assert.equal(T.codes['no-frontmatter'], '缺少文件头')
   assert.equal(await text('[data-part="skipped-dirs"]'), fmt(T.subfolders, { dirs: '旧笔记' }))
   for (const file of seeded.proposable) {
     const p = pendingBefore[file]
@@ -159,7 +183,7 @@ test('「写入这一个」 with a changed title: the title on disk is the chang
   const sel = `${card(file)} textarea[data-field="header"]`
   const original = await page().evaluate(s => document.querySelector(s).value, sel)
   assert.ok(original.includes('title: 记忆方案选型'))
-  const authoredBefore = Number(await page().evaluate(() => document.querySelector('[data-view="authored"]').dataset.count))
+  const authoredBefore = core.libraryCounts(vault).authored
   await page().fill(sel, original.replace('title: 记忆方案选型', 'title: 改过的标题'))
   await page().click(`${card(file)} [data-action="apply"] button`)
   await until(s => document.querySelector(s) === null && document.querySelector('[data-part="written"]') !== null, card(file))
@@ -172,12 +196,12 @@ test('「写入这一个」 with a changed title: the title on disk is the chang
   assert.equal(core.validateNote({ fileName: file, text: disk, config: null }).ok, true)
   assert.equal(bodyHash(file), pendingBefore[file].bodyHash, 'the body is the old file byte for byte')
   assert.ok(readFileSync(join(vault, file)).subarray(-Buffer.byteLength(IMPORT_FILES[file])).equals(Buffer.from(IMPORT_FILES[file], 'utf8')), 'CRLF and no final newline kept')
-  await until(n => Number(document.querySelector('[data-view="authored"]')?.dataset.count) === n, authoredBefore + 1)
   assert.ok(core.readIndex(vault).some(e => e.id === '记忆方案选型' && e.title === '改过的标题'))
+  // redesign R3: 我的笔记's number is in 资料库 (back there), and the file is listed under it now
+  assert.equal(await backToLibrary(), authoredBefore + 1)
   await page().click('[data-view="authored"]')
   await until(() => document.querySelector('[data-part="list"] [data-row="记忆方案选型"]') !== null)
-  await page().click('[data-view="pending"]')
-  await until(() => document.querySelectorAll('[data-card]').length > 0)
+  await openPending()
 })
 
 test('「全部按拟的写入」 writes every file it can, says which it could not; the two that cannot stay as cards and as they were', async () => {

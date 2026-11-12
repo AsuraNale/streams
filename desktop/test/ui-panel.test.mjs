@@ -247,15 +247,16 @@ test('详情 follows the main area: 和主 Agent 聊 (this turn) · 待看 (the 
   // J moves the current card: 详情 follows
   await s.page.keyboard.press('j')
   await until(u => document.querySelector('[data-part="detail-scores"]')?.dataset.url !== u, card.url)
-  // 资料库: the note's panel, in 详情 — and only there
+  // 资料库: the note's panel, in 详情 — and only there. Redesign R3 (R3-1): only what the reading area has not — 入选理由, 文件,
+  // 反向链接, 同来源内容 (its topics are on the paper now, no 「主题」 row here); the row is a source-card (no <a> in it)
   await libTab('library')
   const id = s.world.planB.memgpt.id
-  await s.page.click(`[data-part="list"] [data-row="${id}"] a`)
+  await s.page.click(`[data-part="list"] [data-row="${id}"]`)
   await until(i => document.querySelector(`[data-pane="detail"] [data-part="note-panel"][data-id="${i}"]`) !== null, id)
-  const lib = await s.page.evaluate(() => ({ backlinks: document.querySelector('[data-pane="detail"] [data-part="backlinks"]') !== null, same: document.querySelector('[data-pane="detail"] [data-part="same-source"]') !== null, topics: document.querySelector('[data-panel-row="topics"]')?.textContent, inMain: document.querySelector('main [data-part="note-panel"], main .st-panel, .lib-page .st-panel') !== null }))
-  assert.deepEqual(lib, { backlinks: true, same: true, topics: lib.topics, inMain: false })
-  assert.ok(lib.topics.includes('agent 记忆'))
-  // 问库: the notes the answer cites
+  const lib = await s.page.evaluate(() => ({ backlinks: document.querySelector('[data-pane="detail"] [data-part="backlinks"]') !== null, same: document.querySelector('[data-pane="detail"] [data-part="same-source"]') !== null, reasons: document.querySelector('[data-pane="detail"] [data-part="detail-reasons"]') !== null, topicsRow: document.querySelector('[data-panel-row="topics"]') !== null, paperTopics: document.querySelector('main [data-part="reader-source"]')?.textContent, inMain: document.querySelector('main [data-part="note-panel"], main .st-panel, .lib-page .st-panel') !== null }))
+  assert.deepEqual(lib, { backlinks: true, same: true, reasons: true, topicsRow: false, paperTopics: lib.paperTopics, inMain: false })
+  assert.ok(lib.paperTopics.includes('agent 记忆'))
+  // 问库: the notes the answer cites (redesign R3: 详情's 本次回答依据; nothing asked yet → none listed)
   await libTab('ask')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="detail-cites"]')?.dataset.n), '0', 'control: nothing asked yet')
   await s.page.fill('textarea[data-field="question"]', s.world.planB.demandQuestion)
@@ -336,11 +337,12 @@ test('文件: the notes by their headers\' topics; 待看 and 要求与来源 le
 
 // ---- 资料库 two columns ----------------------------------------------------------------------------------------------------
 
+// redesign R3: the two columns are the template's st-split (was .lib-body); 资料库's views are 全部 · 已收藏 · 我的笔记
 test('资料库 is two columns — the list and the reader — and its search, views and graph switch still work', async () => {
   await s.page.click(`[data-library-row="${W.q.current}"]`)
   await until(i => document.querySelector(`.lib-page[data-library="${i}"] main[data-state="ready"]`) !== null, W.q.current)
   await libTab('library')
-  const cols = await s.page.evaluate(() => [...document.querySelector('.lib-body').children].map(c => c.dataset.part))
+  const cols = await s.page.evaluate(() => [...document.querySelector('.st-split').children].map(c => c.dataset.part))
   assert.deepEqual(cols, ['list', 'reader'])
   assert.equal(await s.page.evaluate(() => document.querySelector('.lib-page .st-panel, .lib-page [data-part="note-panel"]')), null, 'no third column inside the page')
   await s.page.fill('input[data-field="search"]', 'MemGPT')

@@ -94,11 +94,13 @@ test('demands and feedback through the core: trimmed, the clock passed; empty to
   const core = {
     ...realCore,
     demands: () => [{ topic: 't', count: 3, last: 'x', suggest: true }],
+    demandsAdded: () => [{ topic: 'T ', question: 'q1' }, { topic: 'other', question: null }],
     addDemand: (dir, topic, o) => { calls.push(['addDemand', topic, o]); if (topic === '') throw new realCore.StreamsError('bad-topic', 'x'); return { topic, count: 1 } },
     answerFeedback: (dir, row, o) => { calls.push(['answerFeedback', row, typeof o.now]); if (!row.note) throw new realCore.StreamsError('bad-feedback', 'x'); return { ok: true } },
   }
   const { h } = await world({ core })
-  assert.deepEqual(h.getDemands(), [{ topic: 't', count: 3, last: 'x', suggest: true }])
+  // redesign R3 (问库 「已加入待补充主题」): each topic with the questions 「记到想补的主题」 was pressed for (the core's topicKey folds 'T ')
+  assert.deepEqual(h.getDemands(), [{ topic: 't', count: 3, last: 'x', suggest: true, added: ['q1'] }])
   assert.deepEqual(h.addDemand('  agent 记忆 ', ' 问的是什么 '), { topic: 'agent 记忆', count: 1 })
   assert.equal(h.addDemand('MCP', '  ').topic, 'MCP')
   assert.deepEqual([calls[0][2].question, typeof calls[0][2].now, 'question' in calls[1][2]], ['问的是什么', 'function', false])

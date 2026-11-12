@@ -5,7 +5,7 @@
  *   - Every web contents of it has the webPreferences below: sandbox, context isolation, no Node anywhere, no <webview>, its own
  *     in-memory session partition (READER_PARTITION: no `persist:`, so nothing it is given is kept), and **no preload**: the
  *     object has no `preload` key and the reader never passes one, so the page it shows has no `window.streams`.
- *   - The window is two web contents: the bar (the BrowserWindow's own: 回到条目 · the address · 阅读模式 | 原网页 · 在浏览器里打开)
+ *   - The window is two web contents: the bar (the BrowserWindow's own: 返回条目 · the address · 阅读模式 | 原网页 · 在浏览器中打开)
  *     and the page under it (a WebContentsView). Both are static pages the main process writes (data: URLs, a CSP with no
  *     script at all) or, for 原网页, the address itself. The bar talks to the main process without any bridge: its buttons are
  *     links to https://streams-reader.invalid/<action>, and the bar's `will-navigate` (always refused) reads the action.
@@ -22,7 +22,14 @@
  * @mozilla/readability (Apache-2.0) on it. What comes out is cleaned again (no script, style, frame, form, embed, event
  * attribute, or link that is not http(s)) and written into the reading page under a CSP that allows no script, no frame, no
  * form. Too little text (MIN_TEXT characters) or text that is mostly links → nothing to read: the window shows the original
- * page with the line 「这一页抽不出正文，显示的是原网页」. Nothing of the page is written into the library.
+ * page with the line 「无法从该网页提取正文，已显示原网页。」. Nothing of the page is written into the library.
+ *
+ * Redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-6; design 03-页面稿 P20, 07-模板版 「阅读窗口」): both pages are drawn with
+ * the template's own parts and style sheets — the bar is the template's `reader-header` (返回条目 as `btn quiet`, the address in a
+ * `search-field`, 阅读模式 · 原网页 as `filters`, 在浏览器中打开), the reading page its `reader-scroll` › `reader-paper` (the line
+ * 「阅读模式：仅保留正文，已移除导航与广告」 as its `eyebrow`, `reader-title`, `reader-meta`, the text in `readable`) — under the
+ * theme and the appearance of the main window (the theme's sheets in its order, <body>'s classes and data-appearance). The
+ * isolation is as it was: the same webPreferences, sessions, guards and CSP.
  *
  * Electron is given (BrowserWindow, WebContentsView, session, shell), so the pure parts run under plain Node
  * (test/reader.test.mjs); the running windows are checked in test/ui-reader.test.mjs.
@@ -67,7 +74,8 @@ export const EXTRACT_WEB_PREFERENCES = Object.freeze({ ...READER_WEB_PREFERENCES
 export const ACTION_ORIGIN = 'https://streams-reader.invalid'
 export const READER_ACTIONS = Object.freeze(['back', 'reading', 'original', 'browser'])
 
-export const BAR_HEIGHT = 48
+// redesign R3: the template's reader-header (its buttons and the address field) is 60 px high
+export const BAR_HEIGHT = 60
 export const MIN_TEXT = 200
 export const MAX_LINK_SHARE = 0.5
 export const MAX_PAGE_BYTES = 5 * 1024 * 1024
@@ -194,51 +202,65 @@ export const READER_PAGE_CSP = "default-src 'none'; img-src http: https: data:; 
 
 // v2 package K2: `look` is { theme, scheme } (main.mjs currentLook): <html> gets data-theme and data-appearance (light | dark),
 // both checked, so the reading window is in the same set as the app's. Redesign R1: <body> also gets the theme's template
-// classes and data-appearance, so the template's round 11 colours (readerCss) are the theme's (its layout is R3's)
+// classes and data-appearance. Redesign R3: `css` is readerCss(): the sheets of the look's theme, in its order.
 function page({ words, look, css, title, bodyClass, lang, dir, body }) {
   const d = dir === 'rtl' ? ' dir="rtl"' : ''
   const scheme = isScheme(look?.scheme) ? look.scheme : 'light'
-  const t = THEME_TEMPLATE[themeOf(look?.theme)]
-  return `<!doctype html><html lang="${escapeHtml(lang || words.lang)}"${d} data-theme="${themeOf(look?.theme)}" data-appearance="${scheme}"><head><meta charset="utf-8">`
+  const theme = themeOf(look?.theme)
+  const t = THEME_TEMPLATE[theme]
+  const sheets = typeof css === 'function' ? css(theme) : String(css ?? '')
+  return `<!doctype html><html lang="${escapeHtml(lang || words.lang)}"${d} data-theme="${theme}" data-appearance="${scheme}"><head><meta charset="utf-8">`
     + `<meta http-equiv="Content-Security-Policy" content="${READER_PAGE_CSP}">`
-    + `<meta name="referrer" content="no-referrer"><title>${escapeHtml(title)}</title><style>${css}</style></head>`
-    + `<body class="${t.bodyClass} ${bodyClass}" data-appearance="${scheme}">${body}</body></html>`
+    + `<meta name="referrer" content="no-referrer"><title>${escapeHtml(title)}</title><style>${sheets}</style></head>`
+    + `<body class="${t.bodyClass} ${bodyClass}" data-theme="${t.dataTheme}" data-appearance="${scheme}" data-product="streams">${body}</body></html>`
 }
 
+// the two glyphs the bar shows (the template's back and external), drawn as the template draws an icon (svg.ico: a stroke of the
+// theme's ink); written out here because the bar's page runs no script
+const GLYPH = Object.freeze({
+  back: 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11',
+  external: 'M14 4h6v6M10 14 20 4M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5',
+})
+const glyph = name => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${GLYPH[name]}"/></svg>`
+
 /**
- * The bar's page. `mode`: 'loading' | 'reading' | 'original'; `canRead`: the text was taken out (阅读模式 can be chosen);
- * `fallback`: it could not be, so the original page is shown with the line saying so.
+ * The bar's page (the template's reader-header). `mode`: 'loading' | 'reading' | 'original'; `canRead`: the text was taken out
+ * (阅读模式 can be chosen); `fallback`: it could not be, so the original page is shown with the line saying so.
  */
 export function barPage({ url, mode, canRead, fallback, words, look, css }) {
   const action = name => `${ACTION_ORIGIN}/${name}`
   const seg = (name, label, enabled) => {
     const cur = mode === name
-    if (cur) return `<span class="rd-seg__item" data-reader-action="${name}" aria-current="true">${escapeHtml(label)}</span>`
-    if (!enabled) return `<span class="rd-seg__item" data-reader-action="${name}" aria-disabled="true">${escapeHtml(label)}</span>`
-    return `<a class="rd-seg__item" data-reader-action="${name}" href="${action(name)}">${escapeHtml(label)}</a>`
+    if (cur) return `<span class="filter active rd-seg__item" data-reader-action="${name}" aria-current="true">${escapeHtml(label)}</span>`
+    if (!enabled) return `<span class="filter rd-seg__item" data-reader-action="${name}" aria-disabled="true">${escapeHtml(label)}</span>`
+    return `<a class="filter rd-seg__item" data-reader-action="${name}" href="${action(name)}">${escapeHtml(label)}</a>`
   }
-  const body = `<nav class="rd-bar" data-reader-bar data-mode="${mode}" data-fallback="${String(Boolean(fallback))}">`
-    + `<a class="rd-btn" data-reader-action="back" href="${action('back')}">${escapeHtml(words.back)}</a>`
-    + `<span class="rd-url" data-reader-url title="${escapeHtml(url)}">${escapeHtml(url)}</span>`
+  const body = `<nav class="reader-header rd-bar" data-reader-bar data-mode="${mode}" data-fallback="${String(Boolean(fallback))}">`
+    + `<a class="btn quiet rd-btn" data-reader-action="back" href="${action('back')}">${glyph('back')} ${escapeHtml(words.back)}</a>`
+    + `<span class="search-field rd-url" role="group" aria-label="${escapeHtml(words.address)}">${glyph('external')}<span class="rd-url__text" data-reader-url title="${escapeHtml(url)}">${escapeHtml(url)}</span></span>`
     + (fallback ? `<span class="rd-note" data-reader-note role="status">${escapeHtml(words.fallback)}</span>` : '')
-    + `<span class="rd-seg" role="group" aria-label="${escapeHtml(words.modes)}">${seg('reading', words.reading, canRead)}${seg('original', words.original, mode !== 'loading')}</span>`
-    + `<a class="rd-btn" data-reader-action="browser" href="${action('browser')}">${escapeHtml(words.browser)}</a>`
+    + `<span class="filters rd-seg" role="group" aria-label="${escapeHtml(words.modes)}">${seg('reading', words.reading, canRead)}${seg('original', words.original, mode !== 'loading')}</span>`
+    + `<a class="btn quiet rd-btn" data-reader-action="browser" href="${action('browser')}">${glyph('external')} ${escapeHtml(words.browser)}</a>`
     + '</nav>'
   return page({ words, look, css, title: words.windowTitle, bodyClass: 'rd-bar-body', body })
 }
 
 /** The page under the bar while the text is being taken out. */
 export function waitPage({ words, look, css }) {
-  return page({ words, look, css, title: words.windowTitle, bodyClass: 'rd-page', body: `<p class="rd-wait" data-reader-wait>${escapeHtml(words.loading)}</p>` })
+  return page({ words, look, css, title: words.windowTitle, bodyClass: 'rd-page', body: `<div class="reader-scroll rd-scroll"><p class="reader-note rd-wait" data-reader-wait>${escapeHtml(words.loading)}</p></div>` })
 }
 
-/** The reading page: the title, a line (site · byline · what 阅读模式 is), the cleaned text. */
+/**
+ * The reading page (the template's reader-paper): the line saying what 阅读模式 is, the title, a line (site · byline), the
+ * cleaned text in `readable`.
+ */
 export function readingPage({ article, words, look, css }) {
-  const meta = [article.siteName, article.byline, words.readingNote].map(s => String(s ?? '').trim()).filter(Boolean)
-  const body = `<article class="rd-article" data-reader-article>`
-    + `<h1 class="rd-article__title">${escapeHtml(article.title)}</h1>`
-    + `<p class="rd-article__meta">${escapeHtml(meta.join(' · '))}</p>`
-    + `<div class="rd-article__body">${article.content}</div></article>`
+  const meta = [article.siteName, article.byline].map(s => String(s ?? '').trim()).filter(Boolean)
+  const body = '<div class="reader-scroll rd-scroll"><article class="reader-paper rd-article" data-reader-article>'
+    + `<span class="eyebrow rd-article__note" data-reader-note-line>${escapeHtml(words.readingNote)}</span>`
+    + `<h1 class="reader-title rd-article__title">${escapeHtml(article.title)}</h1>`
+    + (meta.length ? `<p class="reader-meta rd-article__meta">${escapeHtml(meta.join(' · '))}</p>` : '')
+    + `<div class="readable rd-article__body">${article.content}</div></article></div>`
   return page({ words, look, css, title: article.title || words.windowTitle, bodyClass: 'rd-page', lang: article.lang, dir: article.dir, body })
 }
 
@@ -337,16 +359,19 @@ export function readabilitySource(desktopDir) {
 }
 
 /**
- * What the reading pages are styled with (redesign R1): the template's round 11 colours (workbench.css, and round 12's
- * line.css for 单线黑白 — unchanged files of src/renderer/template/), the interim names the reader's file uses
- * (styles/interim.css) and the reader's own file. Until R3 rebuilds the reading window on the template, only its colours
- * follow the theme.
+ * What the reading pages are styled with (redesign R3): for each theme, the template's own sheets of that theme in its order
+ * (shared/themes.mjs THEME_TEMPLATE — the unchanged files of src/renderer/template/, the ones the main window loads), then the
+ * reader's own small layer (styles/reader.css: sizes and places only, no colour). The pages are data: URLs under a CSP that
+ * loads nothing, so what would be fetched is taken out of the sheets first: the template's @font-face rules (the bundled face
+ * cannot load here; the theme's font stack falls back to the system's Chinese UI face) and every url(…) (single-line black and
+ * white's brand mark, which these pages do not show). Read once; returns theme id → css.
  */
 export function readerCss(rendererDir) {
-  const styles = join(rendererDir, 'styles')
-  const tpl = join(rendererDir, 'template', 'shared')
-  return [join(tpl, 'round11', 'workbench.css'), join(tpl, 'round12', 'line.css'), join(styles, 'interim.css'), join(styles, 'reader.css')]
-    .map(f => readFileSync(f, 'utf8')).join('\n')
+  const own = readFileSync(join(rendererDir, 'styles', 'reader.css'), 'utf8')
+  const tpl = join(rendererDir, 'template')
+  const loadless = text => text.replace(/@font-face\s*\{[^}]*\}/g, '').replace(/url\([^)]*\)/g, 'none')
+  const byTheme = new Map(Object.entries(THEME_TEMPLATE).map(([id, t]) => [id, [...t.sheets.map(f => loadless(readFileSync(join(tpl, ...f.split('/')), 'utf8'))), own].join('\n')]))
+  return theme => byTheme.get(themeOf(theme))
 }
 
 const withTimeout = (promise, ms, what) => {

@@ -92,7 +92,8 @@ test('interface B: what the page may send to the new methods, and what it may no
   const long = n => 'x'.repeat(n)
   // the library and reading
   ok('getLibrary', ['kept', { topics: ['a'], days: 30 }]); ok('getLibrary', ['caught', { topics: [], days: null }]); ok('getLibrary', ['pending', null]); ok('getLibrary', ['authored', {}])
-  bad('getLibrary', ['all', {}]); bad('getLibrary', ['kept']); bad('getLibrary', ['kept', { topics: 'a' }]); bad('getLibrary', ['kept', { days: 0 }]); bad('getLibrary', ['kept', { days: 1.5 }])
+  // redesign R3: 'all' is a view now (资料库 「全部」: every file of the library)
+  ok('getLibrary', ['all', {}]); bad('getLibrary', ['everything', {}]); bad('getLibrary', ['kept']); bad('getLibrary', ['kept', { topics: 'a' }]); bad('getLibrary', ['kept', { days: 0 }]); bad('getLibrary', ['kept', { days: 1.5 }])
   bad('getLibrary', ['kept', { topics: [1] }]); bad('getLibrary', ['kept', { path: 'C:\\' }]); bad('getLibrary', ['kept', { topics: Array(51).fill('a') }])
   ok('searchLibrary', ['记忆', { view: 'all', topics: [], days: null }]); ok('searchLibrary', ['', null]); ok('searchLibrary', [long(200), {}])
   bad('searchLibrary', [long(201), {}]); bad('searchLibrary', ['q', { view: 'caught' }]); bad('searchLibrary', [7, {}]); bad('searchLibrary', ['q'])
@@ -115,8 +116,9 @@ test('interface B: what the page may send to the new methods, and what it may no
   ok('previewNode', ['relevance', 'https://x/1', null]); ok('previewNode', ['relevance', 'https://x/1', { id: 'relevance', requirement: 'x' }]); bad('previewNode', ['', 'https://x/1', null]); bad('previewNode', ['relevance', '', null]); bad('previewNode', ['relevance', 'https://x/1']); bad('previewNode', ['relevance', 5, null])
   bad('previewNode', ['relevance', 'https://x/1', { id: 'substance' }]); bad('previewNode', ['relevance', 'https://x/1', ['relevance']]); bad('previewNode', ['relevance', 'https://x/1', 'draft'])
   // the run status, the graph, the verdicts
-  ok('getGraph', [{ days: 30, status: 'kept', topics: [], links: true }]); ok('getGraph', [{ days: null, status: 'all', topics: ['a'], links: false }]); ok('getGraph', [null])
-  bad('getGraph', [{ status: 'caught' }]); bad('getGraph', [{ links: 'yes' }]); bad('getGraph', [{ days: -1 }]); bad('getGraph', [{ layout: 'force' }]); bad('getGraph', ['all']); bad('getGraph', [])
+  // redesign R3 (F40): the graph's one filter is the time range — status, topics and links are refused
+  ok('getGraph', [{ days: 30 }]); ok('getGraph', [{ days: null }]); ok('getGraph', [{}]); ok('getGraph', [null])
+  bad('getGraph', [{ days: 30, status: 'kept' }]); bad('getGraph', [{ links: false }]); bad('getGraph', [{ topics: ['a'] }]); bad('getGraph', [{ status: 'caught' }]); bad('getGraph', [{ links: 'yes' }]); bad('getGraph', [{ days: -1 }]); bad('getGraph', [{ layout: 'force' }]); bad('getGraph', ['all']); bad('getGraph', [])
   ok('getVerdicts', ['https://x/1']); bad('getVerdicts', ['']); bad('getVerdicts', [long(2001)])
   // asking the library
   ok('askLibrary', ['库里有什么讲 agent 记忆的？']); ok('askLibrary', [long(500)]); ok('askLibrary', [`  ${long(500)}  `])

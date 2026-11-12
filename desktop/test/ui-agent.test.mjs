@@ -402,6 +402,9 @@ test('no card and no suggestion carries a switch that does a kind of change by i
   assert.equal(AUTO.test('以后这类直接换'), true, 'control: the pattern finds the button the design had')
 })
 
+// redesign R3 (问库 on the template's parts, P13): the box's line is formatted (每次提问约 2–5 次模型调用 …), the question of an unsure
+// sentence is the block's <b>, the main Agent's words in a turn handed over are [data-part="agent-reply"] [data-part="reply"]
+// (was [data-row="agent"] .chat-text, the chat's bubble); the words are the design's. Only the places changed; what is checked is as it was.
 test('问库 · unsure: 「这是要改这个库吗？」 — 是 → resolveLibraryMessage(text, change); 不是 → (text, question)', async () => {
   const seeded = ids()[0]
   const dir = shelf.dirs[0]
@@ -410,7 +413,7 @@ test('问库 · unsure: 「这是要改这个库吗？」 — 是 → resolveLib
   await s.page.click('.st-lib-tabs [data-tab="ask"]')
   await until(() => document.querySelector('main[data-screen="ask"][data-state="ready"]') !== null)
   assert.equal(await s.page.evaluate(() => document.querySelector('textarea[data-field="question"]').placeholder), ASK.inputPlaceholder)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="input-hint"]').textContent), ASK.inputHint)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="input-hint"]').textContent), fmt(ASK.inputHint, { n: '2–5' }))
   const ask = async text => {
     const n = await s.page.evaluate(() => document.querySelectorAll('[data-turn]').length)
     await s.page.fill('textarea[data-field="question"]', text)
@@ -420,7 +423,7 @@ test('问库 · unsure: 「这是要改这个库吗？」 — 是 → resolveLib
   }
   const i = await ask('你好')
   assert.equal(await s.page.evaluate(n => document.querySelector(`[data-turn="${n}"]`).dataset.state, i), 'unsure')
-  assert.deepEqual(await s.page.evaluate(n => { const u = document.querySelector(`[data-turn="${n}"] [data-part="unsure"]`); return [u.querySelector('.st-t-strong').textContent, ...[...u.querySelectorAll('[data-action]')].map(a => a.textContent.trim())] }, i), [ASK.route.unsure, ASK.route.yes, ASK.route.no])
+  assert.deepEqual(await s.page.evaluate(n => { const u = document.querySelector(`[data-turn="${n}"] [data-part="unsure"]`); return [u.querySelector('b').textContent, ...[...u.querySelectorAll('[data-action]')].map(a => a.textContent.trim())] }, i), [ASK.route.unsure, ASK.route.yes, ASK.route.no])
   assert.deepEqual(routes().at(-1), ['你好', 'unsure', 'none', null], 'control: routed unsure, nobody asked')
   const before = transcript().length
   await s.page.click(`[data-turn="${i}"] [data-action="route-change"] button`)
@@ -428,7 +431,7 @@ test('问库 · unsure: 「这是要改这个库吗？」 — 是 → resolveLib
   assert.deepEqual(routes().at(-1), ['你好', 'change', 'you', 'you'], '是，改这个库 = change')
   assert.equal(transcript().slice(before).find(r => r.role === 'you')?.data?.libraryId, seeded, 'to the main Agent, with this library')
   // the main Agent's reply in the box (whatever the script's next answer is: this check also runs on its own, npm run mutants)
-  assert.notEqual(await s.page.evaluate(n => document.querySelector(`[data-turn="${n}"] [data-row="agent"] .chat-text`), i), null)
+  assert.notEqual(await s.page.evaluate(n => document.querySelector(`[data-turn="${n}"] [data-part="agent-reply"] [data-part="reply"]`), i), null)
   const j = await ask('随便看看')
   assert.equal(await s.page.evaluate(n => document.querySelector(`[data-turn="${n}"]`).dataset.state, j), 'unsure')
   await s.page.click(`[data-turn="${j}"] [data-action="route-question"] button`)
@@ -446,7 +449,7 @@ test('问库 · change (UC3): 「这句转给主 Agent」, the reply and its car
   await until(i => document.querySelector(`[data-turn="${i}"]`)?.dataset.state === 'done', n)
   const t = await s.page.evaluate(i => {
     const turn = document.querySelector(`[data-turn="${i}"]`)
-    return { route: turn.dataset.route, tag: turn.querySelector('[data-part="routed"]')?.textContent ?? null, reply: turn.querySelector('[data-row="agent"] .chat-text')?.textContent, cards: [...turn.querySelectorAll('[data-proposal]')].map(c => [c.dataset.kind, c.dataset.status, c.querySelector('[data-part="title"]').textContent]) }
+    return { route: turn.dataset.route, tag: turn.querySelector('[data-part="routed"]')?.textContent ?? null, reply: turn.querySelector('[data-part="agent-reply"] [data-part="reply"]')?.textContent, cards: [...turn.querySelectorAll('[data-proposal]')].map(c => [c.dataset.kind, c.dataset.status, c.querySelector('[data-part="title"]').textContent]) }
   }, n)
   assert.deepEqual([t.route, t.tag, t.reply], ['change', ASK.route.routed, '好，我拟了一个改动：'])
   assert.deepEqual(t.cards, [
@@ -483,10 +486,13 @@ test('问库 · question, with a connection: the answer as v1.0 drew it', async 
   await s.page.click(`[data-library-row="${ids()[0]}"]`)
   await s.page.click('.st-lib-tabs [data-tab="ask"]')
   await until(() => document.querySelector('main[data-screen="ask"][data-state="ready"]') !== null)
+  // redesign R3: 问库's conversation stays while you are elsewhere in the app (per library, in memory): the new turn is the last
+  // one, not turn 0 (the turns of the tests above are still there)
+  const n = await s.page.evaluate(() => document.querySelectorAll('[data-turn]').length)
   await s.page.fill('textarea[data-field="question"]', 'agent 记忆有什么进展？')
   await s.page.click('main[data-screen="ask"] [data-action="send"] button')
-  await until(() => document.querySelector('[data-turn="0"]')?.dataset.state === 'done')
-  const got = await s.page.evaluate(() => { const t = document.querySelector('[data-turn="0"]'); return [t.dataset.route, t.querySelector('[data-part="routed"]'), t.querySelector('[data-part="not-in-library"]')?.textContent.startsWith('库里没有')] })
+  await until(i => document.querySelector(`[data-turn="${i}"]`)?.dataset.state === 'done', n)
+  const got = await s.page.evaluate(i => { const t = document.querySelector(`[data-turn="${i}"]`); return [t.dataset.route, t.querySelector('[data-part="routed"]'), t.querySelector('[data-part="not-in-library"]')?.textContent.startsWith('库里没有')] }, n)
   assert.deepEqual(got, ['question', null, true])
   assert.equal(core.readRoutes(shelf.dirs[0]).at(-1).route, 'question')
 })

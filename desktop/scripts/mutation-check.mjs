@@ -174,18 +174,8 @@ const MUTANTS = [
     test: ['test/ui-agent.test.mjs', '--test-name-pattern=the proposal card'],
   },
   // v2 package H: the library page, the reading window, the 「写给 AI 的话」 mark
-  {
-    id: 'h-obsidian-for-caught',
-    what: 'an item without a file (抓到的) also offers 用 Obsidian 打开 in 「更多」',
-    edits: [['src/renderer/screens/library.js', "items=${[{ id: 'browser', label: T.actions.browser }]}", "items=${[{ id: 'obsidian', label: T.actions.obsidian }, { id: 'browser', label: T.actions.browser }]}"]],
-    test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=stopped on the way|an item waiting'],
-  },
-  {
-    id: 'h-default-kept',
-    what: 'the page opens on 已收藏 even with nothing kept',
-    edits: [['src/renderer/screens/library.js', 'return first?.counts?.kept === 0 ?', 'return false ?']],
-    test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=nothing kept'],
-  },
+  // (redesign R3: h-obsidian-for-caught and h-default-kept are retired with what they broke — 资料库's 「抓到的」 tab and the page
+  // opening on it when nothing is kept are gone; their reverse is r3-all-lists-caught below)
   {
     id: 'h-reader-preload',
     what: 'the reading window\'s page gets the app\'s preload (and with it the bridge)',
@@ -207,7 +197,8 @@ const MUTANTS = [
   {
     id: 'h-ai-mark-on-all',
     what: 'every card in 待看 carries the 「写给 AI 的话」 mark',
-    edits: [['src/renderer/screens/inbox.js', '${item.aiInstruction === true ? html`<span class="inbox-card__ai"', '${true ? html`<span class="inbox-card__ai"']],
+    // (redesign R3: retargeted at R2's card — the mark is a Mark of the template's status-chip now)
+    edits: [['src/renderer/screens/inbox.js', "${item.aiInstruction === true ? html`<${Mark} attrs=${{ 'data-ai-instruction': '' }}", "${true ? html`<${Mark} attrs=${{ 'data-ai-instruction': '' }}"]],
     test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=the card with words for the AI'],
   },
   // v2 package L: the queue, the right panel
@@ -344,6 +335,55 @@ const MUTANTS = [
     what: 'a library whose sources fail gets a banner on its page again (not only the card in 待确认)',
     edits: [['src/renderer/screens/library-frame.js', '  const problem = BANNER_CODES.includes(home.data?.problem?.code) ? home.data.problem : null', "  const problem = BANNER_CODES.includes(home.data?.problem?.code) ? home.data.problem : row?.problem === 'sources' ? { code: 'connection', connectionCode: 'network', kind: null, caughtKept: 0 } : null"]],
     test: ['test/ui-error.test.mjs', '--test-name-pattern=no banner on any tab'],
+  },
+  // ---- redesign R3 (docs/checks/2026-11-11-r3/contract.md 「测」): each reverse the contract names, and a few more ----
+  {
+    id: 'r3-all-lists-caught',
+    what: '资料库 「全部」 also lists the caught items that have no file (the old 「抓到的」)',
+    edits: [['src/main/services/browse.mjs', "      return { counts: call('libraryCounts', dir), ...listed }\n    },\n    searchLibrary", "      if (view === 'all') listed.items = [...listed.items, ...call('listLibrary', dir, { view: 'caught' }).items.map(c => ({ id: c.url, title: c.title, date: c.date, source_name: c.source, status: 'kept' }))]\n      return { counts: call('libraryCounts', dir), ...listed }\n    },\n    searchLibrary"]],
+    test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=R3 nothing kept'],
+  },
+  {
+    id: 'r3-graph-caught',
+    what: '图谱 also draws the ledger items that have no file',
+    edits: [['src/main/services/status.mjs', "      return call('graph', dir, { days, status: 'all', topics: [], links: true, now })", "      const g = call('graph', dir, { days, status: 'all', topics: [], links: true, now })\n      for (const c of call('listLibrary', dir, { view: 'caught' }).items) g.nodes.push({ id: `item:${c.url}`, kind: 'item', label: c.title, count: 1, row: 2, col: g.nodes.length })\n      return g"]],
+    test: ['test/ui-graph.test.mjs', '--test-name-pattern=only files are drawn'],
+  },
+  {
+    id: 'r3-header-hint-always',
+    what: '资料库 shows the line 「n 个文件缺少文件头」 even when no file lacks a header',
+    edits: [['src/renderer/screens/library.js', '${(counts?.pending ?? 0) > 0 ? html`<div class="progress-alert st-lib-hint"', '${counts ? html`<div class="progress-alert st-lib-hint"']],
+    test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=R3 nothing kept'],
+  },
+  {
+    id: 'r3-demand-forgotten',
+    what: '问库\'s 「已加入待补充主题」 is the page\'s own state only: opened again, the answer says 「记到想补的主题」 again',
+    edits: [['src/renderer/screens/ask.js', 'const added = named ? demandAdded(demands, missing, question) : noted !== null && demandAdded(demands, noted, question)', 'const added = noted !== null']],
+    test: ['test/ui-ask-r3.test.mjs', '--test-name-pattern=an answer|记到想补的主题'],
+  },
+  {
+    id: 'r3-card-not-shared',
+    what: '待确认\'s 确认 / 拒绝 on a proposal call nothing (the card in 问库\'s conversation stays pending)',
+    edits: [['src/renderer/screens/right-panel.js', '    try { await call(name, card.id) } catch { setFailed(true) } finally { setBusy(false) }', '    try { await Promise.resolve(name) } catch { setFailed(true) } finally { setBusy(false) }']],
+    test: ['test/ui-ask-r3.test.mjs', '--test-name-pattern=转交主 Agent'],
+  },
+  {
+    id: 'r3-source-opens-browser',
+    what: '资料库\'s 查看原文 opens the system browser instead of Streams\' reading window',
+    edits: [['src/renderer/screens/library.js', "onClick=${() => doCall('openReader', e.source, 'reader')}", "onClick=${() => doCall('openReader', e.source, 'browser')}"]],
+    test: ['test/ui-library-reader.test.mjs', '--test-name-pattern=R3 收藏 in 待看'],
+  },
+  {
+    id: 'r3-graph-filters-back',
+    what: 'the bridge takes the graph\'s old filters again (status, topics, links)',
+    edits: [['src/main/bridge-methods.mjs', "const graphFilter = f => f === null || (isObject(f) && onlyKeys(f, ['days']) && optional(f, 'days', days))", "const graphFilter = f => f === null || (isObject(f) && onlyKeys(f, ['days', 'status', 'topics', 'links']) && optional(f, 'days', days))"]],
+    test: ['test/ui-graph.test.mjs', '--test-name-pattern=one filter'],
+  },
+  {
+    id: 'r3-reader-not-template',
+    what: 'the reading window\'s bar is not the template\'s reader-header (its own old bar)',
+    edits: [['src/main/reader.mjs', '  const body = `<nav class="reader-header rd-bar" data-reader-bar', '  const body = `<nav class="rd-bar" data-reader-bar']],
+    test: ['test/ui-reader.test.mjs', '--test-name-pattern=opens the reading window in'],
   },
 ]
 

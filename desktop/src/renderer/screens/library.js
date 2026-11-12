@@ -1,52 +1,57 @@
-// v2 package F: the 资料库 tab of a library's page (screens/library-frame.js; design P5): its actions in the library's head, the
-// list / graph switch (ViewSwitch) on its heading line; otherwise as v1.0 had it.
-// v2 package H (design P5, UC4; docs/desktop.md §4.9): with nothing kept yet the page opens on 「抓到的」 (else 「已收藏」); the
-// head has buttons only for the item being read — none while nothing is chosen (the reader says 「在左边选一条来读」). A note:
-// 编辑 · 打开原文 · 更多 (用 Obsidian 打开 · 在资源管理器中显示 · 在浏览器里打开). A caught item, which has no file: 收藏 (only
-// what waits in 待看: keepItem, the core's keep → writeNoteFile) · 打开原文 · 更多 (在浏览器里打开) — never Obsidian or the file
-// manager. Kept from here → the page goes to 「已收藏」 with that note open, marked 「已收藏 · 进了 notes/」. 「打开原文」 is
-// openReader(url, 'reader'): the isolated reading window (src/main/reader.mjs). A caught item that waits in 待看 shows its
-// summary (getInbox). Hooks: [data-part="item-actions"][data-for=note|caught], [data-action=keep|more][data-items],
-// the menu's [data-menu-item=obsidian|folder|browser], [data-kept-now], [data-part=pick-one|summary|keep-only-inbox].
-// 资料库与阅读 (mockup S6; docs/desktop.md §4.2). v2 package L (维护者 11-10 「资料库标签页保留瘦成两栏」): two columns — the list
-// (the search box on top, four tabs with their counts, the topic and 「最近 30 天」 filters) · the reader (the note's Markdown
-// cut into elements by lib/markdown.js; a [[link]] that names a note in the library opens it). What was its third column
-// (this note: topics, source, the scores with their reasons, freshness, the file; the notes that link here; the notes from
-// the same source) is the window's right panel's 「详情」 now (screens/right-panel.js), the same hooks. The top bar: 「编辑」
-// (screens/edit-dialog.js), 「用 Obsidian 打开」, 「打开原文」. 「抓到的」 lists what the core's ledger holds short of kept or
-// let go, with each step's score and the step it stopped at; 「待规范」 (mockup S8, docs/desktop.md §4.3) lists the files
-// and their problems on the left and, in the reader, one card per file: the problem, the header the core proposes in a
-// text box the user may change (lib/header-text.js), 「写入这一个」「跳过」, and 「全部按拟的写入」 on top. A file whose
-// name cannot be an id, or for which no header can be proposed, says what to do instead and has no write button; the
-// sub folders that are not read are named. 「跳过」 writes nothing and only hides the card until the page is opened again.
-// Data only through the bridge (getLibrary, searchLibrary, readNote, getSources for the topics, getInbox, keepItem,
-// openInObsidian, showNoteInFolder, openReader, applyHeader, applyAllHeaders); read again on `library-changed`. The page counts
-// nothing: the tab counts are getLibrary().counts.
-// Test hooks: main[data-screen="library"][data-state], [data-view=<id>][data-count][aria-current], [data-filter-topic=<name>],
-// [data-filter-days], input[data-field="search"], [data-part=list|reader|note-panel|backlinks|same-source],
-// [data-row=<id | url | file>][data-current], [data-reader=<id>], [data-panel-row=<key>],
-// [data-action=edit|source|keep|more|verdicts|caught-verdicts], [data-stopped=<step>], [data-score=<node>];
-// 待规范: [data-part=tidy|skipped-dirs|apply-all-result|written|skipped-line], [data-card=<file>][data-name-ok][data-proposable]
-// with textarea[data-field="header"], [data-card-error], [data-card-why], [data-action=apply|skip|apply-all|show-skipped].
+// 资料库 — redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-1, R3-3, R3-4; design 03-页面稿 P09 · P11 · P12 and 07-模板版
+// streams/app.js 「资料库」 · 「编辑笔记」 · 「缺少文件头」; F33–F39; 维护者 11-11 第 9 题), built on the template's parts.
+// 资料库 only holds what is a file of the library (the index): no 「抓到的」 (R2 moved it to 待看's 未通过筛选), no 「待规范」 tab, no
+// 「添加链接」 here (R2 put it in 待看).
+//   The list (st-split › st-list): the head 「资料库」 + 列表 · 图谱 (ViewSwitch), the search (search-field; snippets without
+//   Markdown marks: the core's search), the filters 全部 n · 已收藏 n · 我的笔记 n (getLibrary's counts: core libraryCounts all ·
+//   kept · authored), the topics and 最近 30 天 (filters), then — only while the core lists such files (counts.pending > 0) — the
+//   line 「n 个文件缺少文件头，尚未入库。  去处理」 (progress-alert), then the rows (source-card: 日期 · 来源, the title, a line of
+//   the summary or the search's snippet). A note named by the route opens; else the first of the list.
+//   The reading area (reader): on top the mark 已收藏 / 我的笔记 (status-chip) and 编辑 · 查看原文 · 更多 ▾ (在 Obsidian 中打开 ·
+//   在资源管理器中显示 · 在浏览器中打开); 查看原文 opens Streams' reading window (openReader(url, 'reader')), the browser only from
+//   「更多」 (and the reading window itself). Then the paper (reader-paper): 来源 / 主题, the title, 发布 · 收藏, the text (its
+//   Markdown cut into elements by lib/markdown.js — 内容概述 is the text's own first paragraph; a [[link]] that names a note opens it).
+//   The right panel's 详情 (only what the reading area has not): 入选理由 (each score with its sentence), 核验 with the folded 核验记录
+//   (verdict-dialog.js VerdictFold, the component 待看 uses), 文件 (its path in the library folder), 反向链接, 同来源内容 (a click
+//   selects that note here).
+//   编辑 (screens/edit-dialog.js): the template's dialog; title, topics, body, insert link — nothing else (core editNote, V2).
+//   缺少文件头 (route params.view 'pending', from the line's 去处理): ← 返回资料库, 「n 个文件缺少文件头」 + 全部写入, the sentence of
+//   what this is, then one card per file (confirmation): its path and 缺少文件头, 尚未入库, the suggested header in a text box you
+//   may change (lib/header-text.js), 写入 · 跳过. Written only on a click (applyHeader / applyAllHeaders → the core's
+//   applyProposedHeader → writeNoteFile by 'import-header': the body byte for byte, V2 / V8); 跳过 writes nothing and hides the card
+//   until the page is opened again; a file the core cannot propose a header for says why and has no 写入.
+// Data only through the bridge (getLibrary, searchLibrary, readNote, getSources for the topics, openInObsidian, showNoteInFolder,
+// openReader, applyHeader, applyAllHeaders); read again on `library-changed`. The page counts nothing.
+// Test hooks: main[data-screen="library"][data-state][data-mode=list|missing-header], [data-part="view-switch"] [data-mode=list|graph],
+// input[data-field="search"], [data-view=all|kept|authored][data-count][aria-current], [data-filter-topic=<name>][aria-pressed],
+// [data-filter-days][aria-pressed], [data-part="missing-header-hint"][data-count] with [data-action="go-missing-header"],
+// [data-part=list|reader|search-count|search-none|empty|pick-one], [data-row=<id>][data-current][data-status] (its
+// [data-snippet]), [data-reader=<id>] with [data-part=mark|reader-source|reader-meta|body], [data-part="item-actions"][data-id] with
+// [data-action=edit|source|more][data-items], the menu's [data-menu-item=obsidian|folder|browser]; 详情: [data-part="note-panel"]
+// [data-id] with [data-part=detail-reasons] [data-detail-score=<id>], [data-part="detail-record"], [data-part="detail-file"],
+// [data-part=backlinks|same-source] [data-link=<id>]; 缺少文件头: [data-part="missing-header"][data-count], [data-action=back-to-library|
+// apply-all|apply|skip|show-skipped], [data-card=<file>][data-name-ok][data-proposable] with textarea[data-field="header"],
+// [data-card-error], [data-card-why], [data-part=skipped-dirs|apply-all-result|written|skipped-line|missing-none].
 import { html, useEffect, useMemo, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
-import { Act } from '../lib/action.js'
 import { renderMarkdown } from '../lib/markdown.js'
 import { headerText, parseHeaderText } from '../lib/header-text.js'
-import { Icon, LinkButton, Menu, Tag, TopBar } from '../kit/index.js'
-import { ERRORS, NODE_NAMES, NOTE_STATUS, SEP } from '../texts/common.js'
+import { TIcon } from '../lib/template-icons.js'
+import { Menu } from '../kit/index.js'
+import { ERRORS, NODE_NAMES, SEP } from '../texts/common.js'
 import { LIBRARY as T } from '../texts/library.js'
+import { PANEL } from '../texts/panel.js'
 import { EditDialog } from './edit-dialog.js'
-import { VerdictDialog } from './verdict-dialog.js'
+import { VerdictFold } from './verdict-dialog.js'
 import { LibraryFrame, ViewSwitch } from './library-frame.js'
 import { DetailBlock } from './right-panel.js'
-import { PANEL } from '../texts/panel.js'
 
-const VIEWS = ['kept', 'authored', 'caught', 'pending']
+/** The three filters of 资料库, in order (redesign R3: every file · kept · your own). */
+export const VIEWS = Object.freeze(['all', 'kept', 'authored'])
 const RECENT_DAYS = 30
 const SEARCH_DELAY_MS = 250
 const SCORE_ORDER = ['relevance', 'substance', 'freshness']
@@ -55,7 +60,7 @@ const nodeName = id => (Object.hasOwn(NODE_NAMES, id) ? NODE_NAMES[id] : id)
 const isWeb = u => typeof u === 'string' && /^https?:\/\//i.test(u)
 const num = v => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : null)
 
-/** A score as the index or the ledger holds it: a number, an enum value, or { score | value, reason }. */
+/** A score as the index or the header holds it: a number, an enum value, or { score | value, reason }. */
 export function scoreParts(v) {
   if (v && typeof v === 'object') return { value: num(v.score) ?? (typeof v.value === 'string' ? v.value : null), raw: v.score ?? v.value ?? null, reason: typeof v.reason === 'string' ? v.reason : '' }
   if (typeof v === 'number') return { value: num(v), raw: v, reason: '' }
@@ -76,64 +81,95 @@ function pendingWords(code) {
   return fmt(T.pending.other, { code: c })
 }
 
-function ViewTabs({ view, counts, onSelect }) {
-  return html`<nav class="lib-views" aria-label=${T.viewsLabel}>
-    ${VIEWS.map(id => html`<button key=${id} type="button" class="lib-views__tab" data-view=${id} data-count=${counts?.[id] ?? ''}
-      aria-current=${id === view ? 'true' : undefined} onClick=${() => onSelect(id)}>${fmt(T.viewCount, { name: T.views[id], n: counts?.[id] ?? '' })}</button>`)}
-  </nav>`
-}
+const statusWords = s => (Object.hasOwn(T.reader.status, s ?? '') ? T.reader.status[s] : s ?? '')
 
-function Filters({ topics, chosen, days, onTopic, onDays }) {
-  return html`<div class="lib-filters" role="group" aria-label=${T.filtersLabel}>
-    ${topics.map(t => html`<button key=${t} type="button" class="lib-chip" data-filter-topic=${t} aria-pressed=${String(chosen.includes(t))} onClick=${() => onTopic(t)}>${t}</button>`)}
-    <button type="button" class="lib-chip" data-filter-days=${RECENT_DAYS} aria-pressed=${String(days === RECENT_DAYS)} onClick=${onDays}>${T.recent}</button>
-  </div>`
-}
-
-function NoteRow({ item, current, onSelect }) {
+/** A row of the list (the template's source-card): 日期 · 来源 (or 我的笔记), the title, a line of the summary / the snippet. */
+function Row({ item, current, onSelect }) {
   const authored = item.status === 'authored'
-  return html`<li class=${`lib-row${current ? ' lib-row--current' : ''}`} data-row=${item.id} data-current=${String(current)} data-status=${item.status ?? ''}>
-    <a href="#" class="lib-row__link" aria-current=${current ? 'true' : undefined} onClick=${e => { e.preventDefault(); onSelect(item.id) }}>
-      <span class="lib-row__title">${item.title}</span>
-      <span class="lib-row__meta st-t-small st-t-sub">${authored ? fmt(T.row.authoredMeta, { date: item.date ?? '' }) : fmt(T.row.meta, { date: item.date ?? '', source: item.source_name ?? '' })}</span>
-      ${item.snippet ? html`<span class="lib-row__snippet st-t-small st-t-muted" data-snippet>${item.snippet}</span>` : null}
-    </a>
-  </li>`
+  const line = authored ? fmt(T.row.authoredMeta, { date: item.date ?? '' }) : fmt(T.row.meta, { date: item.date ?? '', source: item.source_name ?? '' })
+  const sub = item.snippet ?? item.summary ?? ''
+  return html`<button type="button" class=${`source-card${current ? ' selected' : ''}`} data-row=${item.id} data-current=${String(current)} data-status=${item.status ?? ''}
+    aria-current=${current ? 'true' : undefined} onClick=${() => onSelect(item.id)}>
+    <span class="eyebrow"><span>${line}</span><${TIcon} name="arrow" /></span>
+    <h3>${item.title}</h3>
+    ${sub ? html`<p data-snippet=${item.snippet ? '' : undefined}>${sub}</p>` : null}
+  </button>`
 }
 
-function stoppedWords(step) {
-  if (Object.hasOwn(T.caught.stopped, step)) return T.caught.stopped[step]
-  return fmt(T.caught.stoppedOther, { step: nodeName(step) })
-}
-
-function ScoreChips({ scores }) {
-  return html`<span class="lib-scores">
-    ${scoreKeys(scores).map(k => {
-      const p = scoreParts(scores[k])
-      if (p.value === null) return null
-      const value = k === 'freshness' && Object.hasOwn(T.panel.freshness, p.value) ? T.panel.freshness[p.value] : p.value
-      return html`<span key=${k} class="lib-score st-t-small" data-score=${k} data-value=${String(p.raw)}>${fmt(T.caught.score, { name: nodeName(k), score: value })}</span>`
-    })}
+/** 「更多」 ▾: a button, and under it a menu of `items` ([{ id, label }]); a choice calls onSelect(id). */
+function MoreMenu({ items, onSelect }) {
+  const button = useRef(null)
+  const [at, setAt] = useState(null)
+  const open = () => {
+    const r = button.current?.getBoundingClientRect()
+    if (r) setAt({ x: Math.max(4, r.right - 200), y: r.bottom + 4 })
+  }
+  return html`<span class="st-act" data-action="more" data-items=${items.map(i => i.id).join(' ')}>
+    <button type="button" class="btn quiet" ref=${button} aria-haspopup="menu" aria-expanded=${String(at !== null)} aria-label=${T.actions.moreLabel} onClick=${open}>
+      ${T.actions.more}<${TIcon} name="down" />
+    </button>
+    ${at ? html`<${Menu} label=${T.actions.moreLabel} x=${at.x} y=${at.y} items=${items}
+      onSelect=${id => { setAt(null); onSelect(id) }}
+      onClose=${({ restoreFocus }) => { setAt(null); if (restoreFocus) button.current?.focus() }} />` : null}
   </span>`
 }
 
-function CaughtRow({ item, current, onSelect }) {
-  return html`<li class=${`lib-row${current ? ' lib-row--current' : ''}`} data-row=${item.url} data-current=${String(current)} data-stopped=${item.stoppedAt ?? ''}>
-    <a href="#" class="lib-row__link" aria-current=${current ? 'true' : undefined} onClick=${e => { e.preventDefault(); onSelect(item.url) }}>
-      <span class="lib-row__title">${item.title}</span>
-      <span class="lib-row__meta st-t-small st-t-sub">${[item.source ?? '', fmt(T.caught.firstSeen, { date: (item.firstSeen ?? '').slice(0, 10) })].join(SEP)}</span>
-      <${ScoreChips} scores=${item.scores} />
-      <span class="lib-row__stopped st-t-small st-t-wait">${stoppedWords(item.stoppedAt)}</span>
-    </a>
-  </li>`
+/** The reading area's paper: 来源 / 主题, the title, 发布 · 收藏, the text. */
+function Paper({ note, resolve, onWiki }) {
+  const e = note.entry ?? {}
+  const where = [e.status === 'authored' ? T.panel.authored : e.source_name ?? '', (e.topics ?? []).join(SEP)].filter(Boolean).join(' / ')
+  const meta = [e.date ? fmt(T.reader.published, { date: e.date }) : null, e.kept ? fmt(T.reader.kept, { date: e.kept }) : null].filter(Boolean)
+  return html`<article class="reader-paper" data-reader=${e.id}>
+    <span class="eyebrow" data-part="reader-source">${where}</span>
+    <h2 class="reader-title">${e.title}</h2>
+    ${meta.length ? html`<div class="reader-meta" data-part="reader-meta">${meta.join(SEP)}</div>` : null}
+    <div class="readable md" data-part="body">${renderMarkdown(note.body ?? '', { resolve, onWiki, missingTitle: T.reader.missingLink })}</div>
+  </article>`
 }
 
-function PendingRow({ item }) {
-  const codes = Array.isArray(item.codes) ? item.codes : []
-  return html`<li class="lib-row lib-row--static" data-row=${item.file}>
-    <span class="lib-row__title">${item.file}</span>
-    <span class="lib-row__meta st-t-small st-t-wait">${codes.map(pendingWords).join(SEP)}</span>
-  </li>`
+/** 详情 of the note being read: 入选理由, 核验 (the folded record), 文件, 反向链接, 同来源内容 — what the reading area does not show. */
+function NoteDetail({ note, onSelect }) {
+  const e = note.entry ?? {}
+  const P = T.panel
+  const scores = e.scores ?? {}
+  const reasons = note.scores ?? {}
+  const ids = scoreKeys({ ...scores, ...reasons })
+  const backlinks = Array.isArray(note.backlinks) ? note.backlinks : []
+  const same = Array.isArray(note.sameSource) ? note.sameSource : []
+  const pad = n => String(n).padStart(2, '0')
+  const value = (k, p) => (k === 'freshness' && Object.hasOwn(P.freshness, p.value ?? '') ? P.freshness[p.value] : p.value ?? '')
+  return html`<${DetailBlock} where=${PANEL.detail.where.library} title=${e.title} part="detail-library">
+    <div class="st-rp-detail" data-part="note-panel" data-id=${e.id}>
+      <div class="panel-section" data-part="detail-reasons">
+        <div class="section-label"><span>${P.reasons}</span></div>
+        ${ids.length ? html`<dl class="decision-points">${ids.map((k, i) => {
+          const p = scoreParts(reasons[k] ?? scores[k])
+          if (!p.reason) p.reason = scoreParts(scores[k]).reason
+          return html`<div key=${k} data-detail-score=${k} data-value=${String(p.raw ?? '')}><dt><span class="point-index">${pad(i + 1)}</span>${fmt(P.score, { name: nodeName(k), score: value(k, p) })}</dt><dd>${p.reason}</dd></div>`
+        })}</dl>` : html`<p class="limit-note">${P.reasonsNone}</p>`}
+      </div>
+      ${e.status === 'kept' && isWeb(e.source) ? html`<div class="panel-section" data-part="detail-check">
+        <div class="section-label"><span>${P.check}</span></div>
+        <${VerdictFold} url=${e.source} />
+      </div>` : null}
+      <div class="panel-section" data-part="detail-file">
+        <div class="section-label"><span>${P.file}</span></div>
+        <p class="limit-note st-path" data-path=${note.path ?? note.file ?? ''}>${note.path ?? note.file ?? ''}</p>
+      </div>
+      <div class="panel-section" data-part="backlinks">
+        <div class="section-label"><span>${P.backlinks}</span></div>
+        ${backlinks.length ? backlinks.map(b => html`<button type="button" key=${b.id} class="file-row" data-link=${b.id} onClick=${() => onSelect(b.id)}>
+          <span class="file-icon"><${TIcon} name="note" fallback="file" /></span><span class="file-text">${b.title}</span><${TIcon} name="arrow" /></button>`)
+          : html`<p class="limit-note">${P.backlinksNone}</p>`}
+      </div>
+      <div class="panel-section" data-part="same-source">
+        <div class="section-label"><span>${P.sameSource}</span></div>
+        ${same.length ? same.map(b => html`<button type="button" key=${b.id} class="file-row" data-link=${b.id} onClick=${() => onSelect(b.id)}>
+          <span class="file-icon"><${TIcon} name="file" /></span><span class="file-text">${b.title}<small>${[b.date ?? '', e.source_name ?? ''].filter(Boolean).join(SEP)}</small></span><${TIcon} name="arrow" /></button>`)
+          : html`<p class="limit-note">${P.sameSourceNone}</p>`}
+      </div>
+    </div>
+  <//>`
 }
 
 /** The text box's first text for a file: its proposed header, the date marked when it was taken from the file's mtime. */
@@ -143,48 +179,60 @@ function proposedText(item) {
   return headerText(item.proposedHeader, { comments: dated ? { date: T.pending.dateComment } : {} })
 }
 
-function TidyCard({ item, busy, onApply, onSkip }) {
+/** One file without a header (the template's confirmation card): its path, the suggested header, 写入 · 跳过. */
+function HeaderCard({ item, busy, onApply, onSkip }) {
+  const P = T.pending
   const initial = useMemo(() => (item.proposedHeader ? proposedText(item) : ''), [item.file, item.bodyHash, JSON.stringify(item.proposedHeader ?? null)])
   const [text, setText] = useState(initial)
   const [error, setError] = useState(null)
   const [writing, setWriting] = useState(false)
   useEffect(() => { setText(initial); setError(null) }, [initial])
   const codes = Array.isArray(item.codes) ? item.codes : []
-  const id = `tidy-${item.file.replace(/[^A-Za-z0-9_-]/g, c => c.charCodeAt(0).toString(16))}`
+  const id = `hdr-${item.file.replace(/[^A-Za-z0-9_-]/g, c => c.charCodeAt(0).toString(16))}`
   const proposable = Boolean(item.proposedHeader) && item.nameOk !== false
+  const folder = typeof item.path === 'string' && item.path.length > item.file.length ? item.path.slice(0, item.path.length - item.file.length) : ''
   const write = async () => {
     setError(null)
     let header = null
     if (text !== initial) {
       const r = parseHeaderText(text)
-      if (!r.ok) { setError(fmt(T.pending.parseFailed, { line: r.line })); return }
+      if (!r.ok) { setError(fmt(P.parseFailed, { line: r.line })); return }
       header = r.header
     }
     setWriting(true)
-    try { await onApply(item.file, header) } catch (err) { setError(err?.code === 'bad_arguments' ? T.pending.failed : T.pending.failedOther) } finally { setWriting(false) }
+    try { await onApply(item.file, header) } catch (err) { setError(err?.code === 'bad_arguments' ? P.failed : P.failedOther) } finally { setWriting(false) }
   }
   let why = null
-  if (item.nameOk === false) why = fmt(T.pending.badName, { name: item.file.replace(/\.md$/i, '') })
-  else if (!item.proposedHeader) why = fmt(T.pending.notProposable, { problems: codes.map(pendingWords).join(SEP) })
-  return html`<article class="lib-card" data-card=${item.file} data-name-ok=${String(item.nameOk !== false)} data-proposable=${String(proposable)} aria-labelledby=${`${id}-file`}>
-    <div class="lib-card__head">
-      <h3 class="lib-card__file" id=${`${id}-file`}>${item.file}</h3>
-      <span class="st-t-small st-t-wait">${codes.map(pendingWords).join(SEP)}</span>
+  if (item.nameOk === false) why = fmt(P.badName, { name: item.file.replace(/\.md$/i, '') })
+  else if (!item.proposedHeader) why = fmt(P.notProposable, { problems: codes.map(pendingWords).join(SEP) })
+  return html`<article class="confirmation" data-card=${item.file} data-name-ok=${String(item.nameOk !== false)} data-proposable=${String(proposable)} aria-labelledby=${`${id}-file`}>
+    <div class="confirm-top">
+      <div class="confirm-title"><${TIcon} name="file" />
+        <div><h2 id=${`${id}-file`}>${item.file}</h2><small data-part="card-codes">${[folder, codes.map(pendingWords).join(SEP)].filter(Boolean).join(SEP)}</small></div>
+      </div>
+      <span class="confirm-number">${P.notYet}</span>
     </div>
-    ${why ? html`<p class="lib-card__why st-t-small" data-card-why>${why}</p>` : html`
-      <label class="st-t-small st-t-sub" for=${`${id}-header`}>${T.pending.headerLabel}</label>
-      <textarea id=${`${id}-header`} class="lib-card__header" data-field="header" rows=${Math.max(4, text.split('\n').length + 1)} spellcheck=${false}
-        value=${text} onInput=${e => setText(e.currentTarget.value)}></textarea>`}
-    ${error ? html`<p class="lib-error st-t-small" role="alert" data-card-error>${error}</p>` : null}
-    <div class="lib-card__actions">
-      ${proposable ? html`<${Act} name="apply" variant="primary" disabled=${busy || writing} onClick=${write}>${writing ? T.pending.applying : T.pending.apply}<//>` : null}
-      <${Act} name="skip" disabled=${writing} onClick=${() => onSkip(item.file)}>${T.pending.skip}<//>
+    <div class="card-body">
+      ${why ? html`<p class="intro-copy" data-card-why>${why}</p>` : html`<label class="field"><span>${P.headerLabel}</span>
+        <textarea id=${`${id}-header`} data-field="header" rows=${Math.max(5, text.split('\n').length + 1)} spellcheck=${false}
+          value=${text} onInput=${e => setText(e.currentTarget.value)}></textarea></label>`}
+      ${error ? html`<p class="progress-alert" role="alert" data-card-error>${error}</p>` : null}
+    </div>
+    <div class="confirm-footer">
+      <span class="muted">${P.footNote}</span>
+      <div class="row">
+        <span class="st-act" data-action="skip"><button type="button" class="btn quiet" disabled=${writing} onClick=${() => onSkip(item.file)}>${P.skip}</button></span>
+        ${proposable ? html`<span class="st-act" data-action="apply"><button type="button" class="btn primary" disabled=${busy || writing} onClick=${write}><${TIcon} name="approve" fallback="check" />${writing ? P.applying : P.apply}</button></span>` : null}
+      </div>
     </div>
   </article>`
 }
 
-/** 待规范 (S8): the cards, 「全部按拟的写入」, what was written, what was skipped, the sub folders not read. */
-function TidyCards({ items, skippedDirs }) {
+/** 缺少文件头 (P12): back, the head with 全部写入, what this is, a card per file; what was written, what was skipped. */
+function MissingHeaders({ data, status, onBack }) {
+  const P = T.pending
+  const items = Array.isArray(data?.items) ? data.items : []
+  const skippedDirs = Array.isArray(data?.skippedDirs) ? data.skippedDirs : []
   const [skipped, setSkipped] = useState([])
   const [showSkipped, setShowSkipped] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -204,189 +252,77 @@ function TidyCards({ items, skippedDirs }) {
     setDone(null)
     setAllResult(null)
     setAllError(null)
-    try { setAllResult(await call('applyAllHeaders')) } catch { setAllError(T.pending.failedOther) } finally { setBusy(false) }
+    try { setAllResult(await call('applyAllHeaders')) } catch { setAllError(P.failedOther) } finally { setBusy(false) }
   }
-  return html`<section class="lib-tidy" data-part="tidy" aria-labelledby="lib-tidy-title">
-    <div class="lib-tidy__head">
-      <h2 class="st-t-heading" id="lib-tidy-title">${items.length ? fmt(T.pending.heading, { n: items.length }) : T.empty.pending}</h2>
-      ${items.length ? html`<${Act} name="apply-all" disabled=${busy || proposable.length === 0} onClick=${applyAll}>${busy ? T.pending.applyingAll : T.pending.applyAll}<//>` : null}
+  return html`<div class="st-main__body thread-scroll lib-missing" data-part="missing-header" data-count=${items.length}>
+    <div class="thread">
+      <div class="after-card"><span class="st-act" data-action="back-to-library"><button type="button" onClick=${onBack}><${TIcon} name="back" /> ${P.back}</button></span></div>
+      <div class="section-label">
+        <span><b id="library-title">${items.length ? fmt(P.heading, { n: items.length }) : P.none}</b></span>
+        ${items.length ? html`<span class="st-act" data-action="apply-all"><button type="button" disabled=${busy || proposable.length === 0} onClick=${applyAll}>${busy ? P.applyingAll : P.applyAll}</button></span>` : null}
+      </div>
+      <p class="intro-copy">${P.note}</p>
+      ${status === 'error' && !data ? html`<div class="progress-alert" role="alert">${T.loadFailed}</div>` : null}
+      ${skippedDirs.length ? html`<p class="limit-note" data-part="skipped-dirs" data-dirs=${skippedDirs.join('\n')}>${fmt(P.subfolders, { dirs: skippedDirs.join(SEP) })}</p>` : null}
+      ${done ? html`<div class="progress-alert" role="status" data-part="written" data-file=${done.file}>${fmt(P.written, { file: done.file, view: done.view })}</div>` : null}
+      ${allResult ? html`<div class="progress-alert" role="status" data-part="apply-all-result" data-written=${allResult.written.length} data-left=${allResult.skipped.length}>
+        ${fmt(P.allWritten, { n: allResult.written.length })}${allResult.skipped.length ? ` ${fmt(P.allLeft, { n: allResult.skipped.length, files: allResult.skipped.map(x => x.file).join(SEP) })}` : ''}
+      </div>` : null}
+      ${allError ? html`<div class="progress-alert" role="alert">${allError}</div>` : null}
+      ${data && !items.length ? html`<div class="empty-state" data-part="missing-none"><${TIcon} name="check" /><b>${P.none}</b></div>` : null}
+      <div class="st-stack">${shown.map(it => html`<${HeaderCard} key=${it.file} item=${it} busy=${busy} onApply=${apply} onSkip=${f => setSkipped(list => (list.includes(f) ? list : [...list, f]))} />`)}</div>
+      ${skippedHere && !showSkipped ? html`<p class="limit-note" data-part="skipped-line" data-count=${skippedHere}>${fmt(P.skippedLine, { n: skippedHere })}
+        <span class="st-act" data-action="show-skipped"><button type="button" class="btn quiet" onClick=${() => setShowSkipped(true)}>${P.showSkipped}</button></span></p>` : null}
     </div>
-    <p class="st-t-small st-t-sub">${T.pending.note}</p>
-    ${skippedDirs.length ? html`<p class="lib-tidy__dirs st-t-small" data-part="skipped-dirs" data-dirs=${skippedDirs.join('\n')}>${fmt(T.pending.subfolders, { dirs: skippedDirs.join(SEP) })}</p>` : null}
-    ${done ? html`<p class="st-t-small st-t-done" role="status" data-part="written" data-file=${done.file}>${fmt(T.pending.written, { file: done.file, view: done.view })}</p>` : null}
-    ${allResult ? html`<p class="st-t-small" role="status" data-part="apply-all-result" data-written=${allResult.written.length} data-left=${allResult.skipped.length}>
-      <span class="st-t-done">${fmt(T.pending.allWritten, { n: allResult.written.length })}</span>
-      ${allResult.skipped.length ? html` <span class="st-t-wait">${fmt(T.pending.allLeft, { n: allResult.skipped.length, files: allResult.skipped.map(x => x.file).join(SEP) })}</span>` : null}
-    </p>` : null}
-    ${allError ? html`<p class="lib-error st-t-small" role="alert">${allError}</p>` : null}
-    ${shown.map(it => html`<${TidyCard} key=${it.file} item=${it} busy=${busy} onApply=${apply} onSkip=${f => setSkipped(list => (list.includes(f) ? list : [...list, f]))} />`)}
-    ${skippedHere && !showSkipped ? html`<p class="st-t-small st-t-sub" data-part="skipped-line" data-count=${skippedHere}>${fmt(T.pending.skippedLine, { n: skippedHere })}
-      <${LinkButton} onClick=${() => setShowSkipped(true)}>${T.pending.showSkipped}<//></p>` : null}
-  </section>`
-}
-
-function Reader({ note, resolve, onWiki, keptNow }) {
-  const e = note.entry ?? {}
-  const meta = [
-    e.source ? fmt(T.reader.source, { source: e.source }) : null,
-    e.date ? fmt(T.reader.date, { date: e.date }) : null,
-    e.kept ? fmt(T.reader.kept, { date: e.kept }) : null,
-  ].filter(Boolean)
-  return html`<article class="lib-reader__note" data-reader=${e.id}>
-    <div class="lib-reader__status" data-kept-now=${String(keptNow === true)}>
-      <${Tag} tone=${e.status === 'authored' ? 'recommend' : 'done'}>${keptNow ? T.reader.keptNow : NOTE_STATUS[e.status] ?? e.status ?? ''}<//>
-    </div>
-    <h2 class="lib-reader__title st-t-heading">${e.title}</h2>
-    <div class="lib-reader__meta st-t-small st-t-sub">${meta.join(SEP)}</div>
-    <div class="lib-reader__body md" data-part="body">${renderMarkdown(note.body ?? '', { resolve, onWiki, missingTitle: T.reader.missingLink })}</div>
-  </article>`
-}
-
-/** A caught item waits in 待看 (the core's stoppedAt 'inbox'): only such an item can be kept (the core's keep). */
-const inInbox = item => item?.stoppedAt === 'inbox' || item?.stage === 'inbox'
-
-function CaughtReader({ item, card, onVerdicts }) {
-  const summary = card?.summary ?? null
-  const points = Array.isArray(summary?.points) ? summary.points.filter(p => typeof p === 'string' && p) : []
-  return html`<article class="lib-reader__note" data-reader=${item.url}>
-    <div class="lib-reader__status"><${Tag} tone="wait">${inInbox(item) ? fmt(T.caught.inInbox, { caught: T.views.caught }) : T.views.caught}<//></div>
-    <h2 class="lib-reader__title st-t-heading">${item.title}</h2>
-    <div class="lib-reader__meta st-t-small st-t-sub">${[fmt(T.caught.source, { source: item.source ?? '', date: item.date ?? '' }), fmt(T.caught.firstSeen, { date: (item.firstSeen ?? '').slice(0, 10) })].join(SEP)}</div>
-    ${summary?.what ? html`<p class="lib-reader__what" data-part="summary"><b>${T.reader.what}</b>${summary.what}</p>` : null}
-    ${points.length ? html`<ul class="lib-reader__points">${points.map((p, i) => html`<li key=${i}>${p}</li>`)}</ul>` : null}
-    ${inInbox(item) ? null : html`<p class="st-t-small st-t-wait" data-part="keep-only-inbox">${T.actions.keepOnlyInbox}</p>`}
-    <dl class="lib-kv">
-      ${scoreKeys(item.scores).map(k => {
-        const p = scoreParts(item.scores[k])
-        const value = k === 'freshness' && Object.hasOwn(T.panel.freshness, p.value) ? T.panel.freshness[p.value] : p.value
-        return html`<div key=${k} class="lib-kv__row" data-score=${k}><dt>${nodeName(k)}</dt><dd>${p.reason ? fmt(T.panel.score, { score: value ?? '', reason: p.reason }) : value ?? ''}</dd></div>`
-      })}
-      <div class="lib-kv__row" data-stopped=${item.stoppedAt ?? ''}><dt>${T.panel.status}</dt><dd class="st-t-wait">${stoppedWords(item.stoppedAt)}</dd></div>
-    </dl>
-    <p class="st-t-small st-t-sub">${T.caught.note}</p>
-    <div><${Act} name="caught-verdicts" onClick=${onVerdicts}>${T.panel.verdicts}<//></div>
-  </article>`
-}
-
-function NotePanel({ note, onSelect, onVerdicts }) {
-  if (!note) return html`<div class="lib-panel" data-part="note-panel"><p class="st-t-small st-t-muted">${T.panel.none}</p></div>`
-  const e = note.entry ?? {}
-  const scores = e.scores ?? {}
-  const reasons = note.scores ?? note.meta?.scores ?? {}
-  const backlinks = Array.isArray(note.backlinks) ? note.backlinks : []
-  const same = Array.isArray(note.sameSource) ? note.sameSource : []
-  return html`<div class="lib-panel" data-part="note-panel" data-id=${e.id}>
-    <section class="lib-panel__block" aria-labelledby="lib-panel-title">
-      <h2 class="st-t-small st-t-sub st-t-strong" id="lib-panel-title">${T.panel.title}</h2>
-      <dl class="lib-kv">
-        <div class="lib-kv__row" data-panel-row="topics"><dt>${T.panel.topics}</dt><dd>${(e.topics ?? []).join(SEP)}</dd></div>
-        <div class="lib-kv__row" data-panel-row="source"><dt>${T.panel.source}</dt><dd>${e.source_name ?? e.source ?? ''}</dd></div>
-        ${scoreKeys(scores).map(k => {
-          const p = scoreParts(reasons[k] ?? scores[k])
-          if (!p.reason) p.reason = scoreParts(scores[k]).reason
-          const value = k === 'freshness' && Object.hasOwn(T.panel.freshness, p.value) ? T.panel.freshness[p.value] : p.value
-          return html`<div key=${k} class="lib-kv__row" data-panel-row=${k}><dt>${nodeName(k)}</dt><dd>${p.reason ? fmt(T.panel.score, { score: value ?? '', reason: p.reason }) : value ?? ''}</dd></div>`
-        })}
-        <div class="lib-kv__row" data-panel-row="file"><dt>${T.panel.file}</dt><dd class="lib-kv__file">${note.file ?? ''}</dd></div>
-      </dl>
-      ${e.status === 'kept' && isWeb(e.source) ? html`<div><${Act} name="verdicts" onClick=${onVerdicts}>${T.panel.verdicts}<//></div>` : null}
-    </section>
-    <section class="lib-panel__block" data-part="backlinks" aria-labelledby="lib-backlinks">
-      <h2 class="st-t-small st-t-sub st-t-strong" id="lib-backlinks">${T.panel.backlinks}</h2>
-      ${backlinks.length ? html`<ul class="lib-panel__list">${backlinks.map(b => html`<li key=${b.id} data-link=${b.id}><${LinkButton} onClick=${() => onSelect(b.id)}>${b.title}<//></li>`)}</ul>`
-        : html`<p class="st-t-small st-t-muted">${T.panel.backlinksNone}</p>`}
-    </section>
-    <section class="lib-panel__block" data-part="same-source" aria-labelledby="lib-same">
-      <h2 class="st-t-small st-t-sub st-t-strong" id="lib-same">${T.panel.sameSource}</h2>
-      ${same.length ? html`<ul class="lib-panel__list">${same.map(b => html`<li key=${b.id} data-link=${b.id}><${LinkButton} onClick=${() => onSelect(b.id)}>${fmt(T.panel.sameSourceLine, { title: b.title, date: b.date ?? '' })}<//></li>`)}</ul>`
-        : html`<p class="st-t-small st-t-muted">${T.panel.sameSourceNone}</p>`}
-    </section>
   </div>`
-}
-
-/** 「更多」: a button, and under it a menu of `items` ([{ id, label }]); a choice calls onSelect(id). */
-function MoreMenu({ items, onSelect }) {
-  const button = useRef(null)
-  const [at, setAt] = useState(null)
-  const open = () => {
-    const r = button.current?.getBoundingClientRect()
-    if (r) setAt({ x: r.left, y: r.bottom + 4 })
-  }
-  return html`<span class="st-act lib-more" data-action="more" data-items=${items.map(i => i.id).join(' ')}>
-    <button type="button" class="st-button" ref=${button} aria-haspopup="menu" aria-expanded=${String(at !== null)} onClick=${open}>
-      ${T.actions.more}<${Icon} name="chevron-down" />
-    </button>
-    ${at ? html`<${Menu} label=${T.actions.moreLabel} x=${at.x} y=${at.y} items=${items}
-      onSelect=${id => { setAt(null); onSelect(id) }}
-      onClose=${({ restoreFocus }) => { setAt(null); if (restoreFocus) button.current?.focus() }} />` : null}
-  </span>`
 }
 
 export function LibraryScreen({ params = {} }) {
   const { navigate } = useApp()
-  // the tab: the one a navigation names; else, once the counts are known, 已收藏 — or 抓到的 when nothing is kept yet
-  // (v2 package H, design UC4 step 1). Until then no tab is current.
-  const [chosenView, setView] = useState(VIEWS.includes(params.view) ? params.view : null)
+  const missing = params.view === 'pending'
+  const [view, setView] = useState(VIEWS.includes(params.view) ? params.view : 'all')
   const [topics, setTopics] = useState([])
   const [days, setDays] = useState(null)
   const [query, setQuery] = useState('')
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState(typeof params.id === 'string' ? params.id : null)
-  const [caughtUrl, setCaughtUrl] = useState(null)
   const [editing, setEditing] = useState(false)
-  const [verdictsFor, setVerdictsFor] = useState(null)
   const [actionError, setActionError] = useState(null)
-  // v2 package H: 「收藏」 from 抓到的 (the core's keep, as 待看's C does); the note it made, marked 「已收藏 · 进了 notes/」
-  const [keeping, setKeeping] = useState(false)
-  const [keptNow, setKeptNow] = useState(null)
   const topicsKey = topics.join('\n')
-  const filter = { topics, days }
 
-  const lib = useLoad(async () => {
-    if (chosenView) return call('getLibrary', chosenView, filter)
-    const first = await call('getLibrary', 'kept', filter)
-    return first?.counts?.kept === 0 ? call('getLibrary', 'caught', filter) : first
-  }, [chosenView, topicsKey, days])
-  // (a reload decides again; only a keep turns 0 kept into 1, and a keep from this page picks 已收藏 itself)
-  const view = chosenView ?? (VIEWS.includes(lib.data?.view) ? lib.data.view : null)
-  // what 待看 holds, for a caught item's summary (getInbox: the same cards as the 待看 tab)
-  const inbox = useLoad(() => (view === 'caught' ? call('getInbox') : null), [view])
-  const searchView = view === 'kept' || view === 'authored' ? view : 'all'
-  const found = useLoad(() => (q ? call('searchLibrary', q, { view: searchView, topics, days }) : null), [q, searchView, topicsKey, days])
-  const note = useLoad(() => (selected ? call('readNote', selected) : null), [selected])
+  const lib = useLoad(() => call('getLibrary', missing ? 'pending' : view, missing ? null : { topics, days }), [missing, view, topicsKey, days])
+  const found = useLoad(() => (q && !missing ? call('searchLibrary', q, { view, topics, days }) : null), [q, view, topicsKey, days, missing])
+  const note = useLoad(() => (selected && !missing ? call('readNote', selected) : null), [selected, missing])
   const sources = useLoad(() => call('getSources'), [])
-  // every note's id and title, to say which note a [[link]] names (a lookup in the index, the core's resolution rule:
-  // an exact id first, then an exact title)
-  const names = useLoad(() => Promise.all([call('getLibrary', 'kept', { topics: [], days: null }), call('getLibrary', 'authored', { topics: [], days: null })]), [])
+  // every file's id and title, to say which note a [[link]] names (the core's rule: an exact id first, then an exact title)
+  const names = useLoad(() => call('getLibrary', 'all', { topics: [], days: null }), [])
   useEvent('library-changed', () => { lib.reload(); found.reload(); note.reload(); names.reload(); sources.reload() })
-  useEvent('inbox-changed', () => { if (view === 'caught') { lib.reload(); inbox.reload() } }, [view])
 
-  // a navigation that names a note (the graph's 「打开」, an answer's source) opens it
-  useEffect(() => { if (typeof params.id === 'string') { setSelected(params.id); setCaughtUrl(null) } }, [params.id])
-  // the debounced search
+  // a navigation that names a note (the graph, an answer's citation, the 文件 tab) opens it
+  useEffect(() => { if (typeof params.id === 'string') setSelected(params.id) }, [params.id])
   useEffect(() => {
     const t = setTimeout(() => setQ(query.trim().slice(0, 200)), SEARCH_DELAY_MS)
     return () => clearTimeout(t)
   }, [query])
 
-  const items = lib.data?.items ?? []
+  const items = missing ? [] : lib.data?.items ?? []
   const counts = lib.data?.counts ?? null
   const results = q ? (Array.isArray(found.data) ? found.data : []) : null
-  // nothing chosen yet: the first note of the list
+  // nothing chosen yet: the first of the list
   useEffect(() => {
-    if (selected || results) return
-    if ((view === 'kept' || view === 'authored') && items.length) setSelected(items[0].id)
-  }, [lib.data, view])
+    if (missing || selected || results) return
+    if (lib.data?.view === view && items.length) setSelected(items[0].id)
+  }, [lib.data, view, missing])
 
   const byName = useMemo(() => {
     const map = new Map()
-    for (const part of names.data ?? []) for (const it of part?.items ?? []) { if (!map.has(it.id)) map.set(it.id, it.id) }
-    for (const part of names.data ?? []) for (const it of part?.items ?? []) { if (typeof it.title === 'string' && !map.has(it.title)) map.set(it.title, it.id) }
+    for (const it of names.data?.items ?? []) if (!map.has(it.id)) map.set(it.id, it.id)
+    for (const it of names.data?.items ?? []) if (typeof it.title === 'string' && !map.has(it.title)) map.set(it.title, it.id)
     return map
   }, [names.data])
   const resolve = target => byName.get(target) ?? null
 
-  const choose = id => { setSelected(id); setCaughtUrl(null); setActionError(null) }
+  const choose = id => { setSelected(id); setActionError(null) }
   const toggleTopic = t => setTopics(list => (list.includes(t) ? list.filter(x => x !== t) : [...list, t]))
   const toggleDays = () => setDays(d => (d === RECENT_DAYS ? null : RECENT_DAYS))
   const doCall = async (name, ...args) => {
@@ -395,105 +331,88 @@ export function LibraryScreen({ params = {} }) {
   }
   const topicNames = (sources.data?.topics ?? []).map(t => t.name).filter(n => typeof n === 'string')
 
+  if (missing) {
+    return html`<${LibraryFrame} tab="library" state=${lib.data ? 'ready' : lib.status} labelledby="library-title">
+      <${MissingHeaders} data=${lib.data?.view === 'pending' ? lib.data : null} status=${lib.status} onBack=${() => navigate('library')} />
+    <//>`
+  }
+
   const n = note.data
   const entry = n?.entry ?? null
-  // what the reader and the panel show: a note (a search, 已收藏, 我写的), a caught item, or the files to tidy
-  const mode = results ? 'note' : view === 'caught' ? 'caught' : view === 'pending' ? 'pending' : 'note'
-  const caughtItem = mode === 'caught' && caughtUrl ? items.find(i => i.url === caughtUrl) ?? null : null
-  const showNote = mode === 'note'
+  const reading = entry && selected && entry.id === selected ? entry : null
 
   let list
   if (results) {
-    list = found.status === 'loading' && !found.data ? html`<p class="lib-list__note st-t-small st-t-muted">${T.searching}</p>`
-      : results.length ? html`<ul class="lib-list__rows">${results.map(r => html`<${NoteRow} key=${r.id} item=${r} current=${r.id === selected && !caughtItem} onSelect=${choose} />`)}</ul>`
-        : html`<p class="lib-list__note st-t-small st-t-muted" data-part="search-none">${T.searchNone}</p>`
+    list = found.status === 'loading' && !found.data ? html`<p class="limit-note">${T.searching}</p>`
+      : results.length ? results.map(r => html`<${Row} key=${r.id} item=${r} current=${r.id === selected} onSelect=${choose} />`)
+        : html`<p class="limit-note" data-part="search-none">${T.searchNone}</p>`
   } else if (lib.status === 'error' && !lib.data) {
-    list = html`<div class="lib-error" role="alert">${lib.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}<${LinkButton} onClick=${() => lib.reload()}>${ERRORS.retry}<//></div>`
+    list = html`<div class="progress-alert" role="alert">${lib.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed} <button type="button" class="btn quiet" onClick=${() => lib.reload()}>${ERRORS.retry}</button></div>`
   } else if (lib.data && !items.length) {
-    list = html`<p class="lib-list__note st-t-small st-t-muted" data-part="empty">${topics.length || days ? T.filteredEmpty : T.empty[view]}</p>`
-  } else if (view === 'caught') {
-    list = html`<ul class="lib-list__rows">${items.map(it => html`<${CaughtRow} key=${it.url} item=${it} current=${it.url === caughtUrl} onSelect=${url => { setCaughtUrl(url); setActionError(null) }} />`)}</ul>`
-  } else if (view === 'pending') {
-    list = html`<ul class="lib-list__rows">${items.map(it => html`<${PendingRow} key=${it.file} item=${it} />`)}</ul>`
+    list = html`<div class="empty-state" data-part="empty"><${TIcon} name="file" /><b>${topics.length || days ? T.filteredEmpty : T.empty[view]}</b></div>`
   } else {
-    list = html`<ul class="lib-list__rows">${items.map(it => html`<${NoteRow} key=${it.id} item=${it} current=${it.id === selected} onSelect=${choose} />`)}</ul>`
+    list = items.map(it => html`<${Row} key=${it.id} item=${it} current=${it.id === selected} onSelect=${choose} />`)
   }
 
-  let reader
-  const card = caughtItem ? (inbox.data?.items ?? []).find(c => c.url === caughtItem.url) ?? null : null
-  if (caughtItem) reader = html`<${CaughtReader} item=${caughtItem} card=${card} onVerdicts=${() => setVerdictsFor({ url: caughtItem.url, title: caughtItem.title })} />`
-  else if (mode === 'caught') reader = html`<p class="st-t-small st-t-muted" data-part="pick-one">${T.reader.none}</p>`
-  // lib.data must be the pending view's own answer, not the list of the tab before (still shown while this one loads)
-  else if (mode === 'pending') reader = lib.data?.view === 'pending' && (items.length || lib.data.skippedDirs?.length) ? html`<${TidyCards} items=${items} skippedDirs=${Array.isArray(lib.data.skippedDirs) ? lib.data.skippedDirs : []} />`
-    : html`<p class="st-t-small st-t-muted">${T.pending.note}</p>`
-  else if (n && selected) reader = html`<${Reader} note=${n} resolve=${resolve} onWiki=${choose} keptNow=${keptNow !== null && n.entry?.id === keptNow} />`
-  else if (note.status === 'error') reader = html`<p class="lib-error" role="alert">${T.reader.loadFailed}</p>`
-  else reader = html`<p class="st-t-small st-t-muted" data-part="pick-one">${T.reader.none}</p>`
+  let paper
+  if (n && reading) paper = html`<${Paper} note=${n} resolve=${resolve} onWiki=${choose} />`
+  else if (note.status === 'error' && selected) paper = html`<p class="progress-alert" role="alert">${T.reader.loadFailed}</p>`
+  else paper = html`<div class="empty-state" data-part="pick-one"><${TIcon} name="file" /><b>${T.reader.none}</b></div>`
 
-  // the head's buttons (v2 package H, design P5 / UC4): only for the item being read. A note (a file in the library): 编辑,
-  // 打开原文 (a web source), 更多 = 用 Obsidian 打开 · 在资源管理器中显示 · 在浏览器里打开. A caught item (no file yet): 收藏 (only
-  // what waits in 待看; the core's keep, through writeNoteFile), 打开原文, 更多 = 在浏览器里打开 — no Obsidian, no file manager
-  const openSource = url => doCall('openReader', url, 'reader')
-  const keepCaught = async item => {
-    setKeeping(true)
-    setActionError(null)
-    try {
-      const r = await call('keepItem', item.url)
-      setKeptNow(r.id)
-      setCaughtUrl(null)
-      setSelected(r.id)
-      setView('kept')
-    } catch { setActionError(T.actions.failed) } finally { setKeeping(false) }
-  }
-  const noteTarget = showNote && entry && selected && entry.id === selected ? entry : null
   let actions = null
-  if (noteTarget) {
-    const e = noteTarget
+  if (reading) {
+    const e = reading
     const more = [{ id: 'obsidian', label: T.actions.obsidian }, { id: 'folder', label: T.actions.folder }, ...(isWeb(e.source) ? [{ id: 'browser', label: T.actions.browser }] : [])]
     const pick = id => {
       if (id === 'obsidian') doCall('openInObsidian', e.id)
       else if (id === 'folder') doCall('showNoteInFolder', e.id)
       else if (id === 'browser') doCall('openReader', e.source, 'browser')
     }
-    actions = html`<div class="lib-actions" data-part="item-actions" data-for="note" data-id=${e.id}>
-      <${Act} name="edit" onClick=${() => setEditing(true)}>${T.actions.edit}<//>
-      ${isWeb(e.source) ? html`<${Act} name="source" icon="external" onClick=${() => openSource(e.source)}>${T.actions.source}<//>` : null}
+    actions = html`<div class="reader-header" data-part="item-actions" data-id=${e.id}>
+      <span class="status-chip" data-part="mark" data-status=${e.status ?? ''}>${statusWords(e.status)}</span>
+      <span class="spacer"></span>
+      <span class="st-act" data-action="edit"><button type="button" class="btn quiet" onClick=${() => setEditing(true)}>${T.actions.edit}</button></span>
+      ${isWeb(e.source) ? html`<span class="st-act" data-action="source"><button type="button" class="btn quiet" onClick=${() => doCall('openReader', e.source, 'reader')}><${TIcon} name="external" /> ${T.actions.source}</button></span>` : null}
       <${MoreMenu} items=${more} onSelect=${pick} />
     </div>`
-  } else if (caughtItem) {
-    const it = caughtItem
-    actions = html`<div class="lib-actions" data-part="item-actions" data-for="caught" data-url=${it.url}>
-      <${Act} name="keep" variant="primary" disabled=${keeping || !inInbox(it)} onClick=${() => keepCaught(it)}>${keeping ? T.actions.keeping : T.actions.keep}<//>
-      ${isWeb(it.url) ? html`<${Act} name="source" icon="external" onClick=${() => openSource(it.url)}>${T.actions.source}<//>` : null}
-      ${isWeb(it.url) ? html`<${MoreMenu} items=${[{ id: 'browser', label: T.actions.browser }]} onSelect=${() => doCall('openReader', it.url, 'browser')} />` : null}
-    </div>`
   }
-  // v2 package L: the old third column, in the right panel's 详情 (the note being read: its title on top)
-  const panelBody = showNote ? html`<${NotePanel} note=${n} onSelect=${choose} onVerdicts=${() => setVerdictsFor({ url: entry.source, title: entry.title })} />` : html`<div class="lib-panel" data-part="note-panel"><p class="st-t-small st-t-muted">${T.panel.none}</p></div>`
-  const detail = html`<${DetailBlock} where=${PANEL.detail.where.library} title=${showNote && entry && selected && entry.id === selected ? entry.title : null} part="detail-library">${panelBody}<//>`
+
+  const detail = n && reading ? html`<${NoteDetail} note=${n} onSelect=${choose} />`
+    : html`<div class="panel-summary"><span class="eyebrow">${PANEL.tabs.detail}</span><p class="st-rp-none" data-part="detail-none">${T.panel.none}</p></div>`
   const state = lib.data ? 'ready' : lib.status
-  return html`<${LibraryFrame} tab="library" state=${state} labelledby="library-title" detail=${detail} actions=${actions}>
-      <${TopBar} title=${T.title} titleTag="h2" titleId="library-title"
-        subtitle=${showNote && entry ? NOTE_STATUS[entry.status] ?? '' : caughtItem ? T.views.caught : null}
-        actions=${html`<${ViewSwitch} current="list" onSelect=${v => { if (v === 'graph') navigate('graph') }} />`} />
-      <div class="st-main__body lib-body">
-        <section class="lib-list" data-part="list" aria-label=${T.views[view]}>
-          <div class="lib-list__head">
-            <input type="search" class="lib-search" data-field="search" aria-label=${T.searchLabel} placeholder=${T.searchPlaceholder} maxlength="200"
-              value=${query} onInput=${e => setQuery(e.currentTarget.value)} />
-            <${ViewTabs} view=${view} counts=${counts} onSelect=${id => { setView(id); setCaughtUrl(null); setKeptNow(null); setQuery(''); setQ('') }} />
-            <${Filters} topics=${topicNames} chosen=${topics} days=${days} onTopic=${toggleTopic} onDays=${toggleDays} />
-            ${results ? html`<div class="st-t-small st-t-sub" data-part="search-count" data-count=${results.length}>${fmt(T.searchCount, { n: results.length })}</div>` : null}
-          </div>
-          <div class="lib-list__body">${list}</div>
-        </section>
-        <section class="lib-reader" data-part="reader" aria-label=${T.reader.label}>
-          ${actionError ? html`<p class="lib-error" role="alert">${actionError}</p>` : null}
-          ${reader}
-        </section>
-      </div>
+  return html`<${LibraryFrame} tab="library" state=${state} labelledby="library-title" detail=${detail}>
+    <div class="st-split lib-split">
+      <section class="st-list st-main__body" data-part="list" aria-labelledby="library-title">
+        <div class="section-label st-lib-head">
+          <span><b id="library-title">${T.title}</b></span>
+          <${ViewSwitch} current="list" onSelect=${v => { if (v === 'graph') navigate('graph') }} />
+        </div>
+        <label class="search-field"><${TIcon} name="search" /><input type="search" data-field="search" aria-label=${T.searchLabel} placeholder=${T.searchPlaceholder} maxlength="200"
+          value=${query} onInput=${e => setQuery(e.currentTarget.value)} /></label>
+        <div class="filters" role="group" aria-label=${T.viewsLabel}>
+          ${VIEWS.map(id => html`<button key=${id} type="button" class=${`filter${id === view ? ' active' : ''}`} data-view=${id} data-count=${counts?.[id] ?? ''}
+            aria-current=${id === view ? 'true' : undefined} onClick=${() => { if (id !== view) { setView(id); setSelected(null); setQuery(''); setQ('') } }}>${fmt(T.viewCount, { name: T.views[id], n: counts?.[id] ?? '' })}</button>`)}
+        </div>
+        <div class="filters" role="group" aria-label=${T.filtersLabel}>
+          ${topicNames.map(t => html`<button key=${t} type="button" class=${`filter${topics.includes(t) ? ' active' : ''}`} data-filter-topic=${t} aria-pressed=${String(topics.includes(t))} onClick=${() => toggleTopic(t)}>${t}</button>`)}
+          <button type="button" class=${`filter${days === RECENT_DAYS ? ' active' : ''}`} data-filter-days=${RECENT_DAYS} aria-pressed=${String(days === RECENT_DAYS)} onClick=${toggleDays}>${T.recent}</button>
+        </div>
+        ${(counts?.pending ?? 0) > 0 ? html`<div class="progress-alert st-lib-hint" data-part="missing-header-hint" data-count=${counts.pending}>
+          <span>${fmt(T.pending.hint, { n: counts.pending })}</span>
+          <span class="st-act" data-action="go-missing-header"><button type="button" class="btn quiet" onClick=${() => navigate('library', { view: 'pending' })}>${T.pending.go}</button></span>
+        </div>` : null}
+        ${results ? html`<p class="limit-note" data-part="search-count" data-count=${results.length}>${fmt(T.searchCount, { n: results.length })}</p>` : null}
+        ${list}
+      </section>
+      <section class="reader" data-part="reader" aria-label=${T.reader.label}>
+        ${actions}
+        <div class="reader-scroll">
+          ${actionError ? html`<p class="progress-alert" role="alert">${actionError}</p>` : null}
+          ${paper}
+        </div>
+      </section>
+    </div>
     ${editing && n ? html`<${EditDialog} note=${n} topics=${topicNames} onClose=${() => setEditing(false)}
       onSaved=${() => { setEditing(false); note.reload(); lib.reload(); names.reload() }} />` : null}
-    ${verdictsFor ? html`<${VerdictDialog} url=${verdictsFor.url} title=${verdictsFor.title} onClose=${() => setVerdictsFor(null)} />` : null}
   <//>`
 }

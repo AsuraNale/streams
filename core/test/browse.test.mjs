@@ -35,7 +35,8 @@ test('libraryCounts: kept / authored from the index, caught = ledger states not 
   appendEvent(dir, { ev: 'dismissed', url: 'https://u/4', reason: 'no' });
   writeRawNote(dir, 'loose.md', 'no header at all\n');
   // u/1 (seen) and u/2 (inbox) are caught; u/3 kept and u/4 dismissed are not
-  assert.deepEqual(libraryCounts(dir), { kept: 3, authored: 2, caught: 2, pending: 1 });
+  // redesign R3: libraryCounts also says how many files the library has (`all`: 资料库 「全部」)
+  assert.deepEqual(libraryCounts(dir), { kept: 3, authored: 2, caught: 2, pending: 1, all: 5 });
 });
 
 test('listLibrary kept: newest kept first; authored: newest date first; total = items after filters', () => {

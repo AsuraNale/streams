@@ -11,10 +11,11 @@
 //                      date newest first, then id. Without bodyOf the body field is not scored.
 // search(libraryDir, q, { view: 'kept'|'authored'|'all', topics?, days?, limit = 50, now? })
 //   -> [{ id, title, date, source_name, status, topics, score, snippet }]
-//   snippet = at most 80 characters of the body around its first hit (whitespace collapsed); when the
+//   snippet = at most 80 characters of the body around its first hit (whitespace collapsed; redesign R3: of the body's plain
+//   text — each line without its Markdown marks, as summaries are made — so a snippet shows no ** [[ ]] # and the like); when the
 //   body has no hit, the first 80 characters of the index summary. Empty query -> [].
 import { StreamsError } from '../errors.mjs';
-import { readIndex } from './index.mjs';
+import { plainText, readIndex } from './index.mjs';
 import { cmp, entryFilter, noteBodyOf } from './browse.mjs';
 
 export const WEIGHTS = Object.freeze({ title: 3, topics: 2, summary: 1, body: 1 });
@@ -105,6 +106,11 @@ export function snippetOf(body, tokens, fallback = '') {
   return collapse(chars.slice(start, end).join(''));
 }
 
+/** A body as plain text (redesign R3, 资料库's search 「片段不露 Markdown 记号」): each line without its heading marks and plainText's. */
+export function plainBody(body) {
+  return String(body ?? '').split(/\r?\n/).map((line) => plainText(line.trim().replace(/^#{1,6}(?:\s+|$)/, ''))).join('\n');
+}
+
 function collapse(s) {
   return s.replace(/\s+/g, ' ').trim();
 }
@@ -126,6 +132,6 @@ export function search(libraryDir, q, { view = 'all', topics, days, limit = SEAR
     status: entry.status,
     topics: Array.isArray(entry.topics) ? [...entry.topics] : [],
     score,
-    snippet: snippetOf(body, tokens, entry.summary),
+    snippet: snippetOf(plainBody(body), tokens, entry.summary),
   }));
 }

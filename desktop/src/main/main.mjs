@@ -91,6 +91,9 @@ const DEV_LIBRARY_ROOT = !app.isPackaged && typeof process.env.STREAMS_DEV_LIBRA
 // agent's scripted answers, a JSON file (for the page's tests and package G). A packaged app ignores it: its agent talks to the
 // chosen connection
 const DEV_AGENT_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_AGENT_SCRIPT === 'string' && isAbsolute(process.env.STREAMS_DEV_AGENT_SCRIPT) ? process.env.STREAMS_DEV_AGENT_SCRIPT : null
+// redesign R3 (services/connections.mjs), development and tests only: with STREAMS_DEV_CONNECTION=fake, what 问库's prompt is answered
+// (a JSON file: the answer of the core's ask). A packaged app ignores it
+const DEV_ASK_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_ASK_SCRIPT === 'string' && isAbsolute(process.env.STREAMS_DEV_ASK_SCRIPT) ? process.env.STREAMS_DEV_ASK_SCRIPT : null
 // v2 package M (services/quota.mjs; docs/desktop.md §4.11), development and tests only: a JSON file of quotas taken as read at
 // start (the corner's three states without a real codex or a real key); with it nothing real is read. A packaged app ignores it
 const DEV_QUOTA = !app.isPackaged && typeof process.env.STREAMS_DEV_QUOTA === 'string' && isAbsolute(process.env.STREAMS_DEV_QUOTA) ? process.env.STREAMS_DEV_QUOTA : null
@@ -269,7 +272,7 @@ app.whenReady().then(() => {
   // v2 package M: the corner above 设置 (services/quota.mjs) — made right after the connections, which hand it every call's quota
   let quota = null
   const connections = createConnectionsService({
-    settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION,
+    settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION, devAskScript: DEV_ASK_SCRIPT,
     // a probe made from the page counts in the open library's usage (core createUsageCounter), under `probe`
     usageWrap: c => { const d = library.dir(); return d ? createUsageCounter(d).wrap(c, 'probe') : c },
     onQuota: (kind, q) => quota?.record(kind, q),

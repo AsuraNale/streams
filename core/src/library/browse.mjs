@@ -1,7 +1,8 @@
 // The library pages (core-api 5.1, mockup S6). Read only: nothing here writes anything.
 //
-// libraryCounts(libraryDir) -> { kept, authored, caught, pending }
+// libraryCounts(libraryDir) -> { kept, authored, caught, pending, all }
 //   kept / authored  index entries with that status
+//   all              every index entry (redesign R3: 资料库's 「全部」 — only what is a file of the library)
 //   caught           ledger states whose stage is not kept / dismissed (not past a gate + not decided yet)
 //   pending          listPending().length
 // listLibrary(libraryDir, { view, topics?, days?, now? }) -> { view, items, total }
@@ -11,6 +12,8 @@
 //             stoppedAt: '<gate id>' (below that gate's threshold) | 'unscored' | 'queued' | 'inbox'
 //             topic = the topic its source is filed under in streams.json (null when none)
 //   pending   listPending() rows; this view also has skippedDirs (scanLibrary's: the sub folders not read, core-api 5.9)
+//   all       redesign R3 (资料库 「全部」): every index row — kept, authored, archived; never a ledger item without a file —
+//             newest date first (then id)
 //   topics: any one matches. days: date >= today - days (caught: firstSeen within days * 24 h).
 //   total = items.length after the filters.
 // readNote(libraryDir, id) -> { entry, body, backlinks:[{id,title}], sameSource:[{id,title,date}], file }
@@ -30,7 +33,7 @@ import { localIsoDate } from '../fetch/dates.mjs';
 import { pipelineFrom } from '../pipeline/config.mjs';
 import { nextStep } from '../pipeline/queue.mjs';
 
-export const LIBRARY_VIEWS = ['kept', 'authored', 'caught', 'pending'];
+export const LIBRARY_VIEWS = ['kept', 'authored', 'caught', 'pending', 'all'];
 export const SAME_SOURCE_MAX = 5;
 const DAY_MS = 86_400_000;
 
@@ -79,6 +82,7 @@ export function libraryCounts(libraryDir) {
     authored: index.filter((e) => e.status === 'authored').length,
     caught,
     pending: listPending(libraryDir).length,
+    all: index.length,
   };
 }
 
@@ -92,7 +96,7 @@ export function listLibrary(libraryDir, { view, topics, days, now } = {}) {
     items = caughtItems(libraryDir, { topics, days, now });
   } else {
     const keep = entryFilter({ topics, days, now });
-    items = readIndex(libraryDir).filter((e) => e.status === view && keep(e));
+    items = readIndex(libraryDir).filter((e) => (view === 'all' || e.status === view) && keep(e));
     if (view === 'kept') items.sort((a, b) => cmp(b.kept, a.kept) || cmp(b.date, a.date) || cmp(a.id, b.id));
     else items.sort((a, b) => cmp(b.date, a.date) || cmp(a.id, b.id));
   }

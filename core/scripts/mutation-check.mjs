@@ -46,6 +46,40 @@ const MUTANTS = [
     edits: [['src/pipeline/later.mjs', '  unlinkSync(path);\n  return { released };', '  return { released };']],
     test: ['test/r2-inbox.test.mjs', '--test-name-pattern=R2-3 later'],
   },
+  // redesign R3 (docs/checks/2026-11-11-r3/contract.md 「测」)
+  {
+    id: 'r3-all-lists-caught',
+    what: '资料库 「全部」 also lists the caught items that have no file (the old 「抓到的」)',
+    edits: [['src/library/browse.mjs', "    items = readIndex(libraryDir).filter((e) => (view === 'all' || e.status === view) && keep(e));", "    items = [...readIndex(libraryDir).filter((e) => (view === 'all' || e.status === view) && keep(e)), ...(view === 'all' ? caughtItems(libraryDir, { topics, days, now }) : [])];"]],
+    test: ['test/r3-library.test.mjs', '--test-name-pattern=R3-1'],
+  },
+  {
+    id: 'r3-graph-caught',
+    what: 'the graph also draws the ledger items that have no file',
+    edits: [
+      ['src/graph/graph.mjs', "import { cmp, entryFilter } from '../library/browse.mjs';", "import { cmp, entryFilter, listLibrary } from '../library/browse.mjs';"],
+      ['src/graph/graph.mjs', "  const items = readIndex(libraryDir).filter((e) => (status === 'all' || e.status === 'kept') && keep(e));", "  const items = [...readIndex(libraryDir), ...listLibrary(libraryDir, { view: 'caught' }).items.map((c) => ({ id: c.url, title: c.title, topics: [], source_name: c.source, date: c.date, status: 'kept' }))].filter((e) => (status === 'all' || e.status === 'kept') && keep(e));"],
+    ],
+    test: ['test/r3-library.test.mjs', '--test-name-pattern=R3-2'],
+  },
+  {
+    id: 'r3-header-changes-body',
+    what: 'writing a header also changes the body (a line added at its end)',
+    edits: [['src/library/write-note.mjs', "  const bytes = Buffer.concat([bom, Buffer.from(serializeFrontmatter(header), 'utf8'), body]);", "  const bytes = Buffer.concat([bom, Buffer.from(serializeFrontmatter(header), 'utf8'), body, Buffer.from('\\n')]);"]],
+    test: ['test/r3-library.test.mjs', '--test-name-pattern=R3-4'],
+  },
+  {
+    id: 'r3-snippet-marks',
+    what: 'a search snippet is cut from the raw body again (its Markdown marks show)',
+    edits: [['src/library/search.mjs', '    snippet: snippetOf(plainBody(body), tokens, entry.summary),', '    snippet: snippetOf(body, tokens, entry.summary),']],
+    test: ['test/r3-library.test.mjs', '--test-name-pattern=search snippets'],
+  },
+  {
+    id: 'r3-edit-source',
+    what: '编辑 also takes the source (a record field)',
+    edits: [['src/library/edit.mjs', "export const EDITABLE_KEYS = ['title', 'topics', 'body'];", "export const EDITABLE_KEYS = ['title', 'topics', 'body', 'source'];"]],
+    test: ['test/r3-library.test.mjs', '--test-name-pattern=R3-3'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

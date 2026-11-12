@@ -103,12 +103,6 @@
 .sc-text { line-height: 1.55; }
 .sc-list { display: flex; flex-direction: column; gap: 8px; }
 
-/* ---- 问库: the routed sentences -------------------------------------------------------------------------- */
-.ask-q-row { align-self: flex-end; display: flex; align-items: center; gap: 8px; max-width: 86%; }
-.ask-q-row .ask-q { max-width: none; }
-.ask-routed { padding: 1px 10px; border-radius: 10px; background: var(--st-accent-alt-soft); color: var(--st-accent-alt); font-weight: 700; white-space: nowrap; }
-.ask-unsure { display: flex; flex-direction: column; gap: 6px; align-self: flex-start; padding: 8px 12px; border: 1px solid var(--st-wait-border); border-radius: var(--st-radius); background: var(--st-wait-bg); }
-.ask-compose__field { flex-grow: 1; display: flex; flex-direction: column; gap: 4px; }
 
 /* ==== v2 package K2 (the K1 design draft, docs/design/next/themes/css/app.css): 和主 Agent 聊 — your words on --st-surface-2, the Agent's
    answer on the page beside its mark, the waiting strip in amber with a thin line, the box to write in a card with the card
@@ -157,5 +151,3 @@
 /* the suggestion card */
 .sc { padding: 12px 14px; border: 0; border-radius: var(--st-radius); background: var(--st-surface); box-shadow: var(--st-shadow-card), inset 3px 0 var(--st-wait); }
 .sc--done { box-shadow: var(--st-shadow-card), inset 3px 0 var(--st-done); }
-.ask-routed { border-radius: var(--st-radius-xs); font-weight: var(--st-weight-label); }
-.ask-unsure { border: 0; border-radius: var(--st-radius-s); box-shadow: inset 0 0 0 1px var(--st-wait-border); }

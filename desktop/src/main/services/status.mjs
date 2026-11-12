@@ -42,12 +42,12 @@ export function createStatusService({ library, connections, log, hidden = false,
       if (problem) { log(`status: openPath ${logs}: ${problem}`); throw new BridgeError('open_failed') }
       return null
     },
+    // redesign R3 (F40): one filter, the time range; every file of the library is drawn (status 'all': kept and your own) and
+    // the [[links]] always (links true). Only files: the core's graph reads the index, never the ledger
     getGraph(filter) {
       const dir = library.require()
-      const f = filter ?? {}
-      const opts = { now }
-      for (const k of ['days', 'status', 'topics', 'links']) if (f[k] !== undefined) opts[k] = f[k]
-      return call('graph', dir, opts)
+      const days = filter?.days ?? null
+      return call('graph', dir, { days, status: 'all', topics: [], links: true, now })
     },
     getVerdicts(url) {
       const dir = library.require()

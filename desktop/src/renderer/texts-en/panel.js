@@ -50,14 +50,20 @@ export const PANEL = Object.freeze({
     whereChat: 'Handle in “Main agent”',
     whereLibrary: 'Handle in “{name}”',
     thisLibrary: 'This library · Detected by Streams',
+    confirm: 'Confirm',
+    create: 'Create',
+    revise: 'Request changes',
+    decline: 'Decline',
+    failed: 'That did not work. Try again.',
   }),
 
   detail: Object.freeze({
     eyebrow: 'Details · {where}',
     where: Object.freeze({
       inbox: 'To read · the one chosen',
-      library: 'Library · this note',
-      ask: 'Ask · the notes the answer cites',
+      library: 'Current note',
+      ask: 'Current answer',
+      graph: 'Current node',
       chat: 'Main agent · this conversation',
     }),
     none: 'Nothing is selected on this page. Select an item in the Inbox, Library, Ask or Main agent to see its details here.',

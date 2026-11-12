@@ -11,6 +11,8 @@
       screen's own line under the library's tabs, the theme chips' radio, the cards of 待确认, the 文件 tab's rows.
    6. Redesign R2 — 待看 on the template's parts (screens/inbox.js, run-funnel.js, run-steps.js, problem-card.js): the list head,
       the current card, the marks, the bar after 放弃, the funnel's labels, the banner's rows.
+   7. Redesign R3 — 资料库 (the list and the reading area), 缺少文件头, 图谱, 编辑笔记 (the template's <dialog>), 问库, a note's Markdown,
+      the folded 核验记录, the proposal's buttons in 待确认.
    Colours: only the template's variables. */
 
 /* 1 */
@@ -106,3 +108,117 @@
 .today-problem__note { font-size: 11px; }
 .st-rp-pane .st-funnel { margin-top: 4px; }
 .st-rp-pane [data-action="panel-stop"] .btn { margin-top: 10px; }
+
+/* 7 — Redesign R3: 资料库 · 图谱 · 编辑笔记 · 缺少文件头 · 问库 on the template's parts (screens/library.js, graph.js, edit-dialog.js,
+   ask.js; verdict-dialog.js's record and lib/markdown.js's text, which 待看's 详情 uses too). R1's interim styles/screens/library.css,
+   graph.css and ask.css are deleted; what of them is still drawn (the note's Markdown, the record's rounds) is here, on the
+   template's variables. Sizes, places and the template's own variables only. */
+.lib-split { min-height: 100%; height: 100%; }
+.st-lib-head { margin: 0; gap: 10px; }
+.st-lib-head b { font-weight: 650; font-size: 13px; }
+.st-view-switch { margin: 0; flex-wrap: nowrap; }
+.st-view-switch .filter, .st-list .filter, .st-graph-head .filter { cursor: pointer; }
+.st-list .filters { margin: 0; }
+.st-list .source-card { margin: 0; cursor: pointer; }
+.st-list .source-card .eyebrow { align-items: center; gap: 8px; }
+.st-list .source-card p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.st-lib-hint { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.st-split .reader-header { gap: 8px; }
+.st-split .reader-header .st-act { display: inline-flex; }
+.st-split .reader-scroll { min-height: 0; }
+.st-split .reader-paper .reader-title { overflow-wrap: anywhere; }
+.st-path { overflow-wrap: anywhere; padding-top: 0; }
+.lib-missing .after-card button { display: inline-flex; align-items: center; gap: 4px; }
+.lib-missing .section-label b { font-weight: 650; }
+.lib-missing .confirm-title { min-width: 0; }
+.lib-missing .confirm-title h2 { margin: 0; overflow-wrap: anywhere; }
+.lib-missing .field { margin: 0; }
+.lib-missing .field textarea { font-family: inherit; min-height: 120px; }
+.lib-missing .confirm-footer .row { display: flex; gap: 8px; }
+/* a note's Markdown (lib/markdown.js), in the reading paper */
+.md { display: flex; flex-direction: column; gap: 10px; overflow-wrap: anywhere; }
+.md p, .md ul, .md ol, .md blockquote, .md pre { margin: 0; }
+.md-h { margin: 8px 0 0; font-weight: 650; line-height: 1.6; }
+.md-h1, .md-h2 { font-size: 18px; }
+.md-h3, .md-h4, .md-h5, .md-h6 { font-size: 14px; }
+.md-list { padding-left: 22px; display: flex; flex-direction: column; gap: 3px; }
+.md-quote { padding: 4px 12px; border-left: 2px solid var(--rule11); color: var(--sub11); }
+.md-pre { padding: 10px 12px; border-radius: 8px; background: var(--well); font-family: 'Cascadia Mono', Consolas, monospace; font-size: 12px; white-space: pre-wrap; }
+.md-code { padding: 0 4px; border-radius: 4px; background: var(--well); font-family: 'Cascadia Mono', Consolas, monospace; font-size: 12px; }
+.md-hr { width: 100%; border: 0; border-top: 1px solid var(--rule11); }
+.md-link { color: var(--accent11); text-decoration: underline dotted; }
+.md-wiki { color: var(--accent11); font-weight: 650; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.md-wiki--missing { color: var(--sub11); font-weight: 400; text-decoration: underline dashed; cursor: default; }
+/* 核验记录's rounds (verdict-dialog.js VerdictBody, folded in 待看's and 资料库's 详情) */
+.vd { display: flex; flex-direction: column; gap: 12px; font-size: 12px; }
+.vd-node { display: flex; flex-direction: column; gap: 8px; }
+.vd-node__title { margin: 0; font-size: 12px; }
+.vd-round { display: flex; flex-direction: column; gap: 6px; padding-left: 10px; border-left: 2px solid var(--rule11); }
+.vd-round__title { margin: 0; color: var(--sub11); }
+.vd-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.vd-item { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; }
+.vd-item__text { display: flex; flex-direction: column; overflow-wrap: anywhere; }
+.vd-item--said .vd-item__text { font-weight: 650; }
+.vd-mark { font-size: 11px; font-weight: 650; text-align: center; border-radius: 4px; background: var(--well); color: var(--ink11); }
+.vd-mark--pass { color: var(--accent11); }
+.vd-back { padding: 4px 8px; border-radius: 6px; background: var(--well); }
+.vd-result { padding: 6px 10px; border-radius: 6px; background: var(--well); color: var(--ink11); font-weight: 650; }
+.vd-result--pass { color: var(--accent11); }
+.vd-ai { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px; background: var(--well); }
+.vd-ai__title { margin: 0; }
+.vd-ai__list ul { margin: 2px 0 0; padding-left: 20px; overflow-wrap: anywhere; }
+/* 图谱 */
+.st-graph-body { display: flex; flex-direction: column; }
+.st-graph-head { overflow: visible; padding-bottom: 0; }
+.st-graph-head .section-label { flex-wrap: wrap; }
+.st-graph-head .filters { margin: 0; }
+.st-graph-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 12px; }
+.st-graph-scroll .st-graph { flex: none; min-height: 0; }
+.st-graph .st-node { font-size: 11px; max-width: 168px; overflow: hidden; text-overflow: ellipsis; }
+.st-graph .filter.st-node { cursor: pointer; }
+.st-graph__row { transform: translate(0, -50%); }
+.st-graph__legend { margin: 0 32px; padding-top: 0; }
+/* 编辑笔记 (the template's <dialog>) */
+.dialog.st-edit { width: min(640px, 92vw); max-width: 92vw; overflow: auto; }
+.st-edit .dialog-body { padding: 0; }
+.st-edit .new-content { padding: 20px 24px 24px; max-width: none; }
+.st-edit .field { margin: 12px 0; }
+.st-edit .section-label { margin: 14px 0 6px; }
+.st-edit__topics { margin: 0 0 6px; align-items: center; }
+.st-edit__topics .filter { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.st-edit__x { padding: 0 2px; font-size: 10px; line-height: 1; color: inherit; }
+.st-edit .form-footer { flex-wrap: wrap; margin-top: 18px; padding-top: 16px; }
+.st-edit .form-footer small { flex: 1 1 200px; min-width: 0; }
+.st-edit__link .file-row { padding: 8px 0; }
+/* 问库 */
+.st-ask { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.st-ask .thread-scroll { flex: 1 1 auto; }
+.st-ask .date-line b { font-weight: 650; }
+.st-ask .date-line span { white-space: nowrap; }
+.st-ask-turn .user-message { white-space: pre-wrap; }
+.st-ask .cite { display: inline-block; margin: 0 2px; padding: 0 3px; font-size: 10px; line-height: 1.2; vertical-align: super; cursor: pointer; }
+.st-ask .cite.st-cite-lit { background: var(--pick); border-radius: 3px; }
+.st-ask-sources .file-row { align-items: center; padding: 10px 0; }
+.st-ask-sources .file-row[aria-current] { background: var(--pick); }
+.st-ask-sources .file-text { min-width: 0; flex: 1; }
+.st-ask-after { flex-wrap: wrap; align-items: center; }
+.st-ask-after button { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.st-ask-demand { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.st-ask-input { font: inherit; padding: 3px 8px; border: 1px solid var(--rule11); border-radius: 6px; background: var(--paper); color: var(--ink11); min-width: 160px; }
+.st-ask-added { display: inline-flex; align-items: center; gap: 4px; }
+.st-ask-added .ico { width: 13px; height: 13px; }
+.st-ask-feedback { width: 100%; }
+.st-ask-feedback .field { margin: 8px 0; }
+.st-ask-feedback .row, .st-ask-unsure .row { display: flex; gap: 8px; margin-top: 8px; }
+.st-ask-agent .st-stack { margin-top: 12px; }
+.st-ask-empty { text-align: center; }
+.st-ask .composer-tools .send-btn { cursor: pointer; }
+/* 待确认: a proposal's three buttons on its small card */
+.st-rp-decide .confirm-footer { flex-wrap: wrap; gap: 6px; }
+.st-rp-decide [data-part="decide-actions"] { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.st-rp-decide [data-part="decide-actions"] .btn { min-height: 28px; padding: 4px 10px; font-size: 11px; }
+.st-list { scrollbar-width: thin; scrollbar-color: var(--rule11) transparent; }
+/* the template's progress-alert keeps its light tint under dark (its text turns light: unreadable); on every page of a library —
+   R2's 待看 (the bar after 放弃, the banner, the run's notes), R3's pages and the right panel's alike — it takes the dark well instead */
+.r11[data-appearance="dark"] :is(.lib-page, .context-panel) .progress-alert { background: var(--well); color: var(--ink11); }
+.r11[data-appearance="dark"] [data-part="detail-ask"] [data-part="demands"] .activity-row { color: var(--ink11); }

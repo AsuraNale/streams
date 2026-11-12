@@ -4,23 +4,23 @@
 // check did not pass is marked on its own line: 「说做了其实没做」. The result line per step: passed or not and the
 // rounds (and the calls, when the core gives them). A check's words come from the pipeline's checklists (getPipeline:
 // the item's `desc`); one the pipeline does not list shows its id.
-// Opened from 资料库 (the right panel, a kept note; a caught item):
-//   html`<${VerdictDialog} url=${…} title=${…} onClose=${…} />`
 // Redesign R2 (F30): 待看 no longer opens the dialog — the right panel's 详情 folds the same record in (VerdictBody, the dialog's
 // content without the dialog), its summary line from verdictSummary (the check items of each step's last round).
+// Redesign R3 (R3-1): 资料库's 详情 folds it in the same way, so the fold itself is one component here (VerdictFold, the template's
+// phase-row: 「核验记录（相关度 n 项 · 实质 n 项 · 摘要 n 项）」, closed until you open it), used by both; the dialog is gone.
 // Words: texts/library.js VERDICTS; the steps' names: texts/common.js NODE_NAMES.
-// Test hooks: [data-dialog="verdicts"][data-state], [data-verdict-node=<node>], [data-round=<n>] inside it,
+// Test hooks: .vd[data-state], [data-verdict-node=<node>], [data-round=<n>] inside it,
 // [data-check=<item>][data-passed][data-kind], [data-said-not-done=<item>], [data-part="verdict-result"][data-passed].
 // v2 package H: a group the core marked with 「写给 AI 的话」 (verdictsFor's aiInstruction) puts one block on top:
 // [data-part="ai-instruction"] with [data-ai-kind=rule|judge] lists of [data-ai-phrase] — the sentences found.
-import { html } from '../lib/html.js'
+import { html, useState } from '../lib/html.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
-import { Act } from '../lib/action.js'
-import { Dialog } from '../kit/index.js'
-import { NODE_NAMES } from '../texts/common.js'
+import { TIcon } from '../lib/template-icons.js'
+import { NODE_NAMES, SEP } from '../texts/common.js'
 import { VERDICTS as T } from '../texts/library.js'
+import { PANEL } from '../texts/panel.js'
 
 const nodeName = id => (Object.hasOwn(T.nodes, id) ? T.nodes[id] : Object.hasOwn(NODE_NAMES, id) ? NODE_NAMES[id] : id)
 
@@ -108,18 +108,20 @@ export function VerdictBody({ url }) {
 }
 
 /**
- * @param {object} p
- * @param {string} p.url - the item (its address in the library's record)
- * @param {string} [p.title]
- * @param {() => void} p.onClose
+ * 核验记录 folded (the template's phase-row; redesign R2 待看's 详情, R3 资料库's 详情): the line says how many check items each step
+ * had in its last round; opened, the record itself (VerdictBody). Closed until you open it.
+ * Test hooks: [data-part="detail-record"][data-open] (the .vd body inside while open).
  */
-export function VerdictDialog({ url, title, onClose }) {
-  const data = useLoad(() => call('getVerdicts', url), [url])
-  const pipeline = useLoad(() => call('getPipeline').catch(() => null), [])
-  const actions = html`<${Act} name="close-verdicts" onClick=${onClose}>${T.close}<//>`
-  return html`<${Dialog} name="verdicts" title=${title ? fmt(T.subtitle, { node: T.title, title }) : T.title} onCancel=${onClose} actions=${actions}>
-    <${Record} url=${url} data=${data} pipeline=${pipeline} />
-  <//>`
+export function VerdictFold({ url }) {
+  const D = PANEL.detail.inbox
+  const [open, setOpen] = useState(false)
+  const record = useLoad(() => call('getVerdicts', url).catch(() => []), [url])
+  const parts = verdictSummary(record.data)
+  return html`<details class="phase-row" data-part="detail-record" data-open=${String(open)} open=${open} onToggle=${e => setOpen(e.currentTarget.open)}>
+    <summary class="phase-heading"><span class="phase-index"><${TIcon} name="file" /></span>
+      <span class="phase-label">${D.record}<small>${parts.length ? fmt(D.recordParts, { parts: parts.map(p => fmt(D.recordPart, { name: nodeName(p.node), n: p.n })).join(SEP) }) : D.recordNone}</small></span><${TIcon} name="down" /></summary>
+    <div class="phase-details">${open ? html`<${VerdictBody} url=${url} />` : null}</div>
+  </details>`
 }
 
 function Record({ url, data, pipeline }) {

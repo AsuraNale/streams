@@ -177,8 +177,8 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 | 函数 | 作用 | 返回 |
 |---|---|---|
-| `libraryCounts(libraryDir)` | 四个分页的条数：已收藏（index status kept）· 我写的（authored）· 抓到的（账本里 stage 不是 kept / dismissed 的全部：没过关的 + 没拍板的）· 待规范（listPending） | `{kept, authored, caught, pending}` |
-| `listLibrary(libraryDir, {view, topics?, days?, now?})` | `view`：`kept` · `authored`（读 index，按 `kept` / `date` 倒序）· `caught`（读账本，按首次见到倒序，带各关分数与「停在哪一步」：`stage` + `stoppedAt: 'relevance' \| 'substance' \| 'unscored' \| 'queued' \| 'inbox'`）· `pending`（listPending）。`topics` 是任一命中；`days` 按 date（caught 按首次见到） | `{view, items:[…], total}`；index 类条目 = index 一行；caught 条目 = `{url, title, source, date, firstSeen, scores, stoppedAt}` |
+| `libraryCounts(libraryDir)` | 四个分页的条数：已收藏（index status kept）· 我写的（authored）· 抓到的（账本里 stage 不是 kept / dismissed 的全部：没过关的 + 没拍板的）· 待规范（listPending） | `{kept, authored, caught, pending, all}`（**重设计 R3**：`all` = index 的行数，资料库「全部」的数） |
+| `listLibrary(libraryDir, {view, topics?, days?, now?})` | `view`：`kept` · `authored`（读 index，按 `kept` / `date` 倒序）· `caught`（读账本，按首次见到倒序，带各关分数与「停在哪一步」：`stage` + `stoppedAt: 'relevance' \| 'substance' \| 'unscored' \| 'queued' \| 'inbox'`）· `pending`（listPending）· **`all`（重设计 R3，资料库「全部」）**：index 的每一行（kept、authored、archived），按 date 倒序；**从不含账本里没有文件的条目**。`topics` 是任一命中；`days` 按 date（caught 按首次见到） | `{view, items:[…], total}`；index 类条目 = index 一行；caught 条目 = `{url, title, source, date, firstSeen, scores, stoppedAt}` |
 | `readNote(libraryDir, id)` | 一条的正文与右栏：index 那一行 + 正文（frontmatter 之后的原文）+ 链到这里的（别的条目 `links` 含它）+ 同一来源的（同 `source_name`，按 date 倒序最多 5 条，不含自己）+ 文件名 | `{entry, body, scores, backlinks:[{id,title}], sameSource:[{id,title,date}], file}`；`scores` = 文件头里的分数与理由 `{节点: {score, reason} \| {value, reason}}`（索引里只有压平的数字；11-03 集成时加）；抛 `not-found` |
 | `notePath(libraryDir, id)` | 绝对路径（桌面层「用 Obsidian 打开」用；id 必须在 index 里） | 字符串；抛 `not-found` |
 
@@ -190,7 +190,7 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 ### 5.3 搜索（`src/library/search.mjs`，S6 搜索框）
 
-`search(libraryDir, q, {view?: 'kept'|'authored'|'all', topics?, days?, limit=50})`：对 index 的标题、主题、摘要，和 notes/ 的正文（只读）做词频打分：英文按词（小写、去标点），中文按相邻二字切（方案 4.7）；标题命中 ×3、主题 ×2、摘要与正文 ×1；同分按 date 倒序。空查询 → `[]`。返回 `[{id, title, date, source_name, status, topics, score, snippet}]`，`snippet` = 正文里第一次命中前后共 ≤ 80 字。同一份库同一查询两次结果逐字节相同。
+`search(libraryDir, q, {view?: 'kept'|'authored'|'all', topics?, days?, limit=50})`：对 index 的标题、主题、摘要，和 notes/ 的正文（只读）做词频打分：英文按词（小写、去标点），中文按相邻二字切（方案 4.7）；标题命中 ×3、主题 ×2、摘要与正文 ×1；同分按 date 倒序。空查询 → `[]`。返回 `[{id, title, date, source_name, status, topics, score, snippet}]`，`snippet` = 正文里第一次命中前后共 ≤ 80 字。同一份库同一查询两次结果逐字节相同。 **重设计 R3**：`snippet` 取自正文的纯文本（`plainBody`：每行去掉 `#` 标题记号，再用 index 的 `plainText` 去掉 `**` `_` `` ` `` `[[ ]]` `[]()` 与列表 / 引用记号，同摘要的做法），资料库的搜索片段因此不露 Markdown 记号。
 
 ### 5.4 图谱（`src/graph/graph.mjs`，S9）
 
@@ -219,6 +219,7 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 |---|---|---|
 | `demands(libraryDir, {threshold=3})` | 读 demand.jsonl，按 `topic` 归并（大小写与空白归一），按次数倒序 | `[{topic, count, last, suggest: count ≥ threshold}]` |
 | `addDemand(libraryDir, topic, {question?})` | 用户点「记到想补的主题」：追加一行 `{ts, topic, question, by:'user'}` | `{topic, count}`；空主题抛 `bad-topic` |
+| `demandsAdded(libraryDir)` | **重设计 R3**（问库「已加入待补充主题」）：demand.jsonl 里 `by:'user'` 的每一行，按文件顺序；提问时自动记的那行不算 | `[{topic, question}]`（主题去掉首尾空白、内部空白归一；没有问题的是 null） |
 | `answerFeedback(libraryDir, {question, note})` | 「这个回答哪里不对」：追加一行 `_pipeline/feedback.jsonl` | `{ok:true}`；空 note 抛 `bad-feedback` |
 
 问库严格模式（S16，先写核对单再答）在 v1.1，不做。

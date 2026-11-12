@@ -133,9 +133,10 @@ export const AGENT = Object.freeze({
     ticked: '勾上',
     unticked: '没勾',
     confirm: '确认',
-    create: '建库',
-    revise: '改一下',
-    decline: '不要',
+    // redesign R3 (P13, 05-措辞规范: 建库 → 创建, 改一下 → 提出修改, 不要 → 拒绝): the card's buttons in 问库 and 待确认 alike
+    create: '创建',
+    revise: '提出修改',
+    decline: '拒绝',
     reviseLabel: '想怎么改，写一句（会发给主 Agent，它重出一张）',
     revisePlaceholder: '比如：别加这个来源，换成别的',
     reviseSend: '发给主 Agent',

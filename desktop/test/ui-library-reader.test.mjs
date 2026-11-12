@@ -1,17 +1,16 @@
-// 资料库's reader page (v2 package H, design P5 / UC4; screens/library.js) and 待看's 「写给 AI 的话」 mark (UC5 step 3;
-// screens/inbox.js, screens/verdict-dialog.js), on a library with nothing kept yet whose items are pages of a web site on this
-// machine (test/support/reader-site.mjs). With a kept note the page opens on 已收藏: test/ui-library.test.mjs (the control).
-//   - nothing kept → 抓到的 is the tab; nothing chosen → no button in the head, the reader says 「在左边选一条来读」
-//   - a caught item: 收藏 (enabled only for what waits in 待看), 打开原文, 更多 with 在浏览器里打开 — never Obsidian or the
-//     file manager
-//   - 收藏 → a file in notes/ (read back from the disk), the page on 已收藏 with that note marked 「已收藏 · 进了 notes/」, and
-//     only now 更多 has 用 Obsidian 打开 and 在资源管理器中显示 (both reach the main process: a test run logs them); the
-//     待看 counts on the tab and in the sidebar go down by one
-//   - 待看: the card whose material had words for the AI carries the amber mark, with the sentence on hover and in
-//     「这一条的记录」; the cards without have neither
-// Redesign R2 (contract R2-1, R2-9): the mark's words are the design's (「检测到面向 AI 的指令，已忽略」, 05-措辞规范 P05, was
-// 「这一条里有写给 AI 的话，已忽略」), and the record is no dialog any more but the folded 核验记录 of the right panel's 详情 for the
-// current card — this test opens it there (select the card, 详情, unfold); what it checks of the record is as it was.
+// 资料库 and 待看 on a library with nothing kept yet whose items are pages of a web site on this machine
+// (test/support/reader-site.mjs). With kept notes and a file without a header: test/ui-library.test.mjs (the control).
+// Redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-1, R3-4; design P09, 维护者 11-11 第 9 题) — this file is rewritten from
+// v2 package H's: 资料库 holds only what is a file of the library, so its 「抓到的」 tab (with 收藏 · 打开原文 · 更多 for a caught
+// item) is gone (R2 moved what did not pass to 待看's 未通过筛选; an item waiting is kept from 待看). What is checked now:
+//   - nothing kept: 全部 0 · 已收藏 0 · 我的笔记 0, the list says so, none of the ledger's caught items is listed (control: the core
+//     has them) — reverse: a 「全部」 that took the caught items in is red here (mutant r3-all-lists-caught); there is no
+//     「抓到的」 / 「待规范」 tab and no 添加链接 on the page; no file lacks a header, so there is no such line (mutant
+//     r3-header-hint-always: a line shown anyway is red here)
+//   - 待看: the card whose material had words for the AI carries the amber mark, with the sentence on hover and in 核验记录 (R2)
+//   - 收藏 in 待看 → a file in notes/ (read back from the disk); 资料库 lists it (全部 and 已收藏); its reading area has 编辑 · 查看原文
+//     · 更多 (在 Obsidian 中打开 · 在资源管理器中显示 · 在浏览器中打开: each reaches the main process, a test run logs it); 查看原文
+//     opens Streams' reading window in 阅读模式 (not the browser: mutant r3-source-opens-browser is red here)
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -40,51 +39,45 @@ async function waitFor(fn, ms = 20_000) {
   while (Date.now() < end) { if (await fn()) return; await sleep(100) }
   assert.fail('timed out')
 }
-const head = () => s.page.evaluate(() => ({
-  actions: [...document.querySelectorAll('[data-part="library-head"] [data-action]')].map(e => e.dataset.action),
-  more: document.querySelector('[data-part="library-head"] [data-action="more"]')?.dataset.items ?? null,
-}))
 /** Open 更多 and read its menu (then close it with Esc). */
 async function moreMenu() {
-  await s.page.click('[data-part="library-head"] [data-action="more"] button')
+  await s.page.click('[data-part="item-actions"] [data-action="more"] button')
   await s.page.waitForFunction(() => document.querySelector('[data-menu]') !== null, null, POLL)
-  const items = await s.page.evaluate(() => [...document.querySelectorAll('[data-menu] [data-menu-item]')].map(e => [e.dataset.menuItem, e.textContent]))
-  return items
+  return s.page.evaluate(() => [...document.querySelectorAll('[data-menu] [data-menu-item]')].map(e => [e.dataset.menuItem, e.textContent]))
 }
 const closeMenu = async () => { await s.page.keyboard.press('Escape'); await s.page.waitForFunction(() => document.querySelector('[data-menu]') === null, null, POLL) }
-const pick = async url => {
-  await s.page.click(`[data-part="list"] [data-row="${url}"] a`)
-  await s.page.waitForFunction(u => document.querySelector(`[data-reader="${u}"]`) !== null && document.querySelector(`[data-part="item-actions"][data-url="${u}"]`) !== null, url, POLL)
-}
 const inboxCounts = () => s.page.evaluate(() => ({
   tab: document.querySelector('[data-tab-badge="inbox"]')?.textContent ?? null,
   sidebar: document.querySelector('[data-library-row][aria-current="true"] [data-library-badge], [data-library-row][data-active="true"] [data-library-badge]')?.textContent ?? null,
 }))
+const toTab = async id => {
+  await s.page.click(`nav.st-lib-tabs button[data-tab="${id}"]`)
+  await s.page.waitForFunction(i => document.querySelector(`main[data-screen="${i}"][data-state="ready"]`) !== null, id, POLL)
+}
 
-test('nothing kept: the page opens on 抓到的; nothing chosen: no button in the head, only 「在左边选一条来读」', async () => {
-  assert.equal(core.libraryCounts(dir()).kept, 0, 'control: nothing kept in this world')
-  await s.page.waitForFunction(() => document.querySelector('[data-view="caught"]')?.getAttribute('aria-current') === 'true', null, POLL)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-view="kept"]').getAttribute('aria-current')), null)
-  const rows = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="list"] [data-row]')].map(e => e.dataset.row))
-  assert.deepEqual(rows.slice().sort(), core.listLibrary(dir(), { view: 'caught' }).items.map(i => i.url).sort())
-  assert.deepEqual(await head(), { actions: [], more: null })
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="item-actions"]')), null)
+test('R3 nothing kept: 全部 0 · 已收藏 0 · 我的笔记 0, no caught item listed, no 抓到的 / 待规范 tab, no 添加链接, no line about files without a header', async () => {
+  const counts = core.libraryCounts(dir())
+  assert.deepEqual([counts.kept, counts.authored, counts.all, counts.pending], [0, 0, 0, 0], 'control: no file in this world')
+  const caught = core.listLibrary(dir(), { view: 'caught' }).items
+  assert.ok(caught.length >= 4, 'control: the ledger has caught items a wrong 「全部」 would show')
+  await s.page.waitForFunction(() => document.querySelector('[data-view="all"]')?.getAttribute('aria-current') === 'true' && document.querySelector('[data-part="list"] [data-part="empty"]') !== null, null, POLL)
+  const shown = await s.page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-view]')].map(e => [e.dataset.view, Number(e.dataset.count)])))
+  assert.deepEqual(shown, { all: 0, kept: 0, authored: 0 })
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="list"] [data-part="empty"]').textContent), LIBRARY.empty.all)
+  const text = await s.page.evaluate(() => document.querySelector('main[data-screen="library"]').textContent)
+  for (const c of caught) assert.ok(!text.includes(c.title), `${c.title} is not in 资料库`)
+  assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-part="list"] [data-row]').length), 0)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-view="caught"], [data-view="pending"]')), null, 'no 抓到的 / 待规范 tab')
+  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="library"] [data-action="add-link"]')), null, 'no 添加链接 here (待看 has it)')
+  await s.page.waitForTimeout(500)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="missing-header-hint"]')), null, 'no file lacks a header: no line')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="reader"] [data-part="pick-one"]')?.textContent), LIBRARY.reader.none)
-})
-
-test('a caught item that stopped on the way: 收藏 there but disabled (only 待看 can be kept), 打开原文, 更多 = 在浏览器里打开 only', async () => {
-  await pick(site.urls.elsewhere)
-  const h = await head()
-  assert.deepEqual(h.actions, ['keep', 'source', 'more'])
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-action="keep"] button').disabled), true)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="keep-only-inbox"]')?.textContent), LIBRARY.actions.keepOnlyInbox)
-  assert.deepEqual(await moreMenu(), [['browser', LIBRARY.actions.browser]])
-  await closeMenu()
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="item-actions"]')), null, 'nothing chosen: no button')
 })
 
 test('待看: the card with words for the AI carries the amber mark (the sentence on hover and in 「这一条的记录」); the others have none', async () => {
-  await s.page.click('nav.st-lib-tabs button[data-tab="inbox"]')
-  await s.page.waitForFunction(() => document.querySelector('main[data-screen="inbox"][data-state="ready"]') !== null && document.querySelectorAll('[data-card]').length === 3, null, POLL)
+  await toTab('inbox')
+  await s.page.waitForFunction(() => document.querySelectorAll('[data-card]').length === 3, null, POLL)
   const marks = await s.page.evaluate(() => [...document.querySelectorAll('[data-card]')].map(c => {
     const m = c.querySelector('[data-ai-instruction]')
     return [c.dataset.url, m ? [m.textContent, m.getAttribute('title')] : null]
@@ -121,38 +114,28 @@ test('待看: the card with words for the AI carries the amber mark (the sentenc
   assert.deepEqual(await s.page.evaluate(u => ['keep', 'dismiss', 'later'].map(a => document.querySelector(`[data-card][data-url="${u}"] [data-action="${a}"] button`)?.disabled), marked), [false, false, false])
 })
 
-test('an item waiting in 待看: its summary; 收藏 enabled; 更多 has no Obsidian and no file manager (it has no file)', async () => {
-  await s.page.click('nav.st-lib-tabs button[data-tab="library"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-view="caught"]')?.getAttribute('aria-current') === 'true', null, POLL)
-  await pick(site.urls.article)
-  assert.deepEqual((await head()).actions, ['keep', 'source', 'more'])
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-action="keep"] button').disabled), false)
-  assert.match(await s.page.evaluate(() => document.querySelector('[data-part="summary"]')?.textContent ?? ''), /10 月新能源乘用车批发与零售的周报/)
-  const items = await moreMenu()
-  assert.deepEqual(items.map(i => i[0]), ['browser'])
-  assert.ok(!items.some(([id]) => id === 'obsidian' || id === 'folder'))
-  await closeMenu()
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="library-head"] [data-action="edit"]')), null, 'no 编辑 for an item without a file')
-})
-
-test('收藏: a file in notes/ (read from the disk), the page on 已收藏 with that note 「已收藏 · 进了 notes/」, 更多 now with Obsidian and the file manager; the 待看 counts go down', async () => {
+test('R3 收藏 in 待看: a file in notes/; 资料库 lists it; 编辑 · 查看原文 · 更多 (Obsidian, file manager, browser); 查看原文 opens the reading window; the 待看 counts go down', async () => {
+  if (await s.page.evaluate(() => document.querySelector('main[data-screen="inbox"]') === null)) await toTab('inbox')
+  await s.page.waitForFunction(u => document.querySelector(`[data-card][data-url="${u}"]`) !== null, site.urls.article, POLL)
   const before = await inboxCounts()
   assert.deepEqual(before, { tab: '3', sidebar: '3' })
   const notesBefore = readdirSync(join(dir(), 'notes'))
-  await s.page.click('[data-part="library-head"] [data-action="keep"] button')
-  await s.page.waitForFunction(() => document.querySelector('[data-view="kept"]')?.getAttribute('aria-current') === 'true' && document.querySelector('[data-kept-now="true"]') !== null, null, POLL)
+  await s.page.click(`[data-card][data-url="${site.urls.article}"] [data-action="keep"] button`)
+  await waitFor(() => readdirSync(join(dir(), 'notes')).length === notesBefore.length + 1)
   const added = readdirSync(join(dir(), 'notes')).filter(f => !notesBefore.includes(f))
   assert.equal(added.length, 1, 'one new file')
   const text = readFileSync(join(dir(), 'notes', added[0]), 'utf8')
   assert.match(text, new RegExp(`title: ${ARTICLE_TITLE}`))
   assert.ok(text.includes(`source: ${site.urls.article}`))
-  const kept = core.listLibrary(dir(), { view: 'kept' }).items
-  assert.deepEqual(kept.map(i => i.source), [site.urls.article])
-  const id = kept[0].id
+  const id = core.listLibrary(dir(), { view: 'all' }).items[0].id
   assert.equal(added[0], `${id}.md`)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-kept-now="true"]').textContent.trim()), LIBRARY.reader.keptNow)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-reader]')?.dataset.reader), id)
-  assert.deepEqual((await head()).actions, ['edit', 'source', 'more'])
+  await s.page.waitForFunction(() => document.querySelector('[data-tab-badge="inbox"]')?.textContent === '2', null, POLL)
+  await s.page.waitForFunction(() => document.querySelector('[data-library-row][data-active="true"] [data-library-badge]')?.textContent === '2', null, POLL)
+  await toTab('library')
+  await s.page.waitForFunction(i => document.querySelector(`[data-part="list"] [data-row="${i}"]`) !== null && document.querySelector(`[data-reader="${i}"]`) !== null, id, POLL)
+  assert.deepEqual(await s.page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-view]')].map(e => [e.dataset.view, Number(e.dataset.count)]))), { all: 1, kept: 1, authored: 0 })
+  assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="item-actions"] [data-action]')].map(e => e.dataset.action)), ['edit', 'source', 'more'])
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="item-actions"] [data-part="mark"]').textContent), LIBRARY.reader.status.kept)
   const items = await moreMenu()
   assert.deepEqual(items, [['obsidian', LIBRARY.actions.obsidian], ['folder', LIBRARY.actions.folder], ['browser', LIBRARY.actions.browser]])
   await s.page.click('[data-menu] [data-menu-item="obsidian"]')
@@ -161,10 +144,17 @@ test('收藏: a file in notes/ (read from the disk), the page on 已收藏 with 
   await moreMenu()
   await s.page.click('[data-menu] [data-menu-item="folder"]')
   await waitFor(() => log().includes(`not opened in a test run: folder ${path}`))
-  await s.page.waitForFunction(() => document.querySelector('[data-tab-badge="inbox"]')?.textContent === '2', null, POLL)
-  await s.page.waitForFunction(() => document.querySelector('[data-library-row][data-active="true"] [data-library-badge]')?.textContent === '2', null, POLL)
+  await moreMenu()
+  await s.page.click('[data-menu] [data-menu-item="browser"]')
+  await waitFor(() => log().includes(`not opened in a test run: ${site.urls.article}`))
+  // 查看原文: Streams' reading window, in 阅读模式 (the reader logs the address and the mode), not the browser
+  const browsed = log().split(`not opened in a test run: ${site.urls.article}`).length
+  await s.page.click('[data-part="item-actions"] [data-action="source"] button')
+  await waitFor(() => log().includes(`reader: ${site.urls.article}: reading`), 60_000)
+  assert.equal(log().split(`not opened in a test run: ${site.urls.article}`).length, browsed, 'the browser was not asked again')
+  const open = await s.app.evaluate(({ BrowserWindow, session }) => BrowserWindow.getAllWindows().some(w => !w.isDestroyed() && w.webContents.session === session.fromPartition('streams-reader')))
+  assert.equal(open, true, 'the reading window is open')
   assert.deepEqual(await inboxCounts(), { tab: '2', sidebar: '2' })
-  // the ledger says kept; nothing else was written to notes/
   assert.equal(core.replayLedger(dir()).states.get(site.urls.article).stage, 'kept')
 })
 

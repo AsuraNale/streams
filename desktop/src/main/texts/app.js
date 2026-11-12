@@ -15,13 +15,15 @@ export const APP = Object.freeze({
   reader: Object.freeze({
     windowTitle: '流息 · 阅读',
     lang: 'zh-CN',
-    back: '回到条目',
+    // redesign R3 (P20, 05-措辞规范: 回到条目 → 返回条目, 在浏览器里打开 → 在浏览器中打开)
+    back: '返回条目',
+    address: '地址',
     reading: '阅读模式',
     original: '原网页',
-    browser: '在浏览器里打开',
-    modes: '阅读模式或原网页',
-    loading: '正在抽正文……',
-    fallback: '这一页抽不出正文，显示的是原网页',
-    readingNote: '阅读模式：只留正文，去掉了导航和广告',
+    browser: '在浏览器中打开',
+    modes: '显示方式',
+    loading: '正在提取正文…',
+    fallback: '无法从该网页提取正文，已显示原网页。',
+    readingNote: '阅读模式：仅保留正文，已移除导航与广告',
   }),
 })

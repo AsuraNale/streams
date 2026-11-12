@@ -17,23 +17,6 @@
 
 /* 详情 */
 .st-rp-detail { display: flex; flex-direction: column; gap: 10px; }
-.st-rp-gate { display: grid; grid-template-columns: 52px 1fr auto; gap: 4px 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--st-divider-soft); }
-.st-rp-gate__name { font-size: var(--st-fs-small); font-weight: var(--st-weight-label); }
-.st-rp-gate__bar { height: 5px; background: var(--st-step-todo); border-radius: var(--st-radius-xs); position: relative; overflow: hidden; }
-.st-rp-gate__bar i { position: absolute; inset: 0 auto 0 0; background: var(--st-accent); }
-.st-rp-gate__value { font-family: var(--st-font-mono); font-weight: 500; text-align: right; }
-.st-rp-gate__reason { grid-column: 1 / 4; margin: 0; color: var(--st-text-2); font-size: var(--st-fs-small); }
-.st-rp-cites { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.st-rp-cite {
-  display: flex; gap: 10px; align-items: flex-start; width: 100%; padding: 11px 13px; border: 0; border-radius: var(--st-radius);
-  background: var(--st-surface); box-shadow: var(--st-shadow-card); color: var(--st-text); text-align: left; cursor: pointer;
-}
-.st-rp-cite:hover { background: var(--st-selected); }
-.st-rp-cite__n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; font: 500 var(--st-fs-tiny)/1 var(--st-font-mono); background: var(--st-surface-2); color: var(--st-accent); border-radius: var(--st-radius-xs); }
-.st-rp-cite__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.st-rp-cite__text small { color: var(--st-text-2); font-size: var(--st-fs-tiny); }
-.st-rp-cite__text q { font-size: var(--st-fs-small); color: var(--st-text); quotes: '\300C' '\300D'; }
-:root[lang='en'] .st-rp-cite__text q { quotes: '\201C' '\201D'; }
 .st-rp-looked { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--st-fs-small); }
 .st-rp-looked li { display: flex; align-items: center; gap: 7px; }
 /* the old third columns inside 详情: no frame of their own */

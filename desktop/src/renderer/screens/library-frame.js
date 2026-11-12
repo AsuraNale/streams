@@ -191,9 +191,9 @@ export function LibraryFrame({ tab, screen = tab, state, label, labelledby, acti
   <//>`
 }
 
-/** 资料库's two views (list · graph): two buttons, the current one pressed. */
+/** 资料库's two views (list · graph): the template's filters, the current one active (redesign R3, P09 · P10). */
 export function ViewSwitch({ current, onSelect }) {
-  return html`<div class="lib-mode" role="group" aria-label=${SHELL.view.label}>
-    ${['list', 'graph'].map(v => html`<button type="button" key=${v} class="lib-mode__button" data-mode=${v} aria-pressed=${String(current === v)} onClick=${() => onSelect(v)}>${SHELL.view[v]}</button>`)}
+  return html`<div class="filters st-view-switch" role="group" aria-label=${SHELL.view.label} data-part="view-switch">
+    ${['list', 'graph'].map(v => html`<button type="button" key=${v} class=${`filter${current === v ? ' active' : ''}`} data-mode=${v} aria-pressed=${String(current === v)} onClick=${() => { if (v !== current) onSelect(v) }}>${SHELL.view[v]}</button>`)}
   </div>`
 }

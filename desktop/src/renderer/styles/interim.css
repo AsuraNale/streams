@@ -2,7 +2,13 @@
    (资料库, 问库, 来源与要求, 主 Agent's chat, 设置's other parts, 首次打开, 新建库, the dialogs and menus) still name v2's
    variables (--st-*). Redesign R2: 待看 is rebuilt on the template's parts — its old rules (styles/screens/inbox.css, the
    R1 interim last-run.css and status.css that drew 概览's four numbers and 运行状态 in the right panel) are deleted and it names
-   none of these variables; every variable below is still named by a screen not rebuilt yet. Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
+   none of these variables; every variable below is still named by a screen not rebuilt yet. Redesign R3: 资料库, 图谱, 问库, 编辑笔记,
+   缺少文件头 and the reading window are rebuilt on the template's parts too — styles/screens/library.css, graph.css and ask.css are
+   deleted, the reading window's styles/reader.css names none of these — and the names only they used are gone from here (chart-2…4,
+   col-panel, col-sidebar, danger-bg, gutter, lib-*, on-lib, weight-body). What is left is named by 来源与要求 (screens/sources.js,
+   pipeline.js), 主 Agent's conversation and the proposal and suggestion cards (chat.js, proposal-card.js, suggestion-card.js:
+   agent.css), 设置 (settings.css), 首次打开 and 新建库 (first-run.css), the kit's dialogs, menus and buttons (kit.css, menu.css),
+   the placeholder screen and the right panel's R1 parts (panel.css, shell.css) — R4–R6 rebuild those. Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
    these screens stay readable and usable in every theme until they are rebuilt, each name points at the template's own
    variable of the theme in force (round 11's roles, set on <body>: --bench --panel --paper --well --ink11 --sub11 --accent11
    --pick --inverse11 --rule11 --float11). No colour is defined here: only var() of the template's, and sizes. */
@@ -14,16 +20,12 @@
   --st-fs-heading: 26px;
   --st-lh: 1.65;
   --st-control-h: 34px;
-  --st-gutter: 12px;
-  --st-col-sidebar: 232px;
-  --st-col-panel: 380px;
   --st-step: 8px;
   --st-step-gap: 3px;
   --st-radius: 10px;
   --st-radius-key: 10px;
   --st-radius-s: 8px;
   --st-radius-xs: 5px;
-  --st-weight-body: 400;
   --st-weight-label: 600;
   --st-weight-display: 650;
   --st-tracking-display: 0;
@@ -58,7 +60,6 @@
   --st-accent-alt: var(--accent11);
   --st-accent-alt-soft: var(--pick);
   --st-on-accent: var(--inverse11);
-  --st-on-lib: var(--inverse11);
   --st-focus: var(--accent11);
   --st-wait: var(--ink11);
   --st-wait-bg: var(--well);
@@ -67,19 +68,11 @@
   --st-done-bg: var(--well);
   --st-done-border: var(--accent11);
   --st-danger: var(--ink11);
-  --st-danger-bg: var(--well);
   --st-step-todo: var(--rule11);
   --st-step-done-past: var(--accent11);
   --st-shadow-card: var(--float11);
   --st-shadow-menu: var(--float11);
   --st-scrim: color-mix(in srgb, var(--ink11) 35%, transparent);
-  --st-chart-2: var(--accent11);
-  --st-chart-3: var(--accent11);
-  --st-chart-4: var(--accent11);
-  --st-lib-river: var(--accent11);
-  --st-lib-violet: var(--accent11);
-  --st-lib-green: var(--accent11);
-  --st-lib-muted: var(--sub11);
   --st-fetch-ok: var(--accent11);
   --st-fetch-ok-bg: var(--well);
   --st-fetch-empty: var(--sub11);
