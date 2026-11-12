@@ -8,6 +8,10 @@
 // v2 package F: 流水线 is the 「关卡」 part of a library's 来源与要求 now ([data-part="gates"] in main[data-screen="sources"]; v1.0's
 // right panel beside the editor). STREAMS_START_SCREEN 'pipeline' is v1.0's id and leads there; the session waits for 来源与要求
 // and then for the part's own data (it loads on its own). Every assertion below is v1.0's.
+// redesign R4b: 评分环节 is the first fold of 来源与要求's 高级设置 (the alias 'pipeline' leads there: params.view 'advanced'); the
+// panel beside the editor shows each step's numbers in <b> (was a <dl>'s <dd>) and in 05-措辞规范's words (通过 · 未通过 · 未评分 ·
+// 条进入待看, from texts/pipeline.js instead of the literals); the reset's dialog is the template's (dialog[data-dialog] [open]).
+// What each assertion checks is unchanged.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -17,6 +21,7 @@ import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { NO_CONNECTION } from '../src/renderer/texts/common.js'
 import { PIPELINE } from '../src/renderer/texts/pipeline.js'
+import { fmt } from '../src/renderer/lib/format.js'
 import { seedPlanB, worldSession } from './support/seed.mjs'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
@@ -130,10 +135,10 @@ test('试一条看结果: no connection → it says so and offers 设置; with o
 
 test('the right panel: the last round per step, the recent reasons for letting go, the recent check failures — the core\'s', async () => {
   const round = core.listRounds(dir(), 1)[0]
-  const gate = await s.page.evaluate(() => document.querySelector('[data-round-node="relevance"] dd').textContent)
+  const gate = await s.page.evaluate(() => document.querySelector('[data-round-node="relevance"] b').textContent)
   const g = round.gates.relevance
-  assert.equal(gate, (g.unscored ?? 0) > 0 ? `${g.passed} 过关 · ${g.failed} 没过 · ${g.unscored} 没打成分` : `${g.passed} 过关 · ${g.failed} 没过`)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-round-node="decide"] dd').textContent), `${round.counts.inbox} 条进待看`)
+  assert.equal(gate, (g.unscored ?? 0) > 0 ? fmt(PIPELINE.panel.gateUnscored, { passed: g.passed, failed: g.failed, unscored: g.unscored }) : fmt(PIPELINE.panel.gate, { passed: g.passed, failed: g.failed }))
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-round-node="decide"] b').textContent), fmt(PIPELINE.panel.decide, { n: round.counts.inbox }))
   const reasons = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="reasons"] [data-reason]')].map(e => e.dataset.reason))
   assert.deepEqual(reasons, core.recentDismissReasons(dir(), 10).map(r => r.reason))
   assert.ok(reasons.length >= 1, 'control: the seed let one go')

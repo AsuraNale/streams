@@ -5,6 +5,8 @@
 // readBrief(libraryDir)          -> string | null    (null: no `brief`, or it is not a non-empty string)
 // saveBrief(libraryDir, brief)   -> { brief }        the brief trimmed, 1–BRIEF_MAX characters (code points), else bad-argument
 // isBrief(v)                     -> boolean          what saveBrief accepts
+// saveLibraryName(libraryDir, name) -> { name }       redesign R4b (N08, 来源与要求's 库名称): streams.json `name`, trimmed,
+//                                                     1–NAME_MAX characters (code points), else bad-argument
 // Every write goes through setup.mjs's loadWhole / saveWhole (the whole streams.json, a temporary file and a rename; 2-space
 // JSON + final newline): every other key keeps its value and order. Never touches the note folder.
 // Errors: bad-argument · config:<code> (streams.json unreadable)
@@ -30,4 +32,15 @@ export function saveBrief(libraryDir, brief) {
   whole.brief = brief.trim();
   saveWhole(libraryDir, whole);
   return { brief: whole.brief };
+}
+
+export const NAME_MAX = 100;
+
+export function saveLibraryName(libraryDir, name) {
+  const n = typeof name === 'string' ? [...name.trim()].length : 0;
+  if (n < 1 || n > NAME_MAX) throw new StreamsError('bad-argument', `a library name is 1–${NAME_MAX} characters`);
+  const whole = loadWhole(libraryDir);
+  whole.name = name.trim();
+  saveWhole(libraryDir, whole);
+  return { name: whole.name };
 }

@@ -4,14 +4,14 @@
 // 待看」 are no banner: they are cards in the right panel's 待确认 (R1). The template's progress-alert:
 //   one sentence of what happened, with 「抓到的 n 条都在，没丢」 (problem.caughtKept: the fetched items kept), one of what to
 //   do, at most three buttons — the sign-in expired (or never done) on a command-line tool: 前往登录 (openLogin) · 已登录，重试
-//   (detect again, then the run again) · 更换连接方式 (设置); otherwise 重试 · 更换连接方式 · 复制诊断信息.
+//   (detect again, then the run again) · 更换连接方式 (设置); otherwise 重试 · 更换连接方式. Redesign R4b (P17, F69): 复制诊断信息 is
+//   only in 设置 → 关于 → ▾ 高级 now, not on this banner.
 // A retry that starts the run, or another connection chosen, takes the banner away (getHome().problem is null again).
 // Test hooks: [data-part="problem"][data-code][data-connection-code][data-kind], .today-problem__text, [data-part="problem-fix"],
-// [data-action=login|retry|change|copy] (at most three), [data-part="login-failed"].
+// [data-action=login|retry|change] (at most three), [data-part="login-failed"].
 import { html, useState } from '../lib/html.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
-import { TIcon } from '../lib/template-icons.js'
 import { CONNECTIONS } from '../texts/common.js'
 import { TODAY as T } from '../texts/today.js'
 
@@ -46,11 +46,9 @@ function Btn({ name, primary, quiet, disabled, onClick, children }) {
  * @param {boolean} p.busy
  * @param {() => void} p.onRetry - the run again (the head's startRound)
  * @param {() => void} p.onChange - to 设置
- * @param {() => void} p.onCopy
- * @param {boolean} p.copied
  * @param {() => Promise<void>} p.onRedetect - detect the connections again (before the retry after a sign-in)
  */
-export function ProblemCard({ problem, busy, onRetry, onChange, onCopy, copied, onRedetect }) {
+export function ProblemCard({ problem, busy, onRetry, onChange, onRedetect }) {
   const [loginFailed, setLoginFailed] = useState(false)
   if (!problem) return null
   const { text, fix, login } = problemWords(problem)
@@ -69,13 +67,11 @@ export function ProblemCard({ problem, busy, onRetry, onChange, onCopy, copied, 
     : [
         html`<${Btn} key="retry" name="retry" primary disabled=${busy} onClick=${onRetry}>${P.retry}<//>`,
         html`<${Btn} key="change" name="change" disabled=${busy} onClick=${onChange}>${P.change}<//>`,
-        html`<${Btn} key="copy" name="copy" quiet disabled=${busy} onClick=${onCopy}><${TIcon} name="copy" fallback="file" /> ${P.copy}<//>`,
       ]
   return html`<section class="progress-alert today-problem" data-part="problem" data-code=${problem.code} data-connection-code=${problem.connectionCode ?? ''} data-kind=${kind ?? ''} role="alert" aria-label=${text}>
     <div class="today-problem__text">${text}</div>
     ${fix ? html`<div class="today-problem__fix" data-part="problem-fix">${fix}</div>` : null}
     <div class="today-problem__actions">${buttons}
-      ${copied ? html`<span class="today-problem__note">${P.copied}</span>` : null}
       ${loginFailed ? html`<span class="today-problem__note" data-part="login-failed" role="alert">${P.loginFailed}</span>` : null}
     </div>
   </section>`

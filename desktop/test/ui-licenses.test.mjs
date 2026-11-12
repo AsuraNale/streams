@@ -3,12 +3,16 @@
 // maker's page (a test run only writes the log); the five parts with the runtime's versions (Electron's own process.versions)
 // and the shipped package.json's version and license (Preact, htm, @mozilla/readability); 「打开完整的第三方声明」 cannot be clicked in development and says why,
 // and the bridge refuses it there (open_failed). Esc and 关闭 close it. (The installed app's answer: installer/test/packaged.test.mjs.)
+// redesign R4b: 许可证与致谢 is the template's dialog (P19): its title is the dialog-head's h2 (was .st-dialog__title); the interface font
+// is its own line 「界面字体 · Noto Sans SC（SIL Open Font License 1.1）」 with its license folded under it (was the table's last row and
+// the text under the table), so the table lists the six bundled parts. What each test checks is unchanged.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DESKTOP_DIR, REPO_DIR } from '../scripts/lib/paths.mjs'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
+import { fmt } from '../src/renderer/lib/format.js'
 import { worldSession } from './support/seed.mjs'
 
 const POLL = { polling: 100, timeout: 60_000 }
@@ -24,7 +28,7 @@ test('设置「关于」 → 许可证与致谢: MIT, the text word for word the
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-dialog="licenses"]')), null, 'control: no dialog before the click')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="about"] [data-action="licenses"]').textContent.trim()), SETTINGS.licensesOpen)
   await open()
-  const own = await s.page.evaluate(() => ({ license: document.querySelector('[data-dialog="licenses"] [data-part="own"]').dataset.license, text: document.querySelector('[data-part="license-text"]').textContent, title: document.querySelector('[data-dialog="licenses"] .st-dialog__title').textContent }))
+  const own = await s.page.evaluate(() => ({ license: document.querySelector('[data-dialog="licenses"] [data-part="own"]').dataset.license, text: document.querySelector('[data-part="license-text"]').textContent, title: document.querySelector('[data-dialog="licenses"] .dialog-head h2').textContent }))
   assert.equal(own.title, SETTINGS.licenses.title)
   assert.equal(own.license, 'MIT')
   assert.equal(own.text, readFileSync(join(REPO_DIR, 'LICENSE'), 'utf8'))
@@ -51,10 +55,11 @@ test('the six parts: Electron, Chromium, Node.js from the runtime; Preact, htm a
     ['Preact', pkg('preact').version, pkg('preact').license],
     ['htm', pkg('htm').version, pkg('htm').license],
     ['@mozilla/readability', pkg('@mozilla/readability').version, pkg('@mozilla/readability').license],
-    // v2 package K2: the bundled UI font (its version from the font file)
-    ['Noto Sans SC', '2.04', 'OFL-1.1'],
   ])
-  assert.deepEqual(rows.at(-2), ['@mozilla/readability', '0.6.0', 'Apache-2.0'], 'control: the reading mode\'s part, as desktop/package.json pins it')
+  assert.deepEqual(rows.at(-1), ['@mozilla/readability', '0.6.0', 'Apache-2.0'], 'control: the reading mode\'s part, as desktop/package.json pins it')
+  // redesign R4b (P19): the bundled UI font is its own line above the table, its license folded under it
+  assert.equal((await s.page.evaluate(() => window.streams.getLicenses())).data.font.name, 'Noto Sans SC')
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-dialog="licenses"] [data-part="font"] b').textContent), fmt(SETTINGS.licenses.font, { name: 'Noto Sans SC', license: 'SIL Open Font License 1.1' }))
   // v2 package K2: the font's license in full under the table
   const font = await s.page.evaluate(() => ({ license: document.querySelector('[data-dialog="licenses"] [data-part="font"]')?.dataset.license, text: document.querySelector('[data-part="font-license-text"]')?.textContent ?? '' }))
   assert.equal(font.license, 'OFL-1.1')

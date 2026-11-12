@@ -1,3 +1,7 @@
+// redesign R4b: 定时与上限 is one line with one 保存 ([data-action="save-run"]; v2 package F saved the switch and the time as they
+// changed), its note [data-part="run-note"] (was [data-schedule-note]) and its words texts/sources.js SOURCES.run; the line under it
+// says the next run, that Streams has to be running, the missed run made up once and the cap (P14) — the close button's rule is not
+// on this page any more (design). Each test now presses 保存 after the change; what it checks is unchanged.
 // redesign R4a: session B no longer walks 新建库's four steps to its last screen (the wizard is gone): it checks the 定时 line of the one-page form (see below).
 // 定时 on the running app (docs/desktop.md §4.3). Session A, the seeded world with the schedule on at 08:30: 设置「运行」 shows
 // the switch on, the time, the next run as getSchedule gives it and the two rules; a new time typed → settings.json; the
@@ -17,7 +21,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NEXT_WHEN } from '../src/renderer/texts/common.js'
 import { NEW_LIBRARY } from '../src/renderer/texts/first-run.js'
-import { SETTINGS } from '../src/renderer/texts/settings.js'
+import { SOURCES } from '../src/renderer/texts/sources.js'
 import { SHELL } from '../src/renderer/texts/shell.js'
 import { fmt, nextText } from '../src/renderer/lib/format.js'
 import { ready } from './support/app.mjs'
@@ -47,20 +51,22 @@ test('来源与要求「定时与每轮上限」 (v1.0: 设置「运行」): the
   assert.equal((await run('input[data-field="schedule-time"]')).value, '08:30')
   const next = await run('[data-next-run]')
   assert.equal(next.data.nextRun, sched.nextRunAt)
-  assert.equal(next.text, fmt(SETTINGS.scheduleNext, { when: nextText(sched.nextRunAt, NEXT_WHEN) }))
+  // redesign R4b: the line under the row — the next run, then the rules (Streams running, a missed run made up once, the cap)
+  assert.equal(next.text, `${fmt(SOURCES.run.next, { when: nextText(sched.nextRunAt, NEXT_WHEN) })}${SOURCES.run.rule}`)
   assert.ok(new Date(sched.nextRunAt).getTime() > Date.now(), 'the next run is ahead')
   const text = (await run('[data-schedule]')).text
-  for (const words of [SETTINGS.scheduleOn, SETTINGS.scheduleMissed, SETTINGS.scheduleClose]) assert.ok(text.includes(words), words)
+  for (const words of [SOURCES.run.daily, SOURCES.run.at, SOURCES.run.capAfter]) assert.ok(text.includes(words), words)
 })
 
 test('a new time → the library streams.json (v1.0: settings.json) and the next run move; 25:00 through the bridge is bad_arguments; a time the field cannot hold is refused on the page', async () => {
   await s.page.fill('[data-part="run"] input[data-field="schedule-time"]', '21:15')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-schedule-note]') !== null, null, POLL)
+  await s.page.click('[data-part="run"] [data-action="save-run"] button')
+  await s.page.waitForFunction(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'saved', null, POLL)
   assert.deepEqual(scheduleOf(s.world.library), { enabled: true, time: '21:15' })
   const sched = await schedule()
   assert.equal(new Date(sched.nextRunAt).getHours() * 60 + new Date(sched.nextRunAt).getMinutes(), 21 * 60 + 15)
   await s.page.waitForFunction(iso => document.querySelector('[data-part="run"] [data-next-run]')?.dataset.nextRun === iso, sched.nextRunAt, POLL)
-  assert.equal((await run('[data-schedule-note]')).text, SETTINGS.scheduleSaved)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="run-note"]').textContent), SOURCES.run.saved)
   // the bridge: 25:00, 24:00, a missing switch, an extra key — refused, nothing written
   const before = configBytes(s.world.library)
   for (const bad of [{ enabled: true, time: '25:00' }, { enabled: true, time: '24:00' }, { time: '07:00' }, { enabled: true, time: '07:00', every: 2 }]) {
@@ -69,19 +75,23 @@ test('a new time → the library streams.json (v1.0: settings.json) and the next
   }
   assert.equal(configBytes(s.world.library), before, 'nothing written')
   // the page: the field cannot hold 25:00 (an empty value), and the page writes nothing for it
-  await s.page.evaluate(() => { const el = document.querySelector('[data-part="run"] input[data-field="schedule-time"]'); el.value = '25:00'; el.dispatchEvent(new Event('change', { bubbles: true })) })
-  await s.page.waitForFunction(t => document.querySelector('[data-part="run"] [data-schedule-note]')?.textContent === t, SETTINGS.scheduleBad, POLL)
+  await s.page.fill('[data-part="run"] input[data-field="schedule-time"]', '25:00')
+  await s.page.click('[data-part="run"] [data-action="save-run"] button')
+  await s.page.waitForFunction(t => document.querySelector('[data-part="run-note"]')?.textContent === t, SOURCES.run.timeBad, POLL)
   assert.equal(configBytes(s.world.library), before, 'nothing written from the page either')
+  await s.page.fill('[data-part="run"] input[data-field="schedule-time"]', '21:15')
 })
 
 test('the switch off → the library streams.json (v1.0: settings.json), 「定时没开」, the time field disabled; on again → back', async () => {
   await s.page.click('[data-part="run"] input[data-field="schedule-on"]')
+  await s.page.click('[data-part="run"] [data-action="save-run"] button')
   await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule === 'off', null, POLL)
   assert.deepEqual(scheduleOf(s.world.library), { enabled: false, time: '21:15' })
-  assert.equal((await run('[data-next-run]')).text, SETTINGS.scheduleOff)
+  assert.equal((await run('[data-next-run]')).text, `${SOURCES.run.off}${SOURCES.run.rule}`)
   assert.equal((await run('input[data-field="schedule-time"]')).disabled, true)
   assert.equal((await schedule()).nextRunAt, null)
   await s.page.click('[data-part="run"] input[data-field="schedule-on"]')
+  await s.page.click('[data-part="run"] [data-action="save-run"] button')
   await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule === 'on', null, POLL)
   assert.deepEqual(scheduleOf(s.world.library), { enabled: true, time: '21:15' })
 })

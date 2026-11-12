@@ -29,6 +29,7 @@ import { EVENT_CHANNEL } from '../src/main/events.mjs'
 import { SHELL } from '../src/renderer/texts/shell.js'
 import { SIDEBAR } from '../src/renderer/texts/common.js'
 import { PANEL } from '../src/renderer/texts/panel.js'
+import { ADVANCED } from '../src/renderer/texts/sources.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { firstSentence } from '../src/renderer/lib/libraries.js'
 import { ready } from './support/app.mjs'
@@ -167,7 +168,8 @@ test('each library remembers its tab and its scroll: back to one, back where it 
   await onPage('inbox', seeded)
   await tab('sources')
   await onPage('sources', seeded)
-  await until(() => document.querySelector('[data-part="gates"][data-state="ready"]') !== null && document.querySelector('[data-part="brief"][data-state="ready"]') !== null)
+  // redesign R4b: 关卡 (评分环节) is on 高级设置 now; the page has its data once 要求 and 定时与上限 have theirs (was: [data-part="gates"])
+  await until(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule !== 'unknown' && document.querySelector('[data-part="brief"][data-state="ready"]') !== null && document.querySelector('[data-part="topics"]') !== null)
   const room = await s.page.evaluate(sel => { const b = document.querySelector(sel); return b.scrollHeight - b.clientHeight }, body())
   assert.ok(room > 300, `control: 来源与要求 can scroll (${room}px)`)
   await s.page.evaluate(sel => { document.querySelector(sel).scrollTop = 300 }, body())
@@ -229,89 +231,103 @@ test('库架: a card per library (what it follows, last update, sources, 待看,
   assert.ok(ev)
 })
 
-test('来源与要求: the brief saved → streams.json and changes.jsonl (by you); 「谁定的」 for each part; a card you confirmed says so', async () => {
+// redesign R4b: 「谁定的」 beside each part is gone (维护者 第 10 题): who changed what is 高级设置's 变更记录, one row per line of
+// changes.jsonl with its 操作来源 (手动修改 / 主 Agent 提议 · 已确认); the brief's box is always open (no 改要求) and 保存 is the 要求 part's.
+// The test checks the same through them: nothing recorded at first, a confirmed card's brief → 主 Agent 提议 · 已确认, an empty brief
+// refused, the user's own → 手动修改, the head follows.
+test('来源与要求: the brief saved → streams.json and changes.jsonl (by you); 变更记录 says who (redesign R4b: was 「谁定的」 beside each part); a card you confirmed says so', async () => {
   const seeded = shelf.ids[0]
   const dir = shelf.dirs[0]
   const changes = () => (existsSync(join(dir, '_pipeline', 'changes.jsonl')) ? readFileSync(join(dir, '_pipeline', 'changes.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : [])
+  const log = async () => {
+    await s.page.click('[data-action="go-advanced"]')
+    await until(() => document.querySelector('[data-part="changes"][data-state="ready"]') !== null)
+    const rows = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="changes"] [data-change-row]')].map(r => [r.dataset.field, r.dataset.by, r.querySelector('[data-part="by"]').textContent]))
+    await s.page.click('[data-action="back-sources"]')
+    await until(() => document.querySelector('[data-part="brief"][data-state="ready"]') !== null)
+    return rows
+  }
   await tab('sources')
   await onPage('sources', seeded)
-  await until(() => document.querySelector('[data-part="brief"][data-state="ready"] [data-part="brief-text"]') !== null && document.querySelectorAll('[data-who]').length === 6)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="brief-text"]').textContent), SHELF.briefs[0])
-  const who = () => s.page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-who]')].map(w => [w.dataset.who, [w.dataset.by, w.textContent]])))
-  const before = await who()
-  assert.deepEqual(Object.keys(before).sort(), ['brief', 'cap', 'schedule', 'sources', 'thresholds', 'topics'])
-  for (const k of Object.keys(before)) assert.deepEqual(before[k], ['setup', SHELL.who.setup], `${k}: nothing changed it since the setup`)
+  await until(() => document.querySelector('[data-part="brief"][data-state="ready"] textarea[data-field="brief"]')?.value !== '')
+  assert.equal(await s.page.evaluate(() => document.querySelector('textarea[data-field="brief"]').value), SHELF.briefs[0])
+  assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-who]').length), 0, 'no 「谁定的」 mark on the page')
+  assert.deepEqual(await log(), [], 'nothing changed it since the setup: no row')
   assert.deepEqual(changes(), [], 'control: no record yet')
-  // the card of the development hook confirmed (through the bridge, as package G's button will): 主 Agent 提的 · 你确认的
+  // the card of the development hook confirmed (through the bridge, as package G's button will): 主 Agent 提议 · 已确认
   const card = (await s.page.evaluate(() => window.streams.listProposals({ status: 'pending' }))).data[0]
   assert.deepEqual([card.kind, card.libraryId], ['edit_brief', seeded])
   const r = await s.page.evaluate(id => window.streams.confirmProposal(id), card.id)
   assert.equal(r.data.status, 'confirmed', JSON.stringify(r))
-  await until(() => document.querySelector('[data-who="brief"]')?.dataset.by === 'agent-confirmed')
-  assert.ok((await who()).brief[1].startsWith(SHELL.who.agent.split('{')[0]))
-  await until(t => document.querySelector('[data-part="brief-text"]')?.textContent === t, card.params.brief)
+  await until(t => document.querySelector('textarea[data-field="brief"]')?.value === t, card.params.brief)
+  assert.deepEqual(await log(), [['brief', 'agent-confirmed', ADVANCED.log.bys['agent-confirmed']]])
   await until(() => document.querySelector('[data-panel-badge="decide"]') === null)
   // an empty brief is refused on the page: nothing written, nothing recorded
-  await s.page.click('[data-action="edit-brief"] button')
   await s.page.fill('textarea[data-field="brief"]', '   ')
   await s.page.click('[data-action="save-brief"] button')
   await until(() => document.querySelector('[data-part="brief-note"]')?.dataset.kind === 'error')
   assert.equal(core.readBrief(dir), card.params.brief)
   assert.deepEqual(changes().map(l => [l.field, l.by]), [['brief', 'agent-confirmed']])
-  // the user's own words: streams.json, one line by you, 「谁定的」 = you
+  // the user's own words: streams.json, one line by you, 变更记录 = 手动修改 on top
   const text = '只追 agent 的长期记忆与评测。不要融资新闻。'
   await s.page.fill('textarea[data-field="brief"]', text)
   await s.page.click('[data-action="save-brief"] button')
-  await until(t => document.querySelector('[data-part="brief-text"]')?.textContent === t, text)
+  await until(() => document.querySelector('[data-part="brief-note"]')?.dataset.kind === 'saved')
   assert.equal(JSON.parse(readFileSync(join(dir, 'streams.json'), 'utf8')).brief, text)
   assert.deepEqual(changes().map(l => [l.field, l.by, l.before, l.after]), [['brief', 'agent-confirmed', SHELF.briefs[0], card.params.brief], ['brief', 'you', card.params.brief, text]])
-  await until(() => document.querySelector('[data-who="brief"]')?.dataset.by === 'you')
-  assert.ok((await who()).brief[1].startsWith(SHELL.who.you.split('{')[0]))
+  assert.deepEqual((await log())[0], ['brief', 'you', ADVANCED.log.bys.you])
   // the head follows (library-changed): 「在追」 is the new first sentence
   await until(t => document.querySelector('[data-part="tracking"]')?.textContent === t, fmt(SHELL.head.tracking, { what: firstSentence(text) }))
 })
 
-test('来源与要求: this library\'s schedule and cap are changed here (streams.json, 谁定的 = you); 关卡 is here too', async () => {
+// redesign R4b: 定时与上限 is one line with one 保存 (save-run; its note [data-part="run-note"]); who changed them is 变更记录; 评分环节
+// is 高级设置's first fold. What is checked is as before.
+test('来源与要求: this library\'s schedule and cap are changed here (streams.json, 变更记录 = 手动修改); 评分环节 is in its 高级设置', async () => {
   const seeded = shelf.ids[0]
   const dir = shelf.dirs[0]
   const cfg = () => JSON.parse(readFileSync(join(dir, 'streams.json'), 'utf8'))
   assert.notEqual(cfg().schedule?.enabled, true, 'control: off before')
   await s.page.click('[data-part="run"] input[data-field="schedule-on"]')
+  await s.page.click('[data-part="run"] [data-action="save-run"] button')
   await until(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule === 'on')
   assert.deepEqual(cfg().schedule, { enabled: true, time: '08:30' })
   assert.equal((await s.page.evaluate(id => window.streams.getLibrarySchedule(id), seeded)).data.enabled, true)
-  await until(() => document.querySelector('[data-who="schedule"]')?.dataset.by === 'you')
   // the cap: a bad one is said and not written; a good one is
   const capBefore = (await s.page.evaluate(() => window.streams.getPipelineSettings())).data.cap
   await s.page.fill('[data-part="run"] input[data-field="cap"]', '0')
-  await s.page.click('[data-part="run"] [data-action="save-cap"] button')
-  await until(() => document.querySelector('[data-part="run"] [data-cap-note]') !== null)
+  await s.page.click('[data-part="run"] [data-action="save-run"] button')
+  await until(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'bad')
   assert.equal((await s.page.evaluate(() => window.streams.getPipelineSettings())).data.cap, capBefore)
   await s.page.fill('[data-part="run"] input[data-field="cap"]', '77')
-  await s.page.click('[data-part="run"] [data-action="save-cap"] button')
-  await until(() => document.querySelector('[data-who="cap"]')?.dataset.by === 'you')
+  await s.page.click('[data-part="run"] [data-action="save-run"] button')
+  await until(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'saved')
   assert.equal((await s.page.evaluate(() => window.streams.getPipelineSettings())).data.cap, 77)
-  // 关卡: v1.0's 流水线 (the strip, the editor with the pass line, 试一条) is a part of this page
+  // 高级设置: 变更记录 has both, 手动修改; 评分环节 (v1.0's 流水线: the strip, the editor with the pass line, 单条测试) is its first fold
+  await s.page.click('[data-action="go-advanced"]')
+  await until(() => document.querySelector('[data-part="changes"][data-state="ready"] [data-change-row][data-field="cap"]') !== null)
+  const rows = await s.page.evaluate(() => [...document.querySelectorAll('[data-change-row]')].map(r => [r.dataset.field, r.dataset.by]))
+  assert.deepEqual(rows.slice(0, 2), [['cap', 'you'], ['schedule', 'you']])
   await until(() => document.querySelector('main[data-screen="sources"] [data-part="gates"][data-state="ready"] [data-flow-node="relevance"]') !== null)
   assert.ok(await s.page.evaluate(() => document.querySelector('[data-part="gates"] input[data-field="threshold"]') !== null && document.querySelector('[data-part="gates"] [data-part="preview"]') !== null))
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="gates"] [data-who="thresholds"]') !== null), true)
+  await s.page.click('[data-action="back-sources"]')
 })
 
-test('设置: no schedule or cap to change; 「定时一览」 of every library (a name opens its 来源与要求); the month\'s use of all of them', async () => {
+// redesign R4b: 设置's 「定时一览」 is gone (维护者 第 10 题): each library's next run is in the right panel's 进度 (「下次运行时间」, getQueue's
+// next — only the libraries whose schedule is on); the month's use is 库与用量's sum. The rest of the test is as before.
+test('设置: no schedule or cap to change; no 「定时一览」 (redesign R4b: the next runs are the right panel\'s 进度); the month\'s use of all of them', async () => {
   const [seeded, ev] = shelf.ids
   await s.page.click('.st-sidebar__footer-button')
   await ready(s.page, 'settings')
-  await until(() => document.querySelectorAll('[data-part="schedules"] [data-schedule-row]').length === 3 && !document.querySelector('[data-schedule="unknown"]'))
   assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="settings"] [data-field="schedule-on"], main[data-screen="settings"] [data-field="cap"], main[data-screen="settings"] [data-part="run"]')), null)
-  const lines = await s.page.evaluate(() => [...document.querySelectorAll('[data-schedule-row]')].map(r => [r.dataset.scheduleRow, r.dataset.schedule, r.querySelector('td:nth-child(2)').textContent]))
-  assert.deepEqual(lines, [[seeded, 'on', '08:30'], [ev, 'off', SHELL.settings.off], [shelf.ids[2], 'off', SHELL.settings.off]], 'the seeded one was turned on on its own page')
+  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="settings"] [data-part="schedules"], main[data-screen="settings"] [data-schedule-row]')), null, 'no 定时一览')
+  // the queue's next slots (getQueue().next: what the right panel's 「下次运行时间」 lists)
+  const next = (await s.page.evaluate(() => window.streams.getQueue())).data.next.map(n => n.libraryId)
+  assert.deepEqual(next, [seeded], 'the seeded one was turned on on its own page; the others are off')
+  assert.ok(ev)
   const u = core.usageTotal(shelf.dirs, { month: new Date().toISOString().slice(0, 7) })
   assert.ok(u.calls > 0, 'control: the seed\'s round made calls')
-  await until(n => document.querySelector('[data-part="usage"] [data-calls]')?.dataset.calls === String(n), u.calls)
+  await until(n => document.querySelector('[data-part="usage"]')?.dataset.calls === String(n), u.calls)
   assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-usage-library]')].map(l => [l.dataset.usageLibrary, Number(l.dataset.calls)])), shelf.ids.map((id, i) => [id, u.libraries.find(x => x.dir === shelf.dirs[i])?.calls ?? 0]))
-  await s.page.click(`[data-schedule-row="${ev}"] [data-action="go-library"]`)
-  await onPage('sources', ev)
-  assert.equal(registryActive(), ev)
 })
 
 test('库架 with no library registered: one line and two buttons (the files of the three folders untouched)', async () => {

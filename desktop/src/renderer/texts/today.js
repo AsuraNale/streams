@@ -24,19 +24,18 @@ export const TODAY = Object.freeze({
       'bad-key': '到设置中重新输入 API key，再点击「重试」。',
       network: '网络恢复后点击「重试」。',
       timeout: '稍后点击「重试」。',
-      other: '点击「重试」再试一次；仍不行请复制诊断信息发给我们。',
+      other: '点击「重试」再试一次；仍不行请在「设置 → 关于 → 高级」中复制诊断信息发给我们。',
       none: '点击「更换连接方式」选择一种连接，再点击「重试」。',
     }),
     'not-writable': '库文件夹无法写入，本次运行未开始。请检查该文件夹是否为只读，或被其他程序占用。',
-    index: '索引无法读取，本次运行未开始。请在设置中重建索引后重试。',
+    index: '索引无法读取，本次运行未开始。请在「来源与要求 → 高级设置 → 库文件夹」中重建索引后重试。',
     config: '库的设置文件无法读取，本次运行未开始。',
-    // the buttons (at most three): login · login again and retry · change the connection; otherwise retry · change · copy
+    // the buttons (at most three): login · login again and retry · change the connection; otherwise retry · change (redesign R4b:
+    // 复制诊断信息 is only in 设置 → 关于 → 高级)
     login: '前往登录',
     loginAgain: '已登录，重试',
     loginFailed: '未能打开登录窗口。',
     retry: '重试',
     change: '更换连接方式',
-    copy: '复制诊断信息',
-    copied: '已复制。',
   }),
 })

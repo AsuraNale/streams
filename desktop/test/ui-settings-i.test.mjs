@@ -1,27 +1,26 @@
-// 设置 after v2 package I (contract I2; design P9; screens/settings.js) and 来源与要求's 「这个库」 (screens/sources.js), on the
-// running app: the seeded library registered through settings.json (v1.0's libraryPath → the registry), the connections faked,
-// the folder dialog answered by STREAMS_DEV_CHOOSE_FOLDER (a folder outside the app data).
-//   - the five groups in the design's order: 连接 · 主 Agent · 库 · 外观与语言 · 软件, each with its parts; 「主 Agent 用这条连接的主
-//     模型」 under the connections; nothing of the current library on the page;
-//   - 主 Agent: getAgentStatus as words (the connection, no session yet, 0 turns, never shortened); after one turn of the main
-//     agent (the scripted fake) the page says 1 turn; 「打开和主 Agent 聊」 opens it;
-//   - 新建库默认放在: the default place (isDefault) → 「换一个文件夹…」 → the hook's folder, written to settings.json → 「恢复默认」 →
-//     null again; refused (bad_arguments, settings.json byte for byte the same): a relative path, the app-data folder, a folder
-//     inside it — and a chosen folder inside the app data says so on the page;
-//   - 来源与要求's 「这个库」: the folder, 首次设置's record (none for this library), 重建索引, 在资源管理器中显示 (a test run only logs),
-//     移除这个库 → asked first; 取消 keeps it; 移除 → the registry no longer has it, every file of the folder is still there
-//     (byte for byte), the page goes to 库架.
+// redesign R4b: rewritten for the new 设置 (docs/checks/2026-11-12-r4b/contract.md R4b-4, 「测」; design P17): v2 package I's five groups
+// are four parts with four jumps (连接 · 外观与语言 · 库与用量 · 关于); its 主 Agent part and 定时一览 are gone by design (维护者 第 10 题), so
+// their tests are replaced by the checks that they are gone; 来源与要求's 「这个库」 is 高级设置's 库文件夹 now (test/ui-advanced.test.mjs
+// has it and 移除该库). The tests of 新建库默认存储位置 and of the folders it refuses are v2 package I's, unchanged.
+// On the running app: the seeded library registered through settings.json (v1.0's libraryPath → the registry), the connections
+// faked, the main agent scripted (one turn, so 用量 has the main agent's line), the folder dialog answered by
+// STREAMS_DEV_CHOOSE_FOLDER (a folder outside the app data).
+//   - four parts in order with the four jumps; no 主 Agent part, no 定时一览, nothing of the current library; each connection row two
+//     model slots, 测试连接, 设为当前连接 (not on the current one), 配置 on the API row; the sentence under the rows;
+//   - 库与用量: 新建库默认存储位置 (the default → 更改… → written → 恢复默认), the refused folders; 本月用量合计 = each library + 主 Agent,
+//     the two sides equal, each library's number its own usage file's (the funnel's count), the main agent's its own file's;
+//   - 关于: the version, 检查更新, 由 Starry Digital 开发, 许可证与致谢; ▾ 高级 folded: 显示开发者信息, 复制诊断信息 (the one entry of the
+//     app: the banner's is gone), 打开运行记录文件夹.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
-import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
-import { SHELL } from '../src/renderer/texts/shell.js'
+import { pathToFileURL } from 'node:url'
+import { DESKTOP_DIR, REPO_DIR } from '../scripts/lib/paths.mjs'
 import { fmt } from '../src/renderer/lib/format.js'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { tempDir } from '../scripts/lib/temp.mjs'
-import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
 
 const here = tempDir('st-settings-i-')
@@ -44,49 +43,95 @@ const click = sel => s.page.click(`${sel} button`)
 const settingsText = () => readFileSync(join(s.world.appData, 'settings.json'), 'utf8')
 const bridge = (name, ...args) => s.page.evaluate(([n, a]) => window.streams[n](...a), [name, args])
 const registry = () => JSON.parse(readFileSync(join(s.world.appData, 'libraries.json'), 'utf8'))
+const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
 
-function hashTree(dir, base = dir, out = {}) {
-  for (const d of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, d.name)
-    if (d.isDirectory()) hashTree(p, base, out)
-    else out[p.slice(base.length + 1).replace(/\\/g, '/')] = createHash('sha256').update(readFileSync(p)).digest('hex')
-  }
-  return out
-}
 
-test('five groups in the design\'s order, each with its parts; 主 Agent 用这条连接的主模型; nothing of the current library', async () => {
-  await until(() => document.querySelector('[data-group="library"] [data-part="library-root"] [data-root-path]') !== null)
-  const groups = await s.page.evaluate(() => [...document.querySelectorAll('main[data-screen="settings"] [data-group]')].map(g => [g.dataset.group, g.querySelector('.settings__group-name').textContent, [...g.querySelectorAll(':scope > .settings__group-parts > [data-part]')].map(p => p.dataset.part)]))
+test('R4b-4 four parts in the design\'s order with the four jumps on top; 主 Agent and 定时一览 are gone; the one sentence under the connections; nothing of the current library', async () => {
+  await until(() => document.querySelector('[data-group="library"] [data-part="library-root"] [data-root-path]')?.dataset.rootPath !== '' && document.querySelectorAll('[data-part="connections"] [data-connection]').length === 3)
+  const groups = await s.page.evaluate(() => [...document.querySelectorAll('main[data-screen="settings"] [data-group]')].map(g => [g.dataset.group, g.querySelector('.section-label').textContent, [...g.querySelectorAll(':scope > [data-part]')].map(p => p.dataset.part)]))
   assert.deepEqual(groups, [
     ['connection', SETTINGS.groups.connection, ['connections']],
-    ['agent', SETTINGS.groups.agent, ['agent']],
-    ['library', SETTINGS.groups.library, ['library-root', 'schedules', 'usage']],
-    // v2 package K2: 外观与语言 has 「外观」 (light · dark · system) between the theme and the language. Redesign R1: the theme and
-    // the appearance are the template's parts (filters, a field) — no .settings__part of the old layout — so a group's parts
-    // are read as its [data-part] children (was :scope .settings__part)
     ['look', SETTINGS.groups.look, ['theme', 'appearance', 'language']],
-    ['software', SETTINGS.groups.software, ['about', 'advanced']],
+    ['library', SETTINGS.groups.library, ['library-root', 'usage']],
+    ['about', SETTINGS.about, ['about', 'advanced']],
   ])
+  const jumps = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="jumps"] [data-jump]')].map(j => [j.dataset.jump, j.textContent]))
+  assert.deepEqual(jumps, [['connection', SETTINGS.groups.connection], ['look', SETTINGS.groups.look], ['library', SETTINGS.groups.library], ['about', SETTINGS.groups.about]])
+  const gone = await s.page.evaluate(() => ['[data-part="agent"]', '[data-group="agent"]', '[data-part="schedules"]', '[data-schedule-row]', '[data-part="library"]', '[data-library-path]', '[data-action="rebuild"]', '[data-part="setup"]', '[data-action="open-chat"]']
+    .filter(q => document.querySelector(`main[data-screen="settings"] ${q}`) !== null))
+  assert.deepEqual(gone, [])
+  const text = await s.page.evaluate(() => document.querySelector('main[data-screen="settings"]').textContent)
+  for (const word of ['定时一览', '会话', '缩写']) assert.equal(text.includes(word), false, word)
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-group="connection"] [data-part="agent-uses"]')?.textContent), SETTINGS.conn.agentUses)
-  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="settings"]').querySelectorAll('[data-part="library"], [data-library-path], [data-action="rebuild"], [data-action="new-library"], [data-action="open-folder"], [data-recent], [data-part="setup"]').length), 0)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-group="software"] [data-action="licenses"]') !== null), true)
+  // each connection row: two model slots, 测试连接; the current one 当前使用, the others 设为当前连接; 配置 on the API row
+  const rows = await s.page.evaluate(() => [...document.querySelectorAll('[data-connection]')].map(r => [r.dataset.connection, r.querySelectorAll('select').length, [...r.querySelectorAll('[data-action]')].map(a => a.dataset.action).filter(a => !a.startsWith('login')), r.querySelector('[data-part="in-use"]') !== null]))
+  assert.deepEqual(rows.map(r => r[0]), ['claude-code', 'codex', 'api'])
+  for (const [kind, selects, actions, inUse] of rows) {
+    assert.equal(selects, 2, `${kind}: 主模型 and 核验模型`)
+    assert.ok(actions.includes('probe'), `${kind}: 测试连接`)
+    assert.equal(actions.includes('use-connection'), !inUse, `${kind}: 设为当前连接 unless it is the current one`)
+    assert.equal(actions.includes('setup-key'), kind === 'api', `${kind}: 配置 only on the API row`)
+  }
+  // a jump: the page scrolls and the part comes into view (control: 关于 is below the fold at first)
+  const inView = id => s.page.evaluate(g => { const e = document.querySelector(`[data-group="${g}"]`).getBoundingClientRect(); const b = document.querySelector('.st-main__body').getBoundingClientRect(); return e.top >= b.top - 1 && e.top < b.bottom - 40 }, id)
+  assert.equal(await inView('about'), false, 'control: not in view before the jump')
+  await s.page.click('[data-part="jumps"] [data-jump="about"]')
+  await until(() => { const e = document.querySelector('[data-group="about"]').getBoundingClientRect(); const b = document.querySelector('.st-main__body').getBoundingClientRect(); return e.top >= b.top - 1 && e.top < b.bottom - 40 })
+  await s.page.click('[data-part="jumps"] [data-jump="connection"]')
 })
 
-test('主 Agent: the status as words; one turn later the page says 1 turn; 打开和主 Agent 聊 opens it', async () => {
-  const st = (await bridge('getAgentStatus')).data
-  assert.deepEqual([st.connection, st.turns, st.lastSummaryAt], ['fake', 0, null], 'control: the fake connection, nothing said yet')
-  await until(() => document.querySelector('[data-part="agent"] [data-turns]') !== null)
-  const read = () => s.page.evaluate(() => { const p = document.querySelector('[data-part="agent"]'); return { conn: p.querySelector('[data-agent-connection]').dataset.agentConnection, session: p.querySelector('[data-session]').dataset.session, turns: p.querySelector('[data-turns]').dataset.turns, turnsText: p.querySelector('[data-turns]').textContent, summary: p.querySelector('[data-summary]').textContent } })
-  const before = await read()
-  assert.deepEqual(before, { conn: 'fake', session: st.session.live ? 'live' : st.sessionful === false ? 'api' : 'none', turns: '0', turnsText: fmt(SETTINGS.agent.talkLine, { turns: 0, entries: st.entries }), summary: SETTINGS.agent.summaryNone })
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="agent"] [data-action="clear-chat"], [data-part="agent"] [data-action="clear"]')), null, 'no 清空对话')
+test('R4b-4 库与用量: 本月用量合计 = each library + 主 Agent, the two sides equal, each library the number its usage file has; the main agent\'s turn counts', async () => {
   const r = await bridge('agentSend', '你好')
   assert.equal(r.ok, true, JSON.stringify(r))
-  await until(() => document.querySelector('[data-part="agent"] [data-turns]')?.dataset.turns === '1')
-  await click('[data-part="agent"] [data-action="open-chat"]')
-  await ready(s.page, 'chat')
-  await s.page.click('.st-sidebar__footer-button')
-  await ready(s.page, 'settings')
+  const month = new Date().toISOString().slice(0, 7)
+  const agentFile = core.agentPaths(join(s.world.appData, core.AGENT_DIR)).usage
+  const agentCalls = core.readUsageFile(agentFile, { month }).calls
+  assert.ok(agentCalls > 0, `control: the main agent's turn made calls (${agentCalls})`)
+  const regs = registry().libraries
+  const total = core.usageTotal(regs.map(l => l.path), { month, agentFile })
+  await until(([n, a]) => document.querySelector('[data-part="usage"]')?.dataset.calls === String(n) && document.querySelector('[data-usage-agent]')?.dataset.calls === String(a), [total.calls, agentCalls])
+  const shown = await s.page.evaluate(() => ({
+    total: Number(document.querySelector('[data-part="usage"]').dataset.calls),
+    totalText: document.querySelector('[data-part="usage-total"]').textContent,
+    sum: Number(document.querySelector('[data-part="usage-sum"]').dataset.sum),
+    libs: [...document.querySelectorAll('[data-usage-library]')].map(e => [e.dataset.usageLibrary, Number(e.dataset.calls), Number(e.dataset.selfCheck)]),
+    agent: Number(document.querySelector('[data-usage-agent]').dataset.calls),
+    line: document.querySelector('[data-part="usage-sum"]').textContent,
+  }))
+  assert.equal(shown.totalText, fmt(SETTINGS.usage.total, { calls: total.calls }))
+  assert.equal(shown.total, shown.sum, 'the two sides of the sum are equal')
+  assert.equal(shown.total, shown.libs.reduce((n, l) => n + l[1], 0) + shown.agent)
+  assert.equal(shown.agent, agentCalls, 'the main agent\'s own usage file')
+  for (const [id, calls, selfCheck] of shown.libs) {
+    const path = regs.find(l => l.id === id).path
+    const u = core.readUsage(path, { month })
+    assert.equal(calls, u.calls, `${id}: the number its usage file has (the run funnel's and the right panel's count)`)
+    assert.equal(selfCheck, u.byPurpose.probe ?? 0, `${id}: its 运行前自检 calls`)
+  }
+  assert.ok(shown.line.startsWith('= ') && shown.line.includes(fmt(SETTINGS.usage.agent, { calls: agentCalls })), shown.line)
+})
+
+test('R4b-4 关于: the version, 检查更新, Starry Digital, 许可证与致谢; ▾ 高级 folded: 显示开发者信息 · 复制诊断信息 · 打开运行记录文件夹 — 复制诊断信息 only here', async () => {
+  const about = await s.page.evaluate(() => { const a = document.querySelector('[data-part="about"]'); return { version: a.querySelector('[data-version]') !== null, check: a.querySelector('[data-update-action="check"]') !== null, made: a.querySelector('[data-part="made-by"]')?.textContent, licenses: a.querySelector('[data-action="licenses"]') !== null } })
+  assert.deepEqual(about, { version: true, check: true, made: SETTINGS.madeBy, licenses: true })
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="advanced"]').open), false, '高级 is folded')
+  // 复制诊断信息: one entry on the whole page, in 关于 › 高级
+  const entries = await s.page.evaluate(t => [...document.querySelectorAll('button')].filter(b => b.textContent.includes(t)).map(b => b.closest('[data-part="advanced"]') !== null), SETTINGS.copyDiagnostics)
+  assert.deepEqual(entries, [true])
+  await s.page.evaluate(() => { document.querySelector('[data-part="advanced"]').open = true })
+  const clip = join(s.world.appData, 'logs', 'clipboard.txt')
+  assert.equal(existsSync(clip), false, 'control: nothing copied yet')
+  await click('[data-part="advanced"] [data-action="copy-diagnostics"]')
+  await until(t => document.querySelector('[data-part="diagnostics-note"]')?.textContent === t, SETTINGS.copied)
+  assert.ok(existsSync(clip), 'a test run writes the diagnostics to logs\\clipboard.txt instead of the clipboard')
+  await click('[data-part="advanced"] [data-action="open-logs"]')
+  const want = `not opened in a test run: ${join(s.world.library, '_pipeline', 'logs')}`
+  const end = Date.now() + 20_000
+  while (Date.now() < end && !readFileSync(join(s.world.appData, 'logs', 'main.log'), 'utf8').includes(want)) await new Promise(res => setTimeout(res, 100))
+  assert.ok(readFileSync(join(s.world.appData, 'logs', 'main.log'), 'utf8').includes(want), 'the run-log folder asked for')
+  // and no other page of the app calls copyDiagnostics (the banner's went in R4b)
+  const callers = readdirSync(join(DESKTOP_DIR, 'src', 'renderer', 'screens')).filter(f => f.endsWith('.js') && /call\('copyDiagnostics'\)/.test(readFileSync(join(DESKTOP_DIR, 'src', 'renderer', 'screens', f), 'utf8')))
+  assert.deepEqual(callers, ['settings.js'])
 })
 
 test('新建库默认放在: the default place → 换一个文件夹… (the hook) → written → 恢复默认 → null again', async () => {
@@ -115,39 +160,6 @@ test('refused: a relative path, the app-data folder, a folder inside it, not a s
   assert.equal(settingsText(), before, 'nothing written')
   assert.equal((await bridge('setLibraryRoot', join(s.world.root, 'roots'))).ok, true, 'control: a folder outside the app data is taken')
   assert.equal((await bridge('setLibraryRoot', null)).ok, true)
-})
-
-test('来源与要求 「这个库」: the folder, 首次设置 (none), 重建索引, 在资源管理器中显示 (logged); 移除这个库 asked first, then only the registration goes', async () => {
-  const id = registry().active
-  assert.ok(id, 'control: a current library')
-  await s.page.click('[data-library-row][data-active="true"]')
-  await until(() => document.querySelector('.st-lib-tabs') !== null)
-  await s.page.click('.st-lib-tabs [data-tab="sources"]')
-  await ready(s.page, 'sources')
-  await until(() => document.querySelector('[data-part="this-library"] [data-part="setup"]')?.dataset.setup === 'none')
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="this-library"] [data-library-path]').dataset.libraryPath), s.world.library)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="this-library"] h2').textContent), SHELL.thisLibrary.title)
-  await click('[data-part="this-library"] [data-action="rebuild"]')
-  await until(() => document.querySelector('[data-part="this-library"] [data-rebuilt]') !== null)
-  const log = () => readFileSync(join(s.world.appData, 'logs', 'main.log'), 'utf8')
-  assert.equal(log().includes(`not revealed in a test run: ${s.world.library}`), false, 'control: not asked yet')
-  await click('[data-part="this-library"] [data-action="reveal-library"]')
-  const end = Date.now() + 20_000
-  while (Date.now() < end && !log().includes(`not revealed in a test run: ${s.world.library}`)) await new Promise(r => setTimeout(r, 100))
-  assert.ok(log().includes(`not revealed in a test run: ${s.world.library}`))
-  const files = hashTree(s.world.library)
-  await click('[data-part="this-library"] [data-action="remove-library"]')
-  await until(() => document.querySelector('[data-dialog="remove-library"]') !== null)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-dialog="remove-library"] .st-dialog__text').textContent), SHELL.thisLibrary.removeDialog.text)
-  await click('[data-dialog="remove-library"] [data-action="cancel-remove"]')
-  await until(() => document.querySelector('[data-dialog="remove-library"]') === null)
-  assert.ok(registry().libraries.some(l => l.id === id), '取消 keeps it')
-  await click('[data-part="this-library"] [data-action="remove-library"]')
-  await click('[data-dialog="remove-library"] [data-action="confirm-remove"]')
-  await ready(s.page, 'shelf')
-  assert.equal(registry().libraries.some(l => l.id === id), false, 'no longer registered')
-  assert.deepEqual(hashTree(s.world.library), files, 'every file of the folder is still there, byte for byte')
-  assert.ok(Object.keys(files).length > 5, `control: the folder held files (${Object.keys(files).length})`)
 })
 
 test('no page errors', () => {

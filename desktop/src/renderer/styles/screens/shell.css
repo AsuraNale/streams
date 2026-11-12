@@ -24,41 +24,10 @@
 .stat-kv__value { margin: 0; }
 .stat-kv__label { margin: 0; }
 
-/* ---- 来源与要求: two columns, then 关卡 ---------------------------------------------------------------- */
-.src-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; max-width: 1200px; }
-.src-columns__col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-.src-columns .src-part { max-width: none; }
-.src-part__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.src-part__head > h2 { margin-right: auto; }
-.src-who { padding: 1px 6px; border: 1px solid var(--st-divider); border-radius: var(--st-radius-xs); color: var(--st-text-2); background: var(--st-surface); white-space: nowrap; }
-.src-who[data-by='agent-confirmed'] { border-color: var(--st-accent-alt); color: var(--st-accent-alt); }
-.src-brief { padding: 10px 12px; border: 1px solid var(--st-border); border-radius: var(--st-radius); background: var(--st-surface-2); white-space: pre-wrap; overflow-wrap: anywhere; }
-.src-brief__edit { display: flex; flex-direction: column; gap: 8px; }
-.src-brief__text { width: 100%; padding: 8px 10px; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-s); background: var(--st-surface); resize: vertical; line-height: var(--st-lh); }
-.src-run { display: flex; flex-direction: column; gap: 4px; }
-.src-run__row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.src-check { display: inline-flex; align-items: center; gap: 6px; }
-.src-input { height: 32px; padding: 0 8px; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-s); background: var(--st-surface); }
-.src-input--short { width: 110px; }
-.pl-section { max-width: 1200px; padding-top: 16px; border-top: 1px solid var(--st-divider); }
-.pl-columns { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
-.pl-columns__side { border: 1px solid var(--st-border); border-radius: var(--st-radius); background: var(--st-surface); }
-
-/* ---- 设置: 定时一览, 用量合计 ------------------------------------------------------------------------ */
-.settings__schedules { width: 100%; max-width: 640px; border-collapse: collapse; border: 1px solid var(--st-border); }
-.settings__schedules th, .settings__schedules td { padding: 7px 12px; border-bottom: 1px solid var(--st-divider-soft); text-align: left; }
-.settings__schedules thead th { background: var(--st-table-head); font-size: var(--st-fs-small); color: var(--st-text-2); }
-.settings__usage { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-
+/* (redesign R4b: 来源与要求's parts, 关卡 and 设置's 定时一览 / 用量 are on the template's parts now: template-app.css part 9) */
 /* ==== v2 package K2 (the K1 design draft, docs/design/next/themes/css/app.css): a library's page lies flat on the page — its head and
    tabs on --st-page, the screen under them, the right panel in the sidebar's colour; 库架's cards are the draft's tiles ==== */
 
 
 .stat-kv__row { border: 0; border-radius: var(--st-radius-s); background: var(--st-surface); box-shadow: var(--st-shadow-card); }
-.src-who { border: 0; border-radius: var(--st-radius-xs); background: var(--st-surface-2); }
-.src-who[data-by='agent-confirmed'] { background: var(--st-accent-alt-soft); }
-.src-brief { border: 0; border-radius: var(--st-radius-s); background: var(--st-surface-2); }
-.pl-columns__side { border: 0; border-radius: var(--st-radius); box-shadow: var(--st-shadow-card); }
-.settings__schedules { border: 0; border-radius: var(--st-radius-s); overflow: hidden; }
-.settings__schedules thead th { font-weight: var(--st-weight-label); }
 

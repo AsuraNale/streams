@@ -14,6 +14,9 @@
  * v2 package F: the library's 「要求」 (streams.json `brief`, core readBrief / saveBrief) on 来源与要求 — `getBrief` reads it,
  * `setBrief` writes what the user typed (the core trims it and refuses an empty or a too long one: bad_arguments) and records
  * it as the user's (one line by 'you' in changes.jsonl when it changed), then sends `library-changed`.
+ *
+ * Redesign R4b (docs/desktop.md §4.17): 严格程度 on 来源与要求 — `getStrictness` / `setStrictness(level)` (core readStrictness /
+ * saveStrictness; the thresholds recorded by 'you') — and 高级设置's 变更记录, `getChangeLog` (core changeLog).
  * @module desktop/main/services/sources
  */
 
@@ -130,6 +133,27 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
       const dir = library.require()
       const r = byYou(dir, ['brief'], () => call('saveBrief', dir, text), { log, now })
       return changed('brief saved', r)
+    },
+    /**
+     * Redesign R4b (N01 on 来源与要求, core readStrictness): { level: loose · standard · strict · custom, thresholds, levels } —
+     * `levels` the three levels' two numbers (core STRICTNESS), for the line under the switch.
+     */
+    getStrictness() {
+      const r = call('readStrictness', library.require())
+      return { level: r.level, thresholds: r.thresholds, levels: core.STRICTNESS }
+    },
+    /** Redesign R4b: a level chosen and saved — its two thresholds written (core saveStrictness), recorded as the user's. */
+    setStrictness(level) {
+      const dir = library.require()
+      const r = byYou(dir, ['thresholds'], () => call('saveStrictness', dir, level), { log, now })
+      return changed(`strictness ${r.level}`, { level: r.level, thresholds: r.thresholds, levels: core.STRICTNESS })
+    },
+    /**
+     * Redesign R4b (高级设置「变更记录」, F54 / F55): the library's change history — core changeLog: every line of changes.jsonl
+     * (who changed which field, before / after) and 首次设置's record, newest first. Read only.
+     */
+    getChangeLog() {
+      return call('changeLog', library.require())
     },
   }
 

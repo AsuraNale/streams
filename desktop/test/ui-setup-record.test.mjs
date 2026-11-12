@@ -1,3 +1,7 @@
+// redesign R4b: 首次设置's record is shown in 来源与要求 → 高级设置's 变更记录 (contract R4b-2: 「首次设置记录并进来」; F55), one row per
+// recorded step — 「创建库 · <step>：<by>」 with 操作来源 「初始设置」 — instead of 「这个库」's list of six (gone with 「这个库」). A step
+// with no record has no row there (the history shows what was recorded, nothing made up), so session B's 「the others 没有记录」 is
+// now 「only the recorded one is listed」. What is recorded, and that the page shows each recorded step with who decided it, is as before.
 // redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // 首次设置's record of who decided each step (plan A1; docs/desktop.md §4.1「首次设置」), on the running app, read back from the
 // library's streams.json.
@@ -21,6 +25,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
+import { ADVANCED } from '../src/renderer/texts/sources.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
@@ -70,15 +75,15 @@ test("首次打开 (redesign R4a): nothing found → 连接选择 → 暂时跳�
   assert.deepEqual((await a.page.evaluate(() => window.streams.getSetup())).data, core.readSetup(lib()), 'getSetup is the core\'s readSetup')
 })
 
-test('来源与要求 「这个库」 · 首次设置: the six steps, each with who decided it (v2 package I: was on 设置)', async () => {
+test('来源与要求 → 高级设置 · 变更记录 (redesign R4b; was 「这个库」 · 首次设置): the six steps, each with who decided it, 操作来源 初始设置', async () => {
   await a.page.click('.st-lib-tabs [data-tab="sources"]')
   await ready(a.page, 'sources')
-  await a.page.waitForFunction(() => document.querySelector('[data-part="this-library"] [data-part="setup"]')?.dataset.setup === 'recorded', null, POLL)
-  const rows = await a.page.evaluate(() => [...document.querySelectorAll('[data-part="this-library"] [data-setup-step]')].map(e => [e.dataset.setupStep, e.dataset.by, e.textContent]))
+  await a.page.click('[data-action="go-advanced"]')
+  await a.page.waitForFunction(() => document.querySelector('[data-part="changes"][data-state="ready"]') !== null, null, POLL)
+  const rows = await a.page.evaluate(() => [...document.querySelectorAll('[data-part="changes"] [data-change-row][data-kind="setup"]')].map(e => [e.dataset.field, e.querySelector('[data-part="what"]').textContent, e.querySelector('[data-part="by"]').textContent]))
   // redesign R4a: no preset pack chosen on the form → pack skipped (v2 package I's wizard recorded the blank pack as chosen)
   const want = { library: 'chose', connection: 'skipped', pack: 'skipped', sources: 'default', trial: 'skipped', schedule: 'default' }
-  assert.deepEqual(rows, STEPS.map(k => [k, want[k], fmt(SETTINGS.setupLine, { step: SETTINGS.setupSteps[k], by: SETTINGS.setupBy[want[k]] })]))
-  assert.ok((await a.page.evaluate(() => document.querySelector('[data-part="this-library"]').textContent)).includes(SETTINGS.setup))
+  assert.deepEqual(rows.sort((x, y) => STEPS.indexOf(x[0]) - STEPS.indexOf(y[0])), STEPS.map(k => [k, fmt(ADVANCED.log.setup, { step: SETTINGS.setupSteps[k], by: SETTINGS.setupBy[want[k]] }), ADVANCED.log.bys.setup]))
 })
 
 test('the bridge: an unknown step or by → bad_arguments and nothing written', async () => {
@@ -92,16 +97,19 @@ test('the bridge: an unknown step or by → bad_arguments and nothing written', 
 
 const b = worldSession({ kind: 'seeded', waitFor: 'sources', env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'sources' }) })
 
-test('a library made before (no record) → 「没有记录」; a record written into it and the page read again → shown', async () => {
-  await b.page.waitForFunction(() => document.querySelector('[data-part="this-library"] [data-part="setup"]')?.dataset.setup === 'none', null, POLL)
-  assert.equal(await b.page.evaluate(() => document.querySelector('[data-part="this-library"] [data-part="setup"]').textContent), SETTINGS.setupNone)
+test('a library made before (no record) → no 初始设置 row; a record written into it and the page read again → that one step shown (redesign R4b: in 变更记录)', async () => {
+  const setupRows = () => b.page.evaluate(() => [...document.querySelectorAll('[data-part="changes"] [data-change-row][data-kind="setup"]')].map(e => [e.dataset.field, e.dataset.by]))
+  await b.page.click('[data-action="go-advanced"]')
+  await b.page.waitForFunction(() => document.querySelector('[data-part="changes"][data-state="ready"]') !== null, null, POLL)
+  assert.deepEqual(await setupRows(), [])
   assert.deepEqual(core.readSetup(b.world.library), {}, 'control: the seeded library has no record')
   core.recordSetupStep(b.world.library, 'connection', { by: 'skipped' })
   await b.page.evaluate(() => { location.hash = 'sources'; location.reload() })
   await ready(b.page, 'sources')
-  await b.page.waitForFunction(() => document.querySelector('[data-part="this-library"] [data-part="setup"]')?.dataset.setup === 'recorded', null, POLL)
-  const rows = await b.page.evaluate(() => [...document.querySelectorAll('[data-part="this-library"] [data-setup-step]')].map(e => [e.dataset.setupStep, e.dataset.by]))
-  assert.deepEqual(rows, STEPS.map(k => [k, k === 'connection' ? 'skipped' : '']), 'one step recorded, the others 「没有记录」')
-  assert.equal(await b.page.evaluate(() => document.querySelector('[data-setup-step="trial"]').textContent), fmt(SETTINGS.setupLine, { step: SETTINGS.setupSteps.trial, by: SETTINGS.setupNone }))
+  await b.page.click('[data-action="go-advanced"]')
+  await b.page.waitForFunction(() => document.querySelector('[data-part="changes"][data-state="ready"] [data-change-row]') !== null, null, POLL)
+  assert.deepEqual(await setupRows(), [['connection', 'setup']], 'the one step recorded, nothing made up for the others')
+  assert.equal(await b.page.evaluate(() => document.querySelector('[data-change-row][data-field="connection"] [data-part="what"]').textContent), fmt(ADVANCED.log.setup, { step: SETTINGS.setupSteps.connection, by: SETTINGS.setupBy.skipped }))
   assert.deepEqual(b.errors, [])
 })
+

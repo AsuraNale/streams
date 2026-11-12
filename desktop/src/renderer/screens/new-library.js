@@ -37,19 +37,23 @@ import { HowItWorks } from './first-run.js'
 const LEVELS = ['loose', 'standard', 'strict']
 // what to do about a state that is not 正常 (V3's sentence; 没新内容's is 「不需要你做什么。」)
 const hintWords = h => (h && Object.hasOwn(FETCH_HINTS, h) ? FETCH_HINTS[h] : null)
-const whereOf = s => s.url ?? s.query ?? ''
+export const whereOf = s => s.url ?? s.query ?? ''
 
-/** A name for a typed source that no row has yet (the guess's, then -2, -3 …). */
-function freeName(base, rows) {
-  const taken = new Set(rows.map(r => r.source.name))
+/** A name for a typed source that no row has yet (the guess's, then -2, -3 …). `rows`: [{ source }] (or sources). */
+export function freeName(base, rows) {
+  const taken = new Set(rows.map(r => r.source?.name ?? r.name))
   if (!taken.has(base)) return base
   const stem = base.slice(0, 36)
   for (let i = 2; i < 1000; i++) if (!taken.has(`${stem}-${i}`)) return `${stem}-${i}`
   return base
 }
 
-/** One source row: its name, kind and address, the state of its test fetch and what to do, 移除. */
-function SourceRow({ row, busy, onRemove, onTry }) {
+/**
+ * One source row: its name, kind and address, the state of its test fetch and what to do, 移除. Redesign R4b: the same row is
+ * 来源与要求's 就地加来源 (screens/sources.js) — `lead` (「已识别为 …」) before the kind and address, `actions` in place of 测试抓取 /
+ * 移除 (there: 添加 · 取消).
+ */
+export function SourceRow({ row, busy, onRemove, onTry, lead = null, actions = null, part = undefined }) {
   const s = row.source
   const r = row.result
   const kind = Object.hasOwn(SOURCE_KINDS, s.kind) ? SOURCE_KINDS[s.kind] : s.kind
@@ -64,12 +68,12 @@ function SourceRow({ row, busy, onRemove, onTry }) {
     sub = r.status === 'ok' ? (r.sample?.[0]?.title ? fmt(T.latest, { title: r.sample[0].title }) : null) : hintWords(r.hint)
   }
   const state = row.state === 'done' ? r.status : row.state
-  return html`<div class="file-row st-nl-source" data-source=${s.name} data-fetch-state=${state} data-from=${row.from}>
+  return html`<div class="file-row st-nl-source" data-part=${part} data-source=${s.name} data-fetch-state=${state} data-from=${row.from}>
     <span class="file-icon"><${TIcon} name="book" /></span>
-    <span class="file-text">${s.name}<small>${fmt(T.sourceLine, { kind, where: whereOf(s) })}${sub ? html`<br /><span data-part="source-hint">${sub}</span>` : null}</small></span>
+    <span class="file-text">${s.name}<small>${lead ? html`<span data-part="source-lead">${lead}</span> · ${whereOf(s)}` : fmt(T.sourceLine, { kind, where: whereOf(s) })}${sub ? html`<br /><span data-part="source-hint">${sub}</span>` : null}</small></span>
     ${chip}
-    ${row.state === 'untried' || row.state === 'failed' ? html`<span class="st-act" data-action="try-source"><button type="button" class="btn quiet" disabled=${busy} onClick=${onTry}>${T.tryOne}</button></span>` : null}
-    <span class="st-act" data-action="remove-source"><button type="button" class="btn quiet" aria-label=${fmt(T.removeLabel, { name: s.name })} onClick=${onRemove}>${T.remove}</button></span>
+    ${actions ?? html`${row.state === 'untried' || row.state === 'failed' ? html`<span class="st-act" data-action="try-source"><button type="button" class="btn quiet" disabled=${busy} onClick=${onTry}>${T.tryOne}</button></span>` : null}
+    <span class="st-act" data-action="remove-source"><button type="button" class="btn quiet" aria-label=${fmt(T.removeLabel, { name: s.name })} onClick=${onRemove}>${T.remove}</button></span>`}
   </div>`
 }
 

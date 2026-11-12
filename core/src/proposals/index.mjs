@@ -8,5 +8,5 @@ export {
 } from './proposals.mjs';
 export { PROPOSALS_FILE, PROPOSAL_STATUSES, libraryProposalsPath, isCard, appendProposal, readProposals } from './store.mjs';
 export {
-  CHANGES_FILE, CHANGE_FIELDS, CHANGE_BY, changesPath, thresholdsOf, fieldValue, snapshot, recordChange, recordChanges, readChanges, whoDecided,
+  CHANGES_FILE, CHANGE_FIELDS, CHANGE_BY, changesPath, thresholdsOf, fieldValue, snapshot, recordChange, recordChanges, readChanges, whoDecided, changeLog,
 } from './changes.mjs';

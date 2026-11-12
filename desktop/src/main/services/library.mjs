@@ -44,8 +44,9 @@ import { BridgeError, bridgeErrorOf } from '../bridge-methods.mjs'
 import {
   CONFIG_FILE, NO_OUTPUT_ROUNDS, REGISTRY_FILE, countFirstLevelMd, createLibrary, defaultIcon, homeNumbers, importFolder, libraryAt,
   SETUP_BY, libraryOf, migrateRegistry, readBrief, readConfig, readRegistry, readSetup, rebuildIndex, recordSetupStep, usageTotal, withActive, withLibrary,
-  withMeta, withoutLibrary, writeRegistry,
+  withMeta, withoutLibrary, writeRegistry, readUsage, saveLibraryName,
 } from '../core.mjs'
+import { byYou } from './changes.mjs'
 import { readSettings, writeSettings } from '../settings.mjs'
 import { isInside } from '../layout.mjs'
 
@@ -99,6 +100,11 @@ function usable(path) {
  * @param {string[]} [o.protectedDirs] - v2 package I: folders a libraryRoot may not be in (layout.protectedDirs: the app data);
  *   default: the settings file's folder
  */
+/** The 运行前自检 calls of a library this month (its usage file's lines of purpose 'probe'); 0 when the file cannot be read. */
+function selfCheckOf(dir, month) {
+  try { return readUsage(dir, { month }).byPurpose?.probe ?? 0 } catch { return 0 }
+}
+
 export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null, agentUsageFile = null, defaultLibraryRoot = null, protectedDirs = [dirname(settingsFile)], held = () => null }) {
   // the folder the last chooseLibraryFolder gave: the only path useChosenFolder and addLibrary act on
   let chosen = null
@@ -390,12 +396,22 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
       if (wasCurrent) announce(`removed ${id}`)
       return { removed: id, active: active()?.id ?? null }
     },
-    /** The name, the icon, the colour of one library (core withMeta: a bad value → bad_arguments). */
+    /**
+     * The name, the icon, the colour of one library (core withMeta: a bad value → bad_arguments). Redesign R4b (N08: 库名称 on
+     * 来源与要求): a new name is the library's own too — streams.json `name` (core saveLibraryName), recorded as the user's
+     * (changes.jsonl by 'you', field 'name': 高级设置's 变更记录) — then the registry's. A folder whose streams.json cannot take
+     * it: the error goes up and the registry is not changed.
+     */
     setLibraryMeta(id, meta) {
       const e = entryOf(id)
       if (e.temporary) throw new BridgeError('bad_arguments', 'the development library is not registered')
+      let checked
+      try { checked = withMeta(registry(), id, meta) } catch (err) { throw bridgeErrorOf(err) }
+      if (typeof meta.name === 'string') {
+        try { byYou(e.path, ['name'], () => saveLibraryName(e.path, meta.name), { log, now }) } catch (err) { throw bridgeErrorOf(err) }
+      }
       let next
-      try { next = save(withMeta(registry(), id, meta)) } catch (err) { throw bridgeErrorOf(err) }
+      try { next = save(checked) } catch (err) { throw bridgeErrorOf(err) }
       emit('libraries-changed', { libraryId: id })
       if (active()?.id === id) emit('library-changed', current())
       const row = libraryOf(next, id)
@@ -415,7 +431,9 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
       const callsOf = new Map(t.libraries.map(l => [l.dir, l.calls]))
       return {
         month: t.month, calls: t.calls, inputTokens: t.inputTokens, outputTokens: t.outputTokens, costUsd: t.costUsd, byKind: t.byKind,
-        libraries: list.map(l => ({ id: l.id, name: l.name, calls: callsOf.get(l.path) ?? 0, missing: !callsOf.has(l.path) })),
+        // redesign R4b (设置「库与用量」: 「= 各库 n（含运行前自检 n）+ … + 主 Agent n」): each library's self-check probes, from the
+        // same usage file its calls come from (purpose 'probe': the run's 运行前自检, R2's withFirstProbe)
+        libraries: list.map(l => ({ id: l.id, name: l.name, calls: callsOf.get(l.path) ?? 0, missing: !callsOf.has(l.path), selfCheck: callsOf.has(l.path) ? selfCheckOf(l.path, t.month) : 0 })),
         agent: t.agent ? { calls: t.agent.calls, inputTokens: t.agent.inputTokens, outputTokens: t.agent.outputTokens, costUsd: t.agent.costUsd } : { calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 },
       }
     },

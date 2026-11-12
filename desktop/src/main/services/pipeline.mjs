@@ -403,7 +403,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     },
     savePipeline(cfg) {
       const dir = library.require()
-      try { byYou(dir, ['thresholds', 'cap'], () => savePipelineConfig(dir, cfg), { log, now }) } catch (err) { throw bridgeErrorOf(err) }
+      try { byYou(dir, ['thresholds', 'cap', 'prompts'], () => savePipelineConfig(dir, cfg), { log, now }) } catch (err) { throw bridgeErrorOf(err) }
       log('pipeline: configuration saved')
       emit('library-changed', library.current())
       return { config: pipelineConfig(dir) }

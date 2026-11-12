@@ -1,3 +1,7 @@
+// redesign R4b: 设置 is the template's four parts (screens/settings.js): 「设为当前连接」 is a button on each row (was the radio
+// 打分用这一条), the current one says 「当前使用」 in a chip (was in the row's words); the key dialog opens on 「选择预设…」 (P18), so the
+// test picks the first preset; the cap is saved with 定时与上限's one 保存 ([data-action="save-run"], its note [data-part="run-note"]
+// [data-kind]) and the pass lines are read off 高级设置's 评分环节. What each test checks is unchanged.
 // redesign R4a: the test 「库: 新建库 …」 goes through the one-page 新建库 (更改… · 名称 · 追踪要求 · 仅创建) instead of its four old steps.
 // redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // 设置 (screens/settings.js) on the seeded world opened through settings.json's libraryPath (not the development hook, so a
@@ -19,6 +23,7 @@ import { test } from 'node:test'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { CONNECTIONS } from '../src/renderer/texts/common.js'
+import { SETTINGS } from '../src/renderer/texts/settings.js'
 import { worldSession } from './support/seed.mjs'
 import { ready } from './support/app.mjs'
 
@@ -53,10 +58,13 @@ test('three rows, their names the fixed phrases, their states from the detection
 })
 
 test('打分用这一条 on codex → settings.json; the main model chosen → written; the page says 当前使用', async () => {
-  await s.page.click('#settings-active-codex')
+  // redesign R4b: 「设为当前连接」 (was the radio #settings-active-codex)
+  await click('[data-connection="codex"] [data-action="use-connection"]')
   await s.page.waitForFunction(() => document.querySelector('[data-connection="codex"]')?.dataset.active === 'true', null, POLL)
   assert.ok(JSON.stringify(settings()).includes('"active":"codex"'), JSON.stringify(settings()))
-  assert.ok((await rows())[1][3].includes(CONNECTIONS.inUse))
+  // redesign R4b: 「当前使用」 is a chip on the row (was in the row's words)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-connection="codex"] [data-part="in-use"]')?.textContent.trim()), SETTINGS.conn.inUse)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-connection="claude-code"] [data-part="in-use"]')), null, 'control: the other one is not')
   const conns = (await s.page.evaluate(() => window.streams.getConnections())).data
   const model = conns.kinds.codex.models[1].id
   await s.page.selectOption('#settings-model-codex', model)
@@ -69,6 +77,10 @@ test('打分用这一条 on codex → settings.json; the main model chosen → w
 test('设置… on the API row: a key saved → secrets/key-<vendor>.bin, the page shows its last four characters only; 删除 removes it', async () => {
   await click('[data-connection="api"] [data-action="setup-key"]')
   await s.page.waitForFunction(() => document.querySelector('[data-dialog="api-key"]') !== null, null, POLL)
+  // redesign R4b (P18): the dialog opens on 「选择预设…」; the first preset is chosen
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-field="vendor"]').value), '', 'nothing chosen before')
+  const first = await s.page.evaluate(() => [...document.querySelectorAll('[data-field="vendor"] option')].find(o => o.value !== '' && o.value !== 'custom').value)
+  await s.page.selectOption('[data-field="vendor"]', first)
   const vendor = await s.page.evaluate(() => document.querySelector('[data-field="vendor"]').value)
   assert.ok(vendor, 'a vendor is chosen')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-action="save-key"] button').disabled), true, 'no key typed: no save')
@@ -96,14 +108,17 @@ test('运行 (v2: on the library\'s 来源与要求, not 设置): the cap writte
   await s.page.waitForFunction(() => document.querySelector('main[data-state="ready"]') !== null && document.querySelector('.st-lib-tabs') !== null, null, POLL)
   await s.page.click('.st-lib-tabs [data-tab="sources"]')
   await ready(s.page, 'sources')
+  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule !== 'unknown' && document.querySelector('[data-part="run"] [data-field="cap"]')?.value !== '', null, POLL)
   await s.page.fill('[data-part="run"] [data-field="cap"]', '0')
-  await click('[data-part="run"] [data-action="save-cap"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-cap-note].src-error') !== null, null, POLL)
+  await click('[data-part="run"] [data-action="save-run"]')
+  await s.page.waitForFunction(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'bad', null, POLL)
   assert.equal(JSON.parse(readFileSync(join(s.world.library, 'streams.json'), 'utf8')).pipeline.cap, 120)
   await s.page.fill('[data-part="run"] [data-field="cap"]', '42')
-  await click('[data-part="run"] [data-action="save-cap"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-cap-note].st-t-done') !== null, null, POLL)
+  await click('[data-part="run"] [data-action="save-run"]')
+  await s.page.waitForFunction(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'saved', null, POLL)
   assert.equal(JSON.parse(readFileSync(join(s.world.library, 'streams.json'), 'utf8')).pipeline.cap, 42)
+  // redesign R4b: the pass lines are on 高级设置's 评分环节
+  await s.page.click('[data-action="go-advanced"]')
   await s.page.waitForFunction(() => document.querySelector('[data-part="gates"] input[data-field="threshold"]') !== null, null, POLL)
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="gates"] input[data-field="threshold"]').value), '0.7')
   await s.page.click('.st-sidebar__footer-button')

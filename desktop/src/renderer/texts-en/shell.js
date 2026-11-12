@@ -89,27 +89,9 @@ export const SHELL = Object.freeze({
     cancel: 'Cancel',
   }),
 
-  thisLibrary: Object.freeze({
-    title: 'This library',
-    hint: 'Its folder, its index, its place in the list',
-    folder: 'Folder',
-    reveal: 'Show in File Explorer',
-    revealFailed: 'The folder could not be opened.',
-    remove: 'Remove this library',
-    removeHint: 'Only takes it off the list in Streams; the folder and its files stay as they are.',
-    removeDialog: Object.freeze({
-      title: 'Remove “{name}”?',
-      text: 'It only leaves the list: it no longer shows under My libraries and no longer runs on a schedule. Not one file is deleted. Choose this folder under New library to open it again.',
-      confirm: 'Remove',
-      cancel: 'Cancel',
-    }),
-  }),
 
   who: Object.freeze({
-    label: 'Who decided',
-    you: 'Changed by you · {date}',
     agent: 'Suggested by the main Agent · confirmed by you · {date}',
-    setup: 'First-time setup',
   }),
 
   lastRun: Object.freeze({
@@ -117,38 +99,6 @@ export const SHELL = Object.freeze({
     run: 'Run status',
   }),
 
-  sources: Object.freeze({
-    title: 'Sources & Brief',
-    brief: 'Brief (one paragraph: what to follow, what not)',
-    briefNone: 'No brief yet. Write a paragraph on what this library follows and what it leaves out.',
-    briefEdit: 'Edit the brief',
-    briefSave: 'Save',
-    briefCancel: 'Cancel',
-    briefSaved: 'Saved.',
-    briefBad: 'The brief is 1 to 2000 characters.',
-    briefFailed: 'The brief could not be saved.',
-    briefLabel: 'This library\'s brief',
-    gates: 'Scoring steps',
-    gatesHint: 'Each step\'s requirement and pass line; after a change, try one item and see before you save',
-    run: 'Schedule and the cap per round',
-    runHint: 'This library only',
-    thresholds: 'Pass lines',
-  }),
-
-  settings: Object.freeze({
-    schedules: 'Schedules',
-    schedulesHint: 'Each library runs on its own time; click a name to change it on its Sources & Brief',
-    schedulesNone: 'No library yet.',
-    schedulesFailed: 'This library\'s schedule could not be read.',
-    library: 'Library',
-    on: 'Every day',
-    off: 'Off',
-    next: 'Next',
-    usage: 'This month, every library',
-    usageHint: 'All libraries together, by month',
-    usageLine: '{calls} model call{calls?|s} · {input} in · {output} out',
-    usageLibrary: '{name}: {calls}',
-    usageMissing: '{name}: the folder is gone',
-    usageFailed: 'The use could not be read.',
-  }),
+  // redesign R4b: 「这个库」 (thisLibrary), 来源与要求's v2 words (sources) and 设置's 定时一览 / 用量 (settings) went with their
+  // parts: texts/sources.js and texts/settings.js have the new pages' words
 })

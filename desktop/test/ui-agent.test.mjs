@@ -22,7 +22,7 @@ import { EVENT_CHANNEL } from '../src/main/events.mjs'
 import { AGENT } from '../src/renderer/texts/agent.js'
 import { ASK } from '../src/renderer/texts/ask.js'
 import { CONNECTIONS, NO_CONNECTION } from '../src/renderer/texts/common.js'
-import { SHELL } from '../src/renderer/texts/shell.js'
+import { ADVANCED } from '../src/renderer/texts/sources.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { SHELF, seedShelf, worldSession } from './support/seed.mjs'
 
@@ -471,9 +471,12 @@ test('问库 · change (UC3): 「这句转给主 Agent」, the reply and its car
   await s.page.click(`[data-proposal="${add.id}"] [data-action="confirm"] button`)
   await until(id => document.querySelector(`[data-proposal="${id}"]`)?.dataset.status === 'confirmed', add.id)
   assert.ok(JSON.parse(readFileSync(join(shelf.dirs[0], 'streams.json'), 'utf8')).sources.some(x => x.name === 'agent-evals'))
+  // redesign R4b: 「谁定的」 beside each part is gone; who changed the sources is 来源与要求 → 高级设置's 变更记录 (主 Agent 提议 · 已确认)
   await s.page.click('.st-lib-tabs [data-tab="sources"]')
-  await until(() => document.querySelector('[data-who="sources"]')?.dataset.by === 'agent-confirmed')
-  assert.ok((await s.page.evaluate(() => document.querySelector('[data-who="sources"]').textContent)).startsWith(SHELL.who.agent.split('{')[0]))
+  await until(() => document.querySelector('main[data-screen="sources"][data-state="ready"] [data-action="go-advanced"]') !== null)
+  await s.page.click('[data-action="go-advanced"]')
+  await until(() => document.querySelector('[data-change-row][data-field="sources"]')?.dataset.by === 'agent-confirmed')
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-change-row][data-field="sources"] [data-part="by"]').textContent), ADVANCED.log.bys['agent-confirmed'])
   // 和主 Agent 聊: the turn handed over is there (from the record), with where it came from
   await s.page.click('[data-nav="chat"]')
   await until(() => document.querySelector('main[data-screen="chat"][data-state="ready"]') !== null)

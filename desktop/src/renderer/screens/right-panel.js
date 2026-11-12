@@ -16,10 +16,12 @@
 //             a finding → that library. On a library's page, its findings with their buttons below (screens/suggestion-card.js;
 //             the one kind of card is R5's).
 //   详情      follows the main area: the screen gives it (`detail`); a screen with nothing chosen: one sentence
-//   文件      the current library told as a structure (getLibraryOutline; read only): its notes grouped by the topics of their
-//             headers, 待看 (→ 待看), 「该库的来源与要求」 (→ 来源与要求; never streams.json itself), 「程序记录（无需修改）」 folded
-//             by default, opened only to 「在资源管理器中显示」 (revealProgramRecords). A note: click → read it in 资料库; right click
-//             or 「更多」 → 在 Obsidian 中打开 (openInObsidian) · 在资源管理器中显示 (showNoteInFolder). No program file's name shows.
+//   文件      the current library told as a structure (getLibraryOutline; read only). Redesign R4b (P14 · P16): 「文件 · 库的文件
+//             结构」, its name and folder, 在资源管理器中显示 (revealLibrary), then four heads: ▾ 笔记（n）· 按主题 (its notes grouped by
+//             the topics of their headers), ▸ 待看（n）· 尚未生成文件 (→ 待看), ▸ 该库的来源与要求 (→ 来源与要求; never streams.json
+//             itself), ▸ 程序记录（无需修改） folded by default, opened only to 「在资源管理器中显示」 (revealProgramRecords). A note:
+//             click → read it in 资料库; right click or 「更多」 → 在 Obsidian 中打开 (openInObsidian) · 在资源管理器中显示
+//             (showNoteInFolder). No program file's name shows.
 //             A page with no library of its own (库架, 主 Agent, 设置): one sentence.
 // Words: texts/panel.js PANEL / QUEUE. Test hooks: aside[data-part="right-panel"][data-open][data-tab],
 // [data-panel-tab=<id>][aria-current] with [data-panel-badge], [data-action="fold"|"unfold"], [data-rail-tab=<id>],
@@ -305,41 +307,40 @@ function FilesPane() {
   const openNote = noteId => navigate('library', { id: noteId })
   const onMenu = (note, x, y, back) => setMenu({ note, x, y, back })
   const groups = o?.notes?.groups ?? []
+  // redesign R4b (P14 · P16): 「文件 · 库的文件结构」, the library's name and folder, 在资源管理器中显示 on top, then four heads —
+  // ▾ 笔记（n）· 按主题 · ▸ 待看（n）· 尚未生成文件 · ▸ 该库的来源与要求 · ▸ 程序记录（无需修改） — the template's section-label
+  // as a head (FoldRow), file-row under it
   return html`<div class="st-rp-pane" data-pane="files">
     <${PanelSummary} part="files-head" eyebrow=${F.eyebrow} title=${o?.name ?? current?.name ?? ''}>
-      <p>${F.lead}</p>
+      <p data-part="files-path">${current?.path ?? ''}</p>
     <//>
+    <span class="st-act st-rp-reveal" data-action="reveal-library"><button type="button" class="btn" onClick=${() => doCall('revealLibrary')}><${TIcon} name="external" /> ${F.reveal}</button></span>
     ${error ? html`<p class="progress-alert" role="alert">${error}</p>` : null}
     ${outline.status === 'error' && !o ? html`<p class="progress-alert" role="alert">${F.loadFailed}</p>` : null}
     ${o ? html`<div class="st-rp-tree" aria-label=${F.eyebrow}>
       <div class="st-rp-tree__node" data-tree="notes" data-open=${String(notesOpen)}>
-        <${FoldRow} open=${notesOpen} onToggle=${() => setNotesOpen(v => !v)} label=${fmt(F.notes, { n: o.notes.count })} hint=${F.notesHint} />
+        <${FoldRow} open=${notesOpen} onToggle=${() => setNotesOpen(v => !v)} label=${fmt(F.notes, { n: o.notes.count })} />
+        ${notesOpen ? html`<p class="limit-note st-rp-lead">${F.lead}</p>` : null}
         ${notesOpen ? (groups.length ? groups.map((g, i) => html`<${TopicGroup} key=${g.topic ?? ''} group=${g} first=${i === 0} onOpen=${openNote} onMenu=${onMenu} />`)
           : html`<p class="limit-note">${F.notesNone}</p>`) : null}
       </div>
-      <div class="panel-section">
-        <div class="section-label"><span>${F.other}</span></div>
-        <div class="st-rp-tree__node" data-tree="inbox">
-          <button type="button" class="file-row" onClick=${() => navigate('inbox')}>
-            <span class="file-icon"><${TIcon} name="clock" /></span><span class="file-text">${fmt(F.inbox, { n: o.inbox.count })}<small>${F.inboxHint}</small></span><${TIcon} name="arrow" />
-          </button>
-        </div>
-        <div class="st-rp-tree__node" data-tree="requirements">
-          <button type="button" class="file-row" onClick=${() => navigate('sources')}>
-            <span class="file-icon"><${TIcon} name="settings" /></span><span class="file-text">${F.requirements}<small>${fmt(F.requirementsHint, { sources: o.requirements?.sources ?? 0, topics: o.requirements?.topics ?? 0 })}</small></span><${TIcon} name="arrow" />
-          </button>
-        </div>
-        <div class="st-rp-tree__node" data-tree="records" data-open=${String(recordsOpen)}>
-          <button type="button" class="file-row" aria-expanded=${String(recordsOpen)} onClick=${() => setRecordsOpen(v => !v)}>
-            <span class="file-icon"><${TIcon} name="book" /></span><span class="file-text">${F.records}<small>${F.recordsHint}</small></span><${TIcon} name="down" />
-          </button>
-          ${recordsOpen ? html`<div class="st-rp-tree__records">
-            <p class="limit-note">${F.recordsText}</p>
-            <span class="st-act" data-action="reveal-records"><button type="button" class="btn" onClick=${() => doCall('revealProgramRecords')}><${TIcon} name="external" /> ${F.reveal}</button></span>
-          </div>` : null}
-        </div>
+      <div class="st-rp-tree__node" data-tree="inbox">
+        <button type="button" class="section-label st-rp-fold st-rp-go" title=${F.inboxHint} onClick=${() => navigate('inbox')}>
+          <span>${fmt(F.inbox, { n: o.inbox.count })}</span><small class="muted"><${TIcon} name="arrow" /></small>
+        </button>
       </div>
-      <span class="st-act st-rp-reveal" data-action="reveal-library"><button type="button" class="btn" onClick=${() => doCall('revealLibrary')}><${TIcon} name="external" /> ${F.reveal}</button></span>
+      <div class="st-rp-tree__node" data-tree="requirements">
+        <button type="button" class="section-label st-rp-fold st-rp-go" title=${fmt(F.requirementsHint, { sources: o.requirements?.sources ?? 0, topics: o.requirements?.topics ?? 0 })} onClick=${() => navigate('sources')}>
+          <span>${F.requirements}</span><small class="muted"><${TIcon} name="arrow" /></small>
+        </button>
+      </div>
+      <div class="st-rp-tree__node" data-tree="records" data-open=${String(recordsOpen)}>
+        <${FoldRow} open=${recordsOpen} onToggle=${() => setRecordsOpen(v => !v)} label=${F.records} />
+        ${recordsOpen ? html`<div class="st-rp-tree__records">
+          <p class="limit-note">${F.recordsText}</p>
+          <span class="st-act" data-action="reveal-records"><button type="button" class="btn" onClick=${() => doCall('revealProgramRecords')}><${TIcon} name="external" /> ${F.reveal}</button></span>
+        </div>` : null}
+      </div>
     </div>` : null}
     ${menu ? html`<${Menu} label=${F.moreLabel} x=${menu.x} y=${menu.y} items=${[{ id: 'obsidian', label: F.obsidian }, { id: 'folder', label: F.folder }]}
       onSelect=${choice => { const n = menu.note; setMenu(null); doCall(choice === 'obsidian' ? 'openInObsidian' : 'showNoteInFolder', n.id) }}

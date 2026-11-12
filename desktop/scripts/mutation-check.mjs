@@ -434,6 +434,79 @@ const MUTANTS = [
     edits: [['src/renderer/screens/edit-dialog.js', /(<span class="st-act" data-action="cancel-edit">[^\n]*<\/span>)\n(\s*)(<span class="st-act" data-action="save-edit">[^\n]*<\/span>)/, '$3\n$2$1']],
     test: ['test/ui-library.test.mjs', '--test-name-pattern=R3-3 编辑笔记'],
   },
+  // redesign R4b (docs/checks/2026-11-12-r4b/contract.md 「测」: each 反向 named there, and a few more)
+  {
+    id: 'r4b-name-not-saved',
+    what: '库名称 saved on 来源与要求 changes the registry only — streams.json `name` is not written (nor recorded)',
+    edits: [['src/main/services/library.mjs', "        try { byYou(e.path, ['name'], () => saveLibraryName(e.path, meta.name), { log, now }) } catch (err) { throw bridgeErrorOf(err) }", '        void saveLibraryName']],
+    test: ['test/ui-sources.test.mjs', '--test-name-pattern=R4b-1 要求'],
+  },
+  {
+    id: 'r4b-manual-not-recorded',
+    what: 'a change made on the page is written but 变更记录 misses it (byYou records no line)',
+    edits: [['src/main/services/changes.mjs', "      const lines = recordChanges(dir, before, snapshot(dir, fields), { by: 'you', now })", '      const lines = []']],
+    test: ['test/ui-sources.test.mjs', '--test-name-pattern=R4b-1 要求'],
+  },
+  {
+    id: 'r4b-who-back',
+    what: 'a 「谁定的」 mark is back beside 来源与要求\'s 要求',
+    edits: [['src/renderer/screens/sources.js', '    <div class="section-label"><span id="src-brief-h">${T.brief.heading}</span></div>', '    <div class="section-label"><span id="src-brief-h">${T.brief.heading}</span><small class="muted" data-who="brief" data-by="setup">谁定的 · 首次设置</small></div>']],
+    test: ['test/ui-sources.test.mjs', '--test-name-pattern=R4b-1 four parts'],
+  },
+  {
+    id: 'r4b-baseline-removable',
+    what: 'a built-in rule of 校验规则 gets a delete button like the user\'s own',
+    edits: [['src/renderer/screens/pipeline.js', "      ${it.origin === 'streams' ? null : html`<${Btn} name=\"remove-check\"", "      ${false ? null : html`<${Btn} name=\"remove-check\""]],
+    test: ['test/ui-advanced.test.mjs', '--test-name-pattern=R4b-2 校验规则'],
+  },
+  {
+    id: 'r4b-preview-writes',
+    what: '单条测试 writes a line into the library\'s ledger',
+    edits: [
+      ['src/main/services/pipeline.mjs', "import { randomBytes } from 'node:crypto'\n", "import { randomBytes } from 'node:crypto'\nimport { appendFileSync } from 'node:fs'\n"],
+      ['src/main/services/pipeline.mjs', '      log(`pipeline: preview ${nodeId}:', "      appendFileSync(`${dir}/_pipeline/ledger.jsonl`, `${JSON.stringify({ ts: now().toISOString(), ev: 'previewed', url })}\\n`); log(`pipeline: preview ${nodeId}:"],
+    ],
+    test: ['test/ui-pipeline.test.mjs', '--test-name-pattern=试一条看结果'],
+  },
+  {
+    id: 'r4b-remove-deletes-file',
+    what: '移除该库 also deletes one file of the library\'s folder (its streams.json)',
+    edits: [
+      ['src/main/services/library.mjs', "import { existsSync, readdirSync, statSync } from 'node:fs'", "import { existsSync, readdirSync, statSync, unlinkSync } from 'node:fs'"],
+      ['src/main/services/library.mjs', '      save(withoutLibrary(registry(), id))', "      save(withoutLibrary(registry(), id)); unlinkSync(join(e.path, 'streams.json'))"],
+    ],
+    test: ['test/ui-advanced.test.mjs', '--test-name-pattern=R4b-3 移除该库'],
+  },
+  {
+    id: 'r4b-total-without-agent',
+    what: '设置\'s 本月用量合计 leaves the main agent\'s calls out of the total (its line still shown)',
+    edits: [['src/main/services/library.mjs', '        month: t.month, calls: t.calls, inputTokens:', '        month: t.month, calls: t.calls - (t.agent?.calls ?? 0), inputTokens:']],
+    test: ['test/ui-settings-i.test.mjs', '--test-name-pattern=R4b-4 库与用量'],
+  },
+  {
+    id: 'r4b-custom-not-shown',
+    what: 'thresholds changed by hand (no level) — 严格程度 does not say 自定义',
+    edits: [['src/renderer/screens/sources.js', "      ${savedLevel === 'custom' ? html`<button type=\"button\" role=\"radio\"", "      ${false ? html`<button type=\"button\" role=\"radio\""]],
+    test: ['test/ui-advanced.test.mjs', '--test-name-pattern=a threshold changed by hand'],
+  },
+  {
+    id: 'r4b-copy-in-banner',
+    what: '复制诊断信息 is back on the library page\'s banner (not only in 设置 → 关于 → 高级)',
+    edits: [['src/renderer/screens/problem-card.js', '        html`<${Btn} key="change" name="change" disabled=${busy} onClick=${onChange}>${P.change}<//>`,\n', "        html`<${Btn} key=\"change\" name=\"change\" disabled=${busy} onClick=${onChange}>${P.change}<//>`,\n        html`<${Btn} key=\"copy\" name=\"copy\" quiet disabled=${busy} onClick=${() => call('copyDiagnostics')}>复制诊断信息<//>`,\n"]],
+    test: ['test/ui-settings-i.test.mjs', '--test-name-pattern=R4b-4 关于'],
+  },
+  {
+    id: 'r4b-agent-part-back',
+    what: '设置 has its 主 Agent part again',
+    edits: [['src/renderer/screens/settings.js', '          <${Group} id="look" name=${T.groups.look}>', '          <div data-part="agent" data-group="agent">主 Agent</div>\n          <${Group} id="look" name=${T.groups.look}>']],
+    test: ['test/ui-settings-i.test.mjs', '--test-name-pattern=R4b-4 four parts'],
+  },
+  {
+    id: 'r4b-draft-overwritten',
+    what: '定时与上限: a re-read that lands while the user types puts the saved time back over what they typed',
+    edits: [['src/renderer/screens/sources.js', '  useEffect(() => { if (d && !draft.current) { setOn(d.enabled); setTime(d.time) } }, [d?.enabled, d?.time])', '  useEffect(() => { if (d) { setOn(d.enabled); setTime(d.time) } }, [d?.enabled, d?.time])']],
+    test: ['test/ui-schedule.test.mjs', '--test-name-pattern=a new time'],
+  },
 ]
 
 function runTest(desktop, test) {
@@ -452,13 +525,15 @@ function occurrences(text, from) {
   return (text.match(new RegExp(from.source, from.flags.includes('g') ? from.flags : `${from.flags}g`)) ?? []).length
 }
 
+// an argument is a mutant's id, or a prefix ending in * (e.g. r4b-*: every mutant of package R4b)
 const only = process.argv.slice(2)
-const unknown = only.filter(id => !MUTANTS.some(m => m.id === id))
+const picks = (arg, id) => (arg.endsWith('*') ? id.startsWith(arg.slice(0, -1)) : id === arg)
+const unknown = only.filter(arg => !MUTANTS.some(m => picks(arg, m.id)))
 if (unknown.length) {
   process.stderr.write(`no mutant ${unknown.join(', ')} (ids: ${MUTANTS.map(m => m.id).join(', ')})\n`)
   process.exit(2)
 }
-const chosen = MUTANTS.filter(m => only.length === 0 || only.includes(m.id))
+const chosen = MUTANTS.filter(m => only.length === 0 || only.some(arg => picks(arg, m.id)))
 // the originals the chosen mutants edit, hashed before and after
 const targets = [...new Set(chosen.flatMap(m => m.edits.map(e => e[0])))]
 const hashOf = () => Object.fromEntries(targets.map(f => [f, createHash('sha256').update(readFileSync(join(DESKTOP_DIR, f))).digest('hex')]))

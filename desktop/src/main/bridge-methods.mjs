@@ -169,6 +169,11 @@ export const BRIDGE_METHODS = Object.freeze({
   createNewLibrary: Object.freeze({ args: 1, check: ([form]) => smallObject(form, 60_000) && onlyKeys(form, ['name', 'brief', 'strictness', 'topics', 'sources', 'packId', 'schedule', 'cap', 'run'])
     && nonEmptyShort(100)(form.name) && shortString(8000)(form.brief) && strings(form.topics, { items: 50, max: 100 }) && Array.isArray(form.sources) && form.sources.length <= 100
     && (form.packId === null || nonEmptyShort(80)(form.packId)) && schedule(form.schedule) && typeof form.run === 'boolean' && Number.isInteger(form.cap) }),
+  // redesign R4b (services/sources.mjs; docs/desktop.md §4.17): 来源与要求's 严格程度 (the current library's level, a level saved:
+  // its two thresholds, recorded as the user's) and 高级设置's 变更记录 (read only)
+  getStrictness: Object.freeze({ args: 0 }),
+  setStrictness: Object.freeze({ args: 1, check: ([level]) => ['loose', 'standard', 'strict'].includes(level) }),
+  getChangeLog: Object.freeze({ args: 0 }),
   // the proposal cards (v2 package B; services/proposals.mjs; docs/desktop.md §4.5): the list, the three answers — only
   // confirmProposal changes anything, and only for a pending card — and 「谁定的」 of the current library
   listProposals: Object.freeze({ args: 1, check: ([filter]) => proposalFilter(filter) }),

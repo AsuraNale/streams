@@ -1,130 +1,98 @@
-// 设置 (screens/settings.js, mockup S14): four parts — the connections (plan C2), the run (cap, the schedule, the pass
-// lines), the library (C3), and the software part (the language, the developer switch, the diagnostics, 「关于」 with
-// the update). The connection names and the login loop: texts/common.js CONNECTIONS.
-// v2 package I (design P9): five groups — 连接 · 主 Agent · 库 · 外观与语言 · 软件. The run's words stay here (来源与要求 uses
-// them); what 设置 had of the current library is 来源与要求's 「这个库」 now (texts/shell.js thisLibrary; 首次设置's record below).
+// 设置 (screens/settings.js). Redesign R4b (docs/checks/2026-11-12-r4b/contract.md R4b-4; design 03-页面稿 P17, P18, P19; F63–F69;
+// the words of 05-措辞规范): a line on top, four jumps and four parts — 连接 (the three connections, two model slots each, 测试连接,
+// 设为当前连接, 配置 for the API key) · 外观与语言 (the four themes, the appearance, the language) · 库与用量 (新建库默认存储位置, this
+// month's calls of every library and the main agent, the sum written out) · 关于 (the version and the update, Starry Digital, 许可证
+// 与致谢, ▾ 高级: 显示开发者信息 · 复制诊断信息 · 打开运行记录文件夹). v2 package I's 主 Agent part and 定时一览 are gone (维护者 第 10 题).
+// The connection names and the login loop: texts/common.js CONNECTIONS. 首次设置's step names (setupSteps / setupBy) are read by
+// 高级设置's 变更记录 (texts/sources.js ADVANCED).
 
 export const SETTINGS = Object.freeze({
   title: '设置',
-  subtitle: '对这台电脑上的流息、所有的库都有效',
-  // v2 package I: the page's five groups, top to bottom
-  groups: Object.freeze({ connection: '连接', agent: '主 Agent', library: '库', look: '外观与语言', software: '软件' }),
+  subtitle: '以下设置对本机的流息及全部库生效。各库的来源、要求与定时，请在该库的「来源与要求」中设置。',
+  // redesign R4b: the page's four parts, top to bottom (and the four jumps on top)
+  groups: Object.freeze({ connection: '连接', look: '外观与语言', library: '库与用量', about: '关于' }),
+  jumpsLabel: '跳转到',
 
-  // 连接方式
-  connections: '连接方式',
-  connectionsHint: '打分用哪一条、用什么型号',
-  connectionsFailed: '没能读出连接的状态。',
+  // 连接
+  connections: '连接',
+  connectionsFailed: '未能读取连接状态。',
   conn: Object.freeze({
-    use: '打分用这一条',
+    use: '设为当前连接',
+    inUse: '当前使用',
     model: '主模型',
-    modelHint: '打分、摘要、问库',
     verify: '核验模型',
-    verifyHint: '默认同主模型；同一连接里可选便宜的档',
-    setup: '设置…',
-    probe: '现在试一次',
-    apiHint: '任一厂商 · 存在系统凭据保护里',
-    which: '打分用哪一个：你选的那条；没选时按上面的顺序，第一个可用的。',
-    // v2 package I
-    agentUses: '主 Agent 用这条连接的主模型。',
+    setup: '配置',
+    probe: '测试连接',
+    apiHint: '支持任意厂商；厂商与接口地址在「配置」中设置',
+    // the one sentence under the three rows (F63, F64: 主 Agent uses the current connection's main model)
+    agentUses: '评分、摘要、问库与主 Agent 均使用当前连接的主模型；核验使用核验模型。',
   }),
 
-  // v2 package I: the main agent (getAgentStatus)
-  agent: Object.freeze({
-    name: '主 Agent',
-    hint: '管所有的库：建库、改库，都先出提议卡',
-    connection: '连接',
-    connectionNone: '还没选连接，主 Agent 用不了',
-    session: '会话',
-    sessionLive: '接着上一次的会话（{turns} 轮）',
-    sessionNone: '没有接着的会话，下一句开一个新的',
-    sessionApi: 'API key 不留会话，每次带上对话记录',
-    talk: '对话',
-    talkLine: '{turns} 轮 · {entries} 条记录',
-    summary: '上次缩写',
-    summaryNone: '还没缩写过',
-    open: '打开主 Agent',
-    failed: '没能读出主 Agent 的状态。',
-  }),
-
-  // v2 package I: where a new library goes (getLibraryRoot / chooseLibraryRoot / setLibraryRoot)
+  // 新建库默认存储位置 (getLibraryRoot / chooseLibraryRoot / setLibraryRoot)
   root: Object.freeze({
-    label: '新建库默认放在',
-    hint: '主 Agent 提议建库、你手动新建时，库的文件夹默认放在这里',
+    label: '新建库默认存储位置',
     isDefault: '默认位置',
-    change: '换一个文件夹…',
+    change: '更改…',
     reset: '恢复默认',
     saved: '已保存。',
-    bad: '这个文件夹不能用：要一个完整的路径，而且不能在流息自己的应用数据文件夹里。',
-    failed: '没能读出这个位置。',
+    bad: '该文件夹不可用：需为完整路径，且不能位于流息自己的应用数据文件夹中。',
+    failed: '未能读取该位置。',
   }),
+
+  // 本月用量合计 (getUsageTotal; the same count as each library's run funnel and the right panel)
+  usage: Object.freeze({
+    total: '本月用量合计：{calls} 次模型调用',
+    tokens: '输入 {input} · 输出 {output}',
+    library: '{name} {calls}',
+    librarySelfCheck: '{name} {calls}（含运行前自检 {n}）',
+    missing: '{name} 0（文件夹不存在）',
+    agent: '主 Agent {calls}',
+    sum: '= {parts}',
+    plus: ' + ',
+    failed: '未能读取用量。',
+  }),
+
+  // 输入 API key (P18): the vendor (选择预设… / 自定义接口地址), the address, the key; the key only into the system's protection
   apiDialog: Object.freeze({
     title: '输入 API key',
     vendor: '厂商',
+    vendorPick: '选择预设…',
     baseUrl: '接口地址',
-    baseUrlPlaceholder: '以 https:// 开头',
+    baseUrlPlaceholder: 'https://…',
     key: 'key',
-    keyPlaceholder: '粘贴 key，只往这台电脑的系统凭据保护里存一次',
-    hasKey: '已有 key（末四位 {hint}）。再保存会换成新的。',
+    keyPlaceholder: '请输入 API key',
+    hasKey: '已有 key（末四位 {hint}）。保存后将替换为新的 key。',
+    note: 'API key 仅保存在本机的系统凭据保护中，不会写入任何库文件夹。费用按量计入对应账户。',
     save: '保存',
-    remove: '删除',
+    remove: '删除 API key',
     cancel: '取消',
+    close: '关闭',
     saved: '已保存。',
     removed: '已删除。',
-    failed: '没能保存。',
+    failed: '未能保存。',
   }),
 
-  // 运行
-  run: '运行',
-  runHint: '定时、每轮上限、默认过关线',
-  runFailed: '没能读出运行的设置。',
-  schedule: '定时',
-  // the timed round (docs/desktop.md §4.3): the switch, the time of day, what happens when it is missed, the close button
-  scheduleOn: '每天定时跑一轮（软件在托盘时）',
-  scheduleTime: '时刻',
-  scheduleMissed: '错过了：下次打开补跑一轮，不会堆积',
-  scheduleClose: '关窗口时：收进托盘（定时开着时）；定时关着时，关窗口就退出流息',
-  scheduleNext: '下次运行 {when}',
-  scheduleOff: '定时没开',
-  scheduleSaved: '已保存。',
-  scheduleBad: '时刻要在 00:00 到 23:59 之间。',
-  scheduleFailed: '没能读出定时的设置。',
-  cap: '每轮上限',
-  capUnit: '次模型调用',
-  capSave: '保存',
-  capSaved: '已保存。',
-  capBad: '上限要是一个正整数。',
-  thresholds: '默认过关线',
-  thresholdsValue: '相关度 {relevance} · 实质 {substance}',
-  thresholdsHint: '要改的话去库的「来源与要求」',
-
-  // 库 (v2 package I: the index and 首次设置's record are 来源与要求's 「这个库」 now)
-  rebuild: '重建索引',
-  rebuilding: '正在重建……',
-  rebuilt: '索引 {count} 条 · 待规范 {tidy} 条',
-  rebuildFailed: '没能重建索引。',
-  // 「首次设置」: who decided each of the wizard's steps (streams.json setup, plan A1)
-  setup: '首次设置',
+  // 首次设置's record (streams.json setup, plan A1): its step names, read by 高级设置's 变更记录
+  setup: '初始设置',
   setupNone: '没有记录',
-  setupFailed: '没能读出首次设置的记录。',
+  setupFailed: '未能读取初始设置的记录。',
   setupLine: '{step}：{by}',
   setupSteps: Object.freeze({
-    library: '库放在哪',
+    library: '存储位置',
     connection: '连接方式',
-    pack: '起步包',
+    pack: '预设来源包',
     sources: '来源',
-    trial: '试跑一轮',
+    trial: '首次运行',
     schedule: '定时',
   }),
-  setupBy: Object.freeze({ chose: '你选的', wrote: '你写的', default: '接受了默认', skipped: '跳过了' }),
+  setupBy: Object.freeze({ chose: '已选择', wrote: '手动填写', default: '采用默认', skipped: '已跳过' }),
 
   // the language of the app's own words (docs/desktop.md §六)
   language: '语言',
-  languageHint: '流息自己写的字用哪种语言',
   languageGroup: '选择语言',
   languages: Object.freeze({ auto: '跟随系统', 'zh-CN': '中文', en: 'English' }),
   languageNow: '（当前：{name}）',
-  languageNote: '只改流息自己写的字；库里的文件和模型写的内容不受影响。',
-  languageReload: '切换后这一页会重新载入。',
+  languageNote: '仅切换流息自身的界面文字；库中的文件和模型生成的内容不受影响。切换后页面将重新载入。',
 
   // the app's look (docs/desktop.md §五「主题」). Redesign R1 (维护者 11-11): the template's four themes and the appearance —
   // 浅色 · 深色 · 跟随系统
@@ -141,13 +109,15 @@ export const SETTINGS = Object.freeze({
   themeFailed: '未能切换主题。',
   appearanceFailed: '未能切换外观。',
 
+  // 关于 · ▾ 高级 (F69: the only place 复制诊断信息 is)
   advanced: '高级',
-  advancedHint: '给排查问题用，平时不用管',
   devInfo: '显示开发者信息',
-  devInfoText: '打开后，页面上多显示一些给排查问题用的细节。默认关闭。',
+  devInfoText: '开启后，页面上会多显示一些用于排查问题的细节。默认关闭。',
   copyDiagnostics: '复制诊断信息',
-  diagnosticsText: '出了问题、需要我们帮忙时，复制后发给我们。里面有原始出错记录和文件位置，没有你的 key。',
+  diagnosticsText: '遇到问题需要协助时，复制后发给我们。其中包含原始出错记录和文件位置，不含 API key。',
   copied: '已复制到剪贴板。',
+  openLogs: '打开运行记录文件夹',
+  openLogsFailed: '未能打开运行记录文件夹。',
 
   about: '关于',
   version: '流息 {version}（Windows 版）',
@@ -155,22 +125,21 @@ export const SETTINGS = Object.freeze({
   versionDev: '流息 {version} 开发版（Windows 版）',
   madeBy: '由 Starry Digital 开发',
 
-  // 许可证与致谢 (mockup S14): Streams' own license, the parts that ship with it, the full notices of an install
+  // 许可证与致谢 (P19; V11): Streams' own license, the interface font, the parts that ship with it, the full notices of an install
   licensesOpen: '许可证与致谢',
   licenses: Object.freeze({
     title: '许可证与致谢',
-    own: '流息本身',
-    ownLicense: '{license} 许可证，全文如下：',
-    components: '随软件带的组件',
-    name: '名字',
+    own: '流息本身 · {license}',
+    font: '界面字体 · {name}（{license}）',
+    fontText: '查看字体许可证全文',
+    components: '随附的第三方组件',
+    name: '名称',
     version: '版本',
     license: '许可证',
-    notices: '打开完整的第三方声明',
-    noticesNone: '开发版没有这个文件：装好的流息才在安装目录里带着 THIRD-PARTY-NOTICES.txt。',
-    noticesFailed: '没能打开第三方声明。',
-    // v2 package K2: the bundled UI font's license, in full under the table
-    font: '界面字体 {name}（{license}），许可证全文：',
-    failed: '没能读出许可证。',
+    notices: '查看完整第三方声明',
+    noticesNone: '开发版没有该文件：安装后的流息在安装目录中附带 THIRD-PARTY-NOTICES.txt。',
+    noticesFailed: '未能打开第三方声明。',
+    failed: '未能读取许可证。',
     close: '关闭',
   }),
 

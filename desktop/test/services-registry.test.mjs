@@ -221,6 +221,8 @@ test('getUsageTotal: every library\'s calls this month added up, by connection; 
   const [a, b, c] = ['a', 'b', 'c'].map(n => join(w.root, n))
   await openAll(s, w, [a, b, c])
   createUsageCounter(a).record({ ts: '2026-11-01T10:00:00.000Z', kind: 'claude-code', purpose: 'score', calls: 2 })
+  // redesign R4b: a run's 运行前自检 (purpose probe) counts in the library's calls and is said on its own (selfCheck)
+  createUsageCounter(a).record({ ts: '2026-11-01T09:59:00.000Z', kind: 'claude-code', purpose: 'probe' })
   createUsageCounter(a).record({ ts: '2026-10-30T10:00:00.000Z', kind: 'claude-code', purpose: 'score', calls: 9 })
   createUsageCounter(b).record({ ts: '2026-11-02T10:00:00.000Z', kind: 'api', purpose: 'ask' })
   createUsageCounter(c).record({ ts: '2026-11-03T10:00:00.000Z', kind: 'api', purpose: 'ask', calls: 5 })
@@ -228,9 +230,9 @@ test('getUsageTotal: every library\'s calls this month added up, by connection; 
   const [ia, ib, ic] = s.entries().map(l => l.id)
   const t = s.handlers.getUsageTotal()
   assert.equal(t.month, '2026-11')
-  assert.equal(t.calls, 3, 'a: 2 this month (October\'s 9 not), b: 1, c: gone')
-  assert.deepEqual(t.byKind, { 'claude-code': 2, api: 1 })
-  assert.deepEqual(t.libraries, [{ id: ia, name: 'a', calls: 2, missing: false }, { id: ib, name: 'b', calls: 1, missing: false }, { id: ic, name: 'c', calls: 0, missing: true }])
+  assert.equal(t.calls, 4, 'a: 2 + its self-check 1 this month (October\'s 9 not), b: 1, c: gone')
+  assert.deepEqual(t.byKind, { 'claude-code': 3, api: 1 })
+  assert.deepEqual(t.libraries, [{ id: ia, name: 'a', calls: 3, missing: false, selfCheck: 1 }, { id: ib, name: 'b', calls: 1, missing: false, selfCheck: 0 }, { id: ic, name: 'c', calls: 0, missing: true, selfCheck: 0 }])
 })
 
 test('the development library: the current one without being registered (id dev), listed as temporary; opening another library ends it', async () => {

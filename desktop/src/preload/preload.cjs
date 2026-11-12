@@ -95,6 +95,10 @@ const METHODS = [
   'newLibraryFolder',
   'estimateNewLibrary',
   'createNewLibrary',
+  // redesign R4b: 严格程度 on 来源与要求, the 变更记录 of 高级设置
+  'getStrictness',
+  'setStrictness',
+  'getChangeLog',
   // the proposal cards (v2 package B)
   'listProposals',
   'confirmProposal',

@@ -128,13 +128,9 @@ export function LibraryFrame({ tab, screen = tab, state, label, labelledby, acti
   useEvent('settings-changed', () => home.reload(), [id])
   useEvent('round-progress', p => { if (p?.done) reload() }, [id])
   const [busy, setBusy] = useState(false)
-  const [copied, setCopied] = useState(false)
   const retry = async () => {
     setBusy(true)
     try { await call('startRound') } catch { /* the card stays */ } finally { setBusy(false); home.reload() }
-  }
-  const copy = async () => {
-    try { await call('copyDiagnostics'); setCopied(true) } catch { setCopied(false) }
   }
   const redetect = async () => {
     setBusy(true)
@@ -183,7 +179,7 @@ export function LibraryFrame({ tab, screen = tab, state, label, labelledby, acti
     <div class="workspace lib-page" data-library=${id ?? ''}>
       <${LibraryHead} row=${row} name=${current?.name ?? null} libraryId=${id} actions=${actions} home=${home.data} est=${est.data} onAnswer=${() => home.reload()} />
       <${LibrarySections} current=${tab} badges=${{ inbox: row?.inbox ?? null }} onSelect=${t => navigate(t)} />
-      ${problem ? html`<div class="st-banner"><${ProblemCard} problem=${problem} busy=${busy} copied=${copied} onRetry=${retry} onChange=${() => navigate('settings')} onCopy=${copy} onRedetect=${redetect} /></div>` : null}
+      ${problem ? html`<div class="st-banner"><${ProblemCard} problem=${problem} busy=${busy} onRetry=${retry} onChange=${() => navigate('settings')} onRedetect=${redetect} /></div>` : null}
       <div class="lib-page__content" ref=${content} onScrollCapture=${remember}>
         <${Main} inner screen=${screen} state=${state} label=${label} labelledby=${labelledby}>${children}<//>
       </div>

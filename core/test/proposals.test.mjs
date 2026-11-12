@@ -453,7 +453,8 @@ test('proposals.jsonl: append only, read back as the last line of each id (in th
 
 test('「谁定的」: changes.jsonl by you / agent-confirmed, the last of each field wins, no record = null, bad lines skipped', async () => {
   const dir = library('who');
-  assert.deepEqual(whoDecided(dir), { brief: null, sources: null, topics: null, thresholds: null, schedule: null, cap: null });
+  // redesign R4b: two more fields are recorded (name: the library's name on 来源与要求; prompts: 评分环节's prompts, material, checks)
+  assert.deepEqual(whoDecided(dir), { brief: null, sources: null, topics: null, thresholds: null, schedule: null, cap: null, name: null, prompts: null });
   recordChange(dir, { field: 'sources', by: 'you', before: [], after: [{ name: 'x' }] }, { now });
   const card = await draft('edit_brief', { libraryId: 'a', brief: 'agent 写的要求' }, dir);
   confirmProposal(card, { libraryDir: dir, now });

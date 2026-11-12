@@ -106,29 +106,11 @@ export const SHELL = Object.freeze({
     cancel: '取消',
   }),
 
-  // 「这个库」 at the foot of 来源与要求 (v2 package I: what 设置 had of the current library)
-  thisLibrary: Object.freeze({
-    title: '这个库',
-    hint: '文件夹、索引、登记',
-    folder: '文件夹',
-    reveal: '在资源管理器中显示',
-    revealFailed: '没能打开这个文件夹。',
-    remove: '移除这个库',
-    removeHint: '只从流息的库列表里去掉，文件夹和里面的文件都不动。',
-    removeDialog: Object.freeze({
-      title: '移除「{name}」？',
-      text: '只去掉登记：它不再出现在「我的库」里，也不再定时跑；文件夹和里面的文件一个都不删。以后用「新建库」选这个文件夹，就能再打开它。',
-      confirm: '移除',
-      cancel: '取消',
-    }),
-  }),
 
-  // 「谁定的」 beside each part of 来源与要求 (getWhoDecided)
+  // redesign R4b: 「谁定的」 beside each part of 来源与要求 is gone (高级设置's 变更记录 says it, texts/sources.js ADVANCED.log);
+  // only the confirmed proposal card's chip still uses this line (proposal-card.js, until R5)
   who: Object.freeze({
-    label: '谁定的',
-    you: '你改的 · {date}',
     agent: '主 Agent 提的 · 你确认的 · {date}',
-    setup: '首次设置',
   }),
 
   // redesign R1: what 概览 had — the last run, its numbers, the sources' state — sits in the right panel's 进度 under this (until
@@ -138,40 +120,6 @@ export const SHELL = Object.freeze({
     run: '运行状态',
   }),
 
-  // 来源与要求 (P7)
-  sources: Object.freeze({
-    title: '来源与要求',
-    brief: '要求（一段话：追什么、不要什么）',
-    briefNone: '还没写要求。写一段话，说清楚这个库追什么、不要什么。',
-    briefEdit: '改要求',
-    briefSave: '保存',
-    briefCancel: '取消',
-    briefSaved: '已保存。',
-    briefBad: '要求要写 1–2000 个字。',
-    briefFailed: '没能保存要求。',
-    briefLabel: '这个库的要求',
-    gates: '关卡',
-    gatesHint: '每道关的要求和过关线；改完可以先试一条看结果，再保存',
-    run: '定时与每轮上限',
-    runHint: '只管这一个库',
-    thresholds: '过关线',
-  }),
-
-  // 设置 (P9; v2: the schedule and the cap are each library's own, on its 来源与要求)
-  settings: Object.freeze({
-    schedules: '定时一览',
-    schedulesHint: '每个库按自己的时间跑；点库名去它的「来源与要求」改',
-    schedulesNone: '还没有库。',
-    schedulesFailed: '没能读出这个库的定时。',
-    library: '库',
-    on: '每天',
-    off: '关',
-    next: '下次',
-    usage: '全部库本月用量合计',
-    usageHint: '所有库加起来，按月算',
-    usageLine: '{calls} 次模型调用 · 输入 {input} · 输出 {output}',
-    usageLibrary: '{name}：{calls} 次',
-    usageMissing: '{name}：文件夹不在',
-    usageFailed: '没能读出用量。',
-  }),
+  // redesign R4b: 「这个库」 (thisLibrary), 来源与要求's v2 words (sources) and 设置's 定时一览 / 用量 (settings) went with their
+  // parts: texts/sources.js and texts/settings.js have the new pages' words
 })

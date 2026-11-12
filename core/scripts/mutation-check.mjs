@@ -99,6 +99,31 @@ const MUTANTS = [
     edits: [['src/library/new-library.mjs', "  step('thresholds', () => savePipelineConfig(dir, withThresholds(pipelineConfig(dir), spec.thresholds ?? STRICTNESS[DEFAULT_STRICTNESS])));", "  step('thresholds', () => { if (spec.thresholds && spec.thresholds !== STRICTNESS[DEFAULT_STRICTNESS]) savePipelineConfig(dir, withThresholds(pipelineConfig(dir), spec.thresholds)); });"], ['src/library/new-library.mjs', "    thresholds: { ...STRICTNESS[DEFAULT_STRICTNESS], ...(thresholds ?? {}) },", "    thresholds: thresholds ?? STRICTNESS[DEFAULT_STRICTNESS],"]],
     test: ['test/r4a-new-library.test.mjs', '--test-name-pattern=new libraries start at'],
   },
+  // redesign R4b (docs/checks/2026-11-12-r4b/contract.md 「测」)
+  {
+    id: 'r4b-name-unsaved',
+    what: 'saveLibraryName answers the new name but does not put it into streams.json',
+    edits: [['src/library/brief.mjs', '  whole.name = name.trim();\n', '']],
+    test: ['test/r4b-sources.test.mjs', '--test-name-pattern=R4b-1 库名称'],
+  },
+  {
+    id: 'r4b-log-drops-setup',
+    what: '变更记录 leaves out 首次设置\'s record',
+    edits: [['src/proposals/changes.mjs', '  for (const [step, s] of Object.entries(setup)) {', '  for (const [step, s] of Object.entries({})) {']],
+    test: ['test/r4b-sources.test.mjs', '--test-name-pattern=变更记录'],
+  },
+  {
+    id: 'r4b-prompts-builtin',
+    what: 'the history\'s prompts count the built-in check items as the user\'s',
+    edits: [['src/proposals/changes.mjs', ".filter((c) => isPlainObject(c) && c.origin !== 'streams')", '.filter((c) => isPlainObject(c))']],
+    test: ['test/r4b-sources.test.mjs', '--test-name-pattern=the name and the prompts'],
+  },
+  {
+    id: 'r4b-tools-kept',
+    what: 'a scoring step keeps a `tools` list stored in streams.json (the model could be given a tool)',
+    edits: [['src/pipeline/config.mjs', "    for (const k of ['threshold', 'material', 'requirement']) if (stored[k] !== undefined) out[k] = stored[k];", "    for (const k of ['threshold', 'material', 'requirement', 'tools']) if (stored[k] !== undefined) out[k] = stored[k];"]],
+    test: ['test/r4b-sources.test.mjs', '--test-name-pattern=no tool'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {
@@ -108,9 +133,11 @@ function runTest(dir, [file, ...opts]) {
   return { status: r.status, failed, passed, tail: `${r.stdout}${r.stderr}`.split('\n').slice(-25).join('\n') };
 }
 
+// an argument is a mutant's id, or a prefix ending in * (e.g. r4b-*: every mutant of package R4b)
 const only = process.argv.slice(2);
-const chosen = MUTANTS.filter((m) => only.length === 0 || only.includes(m.id));
-if (only.some((id) => !MUTANTS.some((m) => m.id === id))) { process.stderr.write(`ids: ${MUTANTS.map((m) => m.id).join(', ')}\n`); process.exit(2); }
+const picks = (arg, id) => (arg.endsWith('*') ? id.startsWith(arg.slice(0, -1)) : id === arg);
+const chosen = MUTANTS.filter((m) => only.length === 0 || only.some((arg) => picks(arg, m.id)));
+if (only.some((arg) => !MUTANTS.some((m) => picks(arg, m.id)))) { process.stderr.write(`ids: ${MUTANTS.map((m) => m.id).join(', ')}\n`); process.exit(2); }
 const targets = [...new Set(chosen.flatMap((m) => m.edits.map((e) => e[0])))];
 const hashes = () => Object.fromEntries(targets.map((f) => [f, createHash('sha256').update(readFileSync(join(CORE, f))).digest('hex')]));
 const before = hashes();

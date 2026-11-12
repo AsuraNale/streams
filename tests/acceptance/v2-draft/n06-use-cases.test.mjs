@@ -41,6 +41,8 @@ const { ASK } = await T('ask')
 const { INBOX } = await T('inbox')
 const { LIBRARY } = await T('library')
 const { SHELL } = await T('shell')
+// redesign R4b: UC3 step 4 reads 高级设置's 变更记录 (its words: texts/sources.js ADVANCED)
+const { ADVANCED } = await T('sources')
 const { READER_PARTITION } = await import(fileUrl(join(DESKTOP_DIR, 'src', 'main', 'reader.mjs')))
 
 const SHOTS = join(REPO_DIR, 'docs', 'shots', 'acceptance-v2')
@@ -372,10 +374,15 @@ test('UC3 step 4 · 确认 both → 来源与要求: the new source and the keyw
   assert.ok(cfg.sources.some(s => s.name === 'hkex-filings'))
   assert.ok(cfg.topics.find(x => x.name === '财报').keywords.includes('港股公告'))
   await tab('sources', W.ids.fashion)
-  await until(() => document.querySelector('[data-who="sources"]')?.dataset.by === 'agent-confirmed' && document.querySelector('[data-who="topics"]')?.dataset.by === 'agent-confirmed')
-  const prefix = SHELL.who.agent.split('{')[0]
-  for (const f of ['sources', 'topics']) assert.ok((await p().evaluate(x => document.querySelector(`[data-who="${x}"]`).textContent, f)).startsWith(prefix), f)
-  assert.equal(await p().evaluate(() => document.querySelector('[data-who="brief"]')?.dataset.by), 'setup', 'control: the brief was not changed by a card')
+  // redesign R4b (only where it is read, the assertion's meaning unchanged): 「谁定的」 beside each part of 来源与要求 is now 高级设置's
+  // 变更记录 (contract R4b-1 / R4b-2, 维护者 第 10 题) — the same record (changes.jsonl), one row per change with its 操作来源; so the
+  // sources and the topics are read off their rows there (主 Agent 提议 · 已确认, the date in the row's 时间), and the control 「the brief
+  // was not changed by a card」 is that no row of the brief says so (was: its mark said 首次设置, i.e. no record)
+  await until(() => document.querySelector('main[data-screen="sources"][data-state="ready"] [data-action="go-advanced"]') !== null)
+  await p().click('[data-action="go-advanced"]')
+  await until(() => document.querySelector('[data-change-row][data-field="sources"]')?.dataset.by === 'agent-confirmed' && document.querySelector('[data-change-row][data-field="topics"]')?.dataset.by === 'agent-confirmed')
+  for (const f of ['sources', 'topics']) assert.equal(await p().evaluate(x => document.querySelector(`[data-change-row][data-field="${x}"] [data-part="by"]`).textContent, f), ADVANCED.log.bys['agent-confirmed'], f)
+  assert.equal(await p().evaluate(() => [...document.querySelectorAll('[data-change-row][data-field="brief"]')].filter(r => r.dataset.by === 'agent-confirmed').length), 0, 'control: the brief was not changed by a card')
   await shot('uc3-4')
 })
 

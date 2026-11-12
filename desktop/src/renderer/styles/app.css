@@ -9,9 +9,6 @@
 @import url('./kit.css');
 @import url('./menu.css');
 @import url('./screens/placeholder.css');
-@import url('./screens/settings.css');
-@import url('./screens/sources.css');
-@import url('./screens/pipeline.css');
 @import url('./screens/shell.css');
 @import url('./screens/agent.css');
 /* v2 package L: the right panel's 详情 parts */

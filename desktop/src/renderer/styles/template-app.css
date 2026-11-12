@@ -16,6 +16,9 @@
    8. Redesign R4a — 首次打开 (one screen), 连接选择, 新建库's one-page form (screens/first-run.js, new-library.js): the template's
       new-content / field / file-row / after-card / filters / search-field / document-link / form-footer / home-context; here only
       the rows' widths, the inline inputs of the topics and the schedule, the footer's wrapping.
+   9. Redesign R4b — 来源与要求 (four parts), 高级设置 (评分环节 · 变更记录 · 库文件夹), the template's dialog (移除该库 and the rest),
+      设置 (four parts), 输入 API key, 许可证与致谢: the template's parts; here the source table's columns, the row menu, the seven
+      nodes' row, the two columns of 评分环节, the connection rows, the update's boxes.
    Colours: only the template's variables. */
 
 /* 1 */
@@ -265,3 +268,164 @@
 .st-first .field.st-nl-small input { width: 84px; }
 .st-nl-footer small { flex: 1 1 220px; min-width: 0; text-align: right; }
 .st-nl-footer [data-action="cancel-new"] { margin-right: auto; }
+
+/* 9 — Redesign R4b: 来源与要求 · 高级设置 · 移除该库 · 设置 · 输入 API key · 许可证与致谢 on the template's parts (screens/sources.js,
+   pipeline.js, settings.js, settings-update.js, t-dialog.js). R1's interim styles/screens/sources.css, pipeline.css and settings.css
+   are deleted (and shell.css's 来源与要求 / 关卡 / 定时一览 lines). Sizes, places and the template's own variables only. */
+/* the template's dialog (t-dialog.js): 修改地址 · 删除来源 · 删除主题 · 移除该库 · 恢复默认 · 输入 API key · 许可证与致谢 */
+.dialog.st-tdialog { width: min(560px, 92vw); max-width: 92vw; overflow: auto; }
+.dialog.st-tdialog.st-licenses { width: min(640px, 92vw); }
+.st-tdialog .dialog-body { padding: 0; }
+.st-tdialog .new-content { padding: 18px 24px 22px; max-width: none; overflow: visible; }
+.st-tdialog .field { margin: 12px 0; }
+.st-tdialog .readable p { margin: 0 0 10px; line-height: 1.7; }
+.st-tdialog .form-footer.st-tdialog__footer { flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; padding-top: 16px; }
+.st-tdialog__gap { flex: 1 1 0; }
+.st-tdialog__notices { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1 1 260px; min-width: 0; }
+.st-tdialog__notices small { font-size: 11px; color: var(--sub11); }
+.st-license-text { max-height: 150px; overflow: auto; margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--well); color: var(--ink11); font-family: 'Cascadia Mono', Consolas, monospace; font-size: 11px; white-space: pre-wrap; }
+.st-tdialog .section-label { margin-top: 16px; }
+.st-tdialog .readable [data-part="licenses-made-by"] { margin: 0 0 6px; }
+.st-tdialog details { margin-bottom: 4px; }
+.st-tdialog details summary { cursor: pointer; font-size: 12px; color: var(--sub11); margin-bottom: 6px; }
+.st-link { padding: 0; font: inherit; color: var(--accent11); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+/* a table (变更记录, the components of 许可证与致谢): the template's rule between rows */
+.st-log { width: 100%; border-collapse: collapse; font-size: 12px; }
+.st-log th { padding: 8px 6px; text-align: left; font-weight: 400; font-size: 11px; color: var(--sub11); border-bottom: 1px solid var(--rule11); }
+.st-log td { padding: 9px 6px; vertical-align: top; color: var(--ink11); border-bottom: 1px solid var(--rule11); overflow-wrap: anywhere; }
+.st-log td[data-part="when"] { width: 96px; white-space: nowrap; color: var(--sub11); font-family: 'Cascadia Mono', Consolas, monospace; font-size: 11px; }
+.st-log td[data-part="by"] { width: 30%; }
+/* radios inside a template filter: there for the keyboard and the screen reader, not seen (the filter shows the choice) */
+.settings__choice-input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+/* 来源与要求 */
+.st-src-body { flex: 1 1 auto; min-height: 0; }
+.st-src.new-content { overflow: visible; flex: none; padding-top: 28px; }
+.st-src .section-label { margin-top: 24px; }
+.st-src .field { margin: 12px 0 0; }
+.st-src .field textarea { min-height: 96px; }
+.st-src .filters { margin: 8px 0 0; }
+.st-src .filters .filter { cursor: pointer; }
+.st-src .filters .filter:disabled { cursor: default; }
+.st-src-part + .st-src-part { margin-top: 8px; }
+.st-src .form-footer.st-src-footer { justify-content: flex-end; margin-top: 14px; padding-top: 14px; }
+.st-src-footer small { margin-right: auto; }
+.st-src .search-field { margin-top: 8px; }
+.st-src .search-field input { flex: 1 1 0; min-width: 0; }
+.st-src-adding { margin-top: 4px; }
+.st-src-adding .file-row { align-items: center; }
+.st-src-adding .file-row .file-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.st-src-adding .file-row :is(.status-chip, .st-act) { flex: none; }
+.st-src-table { margin-top: 6px; }
+.st-src-row.file-row { display: grid; grid-template-columns: 22px minmax(0, 1.25fr) minmax(0, 1.25fr) minmax(0, .65fr) 34px; gap: 12px; align-items: start; position: relative; }
+.st-src-head.st-src-row { display: grid; grid-template-columns: 22px minmax(0, 1.25fr) minmax(0, 1.25fr) minmax(0, .65fr) 34px; gap: 12px; padding: 8px 0; font-size: 11px; color: var(--sub11); border-bottom: 1px solid var(--rule11); }
+.st-src-cell { min-width: 0; overflow-wrap: anywhere; }
+.st-src-state { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 11px; color: var(--sub11); }
+.st-src-state .status-chip { white-space: nowrap; }
+.st-src-topic .filter { display: inline-block; padding: 3px 9px; font-size: 11px; cursor: default; }
+.st-src-topic small { font-size: 11px; color: var(--sub11); }
+.st-src-tried { display: block; line-height: 1.6; color: var(--ink11); }
+.st-src-more { position: relative; display: flex; justify-content: flex-end; }
+.st-src-more .icon-btn { width: 30px; height: 30px; font-size: 16px; line-height: 1; }
+.st-src-menu { position: absolute; top: 34px; right: 0; z-index: 20; display: flex; flex-direction: column; min-width: 128px; padding: 6px; border: 1px solid var(--rule11); border-radius: 8px; background: var(--paper); box-shadow: var(--float11); }
+.st-src-menu .btn { width: 100%; justify-content: flex-start; text-align: left; }
+.st-src-topics { align-items: center; }
+.st-src-topic-detail { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; }
+.st-src-kw-label { color: var(--sub11); }
+.st-src-kws { margin: 0; display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.st-src-kws .filter { cursor: default; padding: 3px 10px; font-size: 11px; }
+.st-src-kw-edit { flex: 1 1 260px; margin: 0; }
+.st-src .field.st-nl-small { margin: 0; display: inline-flex; }
+.st-src .field.st-nl-small input { width: 84px; padding: 8px 10px; }
+.st-src-run-save { margin-left: auto; }
+.st-src .document-link { margin-top: 26px; cursor: pointer; }
+.st-src-advanced .after-card { margin: 0 0 10px; }
+.st-src-advanced .after-card button { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.st-src-fold { margin-top: 14px; }
+.st-src-fold > .phase-heading { cursor: pointer; list-style: none; }
+.st-src-fold > .phase-heading::-webkit-details-marker { display: none; }
+.st-src-fold > .phase-details { padding: 14px 18px 18px; }
+.st-src-folder { flex-wrap: wrap; margin-top: 8px; padding-top: 12px; }
+.st-src-folder-gap { flex: 1 1 0; }
+/* 评分环节 (pipeline.js) */
+.st-gate-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.st-gate-strip .filter.st-gate-node { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; padding: 8px 10px; text-align: left; white-space: normal; cursor: pointer; }
+.st-gate-node small { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; opacity: .8; }
+.st-gate-node small .ico { width: 11px; height: 11px; }
+.st-gate-node b { font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+.st-gate-legend { margin-top: 8px; }
+.st-gate-cols { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: 22px; align-items: start; margin-top: 10px; }
+.st-gate-editor .field { margin: 10px 0 0; }
+.st-gate-editor .field textarea { min-height: 120px; }
+.st-gate-editor .form-row { margin-top: 4px; align-items: flex-start; }
+.st-gate-material { margin: 6px 0 0; }
+.st-gate-material .filter { position: relative; cursor: pointer; }
+.st-gate-material .filter:focus-within, .st-set-look .filter:focus-within { outline: 2px solid var(--accent11); outline-offset: 2px; }
+.st-gate-output code { font-family: 'Cascadia Mono', Consolas, monospace; font-size: 10px; overflow-wrap: anywhere; }
+.st-gate-checks .section-label { margin-top: 16px; }
+.st-gate-check { align-items: center; }
+.st-gate-check > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.st-gate-check small { font-size: 10px; }
+.st-gate-add { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.st-gate-add .search-field { flex: 1; margin: 0; }
+.st-gate-add .search-field input { flex: 1 1 0; min-width: 0; }
+.st-gate-footer { justify-content: flex-end; margin-top: 14px; padding-top: 14px; }
+.st-gate-footer small { margin-right: auto; }
+.st-gate-preview { margin-top: 18px; }
+.st-gate-row { display: flex; gap: 8px; margin-top: 8px; }
+.st-gate-result { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--well); color: var(--ink11); font-size: 12px; }
+.st-gate-result ul { margin: 0; padding-left: 18px; }
+.st-gate-side section + section { margin-top: 14px; }
+.st-gate-side .section-label { margin-top: 0; }
+.st-gate-kv { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; padding: 5px 0; font-size: 12px; }
+.st-gate-kv > span { color: var(--sub11); }
+.st-gate-kv > b { font-weight: 400; overflow-wrap: anywhere; }
+.st-gate-failnode { display: block; margin-top: 6px; font-size: 12px; }
+.st-gate-locked p { font-size: 12px; }
+/* 设置 */
+.st-set-body { flex: 1 1 auto; min-height: 0; }
+.st-set.new-content { overflow: visible; flex: none; padding-top: 24px; max-width: 900px; }
+.st-set-jumps { margin: 0 0 6px; }
+.st-set-jumps .filter { cursor: pointer; }
+.st-set-group { margin-top: 26px; scroll-margin-top: 12px; }
+.st-set-conn.file-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 220px) auto; gap: 12px; align-items: center; }
+.st-set-conn__name b { font-weight: 650; }
+.st-set-conn__name small { overflow-wrap: anywhere; }
+.st-set-slots { display: flex; flex-direction: column; gap: 6px; }
+.st-set-slot { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 6px; font-size: 11px; color: var(--sub11); }
+.st-set-slot select { min-width: 0; padding: 5px 8px; font: inherit; font-size: 12px; border: 1px solid var(--rule11); border-radius: 6px; background: var(--paper); color: var(--ink11); }
+.st-set-conn__acts { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.st-set-conn__acts .status-chip { white-space: nowrap; }
+.st-set-probe { max-width: 200px; font-size: 11px; color: var(--sub11); text-align: right; }
+.st-set-login { grid-column: 2 / -1; margin: 0; align-items: center; flex-wrap: wrap; }
+.st-set-look { margin: 10px 0 0; }
+.st-set-look .section-label { margin-top: 12px; }
+.st-set-look .filters { margin: 8px 0 0; }
+.st-set-look .filter { position: relative; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.st-set-look .filter small { font-size: 10px; opacity: .75; }
+.st-set-look .field { margin: 12px 0 0; }
+.st-set-root.file-row, .st-set-about.file-row { align-items: center; }
+.st-set-root .file-text, .st-set-about .file-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.st-set-root :is(.st-act), .st-set-about > .st-act { flex: none; }
+.st-set-usage { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 14px 0 0; }
+.st-set-usage b { font-weight: 650; }
+.st-set-usage small { font-size: 11px; color: var(--sub11); }
+.st-set-usage-sum { margin-top: 4px; }
+.st-set-advanced { margin-top: 12px; }
+.st-set-advanced > summary { cursor: pointer; list-style: none; justify-content: flex-start; gap: 6px; }
+.st-set-advanced > summary::-webkit-details-marker { display: none; }
+.st-set-dev { margin-top: 10px; font-size: 13px; }
+.st-set-adv-actions { margin-top: 10px; padding-top: 12px; flex-wrap: wrap; }
+/* 关于 · the update (settings-update.js) */
+.settings__about { display: flex; flex-direction: column; gap: 8px; }
+.settings__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.settings__error { font-size: 12px; font-weight: 650; color: var(--ink11); }
+.settings__link { margin-left: 6px; font-size: 12px; color: var(--accent11); }
+.settings__update-box { display: flex; flex-direction: column; gap: 8px; max-width: 640px; padding: 12px 14px; border-radius: 8px; background: var(--well); color: var(--ink11); }
+.settings__update-box--ready { box-shadow: inset 0 0 0 1px var(--accent11); }
+.settings__update-title { font-weight: 650; }
+.settings__update-notes { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--sub11); white-space: pre-wrap; overflow-wrap: anywhere; }
+.settings__update-link { margin-left: 0; }
+.settings__update-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.settings__update-bar { height: 6px; border-radius: 3px; background: var(--rule11); overflow: hidden; }
+.settings__update-fill { display: block; height: 100%; background: var(--accent11); }
+.settings__update-wait { padding: 8px 10px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--rule11); font-size: 12px; font-weight: 650; }

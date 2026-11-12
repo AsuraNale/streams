@@ -10,7 +10,13 @@
    agent.css), 设置 (settings.css), the kit's dialogs, menus and buttons (kit.css, menu.css), the placeholder screen and the
    right panel's R1 parts (panel.css, shell.css) — R4b–R6 rebuild those. Redesign R4a: 首次打开 and 新建库 are rebuilt on the
    template's parts (template-app.css 8); styles/screens/first-run.css and kit.css's wizard steps are deleted, and the one name
-   only they used (sidebar-selected-sub) is gone from here. Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
+   only they used (sidebar-selected-sub) is gone from here. Redesign R4b: 来源与要求, 高级设置 and 设置 are rebuilt on the template's
+   parts (template-app.css 9); styles/screens/sources.css, pipeline.css and settings.css are deleted (with shell.css's lines for
+   them), and the names only they used (accent-alt, accent-alt-soft, danger, focus, fs-title, lh, radius-key, sidebar, table-head)
+   are gone from here. This file cannot go yet: what is left is named by 主 Agent's conversation and its proposal and suggestion
+   cards (screens/agent.css: chat.js, proposal-card.js, suggestion-card.js — R5), the kit's dialog, buttons, tags and the five
+   fetch states (kit.css; the dev-only gallery screens/kit.css), the kit's menu (menu.css: the right panel's note menu), the
+   placeholder screen (placeholder.css) and the right panel's and the sidebar's R1 leftovers (panel.css, shell.css). Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
    these screens stay readable and usable in every theme until they are rebuilt, each name points at the template's own
    variable of the theme in force (round 11's roles, set on <body>: --bench --panel --paper --well --ink11 --sub11 --accent11
    --pick --inverse11 --rule11 --float11). No colour is defined here: only var() of the template's, and sizes. */
@@ -18,14 +24,11 @@
   --st-fs-body: 13px;
   --st-fs-small: 12px;
   --st-fs-tiny: 11px;
-  --st-fs-title: 22px;
   --st-fs-heading: 26px;
-  --st-lh: 1.65;
   --st-control-h: 34px;
   --st-step: 8px;
   --st-step-gap: 3px;
   --st-radius: 10px;
-  --st-radius-key: 10px;
   --st-radius-s: 8px;
   --st-radius-xs: 5px;
   --st-weight-label: 600;
@@ -40,14 +43,12 @@
   --st-surface: var(--paper);
   --st-surface-2: var(--well);
   --st-card-head: var(--well);
-  --st-table-head: var(--well);
   --st-selected: var(--pick);
   --st-active-fill: var(--pick);
   --st-border: var(--rule11);
   --st-control-border: var(--rule11);
   --st-divider: var(--rule11);
   --st-divider-soft: var(--rule11);
-  --st-sidebar: var(--panel);
   --st-sidebar-text: var(--ink11);
   --st-sidebar-text-2: var(--sub11);
   --st-sidebar-divider: var(--rule11);
@@ -58,17 +59,13 @@
   --st-text-3: var(--sub11);
   --st-accent: var(--accent11);
   --st-accent-hover: var(--accent11);
-  --st-accent-alt: var(--accent11);
-  --st-accent-alt-soft: var(--pick);
   --st-on-accent: var(--inverse11);
-  --st-focus: var(--accent11);
   --st-wait: var(--ink11);
   --st-wait-bg: var(--well);
   --st-wait-border: var(--rule11);
   --st-done: var(--accent11);
   --st-done-bg: var(--well);
   --st-done-border: var(--accent11);
-  --st-danger: var(--ink11);
   --st-step-todo: var(--rule11);
   --st-step-done-past: var(--accent11);
   --st-shadow-card: var(--float11);
@@ -90,7 +87,6 @@
 .r12-line.r11 {
   --st-selected: var(--well);
   --st-active-fill: var(--well);
-  --st-accent-alt-soft: var(--well);
   --st-fetch-gap-bg: var(--well);
   --st-fetch-failed-bg: var(--well);
   --st-fetch-blocked-bg: var(--well);

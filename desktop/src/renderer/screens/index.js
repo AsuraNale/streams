@@ -42,7 +42,8 @@ export const SCREENS = Object.freeze({
 export const ALIASES = Object.freeze({
   today: Object.freeze(['inbox', Object.freeze({})]),
   status: Object.freeze(['inbox', Object.freeze({})]),
-  pipeline: Object.freeze(['sources', Object.freeze({ section: 'gates' })]),
+  // redesign R4b: 流水线 is 评分环节, the first fold of 来源与要求's 高级设置
+  pipeline: Object.freeze(['sources', Object.freeze({ view: 'advanced', section: 'gates' })]),
 })
 
 /** The screen the app opens on: the current library's 待看 (redesign R1: a library always opens on 待看). */

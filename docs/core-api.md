@@ -673,6 +673,21 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 测试：`test/r4a-new-library.test.mjs`（三档的数与写入、两个数对上才是档否则 custom、读已有库逐字节不变、手动 / 卡建出的新库默认标准与卡写的阈值盖在标准上、两条路建出的 `pipeline` / `schedule` / `cap` 相同、预估、空要求被拒）。变异（`node core/scripts/mutation-check.mjs <id>`）：`r4a-standard-0707`（标准改成 0.7 / 0.7）· `r4a-read-rewrites`（读的时候把非三档的改写成标准）· `r4a-card-old-default`（卡没写阈值时留流水线的 0.7 / 0.6）。
 
+## 5.19 库名称与变更记录（重设计 R4b）· 有（11-12）
+
+<!-- redesign R4b: 契约 docs/checks/2026-11-12-r4b/contract.md R4b-1、R4b-2；功能地图 N08、F54、F55；维护者 11-11 第 10 题 -->
+
+**库名称**（`src/library/brief.mjs`，N08）：`saveLibraryName(libraryDir, name)` → `{ name }`：写 `streams.json` 的 `name`（去首尾空白，1–`NAME_MAX`=100 个字，按码点数），其余键与顺序原样（`loadWhole` / `saveWhole`，临时文件 + 改名）；空、全是空格、过长、不是字符串 → `bad-argument`，什么都不写。桌面的 `setLibraryMeta(id, { name })` 先用它写库自己的文件、记一行 `name` by `you`，再改登记（`docs/desktop.md` §四表）。
+
+**变更记录的两个新字段**（`src/proposals/changes.mjs`，5.13 的「谁定的」同一个文件 `_pipeline/changes.jsonl`）：`CHANGE_FIELDS` 由六个变成八个——
+- `name`：`streams.json` 的 `name`（字符串或 `null`）；来源与要求「库名称」改了就是一行。
+- `prompts`：每个模型环节（`gate`、`summary`）的 `{ id, requirement, material, checks }`，`checks` 只是**你自己加的**校验规则的文字（`origin !== 'streams'`；内置规则从不存、也不算你的）；高级设置「评分环节」保存时提示词、材料或自定义规则变了就是一行（阈值仍是 `thresholds`）。
+- `whoDecided` 的返回多了这两个键（没有记录 = `null`）。
+
+**变更记录** `changeLog(libraryDir)` → `{ rows, skipped }`：只读。`changes.jsonl` 的每一行 → `{ at, kind: 'change', field, by: 'you' | 'agent-confirmed', proposalId, before, after }`；`streams.json` 的 `setup`（首次设置的记录，`readSetup`）每一步 → `{ at, kind: 'setup', step, by: 'setup', setupBy, detail }`；按 `at` 新的在前，同一时刻文件里后写的在前。坏行不显示、计入 `skipped`。**只列记录过的**：v2 包 B 之前改过的、或只经核心函数直接改（不经桌面 `byYou` 也没确认提议卡）的，不会有行——不编。
+
+测试：`test/r4b-sources.test.mjs`（库名写进去、其余键不动、坏名不写；`name` / `prompts` 的值与一改一行、内置规则不算；变更记录的顺序、三种来源、坏行计数、没记录就没有行；手写进 `streams.json` 的 `tools` 读不回来——评分环节不给模型工具）。变异（`node core/scripts/mutation-check.mjs <id>`）：`r4b-name-unsaved` · `r4b-log-drops-setup` · `r4b-prompts-builtin` · `r4b-tools-kept`。
+
 ## 六、桌面桥（desktop 主进程 → 页面）
 
 页面唯一入口 `window.streams`；主进程把上面每个函数包成桥方法（名字同核心函数，加 `library:` / `fetch:` / `connect:` / `pipeline:` / `ask:` 前缀），事件：`round-progress`、`inbox-changed`、`status-changed`、`settings-changed`、`update`；v2 加了 `libraries-changed`、`proposals-changed`、`agent-changed`，和某个库有关的事件都带 `libraryId`（桥里有「当前库」，跨库的方法显式带 id：architecture 第三节「包 A 实做」）。桥方法表与事件表写在 `docs/desktop.md` §四。

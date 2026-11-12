@@ -1,56 +1,53 @@
-// 设置 (mockup S14): four parts — 连接方式 (getConnections and the connection methods), 运行, 库 (the app state's library,
-// chooseLibraryFolder / useChosenFolder, openRecentLibrary, rebuildIndex), and the software part
-// (the language, the developer switch, the diagnostics, 「关于」 with the update: screens/settings-update.js). Data: the app
-// state (useApp) and the bridge (lib/bridge.js); words: texts/settings.js and texts/common.js CONNECTIONS. The pieces of a
-// connection row that 首次设置 and the problem card of 今日 draw too are exported from here (detectWords, connectionState,
-// needsLogin, probeView, LoginLoop, ProbeLine, ApiKeyDialog).
-// Test hooks: [data-part="…"] on each part; [data-connection=<kind>][data-conn-state] rows with input[data-field="active"],
-// select[data-field="model"|"verify-model"], [data-action=probe|login|login-again|setup-key]; the key dialog [data-dialog="api-key"]
-// with select[data-field="vendor"], input[data-field="base-url"|"key"], [data-action=save-key|remove-key|cancel-key];
-// v2 package F (design P9; docs/desktop.md §4.4): the schedule and the cap per round are each library's own now and are changed
-// on its 来源与要求 (screens/sources.js); 运行 shows 「定时一览」 — one line per library: its name (a click: that library's
-// 来源与要求), on or off, the time, the next run (getLibrarySchedule), read only — and 「全部库本月用量合计」 (getUsageTotal).
-// [data-part="schedules"] [data-schedule-row=<id>][data-schedule=on|off|unknown] with [data-action="go-library"],
-// [data-part="usage"][data-calls] with [data-usage-library=<id>]; [data-part="library"] [data-library-path],
-// [data-action=new-library|open-folder|rebuild], [data-recent=<path>], [data-part="setup"][data-setup="none"|"recorded"] with
-// [data-setup-step=<step>][data-by=<by>]; the language radios' ids `settings-language-<setting>`; [data-part="theme"]
-// redesign R1: four chips [data-theme-card=<id>][data-checked] each with input[name="theme"] (setTheme), and
-// [data-part="appearance"] select[data-field="appearance"] with option[data-appearance-choice=system|light|dark]
-// (setAppearance; docs/desktop.md §五「主题」); [data-action="licenses"] → [data-dialog="licenses"] with
-// [data-part=license-text|components|notices], [data-component=<name>], [data-action=open-notices|close-licenses].
-// v2 package I (contract I2; design P9): five groups, top to bottom, each a [data-group=<id>] with its parts —
-//   connection  连接方式 (v1.0's three connections, two model slots each) + 「主 Agent 用这条连接的主模型」 [data-part="agent-uses"]
-//   agent       主 Agent [data-part="agent"] (getAgentStatus: the connection [data-agent-connection], whether the session goes on
-//               [data-session=live|none|api], how many turns [data-turns], the last summary [data-summary]); 「打开和主 Agent 聊」
-//               [data-action="open-chat"]. No 「清空对话」.
-//   library     新建库默认放在 [data-part="library-root"][data-root-default=true|false] with [data-root-path],
-//               [data-action=change-root|reset-root], [data-root-note=saved|bad|failed] (getLibraryRoot / chooseLibraryRoot /
-//               setLibraryRoot); 定时一览 and 全部库本月用量合计 (package F's, as they were)
-//   look        主题, 语言 (as they were)
-//   software    关于 (the version and the update), 许可证与致谢, 高级 (as they were)
-// What only meant something for the current library (its path, the other libraries, 新建库 / 打开已有文件夹, 重建索引, 首次设置's
-// record) is gone from here: 来源与要求's 「这个库」 (screens/sources.js; SetupRecord below is drawn there) and 新建库 (screens/
-// new-library.js). [data-part="library"] is no longer on this page.
+// 设置 — redesign R4b (docs/checks/2026-11-12-r4b/contract.md R4b-4; design 03-页面稿 P17, P18, P19 and 07-模板版 「设置」「输入 API
+// key」「许可证与致谢」; F63–F69; 维护者 11-11 第 10、15 题). The template's parts (work-header, new-content, filters / filter, section-label,
+// file-row, status-chip, field / form-row, mini-chart-free text lines, details, the dialog); the app's layer (template-app.css part 9)
+// only sizes and places them. A line on top, four jumps (filters: [data-jump=…] scroll to the part), then four parts:
+//   connection  连接: the three connections (v1.0's fixed names, V7), each a row — the name, what the detection found (版本 · 已登录 …),
+//               「当前使用」 on the current one, two model slots 主模型 / 核验模型 (setConnectionModels; 核验 defaults to 同主模型),
+//               测试连接 (probeConnection; v1.0's 「现在试一次」), 设为当前连接 (setActiveConnection), 配置 on the API row (the key dialog);
+//               the sign-in loop on a tool that is not signed in (LoginLoop); under the rows one sentence 「评分、摘要、问库与主 Agent 均使用
+//               当前连接的主模型；核验使用核验模型。」. v2 package I's 主 Agent part (turns, shortenings) is gone (维护者 第 10 题).
+//   look        外观与语言: R1's four themes (filters with a radio each), 外观 (a field's select), 语言 (filters with a radio each).
+//   library     库与用量: 新建库默认存储位置 (getLibraryRoot; 更改… = chooseLibraryRoot, 恢复默认 = setLibraryRoot(null)); 本月用量合计
+//               (getUsageTotal): 「n 次模型调用 输入 · 输出」 and the sum written out 「= 各库 n（含运行前自检 n）+ … + 主 Agent n」 — the
+//               two sides equal (the page checks it adds up, and the main process gives the parts the total is made of), each library's
+//               number the one its run funnel and the right panel count (its usage file). 「定时一览」 is gone (the right panel's 进度
+//               lists each library's next run).
+//   about       关于: 流息 version (Windows 版) + 检查更新 (screens/settings-update.js: the line when a new version is there, as before),
+//               由 Starry Digital 开发 (opens starrydigital.ca, V11), 许可证与致谢 (the dialog); ▾ 高级 (folded): 显示开发者信息,
+//               复制诊断信息 (the only place it is now: the banner's went, R2's three-button rule kept), 打开运行记录文件夹 (openLogsFolder).
+// The API key dialog (P18) and 许可证与致谢 (P19) are the template's dialog (screens/t-dialog.js). The key goes from the field to the
+// main process once (setApiKey → safeStorage); the page never gets it back (only its last four characters), no log, no library folder.
+// The pieces 首次打开 and the problem card draw too are exported from here (detectWords, connectionState, needsLogin, probeView,
+// LoginLoop, ProbeLine, ApiKeyDialog).
+// Test hooks: main[data-screen="settings"]; [data-part="jumps"] [data-jump=connection|look|library|about]; [data-group=…] with
+// [data-part=connections|agent-uses|theme|appearance|language|library-root|usage|about|advanced|made-by]; [data-connection=<kind>]
+// [data-conn-state][data-active] with [data-conn-words], b (its name), select#settings-model-<kind>(-verify), [data-action=probe|
+// use-connection|setup-key|login|login-again], [data-probe]; [data-usage-library=<id>][data-calls][data-self-check],
+// [data-usage-agent][data-calls], [data-part="usage-sum"][data-sum]; [data-action=licenses|copy-diagnostics|open-logs]; the key
+// dialog dialog[data-dialog="api-key"] with select[data-field="vendor"], input[data-field="base-url"|"key"], [data-action=save-key|
+// remove-key|cancel-key]; dialog[data-dialog="licenses"] with [data-part=own|license-text|font|font-license-text|components|notices|
+// licenses-made-by], [data-component=<name>], [data-action=open-notices|close-licenses]; the theme chips [data-theme-card=<id>]
+// [data-checked] with input[name="theme"]; select[data-field="appearance"]; the language radios #settings-language-<setting>.
 import { html, useEffect, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
-import { fmt, nextText, whenText } from '../lib/format.js'
+import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
-import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, Button, Dialog, LinkButton, Main, TopBar } from '../kit/index.js'
+import { TIcon } from '../lib/template-icons.js'
+import { AppFrame, AppSidebar, Main, TopBar } from '../kit/index.js'
 // v2 package L: the window's right panel (nothing chosen here: 详情 says so in one sentence)
 import { RightPanel } from './right-panel.js'
-import { CONNECTIONS, NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
+import { CONNECTIONS, SEP } from '../texts/common.js'
 import { SETTINGS as T } from '../texts/settings.js'
-import { SHELL } from '../texts/shell.js'
 import { AboutUpdate } from './settings-update.js'
 import { APPEARANCES, THEME_IDS } from '../../shared/themes.mjs'
 import { applyLook } from '../lib/theme.js'
+import { Btn, TDialog } from './t-dialog.js'
 
 const KINDS = ['claude-code', 'codex', 'api']
-// 首次设置's six records (core SETUP_STEPS), in the wizard's order
-const SETUP_STEPS = ['library', 'connection', 'pack', 'sources', 'trial', 'schedule']
+const GROUPS = ['connection', 'look', 'library', 'about']
 
 /** One word for a kind's state (getConnections().kinds[kind]): usable · not-logged-in · not-installed · no-key. */
 export function connectionState(kind, k) {
@@ -60,7 +57,7 @@ export function connectionState(kind, k) {
   return k.loggedIn ? 'usable' : 'not-logged-in'
 }
 
-/** Is the login loop (去登录 …) shown for this kind? Only the two command-line tools, installed but not signed in. */
+/** Is the login loop (前往登录 …) shown for this kind? Only the two command-line tools, installed but not signed in. */
 export const needsLogin = (kind, k) => (kind === 'claude-code' || kind === 'codex') && Boolean(k?.installed) && !k?.loggedIn
 
 /** The detection line: 「已找到 · 版本 2.1 · 已登录」, 「没找到」, 「已设置 key（末四位 ab12）」. */
@@ -80,48 +77,47 @@ const reasonOf = r => (r?.code && Object.hasOwn(CONNECTIONS.codes, r.code) ? CON
 
 export function ProbeLine({ probe }) {
   if (!probe) return null
-  if (probe.status === 'trying') return html`<span class="st-t-small st-t-sub" data-probe="trying" role="status">${CONNECTIONS.probe.trying}</span>`
-  if (probe.status === 'ok') return html`<span class="st-t-small st-t-done" data-probe="ok" role="status">${fmt(CONNECTIONS.probe.ok, { seconds: ((probe.result?.latencyMs ?? 0) / 1000).toFixed(1) })}</span>`
-  return html`<span class="st-t-small st-t-wait" data-probe="failed" role="status">${fmt(CONNECTIONS.probe.failed, { reason: reasonOf(probe.result) })}</span>`
+  if (probe.status === 'trying') return html`<small class="st-set-probe" data-probe="trying" role="status">${CONNECTIONS.probe.trying}</small>`
+  if (probe.status === 'ok') return html`<small class="st-set-probe" data-probe="ok" role="status">${fmt(CONNECTIONS.probe.ok, { seconds: ((probe.result?.latencyMs ?? 0) / 1000).toFixed(1) })}</small>`
+  return html`<small class="st-set-probe" data-probe="failed" role="status">${fmt(CONNECTIONS.probe.failed, { reason: reasonOf(probe.result) })}</small>`
 }
 
-/** 「去登录」 + the line under it + 「我登录好了，再试一次」 (= detectConnections, through onRedetect). */
+/** 「前往登录」 + the line under it + 「已登录，重新检测」 (= detectConnections, through onRedetect). */
 export function LoginLoop({ kind, busy, onRedetect }) {
   const [failed, setFailed] = useState(false)
   const open = async () => {
     setFailed(false)
     try { const r = await call('openLogin', kind); if (!r?.ok) setFailed(true) } catch { setFailed(true) }
   }
-  return html`<div class="st-login" data-part="login" data-kind=${kind}>
-    <div class="st-login__row">
-      <${Act} name="login" variant="primary" disabled=${busy} onClick=${open}>${CONNECTIONS.login.go}<//>
-      <span class="st-t-small st-t-sub">${CONNECTIONS.login.note}</span>
-    </div>
-    <div class="st-login__row">
-      <${Act} name="login-again" disabled=${busy} onClick=${onRedetect}>${CONNECTIONS.login.again}<//>
-      ${failed ? html`<span class="st-t-small st-t-wait" role="alert">${CONNECTIONS.login.failed}</span>` : null}
-    </div>
+  return html`<div class="after-card st-set-login" data-part="login" data-kind=${kind}>
+    <${Btn} name="login" kind="primary" disabled=${busy} onClick=${open}>${CONNECTIONS.login.go}<//>
+    <small>${CONNECTIONS.login.note}</small>
+    <${Btn} name="login-again" disabled=${busy} onClick=${onRedetect}>${CONNECTIONS.login.again}<//>
+    ${failed ? html`<small role="alert">${CONNECTIONS.login.failed}</small>` : null}
   </div>`
 }
 
-/** 「输入 API key」: the vendor (from the bridge's table), the address for a custom one, the key (sent once, never shown). */
+/**
+ * 「输入 API key」 (P18): the template's dialog — 厂商 (选择预设… / the bridge's presets / 自定义接口地址), 接口地址 (a custom one), key (sent
+ * once, never shown), the sentence on where it is kept, 删除 API key · 取消 · 保存.
+ */
 export function ApiKeyDialog({ api, onClose, onChanged }) {
   const vendors = Array.isArray(api?.vendors) ? api.vendors : []
-  const [vendor, setVendor] = useState(api?.vendor ?? vendors[0]?.id ?? 'custom')
+  // P18: 「选择预设…」 until a vendor is chosen (the one a saved key has, when there is one)
+  const [vendor, setVendor] = useState(api?.hasKey ? api?.vendor ?? '' : '')
   const [baseUrl, setBaseUrl] = useState(api?.baseUrl ?? '')
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState(null)
   const custom = vendor === 'custom'
   const save = async () => {
-    if (key.trim() === '') return
+    if (key.trim() === '' || !vendor) return
     setBusy(true)
     setNote(null)
     try {
       await call('setApiVendor', vendor, custom ? baseUrl.trim() : null)
       await call('setApiKey', vendor, key.trim())
       setKey('')
-      setNote(T.apiDialog.saved)
       onChanged?.()
       onClose()
     } catch { setNote(T.apiDialog.failed) } finally { setBusy(false) }
@@ -130,56 +126,50 @@ export function ApiKeyDialog({ api, onClose, onChanged }) {
     setBusy(true)
     setNote(null)
     try {
-      await call('removeApiKey', vendor)
-      setNote(T.apiDialog.removed)
+      await call('removeApiKey', vendor || api?.vendor)
       onChanged?.()
       onClose()
     } catch { setNote(T.apiDialog.failed) } finally { setBusy(false) }
   }
-  const actions = html`${api?.hasKey ? html`<${Act} name="remove-key" disabled=${busy} onClick=${remove}>${T.apiDialog.remove}<//>` : null}
-    <${Act} name="cancel-key" disabled=${busy} onClick=${onClose}>${T.apiDialog.cancel}<//>
-    <${Act} name="save-key" variant="primary" disabled=${busy || key.trim() === '' || (custom && baseUrl.trim() === '')} onClick=${save}>${T.apiDialog.save}<//>`
-  return html`<${Dialog} name="api-key" title=${T.apiDialog.title} onCancel=${onClose} actions=${actions}>
-    ${api?.hasKey ? html`<div class="st-t-small st-t-sub" data-has-key=${api.keyHint ?? ''}>${fmt(T.apiDialog.hasKey, { hint: api.keyHint ?? '' })}</div>` : null}
-    <label class="st-dialog__label" for="settings-vendor">${T.apiDialog.vendor}</label>
-    <select id="settings-vendor" class="st-dialog__input" data-field="vendor" value=${vendor} onChange=${e => setVendor(e.currentTarget.value)}>
-      ${vendors.map(v => html`<option key=${v.id} value=${v.id} selected=${v.id === vendor}>${v.label}</option>`)}
-    </select>
-    ${custom ? html`<label class="st-dialog__label" for="settings-base-url">${T.apiDialog.baseUrl}</label>
-      <input id="settings-base-url" class="st-dialog__input" type="url" data-field="base-url" placeholder=${T.apiDialog.baseUrlPlaceholder} value=${baseUrl} onInput=${e => setBaseUrl(e.currentTarget.value)} />` : null}
-    <label class="st-dialog__label" for="settings-key">${T.apiDialog.key}</label>
-    <input id="settings-key" class="st-dialog__input" type="password" autocomplete="off" data-field="key" placeholder=${T.apiDialog.keyPlaceholder} value=${key} data-dialog-initial onInput=${e => setKey(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); save() } }} />
-    ${note ? html`<div class="st-dialog__error" role="alert">${note}</div>` : null}
+  const preset = vendors.find(v => v.id === vendor) ?? null
+  // P18: 删除 API key is always there, usable once a key is stored
+  const footer = html`<${Btn} name="remove-key" disabled=${busy || !api?.hasKey} onClick=${remove}>${T.apiDialog.remove}<//>
+    <span class="st-tdialog__gap"></span>
+    <${Btn} name="cancel-key" kind="quiet" disabled=${busy} onClick=${onClose}>${T.apiDialog.cancel}<//>
+    <${Btn} name="save-key" kind="primary" disabled=${busy || !vendor || key.trim() === '' || (custom && baseUrl.trim() === '')} onClick=${save}>${T.apiDialog.save}<//>`
+  return html`<${TDialog} name="api-key" title=${T.apiDialog.title} closeLabel=${T.apiDialog.close} onClose=${onClose} footer=${footer}>
+    ${api?.hasKey ? html`<p class="limit-note" data-has-key=${api.keyHint ?? ''}>${fmt(T.apiDialog.hasKey, { hint: api.keyHint ?? '' })}</p>` : null}
+    <label class="field"><span>${T.apiDialog.vendor}</span>
+      <select data-field="vendor" value=${vendor} onChange=${e => setVendor(e.currentTarget.value)}>
+        <option value="" selected=${vendor === ''} disabled>${T.apiDialog.vendorPick}</option>
+        ${vendors.map(v => html`<option key=${v.id} value=${v.id} selected=${v.id === vendor}>${v.label}</option>`)}
+      </select></label>
+    <label class="field"><span>${T.apiDialog.baseUrl}</span>
+      <input type="url" data-field="base-url" placeholder=${T.apiDialog.baseUrlPlaceholder} value=${custom ? baseUrl : preset?.baseUrl ?? ''} readonly=${!custom} disabled=${!custom}
+        onInput=${e => setBaseUrl(e.currentTarget.value)} /></label>
+    <label class="field"><span>${T.apiDialog.key}</span>
+      <input type="password" autocomplete="off" data-field="key" placeholder=${T.apiDialog.keyPlaceholder} value=${key} data-dialog-initial
+        onInput=${e => setKey(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); void save() } }} /></label>
+    <p class="limit-note" data-part="key-note">${T.apiDialog.note}</p>
+    ${note ? html`<p class="progress-alert" role="alert">${note}</p>` : null}
   <//>`
 }
 
-/** One group of the page (v2 package I): its name, then its parts. */
-function Group({ id, name, children }) {
-  return html`<section class="settings__group" data-group=${id} aria-labelledby=${`settings-group-${id}`}>
-    <h2 class="settings__group-name" id=${`settings-group-${id}`}>${name}</h2>
-    <div class="settings__group-parts">${children}</div>
+/** One part of the page (one of the four jumps): the template's section-label, then its content. */
+function Group({ id, name, hint = null, children }) {
+  return html`<section class="st-set-group" data-group=${id} id=${`settings-group-${id}`} aria-labelledby=${`settings-group-${id}-h`}>
+    <div class="section-label"><span id=${`settings-group-${id}-h`}>${name}</span>${hint ? html`<small class="muted">${hint}</small>` : null}</div>
+    ${children}
   </section>`
 }
 
-/** One part of the page: a name on the left, the content on the right. */
-function Part({ id, name, hint, children }) {
-  return html`<section class="settings__part" data-part=${id} aria-labelledby=${`settings-${id}`}>
-    <div>
-      <h3 class="settings__name st-t-body" id=${`settings-${id}`}>${name}</h3>
-      ${hint ? html`<div class="st-t-small st-t-muted">${hint}</div>` : null}
-    </div>
-    <div class="settings__content">${children}</div>
-  </section>`
-}
-
-function ModelSelect({ id, label, hint, value, models, noneLabel, onChange }) {
-  return html`<label class="settings__slot" for=${id}>
-    <span class="st-t-small st-t-sub">${label}</span>
-    <select id=${id} class="settings__select" data-field=${id.endsWith('-verify') ? 'verify-model' : 'model'} value=${value ?? ''} onChange=${e => onChange(e.currentTarget.value === '' ? null : e.currentTarget.value)}>
+function ModelSelect({ id, label, value, models, noneLabel, disabled, onChange }) {
+  return html`<label class="st-set-slot" for=${id}>
+    <span>${label}</span>
+    <select id=${id} data-field=${id.endsWith('-verify') ? 'verify-model' : 'model'} value=${value ?? ''} disabled=${disabled} onChange=${e => onChange(e.currentTarget.value === '' ? null : e.currentTarget.value)}>
       <option value="" selected=${!value}>${noneLabel}</option>
       ${(models ?? []).map(m => html`<option key=${m.id} value=${m.id} selected=${m.id === value}>${m.label ?? m.id}</option>`)}
     </select>
-    ${hint ? html`<span class="st-t-tiny st-t-muted">${hint}</span>` : null}
   </label>`
 }
 
@@ -200,129 +190,64 @@ function ConnectionsPart() {
     try { const r = await call('probeConnection', kind); setProbes(p => ({ ...p, [kind]: { status: r.ok ? 'ok' : 'failed', result: r } })) } catch { setProbes(p => ({ ...p, [kind]: { status: 'failed', result: { code: 'unknown' } } })) }
   }
   const setModels = (kind, k, patch) => act(() => call('setConnectionModels', kind, { model: k.model ?? null, verifyModel: k.verifyModel ?? null, ...patch }))
-  return html`<${Part} id="connections" name=${T.connections} hint=${T.connectionsHint}>
-    ${!data && conns.status === 'error' ? html`<div class="settings__error">${T.connectionsFailed}</div>` : null}
-    ${data ? html`<div class="settings__conns" role="radiogroup" aria-label=${T.conn.use}>
-      ${KINDS.map(kind => {
-        const k = data.kinds?.[kind] ?? {}
-        const state = connectionState(kind, k)
-        const active = data.active === kind
-        const stateWords = [detectWords(kind, k)]
-        if (active) stateWords.push(CONNECTIONS.inUse)
-        if (state === 'usable') stateWords.push(CONNECTIONS.usable)
-        return html`<div key=${kind} class=${`settings__conn${active ? ' settings__conn--active' : ''}`} data-connection=${kind} data-conn-state=${state} data-active=${String(active)}>
-          <div class="settings__conn-head">
-            <label class="settings__conn-use" for=${`settings-active-${kind}`}>
-              <input type="radio" name="active" id=${`settings-active-${kind}`} data-field="active" value=${kind} checked=${active} disabled=${busy} onChange=${() => act(() => call('setActiveConnection', kind))} />
-              <b>${CONNECTIONS.names[kind]}</b>
-            </label>
-            <span class="st-t-small st-t-sub" data-conn-words>${stateWords.join(SEP)}</span>
-          </div>
-          ${kind === 'api' ? html`<div class="st-t-small st-t-muted">${T.conn.apiHint}</div>` : null}
-          <div class="settings__slots">
-            <${ModelSelect} id=${`settings-model-${kind}`} label=${T.conn.model} hint=${T.conn.modelHint} value=${k.model ?? null} models=${k.models} noneLabel=${CONNECTIONS.defaultModel} onChange=${v => setModels(kind, k, { model: v })} />
-            <${ModelSelect} id=${`settings-model-${kind}-verify`} label=${T.conn.verify} hint=${T.conn.verifyHint} value=${k.verifyModel ?? null} models=${k.models} noneLabel=${CONNECTIONS.sameAsMain} onChange=${v => setModels(kind, k, { verifyModel: v })} />
-          </div>
-          ${needsLogin(kind, k) ? html`<${LoginLoop} kind=${kind} busy=${busy} onRedetect=${redetect} />` : null}
-          <div class="settings__row">
-            ${kind === 'api' ? html`<${Act} name="setup-key" disabled=${busy} onClick=${() => setKeyDialog(true)}>${T.conn.setup}<//>` : null}
-            <${Act} name="probe" disabled=${busy || state !== 'usable'} onClick=${() => probe(kind)}>${T.conn.probe}<//>
-            <${ProbeLine} probe=${probes[kind] ?? probeView(data.probes?.[kind])} />
-          </div>
-        </div>`
-      })}
-    </div>` : null}
-    <div class="st-t-small st-t-sub">${T.conn.which}</div>
-    <div class="st-t-small st-t-sub" data-part="agent-uses">${T.conn.agentUses}</div>
+  return html`<div data-part="connections">
+    ${!data && conns.status === 'error' ? html`<p class="progress-alert" role="alert">${T.connectionsFailed}</p>` : null}
+    ${data ? KINDS.map(kind => {
+      const k = data.kinds?.[kind] ?? {}
+      const state = connectionState(kind, k)
+      const active = data.active === kind
+      const words = [detectWords(kind, k)]
+      if (state === 'usable' && !active) words.push(CONNECTIONS.usable)
+      return html`<div key=${kind} class=${`file-row st-set-conn${active ? ' st-set-conn--active' : ''}`} data-connection=${kind} data-conn-state=${state} data-active=${String(active)}>
+        <span class="file-icon"><${TIcon} name="spark" /></span>
+        <span class="file-text st-set-conn__name"><b>${CONNECTIONS.names[kind]}</b><small data-conn-words>${words.join(SEP)}</small>
+          ${kind === 'api' ? html`<small>${T.conn.apiHint}</small>` : null}</span>
+        <span class="st-set-slots">
+          <${ModelSelect} id=${`settings-model-${kind}`} label=${T.conn.model} value=${k.model ?? null} models=${k.models} noneLabel=${CONNECTIONS.defaultModel} disabled=${busy} onChange=${v => setModels(kind, k, { model: v })} />
+          <${ModelSelect} id=${`settings-model-${kind}-verify`} label=${T.conn.verify} value=${k.verifyModel ?? null} models=${k.models} noneLabel=${CONNECTIONS.sameAsMain} disabled=${busy} onChange=${v => setModels(kind, k, { verifyModel: v })} />
+        </span>
+        <span class="st-set-conn__acts">
+          ${active ? html`<span class="status-chip" data-part="in-use"><span class="dot"></span> ${T.conn.inUse}</span>`
+            : html`<${Btn} name="use-connection" disabled=${busy || state !== 'usable'} onClick=${() => act(() => call('setActiveConnection', kind))}>${T.conn.use}<//>`}
+          ${kind === 'api' ? html`<${Btn} name="setup-key" disabled=${busy} onClick=${() => setKeyDialog(true)}>${T.conn.setup}<//>` : null}
+          <${Btn} name="probe" kind="quiet" disabled=${busy || state !== 'usable'} onClick=${() => probe(kind)}>${T.conn.probe}<//>
+          <${ProbeLine} probe=${probes[kind] ?? probeView(data.probes?.[kind])} />
+        </span>
+        ${needsLogin(kind, k) ? html`<${LoginLoop} kind=${kind} busy=${busy} onRedetect=${redetect} />` : null}
+      </div>`
+    }) : null}
+    <p class="limit-note" data-part="agent-uses">${T.conn.agentUses}</p>
     ${keyDialog ? html`<${ApiKeyDialog} api=${data?.kinds?.api ?? {}} onClose=${() => setKeyDialog(false)} onChanged=${redetect} />` : null}
-  <//>`
+  </div>`
 }
 
-/** 「定时一览」: every library's schedule, read only; a click on a name: that library's 来源与要求, where it is changed. */
-function SchedulesPart() {
-  const { libraries, openLibrary, navigate } = useApp()
-  const rows = Array.isArray(libraries?.data) ? libraries.data : []
-  const ids = rows.map(r => r.id).join(',')
-  const scheds = useLoad(() => Promise.all(rows.map(r => call('getLibrarySchedule', r.id).then(s => [r.id, s], () => [r.id, null]))).then(Object.fromEntries), [ids])
-  useEvent('settings-changed', () => scheds.reload())
-  const go = async id => { if (await openLibrary(id)) navigate('sources', { section: 'run' }) }
-  return html`<${Part} id="schedules" name=${SHELL.settings.schedules} hint=${SHELL.settings.schedulesHint}>
-    ${rows.length ? html`<table class="settings__schedules">
-      <thead><tr><th scope="col">${SHELL.settings.library}</th><th scope="col">${SHELL.settings.on}</th><th scope="col">${SHELL.settings.next}</th></tr></thead>
-      <tbody>${rows.map(r => {
-        const s = scheds.data?.[r.id] ?? null
-        return html`<tr key=${r.id} data-schedule-row=${r.id} data-schedule=${s ? (s.enabled ? 'on' : 'off') : 'unknown'}>
-          <td><a href="#" class="settings__link" data-action="go-library" onClick=${e => { e.preventDefault(); go(r.id) }}>${r.name}</a></td>
-          <td>${s ? (s.enabled ? s.time : SHELL.settings.off) : scheds.data ? html`<span class="st-t-small st-t-muted">${SHELL.settings.schedulesFailed}</span>` : ''}</td>
-          <td class="st-t-small st-t-sub">${s?.nextRunAt ? nextText(s.nextRunAt, NEXT_WHEN) ?? s.nextRunAt : s ? T.scheduleOff : ''}</td>
-        </tr>`
-      })}</tbody>
-    </table>` : html`<span class="st-t-small st-t-muted">${SHELL.settings.schedulesNone}</span>`}
-    <div class="st-t-small st-t-sub">${T.scheduleMissed}</div>
-    <div class="st-t-small st-t-sub">${T.scheduleClose}</div>
-  <//>`
-}
-
-/** 「全部库本月用量合计」 (维护者 11-05): getUsageTotal — the calls and the tokens of every library this month, and each one's calls. */
+/**
+ * 「本月用量合计」 (维护者 11-05; redesign R4b, F65): getUsageTotal — the calls and the tokens of every library this month and the main
+ * agent's, and the sum written out. The two sides are the main process's numbers; `data-sum` is what the parts add up to (the
+ * page shows the total the main process gives, and the parts it is made of — the test checks they are equal).
+ */
 function UsagePart() {
   const usage = useLoad(() => call('getUsageTotal'), [])
   useEvent('inbox-changed', () => usage.reload())
   useEvent('libraries-changed', () => usage.reload())
+  useEvent('agent-changed', p => { if (p?.phase === 'done') usage.reload() })
   const u = usage.data
-  return html`<${Part} id="usage" name=${SHELL.settings.usage} hint=${SHELL.settings.usageHint}>
-    ${!u && usage.status === 'error' ? html`<div class="settings__error">${SHELL.settings.usageFailed}</div>` : null}
-    ${u ? html`<div data-calls=${u.calls} data-month=${u.month}>
-      <div class="st-t-strong">${fmt(SHELL.settings.usageLine, { calls: u.calls, input: u.inputTokens, output: u.outputTokens })}</div>
-      <ul class="settings__usage">${(u.libraries ?? []).map(l => html`<li key=${l.id} class="st-t-small st-t-sub" data-usage-library=${l.id} data-calls=${l.calls}>${l.missing ? fmt(SHELL.settings.usageMissing, { name: l.name }) : fmt(SHELL.settings.usageLibrary, { name: l.name, calls: l.calls })}</li>`)}</ul>
-    </div>` : null}
-  <//>`
+  const U = T.usage
+  const libs = Array.isArray(u?.libraries) ? u.libraries : []
+  const agent = u?.agent?.calls ?? 0
+  const sum = libs.reduce((n, l) => n + (l.calls ?? 0), 0) + agent
+  const parts = u ? [
+    ...libs.map(l => html`<span key=${l.id} data-usage-library=${l.id} data-calls=${l.calls} data-self-check=${l.selfCheck ?? 0}>${l.missing ? fmt(U.missing, { name: l.name }) : (l.selfCheck ?? 0) > 0 ? fmt(U.librarySelfCheck, { name: l.name, calls: l.calls, n: l.selfCheck }) : fmt(U.library, { name: l.name, calls: l.calls })}</span>`),
+    html`<span key="agent" data-usage-agent data-calls=${agent}>${fmt(U.agent, { calls: agent })}</span>`,
+  ] : []
+  return html`<div data-part="usage" data-calls=${u?.calls ?? ''} data-month=${u?.month ?? ''}>
+    ${!u && usage.status === 'error' ? html`<p class="progress-alert" role="alert">${U.failed}</p>` : null}
+    ${u ? html`<p class="st-set-usage"><b data-part="usage-total">${fmt(U.total, { calls: u.calls })}</b><small>${fmt(U.tokens, { input: u.inputTokens, output: u.outputTokens })}</small></p>
+      <p class="limit-note st-set-usage-sum" data-part="usage-sum" data-sum=${sum}>= ${parts.map((p, i) => html`${i ? U.plus : ''}${p}`)}</p>` : null}
+  </div>`
 }
 
-/** 「首次设置」 (plan A1): who decided each of the wizard's six steps, from the current library's streams.json (getSetup). v2
- * package I: drawn in 来源与要求's 「这个库」 (screens/sources.js); the connection's record comes from 首次打开 (settings.json). */
-export function SetupRecord({ setup }) {
-  if (setup.status === 'error' && !setup.data) return html`<span class="settings__error" data-part="setup" data-setup="error">${T.setupFailed}</span>`
-  if (!setup.data) return html`<span data-part="setup" data-setup="loading"></span>`
-  const steps = SETUP_STEPS.filter(s => Object.hasOwn(setup.data, s))
-  if (!steps.length) return html`<span class="st-t-small st-t-muted" data-part="setup" data-setup="none">${T.setupNone}</span>`
-  return html`<ul class="settings__setup" data-part="setup" data-setup="recorded">
-    ${SETUP_STEPS.map(step => {
-      const by = setup.data[step]?.by ?? null
-      const words = by && Object.hasOwn(T.setupBy, by) ? T.setupBy[by] : T.setupNone
-      return html`<li key=${step} class="st-t-small" data-setup-step=${step} data-by=${by ?? ''}>${fmt(T.setupLine, { step: T.setupSteps[step], by: words })}</li>`
-    })}
-  </ul>`
-}
-
-/** 主 Agent (v2 package I): getAgentStatus — the connection, the session, the conversation, the last summary. */
-function AgentPart() {
-  const { navigate } = useApp()
-  const st = useLoad(() => call('getAgentStatus'), [])
-  useEvent('agent-changed', p => { if (p?.phase === 'done') st.reload() })
-  useEvent('connections-changed', () => st.reload())
-  const A = T.agent
-  const d = st.data
-  const session = !d ? null : d.connection === null ? 'none' : d.sessionful === false ? 'api' : d.session?.live ? 'live' : 'none'
-  const sessionText = session === 'live' ? fmt(A.sessionLive, { turns: d.session.turns ?? 0 }) : session === 'api' ? A.sessionApi : A.sessionNone
-  const conn = d?.connection
-  const connText = !conn ? A.connectionNone : Object.hasOwn(CONNECTIONS.names, conn) ? CONNECTIONS.names[conn] : conn
-  return html`<${Part} id="agent" name=${A.name} hint=${A.hint}>
-    ${!d && st.status === 'error' ? html`<div class="settings__error">${A.failed}</div>` : null}
-    ${d ? html`<dl class="settings__kv-list">
-      <dt class="st-t-small st-t-sub">${A.connection}</dt>
-      <dd class=${conn ? '' : 'st-t-wait'} data-agent-connection=${conn ?? ''}>${connText}</dd>
-      <dt class="st-t-small st-t-sub">${A.session}</dt>
-      <dd data-session=${session}>${sessionText}</dd>
-      <dt class="st-t-small st-t-sub">${A.talk}</dt>
-      <dd data-turns=${d.turns ?? 0}>${fmt(A.talkLine, { turns: d.turns ?? 0, entries: d.entries ?? 0 })}</dd>
-      <dt class="st-t-small st-t-sub">${A.summary}</dt>
-      <dd data-summary=${d.lastSummaryAt ?? ''}>${d.lastSummaryAt ? whenText(d.lastSummaryAt, WHEN) ?? d.lastSummaryAt : A.summaryNone}</dd>
-    </dl>` : null}
-    <div class="settings__row"><${Act} name="open-chat" icon="chat" onClick=${() => navigate('chat')}>${A.open}<//></div>
-  <//>`
-}
-
-/** 新建库默认放在 (v2 package I): getLibraryRoot; 「换一个文件夹…」 = chooseLibraryRoot (the system's dialog); 「恢复默认」 = setLibraryRoot(null). */
+/** 新建库默认存储位置 (v2 package I): getLibraryRoot; 「更改…」 = chooseLibraryRoot (the system's dialog); 「恢复默认」 = setLibraryRoot(null). */
 function LibraryRootPart() {
   const root = useLoad(() => call('getLibraryRoot'), [])
   const [busy, setBusy] = useState(false)
@@ -337,37 +262,30 @@ function LibraryRootPart() {
       if (r) { root.mutate(() => r); setNote('saved') }
     } catch (err) { setNote(err?.code === 'bad_arguments' ? 'bad' : 'failed') } finally { setBusy(false) }
   }
-  return html`<${Part} id="library-root" name=${R.label} hint=${R.hint}>
-    ${!d && root.status === 'error' ? html`<div class="settings__error">${R.failed}</div>` : null}
-    ${d ? html`<div class="settings__root" data-root-default=${String(d.isDefault === true)}>
-      <span class="settings__path-text" data-root-path=${d.path ?? ''}>${d.path ?? ''}</span>
-      ${d.isDefault ? html`<span class="settings__default">${R.isDefault}</span>` : null}
-    </div>` : null}
-    <div class="settings__row">
-      <${Act} name="change-root" icon="folder" disabled=${busy || !d} onClick=${() => act(() => call('chooseLibraryRoot'))}>${R.change}<//>
-      <${Act} name="reset-root" disabled=${busy || !d || d.isDefault} onClick=${() => act(() => call('setLibraryRoot', null))}>${R.reset}<//>
-      ${note ? html`<span class=${note === 'saved' ? 'st-t-small st-t-done' : 'settings__error'} role=${note === 'saved' ? 'status' : 'alert'} data-root-note=${note}>${R[note]}</span>` : null}
-    </div>
-  <//>`
+  return html`<div class="file-row st-set-root" data-part="library-root">
+    <span class="file-icon"><${TIcon} name="files" fallback="file" /></span>
+    <span class="file-text">${R.label}<small data-root-default=${d ? String(d.isDefault === true) : ''}><span data-root-path=${d?.path ?? ''}>${d?.path ?? ''}</span>${d?.isDefault ? `${SEP}${R.isDefault}` : ''}</small>
+      ${note ? html`<small role=${note === 'saved' ? 'status' : 'alert'} data-root-note=${note}>${R[note]}</small>` : null}
+      ${!d && root.status === 'error' ? html`<small role="alert">${R.failed}</small>` : null}</span>
+    <${Btn} name="change-root" disabled=${busy || !d} onClick=${() => act(() => call('chooseLibraryRoot'))}>${R.change}<//>
+    <${Btn} name="reset-root" kind="quiet" disabled=${busy || !d || d.isDefault} onClick=${() => act(() => call('setLibraryRoot', null))}>${R.reset}<//>
+  </div>`
 }
 
+/** 语言: 跟随系统（当前：中文） · 中文 · English — the template's filters, a radio each (v1.0's ids kept). */
 function LanguagePart({ language, onChange }) {
   const setting = language?.setting ?? 'auto'
   const resolved = language?.resolved ?? 'zh-CN'
-  const choices = ['auto', 'zh-CN', 'en']
-  return html`<${Part} id="language" name=${T.language} hint=${T.languageHint}>
-    <div class="settings__models settings__models--three" role="radiogroup" aria-label=${T.languageGroup}>
-      ${choices.map(v => html`<label key=${v} class="settings__model" for=${`settings-language-${v}`} data-checked=${String(setting === v)}>
-        <input type="radio" name="language" id=${`settings-language-${v}`} value=${v} checked=${setting === v} onChange=${() => onChange(v)} />
-        <span class="settings__model-text">
-          <b>${T.languages[v]}</b>
-          ${v === 'auto' ? html`<span class="st-t-small st-t-sub">${fmt(T.languageNow, { name: T.languages[resolved] })}</span>` : null}
-        </span>
+  return html`<div class="st-set-look" data-part="language">
+    <div class="section-label"><span>${T.language}</span></div>
+    <div class="filters" role="radiogroup" aria-label=${T.languageGroup}>
+      ${['auto', 'zh-CN', 'en'].map(v => html`<label key=${v} class=${`filter${setting === v ? ' active' : ''}`} for=${`settings-language-${v}`} data-checked=${String(setting === v)}>
+        <input type="radio" class="settings__choice-input" name="language" id=${`settings-language-${v}`} value=${v} checked=${setting === v} onChange=${() => onChange(v)} />
+        <b>${T.languages[v]}</b>${v === 'auto' ? html`<small>${fmt(T.languageNow, { name: T.languages[resolved] })}</small>` : null}
       </label>`)}
     </div>
-    <div class="st-t-small st-t-sub">${T.languageNote}</div>
-    <div class="st-t-small st-t-muted">${T.languageReload}</div>
-  <//>`
+    <p class="limit-note">${T.languageNote}</p>
+  </div>`
 }
 
 /**
@@ -377,22 +295,22 @@ function LanguagePart({ language, onChange }) {
  */
 function ThemePart({ theme, defaultTheme, failed, onChange }) {
   const current = THEME_IDS.includes(theme) ? theme : defaultTheme
-  return html`<section class="settings__look" data-part="theme" aria-labelledby="settings-theme">
+  return html`<div class="st-set-look settings__look" data-part="theme">
     <div class="section-label"><span id="settings-theme">${T.theme}</span><small class="muted">${T.themeHint}</small></div>
-    <div class="filters" role="radiogroup" aria-label=${T.themeGroup}>
+    <div class="filters" role="radiogroup" aria-labelledby="settings-theme">
       ${THEME_IDS.map(id => html`<label key=${id} class=${`filter${id === current ? ' active' : ''}`} for=${`settings-theme-${id}`} data-theme-card=${id} data-checked=${String(id === current)}>
         <input type="radio" class="settings__choice-input" name="theme" id=${`settings-theme-${id}`} value=${id} checked=${id === current} onChange=${() => onChange(id)} />
         <b class="settings__theme-name">${T.themes[id]}</b>${id === defaultTheme ? html` <small data-default>${T.themeDefault}</small>` : null}
       </label>`)}
     </div>
-    ${failed ? html`<span class="progress-alert" role="alert">${T.themeFailed}</span>` : null}
-  </section>`
+    ${failed ? html`<p class="progress-alert" role="alert">${T.themeFailed}</p>` : null}
+  </div>`
 }
 
 /** 「外观」: 浅色 · 深色 · 跟随系统 (Windows' light / dark, live) — the template's field with a select; a choice is setAppearance at once. */
 function AppearancePart({ appearance, failed, onChange }) {
   const current = APPEARANCES.includes(appearance) ? appearance : 'system'
-  return html`<div class="settings__look" data-part="appearance">
+  return html`<div class="st-set-look settings__look" data-part="appearance">
     <div class="form-row">
       <label class="field" for="settings-appearance"><span>${T.appearance}</span>
         <select id="settings-appearance" data-field="appearance" aria-label=${T.appearanceGroup} value=${current} onChange=${e => onChange(e.currentTarget.value)}>
@@ -401,47 +319,50 @@ function AppearancePart({ appearance, failed, onChange }) {
         <small>${T.appearanceHint}</small>
       </label>
     </div>
-    ${failed ? html`<span class="progress-alert" role="alert">${T.appearanceFailed}</span>` : null}
+    ${failed ? html`<p class="progress-alert" role="alert">${T.appearanceFailed}</p>` : null}
     <p class="limit-note">${T.themeNote}</p>
   </div>`
 }
 
-/** 许可证与致谢 (mockup S14): Streams' MIT license in full and its maker, the parts that ship with it, the full notices. */
+/**
+ * 许可证与致谢 (P19, V11): the template's dialog — 流息本身 · MIT (its license in full), 界面字体 · Noto Sans SC（SIL Open Font License 1.1）
+ * (its license, folded), 随附的第三方组件 (name, version, license), 查看完整第三方声明, 关闭. (P19's 标题字体 line comes with R6's font.)
+ */
 function LicensesDialog({ onClose }) {
   const lic = useLoad(() => call('getLicenses'), [])
   const [failed, setFailed] = useState(false)
   const d = lic.data
+  const L = T.licenses
   const open = async () => {
     setFailed(false)
     try { await call('openNotices') } catch { setFailed(true) }
   }
-  const actions = html`<${Act} name="close-licenses" variant="primary" onClick=${onClose}>${T.licenses.close}<//>`
-  return html`<${Dialog} name="licenses" title=${T.licenses.title} onCancel=${onClose} actions=${actions}>
-    ${!d && lic.status === 'error' ? html`<div class="settings__error" role="alert">${T.licenses.failed}</div>` : null}
-    ${d ? html`<section class="settings__licenses-part" data-part="own" data-license=${d.own.license}>
-        <h3 class="settings__licenses-title st-t-body">${T.licenses.own}</h3>
-        <div class="st-t-small st-t-sub">${fmt(T.licenses.ownLicense, { license: d.own.license })}</div>
-        <pre class="settings__license-text" data-part="license-text" tabindex="0">${d.own.text}</pre>
-        <div class="st-t-small" data-part="licenses-made-by"><${LinkButton} onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}<//></div>
+  const components = d ? d.components.filter(c => !d.font || c.name !== d.font.name) : []
+  const footer = d ? html`<span data-part="notices" data-available=${String(d.notices.available === true)} class="st-tdialog__notices">
+      <${Btn} name="open-notices" disabled=${d.notices.available !== true} onClick=${open}>${L.notices}<//>
+      ${d.notices.available !== true ? html`<small data-notices-why>${L.noticesNone}</small>` : null}
+      ${failed ? html`<small role="alert">${L.noticesFailed}</small>` : null}
+    </span>
+    <span class="st-tdialog__gap"></span>
+    <${Btn} name="close-licenses" kind="primary" onClick=${onClose}>${L.close}<//>` : html`<${Btn} name="close-licenses" kind="primary" onClick=${onClose}>${L.close}<//>`
+  return html`<${TDialog} name="licenses" title=${L.title} closeLabel=${L.close} onClose=${onClose} footer=${footer} className="st-licenses">
+    ${!d && lic.status === 'error' ? html`<p class="progress-alert" role="alert">${L.failed}</p>` : null}
+    ${d ? html`<section class="readable" data-part="own" data-license=${d.own.license}>
+        <p><b>${fmt(L.own, { license: d.own.license })}</b></p>
+        <pre class="st-license-text" data-part="license-text" tabindex="0">${d.own.text}</pre>
+        <p data-part="licenses-made-by"><button type="button" class="st-link" onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}</button></p>
       </section>
-      <section class="settings__licenses-part" aria-labelledby="settings-components">
-        <h3 class="settings__licenses-title st-t-body" id="settings-components">${T.licenses.components}</h3>
-        <table class="settings__components" data-part="components">
-          <thead><tr><th scope="col">${T.licenses.name}</th><th scope="col">${T.licenses.version}</th><th scope="col">${T.licenses.license}</th></tr></thead>
-          <tbody>${d.components.map(c => html`<tr key=${c.name} data-component=${c.name} data-version=${c.version} data-license=${c.license}>
-            <td>${c.name}</td><td class="st-t-num">${c.version}</td><td>${c.license}</td>
-          </tr>`)}</tbody>
-        </table>
-      </section>
-      ${d.font ? html`<section class="settings__licenses-part" data-part="font" data-license=${d.font.license}>
-        <div class="st-t-small st-t-sub">${fmt(T.licenses.font, { name: d.font.name, license: d.font.license })}</div>
-        <pre class="settings__license-text" data-part="font-license-text" tabindex="0">${d.font.text}</pre>
+      ${d.font ? html`<section class="readable" data-part="font" data-license=${d.font.license}>
+        <p><b>${fmt(L.font, { name: d.font.name, license: d.font.license === 'OFL-1.1' ? 'SIL Open Font License 1.1' : d.font.license })}</b></p>
+        <details><summary>${L.fontText}</summary><pre class="st-license-text" data-part="font-license-text" tabindex="0">${d.font.text}</pre></details>
       </section>` : null}
-      <div class="settings__row" data-part="notices" data-available=${String(d.notices.available === true)}>
-        <${Act} name="open-notices" disabled=${d.notices.available !== true} onClick=${open}>${T.licenses.notices}<//>
-        ${d.notices.available !== true ? html`<span class="st-t-small st-t-sub" data-notices-why>${T.licenses.noticesNone}</span>` : null}
-        ${failed ? html`<span class="settings__error" role="alert">${T.licenses.noticesFailed}</span>` : null}
-      </div>` : null}
+      <div class="section-label"><span id="settings-components">${L.components}</span></div>
+      <table class="st-log st-components" data-part="components" aria-labelledby="settings-components">
+        <thead><tr><th scope="col">${L.name}</th><th scope="col">${L.version}</th><th scope="col">${L.license}</th></tr></thead>
+        <tbody>${components.map(c => html`<tr key=${c.name} data-component=${c.name} data-version=${c.version} data-license=${c.license}>
+          <td>${c.name}</td><td>${c.version}</td><td>${c.license}</td>
+        </tr>`)}</tbody>
+      </table>` : null}
   <//>`
 }
 
@@ -450,6 +371,7 @@ export function SettingsScreen() {
   const data = appState.data
   const [devInfo, setDevInfo] = useState(data?.showDeveloperInfo ?? false)
   const [copied, setCopied] = useState(false)
+  const [logsFailed, setLogsFailed] = useState(false)
   const [themeFailed, setThemeFailed] = useState(false)
   const [appearanceFailed, setAppearanceFailed] = useState(false)
   const [licenses, setLicenses] = useState(false)
@@ -488,46 +410,49 @@ export function SettingsScreen() {
   const copy = async () => {
     try { await call('copyDiagnostics'); setCopied(true) } catch { setCopied(false) }
   }
+  const openLogs = async () => {
+    setLogsFailed(false)
+    try { await call('openLogsFolder') } catch { setLogsFailed(true) }
+  }
+  const jump = id => document.getElementById(`settings-group-${id}`)?.scrollIntoView({ block: 'start' })
+  const version = data ? html`<span class="status-chip" data-part="version-chip">${fmt(data.devBuild ? T.versionDev : T.version, { version: data.version })}</span>` : null
   return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="settings" />`} panel=${html`<${RightPanel} />`}>
     <${Main} screen="settings" state=${data ? 'ready' : appState.status} labelledby="settings-title">
-      <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h1" titleId="settings-title" />
-      <div class="st-main__body settings__body">
-        <div class="settings__list">
+      <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h1" titleId="settings-title" actions=${version} />
+      <div class="st-main__body thread-scroll st-set-body">
+        <div class="new-content st-set">
+          <nav class="filters st-set-jumps" data-part="jumps" aria-label=${T.jumpsLabel}>
+            ${GROUPS.map(id => html`<button type="button" key=${id} class="filter" data-jump=${id} onClick=${() => jump(id)}>${T.groups[id]}</button>`)}
+          </nav>
           <${Group} id="connection" name=${T.groups.connection}>
             ${data ? html`<${ConnectionsPart} />` : null}
-          <//>
-          <${Group} id="agent" name=${T.groups.agent}>
-            ${data ? html`<${AgentPart} />` : null}
-          <//>
-          <${Group} id="library" name=${T.groups.library}>
-            ${data ? html`<${LibraryRootPart} /><${SchedulesPart} /><${UsagePart} />` : null}
           <//>
           <${Group} id="look" name=${T.groups.look}>
             ${data ? html`<${ThemePart} theme=${data.theme} defaultTheme=${data.defaultTheme} failed=${themeFailed} onChange=${changeTheme} />` : null}
             ${data ? html`<${AppearancePart} appearance=${data.appearance} failed=${appearanceFailed} onChange=${changeAppearance} />` : null}
             <${LanguagePart} language=${data?.language} onChange=${changeLanguage} />
           <//>
-          <${Group} id="software" name=${T.groups.software}>
-          <${Part} id="about" name=${T.about}>
-            ${data ? html`<${AboutUpdate} version=${data.version} devBuild=${data.devBuild} />` : null}
-            <div class="st-t-small st-t-muted" data-part="made-by"><${LinkButton} onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}<//></div>
-            <div><${Act} name="licenses" onClick=${() => setLicenses(true)}>${T.licensesOpen}<//></div>
+          <${Group} id="library" name=${T.groups.library}>
+            ${data ? html`<${LibraryRootPart} /><${UsagePart} />` : null}
           <//>
-          <${Part} id="advanced" name=${T.advanced} hint=${T.advancedHint}>
-            <div class="settings__advanced">
-              <div class="settings__check">
-                <input type="checkbox" id="settings-dev-info" checked=${devInfo} onChange=${e => toggleDevInfo(e.currentTarget.checked)} />
-                <div>
-                  <label class="settings__check-name" for="settings-dev-info">${T.devInfo}</label>
-                  <div class="st-t-small st-t-sub">${T.devInfoText}</div>
-                </div>
-              </div>
-              <div class="settings__diag">
-                <${Button} icon="copy" onClick=${copy}>${T.copyDiagnostics}<//>
-                <span class="st-t-small st-t-sub">${copied ? T.copied : T.diagnosticsText}</span>
-              </div>
+          <${Group} id="about" name=${T.about}>
+            <div class="file-row st-set-about" data-part="about">
+              <span class="file-icon"><${TIcon} name="download" fallback="file" /></span>
+              <span class="file-text">${data ? html`<${AboutUpdate} version=${data.version} devBuild=${data.devBuild} />` : null}
+                <small data-part="made-by"><button type="button" class="st-link" onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}</button></small></span>
+              <${Btn} name="licenses" onClick=${() => setLicenses(true)}>${T.licensesOpen}<//>
             </div>
-          <//>
+            <details class="st-set-advanced" data-part="advanced">
+              <summary class="section-label"><span>${T.advanced}</span><${TIcon} name="down" /></summary>
+              <label class="st-nl-check st-set-dev" for="settings-dev-info"><input type="checkbox" id="settings-dev-info" checked=${devInfo} onChange=${e => toggleDevInfo(e.currentTarget.checked)} /> ${T.devInfo}</label>
+              <p class="limit-note">${T.devInfoText}</p>
+              <div class="form-footer st-set-adv-actions">
+                <${Btn} name="copy-diagnostics" onClick=${copy}><${TIcon} name="copy" fallback="file" /> ${T.copyDiagnostics}<//>
+                <${Btn} name="open-logs" onClick=${openLogs}>${T.openLogs}<//>
+              </div>
+              <p class="limit-note" role="status" data-part="diagnostics-note">${copied ? T.copied : T.diagnosticsText}</p>
+              ${logsFailed ? html`<p class="progress-alert" role="alert">${T.openLogsFailed}</p>` : null}
+            </details>
           <//>
           ${licenses ? html`<${LicensesDialog} onClose=${() => setLicenses(false)} />` : null}
         </div>

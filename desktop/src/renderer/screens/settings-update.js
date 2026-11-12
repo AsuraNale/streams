@@ -1,11 +1,10 @@
-// D21 「关于」: the version, 「检查更新」, and what the update says (work order 08; docs/desktop.md��; no draft draws it). Data:
+// D21 「关于」: the version, 「检查更新」, and what the update says (work order 08; docs/desktop.md §四; no draft draws it). Data:
 // lib/use-update.js (getUpdateState + the `update` event); words: texts/settings.js SETTINGS.update. The notes come as plain
 // text from the main process and are shown as text (never as HTML). Hooks for the tests: [data-update] (the state),
 // [data-update-action="…"] around each button, [data-update-link] on the links, [data-update-notes], [data-update-progress].
 import { html, useEffect, useState } from '../lib/html.js'
 import { fmt, pageLocale, whenText } from '../lib/format.js'
 import { useUpdate } from '../lib/use-update.js'
-import { Button } from '../kit/index.js'
 import { SETTINGS } from '../texts/settings.js'
 import { WHEN } from '../texts/common.js'
 
@@ -20,8 +19,8 @@ function dateText(iso) {
   try { return d.toLocaleDateString(pageLocale(), { year: 'numeric', month: 'long', day: 'numeric' }) } catch { return d.toISOString().slice(0, 10) }
 }
 
-/** A button with a hook for the tests around it (the kit's Button takes no data attributes). */
-const Action = ({ name, ...props }) => html`<span data-update-action=${name}><${Button} ...${props} /></span>`
+/** A button with a hook for the tests around it. Redesign R4b: the template's .btn (设置 is on the template's parts). */
+const Action = ({ name, variant, disabled, onClick, children }) => html`<span class="st-act" data-update-action=${name}><button type="button" class=${variant === 'primary' ? 'btn primary' : 'btn'} disabled=${disabled} onClick=${onClick}>${children}</button></span>`
 
 function PageLink({ text, onOpen }) {
   return html`<a href="#" class="settings__link settings__update-link" data-update-link onClick=${e => { e.preventDefault(); onOpen() }}>${text}</a>`
