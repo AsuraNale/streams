@@ -46,8 +46,9 @@ test('every node at the core\'s row and col times the fixed spacing; the edges a
 
 test('the same data opened twice: every node at the same place; a filter that changes the data changes the picture (control)', async () => {
   const first = await nodes()
-  await s.page.click('.st-lib-tabs [data-tab="overview"]')
-  await s.page.waitForFunction(() => document.querySelector('main[data-screen="overview"][data-state="ready"]') !== null, null, POLL)
+  // redesign R1: 概览 is gone — away by 来源与要求 instead
+  await s.page.click('.st-lib-tabs [data-tab="sources"]')
+  await s.page.waitForFunction(() => document.querySelector('main[data-screen="sources"][data-state="ready"]') !== null, null, POLL)
   await s.page.click('.st-lib-tabs [data-tab="library"]')
   await s.page.waitForFunction(() => document.querySelector('main[data-screen="library"][data-state="ready"]') !== null, null, POLL)
   await s.page.click('[data-mode="graph"]')

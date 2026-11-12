@@ -30,8 +30,9 @@ test('the page\'s own files are served (control)', async () => {
   }
 })
 
-// v2 package K2: the bundled UI font is served as font/ttf (styles/fonts.css loads it); its license text beside it is not a
-// type the page uses (control); index.html carries the look the handler is given, both attributes
+// v2 package K2: the bundled UI font is served as font/ttf; its license text beside it is not a type the page uses (control);
+// index.html carries the look the handler is given. Redesign R1 (the template's design.css asks for ../fonts/ under
+// template/shared/: the same file answers, FILE_ALIASES — the only alias; the default theme is research now)
 test('the bundled font is served as font/ttf, byte for byte; the .txt beside it is not; index.html has data-theme and data-appearance', async () => {
   const h = handler(false)
   const font = await get(h, 'app://ui/fonts/NotoSansSC-VF.ttf')
@@ -41,7 +42,15 @@ test('the bundled font is served as font/ttf, byte for byte; the .txt beside it 
   assert.equal((await get(h, 'app://ui/fonts/OFL-NotoSansSC.txt')).status, 404, 'control: a .txt is not served')
   const page = await (await get(createAppProtocolHandler({ rendererDir: join(DESKTOP_DIR, 'src', 'renderer'), sharedDir: join(DESKTOP_DIR, 'src', 'shared'), vendor: vendorFiles(), csp: "default-src 'none'", theme: () => ({ theme: 'research', scheme: 'dark' }) }), 'app://ui/index.html')).text()
   assert.match(page, /<html lang="zh-CN" data-theme="research" data-appearance="dark">/)
-  assert.match(await (await get(h, 'app://ui/index.html')).text(), /<html lang="zh-CN" data-theme="precision" data-appearance="light">/, 'without a look: the default')
+  assert.match(page, /<body class="theme-research r9 r9-research r11 r11-research" data-theme="research11" data-appearance="dark" data-product="streams">/)
+  assert.ok(page.includes('<link rel="stylesheet" data-theme-sheet href="/template/shared/round9/research.css">'))
+  assert.match(await (await get(h, 'app://ui/index.html')).text(), /<html lang="zh-CN" data-theme="research" data-appearance="light">/, 'without a look: the default')
+  // redesign R1: the template's face asks for template/shared/fonts/NotoSansSC-VF.ttf — the same bytes as fonts/
+  const aliased = await get(h, 'app://ui/template/shared/fonts/NotoSansSC-VF.ttf')
+  assert.equal(aliased.status, 200)
+  assert.ok(Buffer.from(await aliased.arrayBuffer()).equals(readFileSync(join(DESKTOP_DIR, 'src', 'renderer', 'fonts', 'NotoSansSC-VF.ttf'))))
+  assert.equal((await get(h, 'app://ui/template/shared/fonts/OFL-NotoSansSC.txt')).status, 404, 'control: no other file of that folder')
+  assert.equal((await get(h, 'app://ui/template/shared/round12/brand/streams.svg')).status, 200, 'the template\'s mark (line.css)')
 })
 
 test('D2 · a path naming another machine is refused at once, before the file system: no network share is opened', async () => {
@@ -116,7 +125,7 @@ test('N1 · a file whose name is Chinese (or has a space, full-width brackets) l
   }
 })
 
-test('the page\'s words in the user\'s language (docs/desktop.md��): in English texts/<name>.js is answered with texts-en/<name>.js when that exists, else the Chinese file; in Chinese and by default the Chinese file', async () => {
+test('the page\'s words in the user\'s language (docs/desktop.md��): in English texts/<name>.js is answered with texts-en/<name>.js when that exists, else the Chinese file; in Chinese and by default the Chinese file', async () => {
   const renderer = join(DESKTOP_DIR, 'src', 'renderer')
   const text = f => readFileSync(join(renderer, f), 'utf8')
   const en = handler(true, () => 'en')

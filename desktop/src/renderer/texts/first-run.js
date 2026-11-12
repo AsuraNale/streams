@@ -94,7 +94,7 @@ export const FIRST_RUN = Object.freeze({
     failed: '没能开始。',
     skip: '先不跑，往下走',
     goInbox: '去待看',
-    goToday: '去概览',
+    goToday: '前往待看',
   }),
 
   // the last screen (plan A1 「设好明天，关窗口」; docs/desktop.md §4.3): the schedule, accepted as it is with 完成
@@ -108,7 +108,7 @@ export const FIRST_RUN = Object.freeze({
     close: '关窗口时，流息收进托盘，到点自己跑；托盘菜单里可以退出。',
     later: '时刻和开关以后在这个库的「来源与要求」里改。',
     finishInbox: '完成，去待看',
-    finishToday: '完成，去概览',
+    finishToday: '完成，前往待看',
     failed: '没能保存定时。',
   }),
 })

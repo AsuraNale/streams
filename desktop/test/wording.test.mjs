@@ -16,6 +16,8 @@ const TEXTS = join(RENDERER, 'texts')
 // the main process's own words (what the app writes to the agent, the folder name it suggests): the same rules
 const MAIN_TEXTS = join(DESKTOP_DIR, 'src', 'main', 'texts')
 const TEXT_DIRS = [TEXTS, MAIN_TEXTS]
+// redesign R1: the design's template, copied byte for byte (src/renderer/template/manifest.json)
+const TEMPLATE = join(RENDERER, 'template')
 
 function files(dir, exts) {
   const out = []
@@ -75,7 +77,9 @@ test('full-width punctuation next to Chinese in every text table string', async 
 
 test('no Chinese text in a string anywhere in the app\'s code outside src/renderer/texts/', () => {
   // the text tables (src/renderer/texts/, src/main/texts/) are the only place for words
-  const code = files(join(DESKTOP_DIR, 'src'), ['.js', '.mjs', '.cjs']).filter(f => !TEXT_DIRS.some(dir => f.startsWith(dir)))
+  // redesign R1: src/renderer/template/ is the design's template copied byte for byte (its icon scripts name their own demo
+  // themes in Chinese and are never shown); not the app's code — test/theme.test.mjs holds it to the design's sha256
+  const code = files(join(DESKTOP_DIR, 'src'), ['.js', '.mjs', '.cjs']).filter(f => !TEXT_DIRS.some(dir => f.startsWith(dir)) && !f.startsWith(TEMPLATE))
   assert.ok(code.length > 15, `${code.length} files`)
   const found = []
   for (const f of code) for (const lit of stringLiterals(readFileSync(f, 'utf8'))) if (CJK.test(lit.text)) found.push(`${relative(DESKTOP_DIR, f)}:${lit.line} ${JSON.stringify(lit.text)}`)
@@ -91,7 +95,8 @@ const RANGES = [
 const invisible = text => [...text].map(ch => ch.codePointAt(0)).filter(cp => (cp < 32 && cp !== 10 && cp !== 9) || RANGES.some(([a, b]) => cp >= a && cp <= b))
 
 test('desktop/, docs/desktop.md and docs/tokens.md: LF line ends only, no invisible or control characters', () => {
-  const ours = files(DESKTOP_DIR, ['.js', '.mjs', '.cjs', '.json', '.css', '.html', '.md'])
+  // redesign R1: the template's files keep the design's bytes (some have CR line ends): not checked here (test/theme.test.mjs)
+  const ours = files(DESKTOP_DIR, ['.js', '.mjs', '.cjs', '.json', '.css', '.html', '.md']).filter(f => !f.startsWith(TEMPLATE))
   const list = [...ours, join(REPO_DIR, 'docs', 'desktop.md'), join(REPO_DIR, 'docs', 'tokens.md')]
   assert.ok(list.length > 40, `${list.length} files`)
   const problems = []

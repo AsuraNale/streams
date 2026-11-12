@@ -18,16 +18,19 @@ import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { CONNECTIONS } from '../src/renderer/texts/common.js'
 import { STATUS } from '../src/renderer/texts/status.js'
-import { TODAY } from '../src/renderer/texts/today.js'
+import { SHELL } from '../src/renderer/texts/shell.js'
 import { ready } from './support/app.mjs'
 import { seedPlanB, worldSession } from './support/seed.mjs'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
+// redesign R1: 概览 is gone; 运行状态 sits in the right panel's 进度 under 「当前库 · 上次运行」 until R2 (screens/last-run.js) — this
+// file opens the app with the panel on 进度 (the start screen 'status' is v1.0's id and leads to 待看); the next run is the head's
+// chip, in its words (SHELL.head.run.nextNone, was TODAY.nextRun.none). The assertions are the ones of before.
 const session = mode => worldSession({
   kind: 'seeded',
-  waitFor: 'overview',
+  waitFor: 'inbox',
   prepare: async world => { await seedPlanB(world) },
-  settings: { connections: { active: 'claude-code' } },
+  settings: { connections: { active: 'claude-code' }, panel: { open: true, tab: 'progress' } },
   env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: mode, STREAMS_START_SCREEN: 'status' }),
 })
 const s = session('fake')
@@ -56,7 +59,7 @@ test('the numbers are the core\'s statusView; the next run (in the library\'s he
   assert.ok(v.monthUsage.calls > 0, 'control: the seed\'s round made calls')
   const next = await s.page.evaluate(() => { const n = document.querySelector('[data-part="next-run"]'); return [n.dataset.nextRun, n.textContent] })
   assert.equal(next[0], '')
-  assert.ok(next[1].startsWith(TODAY.nextRun.none), next[1])
+  assert.ok(next[1].startsWith(SHELL.head.run.nextNone), next[1])
 })
 
 test('the sources of the last round: statusView\'s rows; the 404 one four rounds in a row and 去处理 → 来源与要求', async () => {

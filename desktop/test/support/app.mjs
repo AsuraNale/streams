@@ -75,8 +75,8 @@ export function appSession({ env = {}, settings = null, waitFor } = {}) {
     s.page = started.page
     s.page.on('pageerror', err => s.errors.push(`pageerror: ${err.message}`))
     s.page.on('console', msg => { if (msg.type() === 'error') s.errors.push(`console: ${msg.text()}`) })
-    // v2 package F: the app opens on the current library's 概览 (v1.0's 今日 is part of it now)
-    const wait = waitFor ?? 'overview'
+    // redesign R1: the app opens on the current library's 待看 (概览 is gone; v2 package F opened on 概览)
+    const wait = waitFor ?? 'inbox'
     if (wait === 'load') await s.page.waitForLoadState('domcontentloaded')
     else await ready(s.page, wait)
   })
@@ -94,6 +94,6 @@ export function appSession({ env = {}, settings = null, waitFor } = {}) {
 
 /** Wait until a screen has its data (Main's data-state="ready"). Polls by time, not by animation frame:
  *  a hidden window draws no frames. */
-export async function ready(page, screen = 'overview') {
+export async function ready(page, screen = 'inbox') {
   await page.waitForFunction(id => Boolean(document.querySelector(`main[data-screen="${id}"][data-state="ready"]`)), screen, { timeout: 90_000, polling: 100 })
 }

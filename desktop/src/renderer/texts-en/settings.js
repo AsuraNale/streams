@@ -36,7 +36,7 @@ export const SETTINGS = Object.freeze({
     talkLine: '{turns} turn{turns?|s} · {entries} record{entries?|s}',
     summary: 'Last shortened',
     summaryNone: 'Not shortened yet',
-    open: 'Open the chat with the main Agent',
+    open: 'Open Main agent',
     failed: "The main Agent's state could not be read.",
   }),
 
@@ -117,18 +117,18 @@ export const SETTINGS = Object.freeze({
   languageNote: "Changes only Streams' own words; the files in your library and what a model writes are not affected.",
   languageReload: 'The page reloads when you switch.',
 
-  // the app's look (docs/desktop.md §五「主题」). v2 package K2 (维护者 11-10): three themes (English names: Precision · Clear
-  // Glass · Research) and the appearance
+  // the app's look (docs/desktop.md §五「主题」). Redesign R1: the template's four themes (English names: Precision · Clear
+  // Glass · Research · Monoline) and the appearance
   theme: 'Theme',
-  themeHint: 'Which set of colours and shapes the app uses',
+  themeHint: 'Colours and shapes of the interface',
   themeGroup: 'Choose a theme',
-  themes: Object.freeze({ precision: 'Precision', glass: 'Clear Glass', research: 'Research' }),
+  themes: Object.freeze({ precision: 'Precision', glass: 'Clear Glass', research: 'Research', monoline: 'Monoline' }),
   themeDefault: 'Default',
   appearance: 'Appearance',
-  appearanceHint: 'Follow the system: when Windows turns dark, Streams does too',
+  appearanceHint: 'Follow the system: when Windows switches to dark, Streams does too',
   appearanceGroup: 'Choose an appearance',
-  appearances: Object.freeze({ light: 'Light', dark: 'Dark', system: 'Follow the system' }),
-  themeNote: 'It changes at once and stays when you open Streams again; first-time setup, dialogs, the graph, Ask and the reading window follow it.',
+  appearances: Object.freeze({ light: 'Light', dark: 'Dark', system: 'Follow system' }),
+  themeNote: 'Applies at once to the main window and the reading window, and stays the next time you open Streams.',
   themeFailed: 'The theme could not be changed.',
   appearanceFailed: 'The appearance could not be changed.',
 

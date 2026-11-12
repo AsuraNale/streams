@@ -1,0 +1,170 @@
+[
+  {
+    "id": "L00",
+    "name": "新增部件（单线黑白）",
+    "html": "L00-新增部件.html",
+    "png": "截图/L00-新增部件.png",
+    "checked": true
+  },
+  {
+    "id": "P01",
+    "name": "首次打开",
+    "html": "P01-首次打开.html",
+    "png": "截图/P01-首次打开.png",
+    "checked": false
+  },
+  {
+    "id": "P02",
+    "name": "首次打开 · 连接要看一眼",
+    "html": "P02-首次打开-连接要看一眼.html",
+    "png": "截图/P02-首次打开-连接要看一眼.png",
+    "checked": false
+  },
+  {
+    "id": "P03",
+    "name": "和主 Agent 聊",
+    "html": "P03-和主Agent聊.html",
+    "png": "截图/P03-和主Agent聊.png",
+    "checked": false
+  },
+  {
+    "id": "P04",
+    "name": "新建库 · 自己填",
+    "html": "P04-新建库-自己填.html",
+    "png": "截图/P04-新建库-自己填.png",
+    "checked": false
+  },
+  {
+    "id": "P05",
+    "name": "待看",
+    "html": "P05-待看.html",
+    "png": "截图/P05-待看.png",
+    "checked": true
+  },
+  {
+    "id": "P06",
+    "name": "待看 · 空着时",
+    "html": "P06-待看-空着时.html",
+    "png": "截图/P06-待看-空着时.png",
+    "checked": false
+  },
+  {
+    "id": "P07",
+    "name": "待看 · 正在跑与排队",
+    "html": "P07-待看-正在跑与排队.html",
+    "png": "截图/P07-待看-正在跑与排队.png",
+    "checked": true
+  },
+  {
+    "id": "P08",
+    "name": "待看 · 连接出问题",
+    "html": "P08-待看-连接出问题.html",
+    "png": "截图/P08-待看-连接出问题.png",
+    "checked": false
+  },
+  {
+    "id": "P09",
+    "name": "资料库",
+    "html": "P09-资料库.html",
+    "png": "截图/P09-资料库.png",
+    "checked": false
+  },
+  {
+    "id": "P10",
+    "name": "资料库 · 图谱",
+    "html": "P10-资料库-图谱.html",
+    "png": "截图/P10-资料库-图谱.png",
+    "checked": false
+  },
+  {
+    "id": "P11",
+    "name": "资料库 · 编辑",
+    "html": "P11-资料库-编辑.html",
+    "png": "截图/P11-资料库-编辑.png",
+    "checked": false
+  },
+  {
+    "id": "P12",
+    "name": "资料库 · 缺文件头的文件",
+    "html": "P12-资料库-缺文件头的文件.html",
+    "png": "截图/P12-资料库-缺文件头的文件.png",
+    "checked": false
+  },
+  {
+    "id": "P13",
+    "name": "问库",
+    "html": "P13-问库.html",
+    "png": "截图/P13-问库.png",
+    "checked": false
+  },
+  {
+    "id": "P14",
+    "name": "来源与要求",
+    "html": "P14-来源与要求.html",
+    "png": "截图/P14-来源与要求.png",
+    "checked": true
+  },
+  {
+    "id": "P15",
+    "name": "来源与要求 · 高级",
+    "html": "P15-来源与要求-高级.html",
+    "png": "截图/P15-来源与要求-高级.png",
+    "checked": false
+  },
+  {
+    "id": "P16",
+    "name": "右栏四个标签",
+    "html": "P16-右栏四个标签.html",
+    "png": "截图/P16-右栏四个标签.png",
+    "checked": true
+  },
+  {
+    "id": "P17",
+    "name": "设置",
+    "html": "P17-设置.html",
+    "png": "截图/P17-设置.png",
+    "checked": false
+  },
+  {
+    "id": "P18",
+    "name": "设置 · 输入 API key",
+    "html": "P18-设置-输入API-key.html",
+    "png": "截图/P18-设置-输入API-key.png",
+    "checked": false
+  },
+  {
+    "id": "P19",
+    "name": "许可证与致谢",
+    "html": "P19-许可证与致谢.html",
+    "png": "截图/P19-许可证与致谢.png",
+    "checked": false
+  },
+  {
+    "id": "P20",
+    "name": "阅读窗口",
+    "html": "P20-阅读窗口.html",
+    "png": "截图/P20-阅读窗口.png",
+    "checked": false
+  },
+  {
+    "id": "P21",
+    "name": "移除这个库",
+    "html": "P21-移除这个库.html",
+    "png": "截图/P21-移除这个库.png",
+    "checked": false
+  },
+  {
+    "id": "P22",
+    "name": "窗口外：托盘与通知",
+    "html": "P22-窗口外-托盘与通知.html",
+    "png": "截图/P22-窗口外-托盘与通知.png",
+    "checked": false
+  },
+  {
+    "id": "P23",
+    "name": "库架",
+    "html": "P23-库架.html",
+    "png": "截图/P23-库架.png",
+    "checked": false
+  }
+]

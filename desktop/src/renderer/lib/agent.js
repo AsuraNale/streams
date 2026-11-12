@@ -44,6 +44,9 @@ export function useProposals() {
 export function useSuggestions(libraryId = null) {
   const list = useLoad(() => call('listSuggestions', libraryId ? { libraryId } : null), [libraryId])
   useEvent('agent-changed', p => { if (p?.phase === 'done') list.reload() }, [libraryId])
+  // redesign R1: the cards a round records (services/agent.mjs afterRound, before the round's end reaches the page) show in the
+  // right panel's 待确认 without leaving the page (概览 read them again each time it was opened)
+  useEvent('round-progress', p => { if (p?.done === true) list.reload() }, [libraryId])
   usePageEvent(SUGGESTIONS_EVENT, () => list.reload(), [libraryId])
   return { ...list, items: Array.isArray(list.data) ? list.data : [] }
 }

@@ -3,37 +3,8 @@
    (screens/new-library.js); the parts package F added to 概览, 来源与要求 and 设置. Colours only via tokens. */
 
 /* ---- a library's page: one card right of the sidebar ---------------------------------------------- */
-.lib-page {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  margin: var(--st-gutter);
-  background: var(--st-surface);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius);
-  overflow: hidden;
-}
-.lib-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
-  background: var(--st-card-head);
-  border-bottom: 1px solid var(--st-border);
-}
-.lib-head__text { flex-grow: 1; min-width: 0; }
-.lib-head__name { margin: 0; font-size: var(--st-fs-title); font-weight: 700; overflow-wrap: anywhere; }
-.lib-head__tracking { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lib-head__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.lib-page__content { flex-grow: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
-.lib-page__content--panel { grid-template-columns: minmax(0, 1fr) var(--st-col-panel); }
+
 /* inside the card the screen and its panel lose their own frames: one card, one line between them */
-.lib-page .st-main,
-.lib-page .st-panel { margin: 0; border: 0; border-radius: 0; }
-.lib-page .st-panel { border-left: 1px solid var(--st-border); }
-.lib-page .st-main > .st-topbar { background: var(--st-surface); padding-top: 8px; padding-bottom: 8px; }
-.lib-page .st-main > .st-topbar .st-topbar__title { font-size: var(--st-fs-body); }
 
 /* 资料库's two views */
 .lib-mode { display: inline-flex; border: 1px solid var(--st-control-border); border-radius: var(--st-radius-s); overflow: hidden; }
@@ -42,43 +13,6 @@
 .lib-mode__button[aria-pressed='true'] { background: var(--st-active-fill); color: var(--st-accent); font-weight: 700; }
 
 /* ---- 库架 ----------------------------------------------------------------------------------------- */
-[data-screen='shelf'] .st-topbar, [data-screen='chat'] .st-topbar { padding-left: 24px; padding-right: 24px; }
-.shelf-body { padding: 16px 24px 24px; }
-.shelf-error { display: flex; align-items: center; gap: 10px; color: var(--st-danger); font-weight: 700; }
-.shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
-.shelf-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius);
-  background: var(--st-surface);
-  color: var(--st-text);
-  text-align: left;
-  cursor: pointer;
-}
-.shelf-card:hover { border-color: var(--st-accent); }
-.shelf-card__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.shelf-card__name { font-size: var(--st-fs-title); overflow-wrap: anywhere; }
-.shelf-card__tracking { overflow-wrap: anywhere; }
-.shelf-card__problem { display: inline-flex; align-items: center; gap: 6px; }
-.shelf-card__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-wait); }
-.shelf-card__inbox { display: flex; flex-direction: column; align-items: flex-end; }
-.shelf-card__count { font-size: 26px; font-weight: 700; line-height: 1.1; color: var(--st-wait); }
-.shelf-card__inbox[data-value='0'] .shelf-card__count { color: var(--st-text-3); }
-.shelf-card--new {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 120px;
-  border-style: dashed;
-  color: var(--st-text-2);
-}
-.shelf-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 560px; }
-.shelf-empty__actions { display: flex; gap: 8px; }
 
 /* ---- 「新建库」 ------------------------------------------------------------------------------------ */
 .st-dialog[data-dialog='new-library'] { width: min(560px, 100%); }
@@ -87,7 +21,7 @@
 .newlib__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 
 /* ---- 概览: the head's next run, the suggestions, the 「运行状态」 part ---------------------------------- */
-.ov-next { max-width: 360px; text-align: right; }
+
 .ov-suggestions { display: flex; flex-direction: column; gap: 6px; }
 .stat-part__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .stat-kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
@@ -123,27 +57,12 @@
 
 /* ==== v2 package K2 (the K1 design draft, docs/design/next/themes/css/app.css): a library's page lies flat on the page — its head and
    tabs on --st-page, the screen under them, the right panel in the sidebar's colour; 库架's cards are the draft's tiles ==== */
-.lib-page { margin: 0; border: 0; border-radius: 0; background: var(--st-page); }
-.lib-head { gap: 13px; padding: 22px 28px 14px; background: var(--st-page); border-bottom: 0; }
-.lib-head .st-lib-mark--l { margin-top: 2px; }
-.lib-head__name { font-size: var(--st-fs-title); font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); line-height: 1.35; }
-.lib-page .st-panel { border-left: 0; background: var(--st-sidebar); }
-.lib-page .st-main > .st-topbar { padding: 16px 28px 6px; background: var(--st-page); }
-.lib-page .st-main > .st-topbar .st-topbar__title { font-size: 17px; }
+
 .lib-mode { gap: 2px; padding: 2px; border: 0; border-radius: var(--st-radius-s); background: var(--st-surface-2); }
 .lib-mode__button { height: 28px; padding: 0 10px; border: 0; border-radius: var(--st-radius-xs); background: transparent; color: var(--st-text-2); }
 .lib-mode__button + .lib-mode__button { border-left: 0; }
 .lib-mode__button[aria-pressed='true'] { background: var(--st-surface); color: var(--st-text); box-shadow: var(--st-shadow-card); font-weight: var(--st-weight-label); }
-[data-screen='shelf'] .st-topbar, [data-screen='chat'] .st-topbar { padding-left: 28px; padding-right: 28px; }
-.shelf-body { padding: 18px 28px 28px; }
-.shelf-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-.shelf-card { min-height: 150px; padding: 18px 18px 14px; border: 0; border-radius: var(--st-radius); background: var(--st-surface); box-shadow: var(--st-shadow-card); }
-.shelf-card:hover { background: var(--st-selected); }
-.shelf-card__name { font-size: 17px; font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); }
-.shelf-card__dot { width: 6px; height: 6px; }
-.shelf-card__count { font: 600 22px/1.1 var(--st-font-mono); color: var(--st-wait); }
-.shelf-card--new { border: 0; background: transparent; box-shadow: inset 0 0 0 1.5px var(--st-control-border); color: var(--st-text); }
-.shelf-card--new .st-icon { color: var(--st-accent); }
+
 .stat-kv__row { border: 0; border-radius: var(--st-radius-s); background: var(--st-surface); box-shadow: var(--st-shadow-card); }
 .src-who { border: 0; border-radius: var(--st-radius-xs); background: var(--st-surface-2); }
 .src-who[data-by='agent-confirmed'] { background: var(--st-accent-alt-soft); }
@@ -151,4 +70,4 @@
 .pl-columns__side { border: 0; border-radius: var(--st-radius); box-shadow: var(--st-shadow-card); }
 .settings__schedules { border: 0; border-radius: var(--st-radius-s); overflow: hidden; }
 .settings__schedules thead th { font-weight: var(--st-weight-label); }
-.lib-head .st-lib-mark { width: 40px; height: 40px; font-size: 18px; border-radius: var(--st-radius-s); }
+

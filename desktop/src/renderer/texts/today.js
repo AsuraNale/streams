@@ -11,13 +11,12 @@ export const TODAY = Object.freeze({
   connection: '连接：{name} · {model}',
   connectionDefault: '连接：{name} · 默认模型',
   noConnection: '没有连接：只抓不打分',
-  runNow: '现在跑一轮',
   loadFailed: '没能读出今天的数字。',
   // plan C8: from NO_OUTPUT_ROUNDS (the core's) rounds in a row that put nothing into 待看 (getHome().numbers.noOutputStreak)
   noOutput: Object.freeze({
-    text: '连续 {n} 轮没有产出：这几轮都没有一条进待看。',
-    hint: '看看来源是不是都没抓到新东西，或者过关线是不是定得太高。',
-    go: '看运行状态',
+    text: '连续 {n} 次运行无内容进入待看。',
+    hint: '请检查来源是否均无更新，或通过阈值是否设置过高。',
+    go: '查看运行状态',
   }),
 
   numbers: Object.freeze({
@@ -67,29 +66,29 @@ export const TODAY = Object.freeze({
   }),
 
   round: Object.freeze({
-    title: '{when} 这一轮',
-    none: '还没跑过。点「现在跑一轮」开始。',
+    title: '上次运行 · {when}',
+    none: '尚未运行。点击页头的「立即运行」开始。',
     fetch: '抓取 {n} 个来源：{lines}',
     fetchLine: '{n} {state}',
-    dedup: '去重 {fetched} → {new}',
-    node: '{name} {passed} 过关 · {failed} 没过',
-    nodeUnscored: ' · {n} 没打成分',
+    dedup: '已抓取 {fetched} 条，去重后新增 {new} 条',
+    node: '{name}：通过 {passed} · 未通过 {failed}',
+    nodeUnscored: ' · 未评分 {n}',
     summary: '摘要 {n} 条',
     inbox: '进入待看 {n} 条',
-    calls: '调用 {n} 次',
+    calls: '模型调用 {n} 次',
     stopped: Object.freeze({
-      cap: '到上限停了，剩下的下次',
-      aborted: '手动停了，剩下的下次',
-      connection: '连接出错停了，剩下的下次',
+      cap: '达到单次运行上限后停止，剩余内容留待下次运行',
+      aborted: '已手动停止，剩余内容留待下次运行',
+      connection: '连接出错后停止，剩余内容留待下次运行',
     }),
   }),
 
   progress: Object.freeze({
-    title: '这一轮正在跑',
+    title: '本次运行进行中',
     phase: '{phase}',
-    calls: '调用 {calls} / {cap}',
-    stop: '停下',
-    stopping: '做完这一条就停……',
+    calls: '模型调用 {calls} / {cap}',
+    stop: '停止',
+    stopping: '处理完当前一条后停止…',
   }),
 
   recent: Object.freeze({

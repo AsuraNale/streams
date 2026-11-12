@@ -8,7 +8,7 @@ export const APP = Object.freeze({
   tray: Object.freeze({
     tooltip: '流息 · {n} 条待看',
     open: '打开流息',
-    runNow: '现在跑一轮',
+    runNow: '立即运行',
     quit: '退出',
   }),
   // the reading window (reader.mjs; docs/desktop.md §4.9): its bar and the reading page it makes

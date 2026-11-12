@@ -5,7 +5,7 @@
 export const BRAND = Object.freeze({
   mark: 'S',
   name: 'Streams',
-  tagline: '',
+  tagline: 'Personal library',
   htmlLang: 'en',
 })
 
@@ -13,7 +13,7 @@ export const SIDEBAR = Object.freeze({
   label: 'Navigation',
   entries: Object.freeze({
     shelf: 'Shelf',
-    chat: 'Chat with the main Agent',
+    chat: 'Main agent',
   }),
   settings: 'Settings',
   noLibrary: 'No library open',
@@ -94,7 +94,7 @@ export const NODE_NAMES = Object.freeze({
 })
 
 export const ROUND_PHASES = Object.freeze({
-  'self-check': 'checking',
+  'self-check': 'pre-run check',
   fetch: 'fetching',
   gate: 'scoring',
   summary: 'summarizing',

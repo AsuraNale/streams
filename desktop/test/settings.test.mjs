@@ -3,7 +3,7 @@
 // fields; a bad value is refused and nothing is written. Controls first: a broken file really does come back as defaults.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { RECENT_MAX, SETTINGS_SCHEMA, defaultConnections, normalizeConnections, normalizeRecent, normalizeSchedule, readSettings, withRecent, writeSettings } from '../src/main/settings.mjs'
 import { DEFAULT_APPEARANCE, DEFAULT_THEME } from '../src/main/theme.mjs'
@@ -124,12 +124,15 @@ test('schedule: default on at 08:30; each field checked on its own; a write take
   assert.deepEqual(readSettings(file).schedule, { enabled: true, time: '00:00' }, '00:00 is a time')
 })
 
-// v2 package K2 (the maintainer 11-10): the theme is one of precision · glass · research and the appearance a field of its own; v1.0's
-// river / paper / night are migrated when read (theme.mjs migrateLook). Rewritten from v1.0's 「one of river · paper · night」.
-test('theme and appearance: precision · glass · research and light · dark · system; anything else reads as the defaults; a write takes those only', () => {
+// v2 package K2: the theme and the appearance a field of its own; older ids migrated when read (theme.mjs migrateLook).
+// Redesign R1 (the R1 contract): four themes, the default research — this test's default and its list changed for it.
+test('theme and appearance: precision · glass · research · monoline and light · dark · system; anything else reads as the defaults; a write takes those only', () => {
   const dir = folder()
   const file = join(dir, 'settings.json')
-  assert.equal(DEFAULT_THEME, 'precision', '维护者 11-10: 精密国际主义')
+  assert.equal(DEFAULT_THEME, 'research', '维护者 11-11: 研究对话')
+  writeFileSync(file, `${JSON.stringify({ theme: 'monoline', appearance: 'dark' })}\n`)
+  assert.deepEqual([readSettings(file).theme, readSettings(file).appearance], ['monoline', 'dark'], 'control: the fourth theme is read as it is')
+  rmSync(file)
   assert.equal(DEFAULT_APPEARANCE, 'system', '维护者 11-10: 跟随系统')
   assert.deepEqual([readSettings(file).theme, readSettings(file).appearance], [DEFAULT_THEME, DEFAULT_APPEARANCE], 'no file: the defaults')
   writeFileSync(file, `${JSON.stringify({ theme: 'research', appearance: 'dark' })}\n`)
@@ -154,7 +157,7 @@ test('theme and appearance: precision · glass · research and light · dark · 
 })
 
 // v2 package K2: a v1.0 settings.json with every other field set — reading it changes only the theme and the appearance (the maintainer's
-// table: none / river / other → precision + system, paper → precision + light, night → precision + dark); the next write stores
+// table, redesign R1: none / river / other → research + system, paper → research + light, night → research + dark); the next write stores
 // the two new fields and keeps the rest. Controls: night is told apart from paper and from river; a mutant mapping night to light
 // would fail the night row.
 test('v1.0\'s theme migrated when read: only theme and appearance change, every other field is as it was', () => {
@@ -168,7 +171,8 @@ test('v1.0\'s theme migrated when read: only theme and appearance change, every 
     // v2 package L: the right panel's state is one more field, kept as written like the others (why this list changed)
     panel: { open: false, tab: 'files' },
   }
-  const rows = [[undefined, 'precision', 'system'], ['river', 'precision', 'system'], ['paper', 'precision', 'light'], ['night', 'precision', 'dark'], ['sepia', 'precision', 'system']]
+  // redesign R1: what they become is research (was precision); precision and monoline, ids of now, are kept
+  const rows = [[undefined, 'research', 'system'], ['river', 'research', 'system'], ['paper', 'research', 'light'], ['night', 'research', 'dark'], ['sepia', 'research', 'system'], ['precision', 'precision', 'system'], ['monoline', 'monoline', 'system']]
   const seen = {}
   for (const [old, theme, appearance] of rows) {
     const raw = old === undefined ? { schema: 'streams.settings/1', ...other } : { schema: 'streams.settings/1', ...other, theme: old }

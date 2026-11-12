@@ -1,3 +1,4 @@
+// redesign R1 (F10): 主 Agent in the sidebar carries no number any more — what waits for you is counted on the right panel's 待确认 tab only, from the same list; the badge read is [data-panel-badge="decide"] (was [data-badge="chat"]); 概览's suggestion cards are in 待确认
 // v2 package G (docs/checks/2026-11-09-wp-g/contract.md G1–G4) on the running app: 和主 Agent 聊, the proposal card, the
 // suggestion card, 问库's routed sentences. The world: three registered libraries (test/support/seed.mjs seedShelf), the main
 // Agent on the core's scripted stand-in (STREAMS_DEV_CONNECTION=fake + STREAMS_DEV_AGENT_SCRIPT: SCRIPT below, one answer per
@@ -157,7 +158,7 @@ test('等你定的事: the cards waiting + the suggestion cards (every library),
   assert.deepEqual(open.map(x => x.kind).sort(), ['no-output', 'source-failing'])
   await until(() => document.querySelector('[data-part="waiting"] [data-waiting]')?.dataset.waiting === '7')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="waiting"] h2').textContent), fmt(AGENT.waiting.title, { n: 7 }))
-  await until(() => document.querySelector('[data-badge="chat"]')?.textContent === '7')
+  await until(() => document.querySelector('[data-panel-badge="decide"]')?.textContent === '7')
   const shown = await s.page.evaluate(() => ({
     cards: [...document.querySelectorAll('[data-part="waiting-items"] [data-proposal]')].map(e => e.dataset.proposal),
     suggestions: [...document.querySelectorAll('[data-part="waiting-items"] [data-suggestion]')].map(e => [e.dataset.kind, e.querySelector('.sc-who').textContent]),
@@ -307,7 +308,7 @@ test('a suggestion card in 等你定的事: 交给主 Agent → acceptSuggestion
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="waiting-items"] [data-suggestion][data-kind="no-output"] [data-part="done"]').textContent.trim()), AGENT.suggestion.accepted, 'it stays, saying what became of it')
   assert.deepEqual(suggestionLines(fashionDir).map(l => l.ev), ['suggested', 'accepted'])
   await until(m => document.querySelector('[data-waiting]')?.dataset.waiting === String(m), n - 1)
-  await until(m => document.querySelector('[data-badge="chat"]')?.textContent === String(m), n - 1)
+  await until(m => document.querySelector('[data-panel-badge="decide"]')?.textContent === String(m), n - 1)
   // the main Agent's turn: the card handed over is one faint line (never the note's text), then its answer
   const last = transcript().filter(r => r.role === 'note').at(-1)
   await until(t => document.querySelector(`.chat-faint[data-row="note"][data-turn="${t}"]`) !== null, last.turn)
@@ -320,12 +321,12 @@ test('the proposal card: 不要 → declineProposal (the badge follows proposals
   const inWaiting = id => `[data-part="waiting-items"] [data-proposal="${id}"]`
   // 不要
   const brief = await cardOf('edit_brief', seeded)
-  const badge = Number(await s.page.evaluate(() => document.querySelector('[data-badge="chat"]').textContent))
+  const badge = Number(await s.page.evaluate(() => document.querySelector('[data-panel-badge="decide"]').textContent))
   await s.page.click(`${inWaiting(brief.id)} [data-action="decline"] button`)
   await until(id => document.querySelector(`[data-proposal="${id}"]`)?.dataset.status !== 'pending' || document.querySelector(`[data-part="waiting-items"] [data-proposal="${id}"]`) === null, brief.id)
   assert.equal((await cardOf('edit_brief', seeded)).status, 'declined', '不要 is declineProposal')
   assert.equal(core.readBrief(shelf.dirs[0]), SHELF.briefs[0], 'the library is as it was')
-  await until(m => document.querySelector('[data-badge="chat"]')?.textContent === String(m), badge - 1)
+  await until(m => document.querySelector('[data-panel-badge="decide"]')?.textContent === String(m), badge - 1)
   // 确认, pressed twice before the bridge answers: one call, the buttons disabled meanwhile
   const sched = await cardOf('edit_schedule', fashion)
   await slow('confirmProposal', 1200)
@@ -490,9 +491,12 @@ test('问库 · question, with a connection: the answer as v1.0 drew it', async 
   assert.equal(core.readRoutes(shelf.dirs[0]).at(-1).route, 'question')
 })
 
-test('概览: this library\'s suggestion card (交给主 Agent / 不要); 不要 → dismissSuggestion; nothing else on it', async () => {
+// redesign R1: 概览 is gone — this library's suggestion cards are in the right panel's 待确认, under 「当前库 · 系统检测」, until R5
+// makes them one kind of card; this test opens that tab on the library's page. The assertions on the card are the ones of before.
+test('待确认 (was 概览): this library\'s suggestion card (交给主 Agent / 不要); 不要 → dismissSuggestion; nothing else on it', async () => {
   const dir = shelf.dirs[0]
-  await s.page.click('.st-lib-tabs [data-tab="overview"]')
+  await s.page.click('.st-lib-tabs [data-tab="inbox"]')
+  await s.page.click('[data-panel-tab="decide"]')
   await until(() => document.querySelector('[data-part="suggestions"] [data-suggestion="source-failing:mcp-news"]') !== null)
   const c = await s.page.evaluate(() => {
     const e = document.querySelector('[data-part="suggestions"] [data-suggestion="source-failing:mcp-news"]')

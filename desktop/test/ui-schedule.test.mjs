@@ -17,7 +17,7 @@ import { join } from 'node:path'
 import { NEXT_WHEN } from '../src/renderer/texts/common.js'
 import { FIRST_RUN } from '../src/renderer/texts/first-run.js'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
-import { TODAY } from '../src/renderer/texts/today.js'
+import { SHELL } from '../src/renderer/texts/shell.js'
 import { fmt, nextText } from '../src/renderer/lib/format.js'
 import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
@@ -85,26 +85,30 @@ test('the switch off → the library streams.json (v1.0: settings.json), 「定�
   assert.deepEqual(scheduleOf(s.world.library), { enabled: true, time: '21:15' })
 })
 
-test('今日\'s top bar: 「下次运行 …」 from getHome().nextRun with the schedule on; 「定时没开」 with it off', async () => {
-  await s.page.click('.st-lib-tabs [data-tab="overview"]')
-  await ready(s.page, 'overview')
+// redesign R1: 概览 is gone; the next run is the chip beside the library head's run button on every tab (N06), in its words
+// (SHELL.head.run: 「下次运行 …」 / 「未开启定时运行」); 「away and back」 goes by 来源与要求
+test('the library head\'s chip: 「下次运行 …」 from getHome().nextRun with the schedule on; 「未开启定时运行」 with it off', async () => {
+  await s.page.click('.st-lib-tabs [data-tab="inbox"]')
+  await ready(s.page, 'inbox')
   const home = (await s.page.evaluate(() => window.streams.getHome())).data
   const sched = await schedule()
   assert.equal(home.nextRun, sched.nextRunAt, 'getHome().nextRun is getSchedule().nextRunAt')
-  const subtitle = () => s.page.evaluate(() => document.querySelector('main[data-screen="overview"]') ? document.querySelector('[data-part="next-run"]')?.textContent ?? '' : '')
+  const subtitle = () => s.page.evaluate(() => document.querySelector('[data-part="library-head"] [data-part="next-run"]')?.textContent ?? '')
+  await s.page.waitForFunction(() => document.querySelector('[data-part="next-run"]')?.textContent !== '', null, POLL)
   const on = await subtitle()
-  const want = fmt(TODAY.nextRun.at, { when: nextText(sched.nextRunAt, NEXT_WHEN) })
+  const want = fmt(SHELL.head.run.next, { when: nextText(sched.nextRunAt, NEXT_WHEN) })
   assert.ok(on.includes(want), `${on} has ${want}`)
-  assert.equal(on.includes(TODAY.nextRun.none), false, 'control: not 「定时没开」')
+  assert.equal(on.includes(SHELL.head.run.nextNone), false, 'control: not 「未开启定时运行」')
   assert.equal((await s.page.evaluate(() => window.streams.setSchedule({ enabled: false, time: '21:15' }))).ok, true)
   // the screen reads its data when it opens: away and back
+  await s.page.click('.st-lib-tabs [data-tab="sources"]')
+  await ready(s.page, 'sources')
   await s.page.click('.st-lib-tabs [data-tab="inbox"]')
   await ready(s.page, 'inbox')
-  await s.page.click('.st-lib-tabs [data-tab="overview"]')
-  await ready(s.page, 'overview')
+  await s.page.waitForFunction(t => document.querySelector('[data-part="next-run"]')?.textContent.includes(t), SHELL.head.run.nextNone, POLL)
   const off = await subtitle()
-  assert.ok(off.includes(TODAY.nextRun.none), off)
-  assert.equal(off.includes(fmt(TODAY.nextRun.at, { when: '' }).trim()), false, 'control: no 「下次运行」')
+  assert.ok(off.includes(SHELL.head.run.nextNone), off)
+  assert.equal(off.includes(fmt(SHELL.head.run.next, { when: '' }).trim()), false, 'control: no 「下次运行」')
 })
 
 test('no page errors (session A)', () => {

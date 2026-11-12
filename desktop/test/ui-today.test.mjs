@@ -14,13 +14,18 @@ import { appendFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
+import { SHELL } from '../src/renderer/texts/shell.js'
 import { TODAY } from '../src/renderer/texts/today.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
-const s = worldSession({ kind: 'seeded', waitFor: 'overview', env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake' }) })
+// redesign R1: 概览 is gone (维护者 11-11 第 1 题). Until R2 gives them their places, what it showed of the library — the
+// numbers, the banners, the last round, 最近收藏, 运行状态 — is the right panel's 进度 under 「当前库 · 上次运行」 (screens/last-run.js),
+// so this file opens the app with the panel on 进度 and finds them in [data-part="last-run"]; the next run is in the library's
+// head chip ([data-part="next-run"]). The assertions on what is shown are the ones of before.
+const s = worldSession({ kind: 'seeded', waitFor: 'inbox', settings: { panel: { open: true, tab: 'progress' } }, env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake' }) })
 const POLL = { polling: 100, timeout: 60_000 }
 const numbersOnPage = () => s.page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-num]')].map(e => [e.dataset.num, Number(e.dataset.value)])))
 const expected = () => {
@@ -28,7 +33,10 @@ const expected = () => {
   return { inbox: n.inbox, caught: n.caught, passed: n.lastRound?.counts?.inbox ?? 0, kept: n.kept }
 }
 
+const lastRunReady = () => s.page.waitForFunction(() => document.querySelector('[data-pane="progress"] [data-part="last-run"][data-state="ready"]') !== null, null, POLL)
+
 test('the four numbers are the core\'s homeNumbers for the folder; the oldest wait shows under 待看', async () => {
+  await lastRunReady()
   const want = expected()
   assert.deepEqual(want, { inbox: 4, caught: 1, passed: 6, kept: 1 }, 'control: the seed is what seed.mjs says')
   assert.deepEqual(await numbersOnPage(), want)
@@ -49,7 +57,7 @@ test('the banner names the source that failed; the last round\'s lines; the kept
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-library-badge]')?.textContent ?? null), '4')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="problem"]')), null, 'no problem card: nothing failed')
   const subtitle = await s.page.evaluate(() => document.querySelector('[data-part="next-run"]').textContent)
-  assert.ok(subtitle.includes(TODAY.nextRun.none), subtitle)
+  assert.ok(subtitle.includes(SHELL.head.run.nextNone), subtitle) // redesign R1: the head chip's words (was TODAY.nextRun.none)
 })
 
 test('control: a dismissed event appended by hand, the page read again → 待看 and the badge are one less', async () => {
@@ -58,7 +66,8 @@ test('control: a dismissed event appended by hand, the page read again → 待�
   const want = expected()
   assert.equal(want.inbox, 3)
   await s.page.evaluate(() => { location.hash = 'today'; location.reload() })
-  await ready(s.page, 'overview')
+  await ready(s.page, 'inbox')
+  await lastRunReady()
   await s.page.waitForFunction(n => document.querySelector('[data-num="inbox"]')?.dataset.value === String(n), want.inbox, POLL)
   assert.deepEqual(await numbersOnPage(), want)
   await s.page.waitForFunction(() => document.querySelector('[data-tab-badge="inbox"]')?.textContent === '3', null, POLL)
@@ -75,7 +84,8 @@ const appendRound = inbox => {
 }
 const reloadToday = async () => {
   await s.page.evaluate(() => { location.hash = 'today'; location.reload() })
-  await ready(s.page, 'overview')
+  await ready(s.page, 'inbox')
+  await lastRunReady()
 }
 const banner = () => s.page.evaluate(() => { const el = document.querySelector('[data-part="no-output"]'); return el ? { streak: el.dataset.streak, text: el.querySelector('[data-no-output-text]')?.textContent ?? null, link: el.querySelector('[data-action="go-status"] button')?.textContent ?? null } : null })
 
@@ -99,8 +109,8 @@ test('「连续 N 轮没有产出」: two rounds without output → no banner; t
   await s.page.click('[data-part="no-output"] [data-action="go-status"] button')
   // the 「运行状态」 part of this page in view: its top within the scrolled body
   await s.page.waitForFunction(() => {
-    const body = document.querySelector('main[data-screen="overview"] .st-main__body').getBoundingClientRect()
-    const part = document.querySelector('main[data-screen="overview"] [data-part="run"]')?.getBoundingClientRect()
+    const body = document.querySelector('[data-part="right-panel"] .panel-scroll').getBoundingClientRect()
+    const part = document.querySelector('[data-part="last-run"] [data-part="run"]')?.getBoundingClientRect()
     return part && part.top >= body.top - 1 && part.top < body.bottom
   }, null, POLL)
 })

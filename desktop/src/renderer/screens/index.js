@@ -6,11 +6,10 @@
 // app.js shows while no library is open (and can be opened by id in development). v2 package I: 首次打开 ('first-run') shows while
 // the app knows no library; 新建库 ('new-library') is a route of its own. The component gallery ('kit') is not
 // here: app.js adds it in development only.
-// v2 package F (plan B of v2; docs/desktop.md §五「界面结构」): the sidebar's 库架 ('shelf') and 和主 Agent 聊 ('chat', an empty
-// page until package G); a library's page is five tabs — 概览 ('overview': v1.0's 今日 + 流水线's numbers + 运行状态's sources),
-// 待看 ('inbox'), 资料库 ('library', with its graph view 'graph'), 问库 ('ask'), 来源与要求 ('sources': v1.0's 来源与主题 + 要求
-// + 流水线's 关卡 + this library's schedule and cap). v1.0's ids that are no screen of their own now lead to where their
-// content went (ALIASES).
+// v2 package F (plan B of v2; docs/desktop.md §五「界面结构」): the sidebar's 库架 ('shelf') and 主 Agent ('chat'); redesign R1:
+// a library's page is four tabs — 待看 ('inbox'), 资料库 ('library', with its graph view 'graph'), 问库 ('ask'), 来源与要求
+// ('sources': v1.0's 来源与主题 + 要求 + 流水线's 关卡 + this library's schedule and cap); 概览 is gone. Ids that are no screen of
+// their own now lead to where their content went (ALIASES).
 import { AskScreen } from './ask.js'
 import { ChatScreen } from './chat.js'
 import { FirstRunScreen } from './first-run.js'
@@ -18,7 +17,6 @@ import { GraphScreen } from './graph.js'
 import { InboxScreen } from './inbox.js'
 import { LibraryScreen } from './library.js'
 import { NewLibraryScreen } from './new-library.js'
-import { OverviewScreen } from './overview.js'
 import { SettingsScreen } from './settings.js'
 import { ShelfScreen } from './shelf.js'
 import { SourcesScreen } from './sources.js'
@@ -27,7 +25,6 @@ export const SCREENS = Object.freeze({
   'first-run': FirstRunScreen,
   shelf: ShelfScreen,
   chat: ChatScreen,
-  overview: OverviewScreen,
   inbox: InboxScreen,
   library: LibraryScreen,
   graph: GraphScreen,
@@ -38,14 +35,17 @@ export const SCREENS = Object.freeze({
   'new-library': NewLibraryScreen,
 })
 
-/** v1.0's screen ids → [the screen their content is on now, the params that point at it] */
+/**
+ * v1.0's screen ids → [the screen their content is on now, the params that point at it]. Redesign R1: 概览 is gone (维护者 11-11
+ * 第 1 题, its route with it) — v1.0's 今日 and 运行状态 lead to the library's 待看 (the last run and 运行状态 are in the right panel's 进度).
+ */
 export const ALIASES = Object.freeze({
-  today: Object.freeze(['overview', Object.freeze({})]),
-  status: Object.freeze(['overview', Object.freeze({ section: 'run' })]),
+  today: Object.freeze(['inbox', Object.freeze({})]),
+  status: Object.freeze(['inbox', Object.freeze({})]),
   pipeline: Object.freeze(['sources', Object.freeze({ section: 'gates' })]),
 })
 
-/** The screen the app opens on: the current library's 概览 (v1.0 opened on 今日, which it took in). */
-export const FIRST_SCREEN = 'overview'
+/** The screen the app opens on: the current library's 待看 (redesign R1: a library always opens on 待看). */
+export const FIRST_SCREEN = 'inbox'
 /** A library you open from the sidebar or the shelf for the first time: its 待看 (design UC2). */
 export const LIBRARY_FIRST_SCREEN = 'inbox'

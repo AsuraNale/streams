@@ -6,20 +6,27 @@
 export const SHELL = Object.freeze({
   // (its two entries and 设置: texts/common.js SIDEBAR)
   sidebar: Object.freeze({
-    // the badge after 和主 Agent 聊: the proposal cards waiting + the suggestion cards not handled
-    chatBadge: '{n} 件等你定',
     mine: '我的库',
     newLibrary: '新建库',
     // the amber dot after a library's name
-    problem: '这个库有问题',
+    problem: '该库存在异常',
     inboxBadge: '{n} 条待看',
+    // redesign R1 (F10): the line under a library's name — its place in the queue (texts/panel.js QUEUE), else its problem,
+    // else its 待看, else this
+    inboxLine: '{n} 条待看',
+    idle: '暂无待看',
+    problems: Object.freeze({
+      missing: '文件夹无法读取',
+      sources: '来源异常',
+      'no-output': '连续 {n} 次运行无新内容',
+    }),
     // v2 package M (kit/sidebar.js SidebarQuota): the corner above 设置 — the current connection's plan windows (Claude Code,
     // Codex) or its API balance; nothing at all when there is none. {span}: hours / days / minutes below; {when} of `window`:
     // `resets` (lib/format.js nextText); {when} of `asOf`: WHEN of texts/common.js
     quota: Object.freeze({
       label: '余量',
-      // v2 package L: the K1 draft's 「套餐已用」 (the corner shows the used per cent)
-      plan: '套餐已用',
+      // redesign R1 (05-措辞规范): 「套餐已用」 → 「套餐用量」 (the corner shows the used per cent)
+      plan: '套餐用量',
       balance: 'API 余额',
       window: '{span} 已用 {pct}% · {when} 重置',
       resets: Object.freeze({ today: '{hm}', tomorrow: '明天 {hm}', date: '{m}-{d} {hm}' }),
@@ -33,42 +40,62 @@ export const SHELL = Object.freeze({
     }),
   }),
 
-  // a library's page: its head and the five tabs (plan B; the same five can be the sidebar's entries in plan A)
+  // a library's page: its head and the four tabs (redesign R1, 维护者 11-11 第 1 题: 概览 is gone, a library opens on 待看)
   tabs: Object.freeze({
-    label: '库内分区',
-    overview: '概览',
+    label: '库内导航',
     inbox: '待看',
     library: '资料库',
     ask: '问库',
     sources: '来源与要求',
   }),
   head: Object.freeze({
-    tracking: '在追：{what}',
-    trackingNone: '还没写要求，也还没有主题',
-    loadFailed: '没能读出这个库。',
+    tracking: '追踪范围：{what}',
+    trackingNone: '尚未填写追踪要求和主题',
+    loadFailed: '未能读取该库。',
+    // redesign R1 (N06): the head's run button is the state itself; the small line beside it
+    run: Object.freeze({
+      now: '立即运行',
+      running: '运行中 · 停止',
+      stopping: '正在停止',
+      queued: '排队中 · 第 {n} 位',
+      next: '下次运行 {when}',
+      nextNone: '未开启定时运行',
+      calls: '预计 {lo}–{hi} 次模型调用',
+      callsOne: '预计 {n} 次模型调用',
+      failed: '未能开始运行，请重试。',
+      stopFailed: '未能停止运行，请重试。',
+    }),
   }),
   // 资料库's two views
   view: Object.freeze({ label: '视图', list: '列表', graph: '图谱' }),
 
+  // 库架 (redesign R1: the template's home-content and project-tile, design P23)
   shelf: Object.freeze({
     title: '库架',
-    subtitle: '{n} 个库 · 每个库按自己的时间跑',
+    subtitle: '共 {n} 个库 · 各库按各自的定时运行',
+    eyebrow: '我的库 / LIBRARIES',
+    lead: '每天看新来的，存下值得的。',
+    text: '每个库盯一组来源，按自己的定时运行。通过筛选的内容进入待看，由你决定是否收藏。',
+    search: '搜索库',
+    searchNone: '没有名称或追踪范围包含「{q}」的库。',
     newButton: '新建库',
-    newCard: '新建库 · 和主 Agent 聊着建',
+    newCard: '新建库 · 由主 Agent 生成',
     inboxLabel: '条待看',
-    updated: '上次更新 {when}',
-    updatedNever: '还没跑过',
+    inboxLine: '{n} 条待看',
+    enter: '进入待看',
+    updated: '上次运行 {when}',
+    updatedNever: '尚未运行',
     sources: '{n} 个来源',
-    fine: '来源都正常',
+    fine: '来源正常',
     problems: Object.freeze({
-      missing: '文件夹不在，或读不出',
-      sources: '来源出问题',
-      'no-output': '连续 {n} 轮没有产出',
+      missing: '文件夹无法读取',
+      sources: '来源异常',
+      'no-output': '连续 {n} 次运行无新内容',
     }),
-    emptyText: '还没有库。告诉主 Agent 你想追踪什么，它帮你建；也可以自己手动建一个。',
-    emptyChat: '和主 Agent 聊',
-    emptyManual: '手动新建',
-    loadFailed: '没能读出库的列表。',
+    emptyText: '暂无库。向主 Agent 描述想追踪的内容即可生成建库提议，也可以手动创建。',
+    emptyChat: '由主 Agent 生成',
+    emptyManual: '手动创建',
+    loadFailed: '未能读取库列表。',
   }),
 
 
@@ -104,8 +131,10 @@ export const SHELL = Object.freeze({
     setup: '首次设置',
   }),
 
-  overview: Object.freeze({
-    title: '概览',
+  // redesign R1: what 概览 had — the last run, its numbers, the sources' state — sits in the right panel's 进度 under this (until
+  // R2 gives each its place)
+  lastRun: Object.freeze({
+    title: '当前库 · 上次运行',
     run: '运行状态',
   }),
 

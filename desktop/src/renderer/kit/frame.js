@@ -1,35 +1,41 @@
-// The frame every screen sits in: sidebar (232px) · main · right panel (optional). v2 package L: the right panel is the
-// window's (screens/right-panel.js: 380px, or a 52px rail when folded — it sets its own width).
+// The frame every screen sits in — redesign R1: the template's three columns (the design's streams/app.js): `.app` with the
+// sidebar (`aside.sidebar`), the work area and the right panel (`aside.context-panel`, screens/right-panel.js). The widths are
+// the template's (--left 232px · --right 380px); a folded right panel is a 52px rail (`.app.st-folded`, styles/template-app.css).
 //
-//   html`<${AppFrame} sidebar=${…} panel=${…}>
-//     <${Main} screen="home" state=${status} labelledby="…">
-//       <${TopBar} … />
+//   html`<${AppFrame} sidebar=${…} panel=${…} folded=${…}>
+//     <${Main} screen="shelf" state=${status} labelledby="…">
+//       <${TopBar} titleTag="h1" … />           the template's work-header
 //       <div class="st-main__body my-screen-body">…</div>
 //     <//>
 //   <//>`
 //
-// Without `panel` the frame has two columns; with it, three.
-// `screen` and `state` become data-screen / data-state on <main>: tests wait for data-state="ready".
+// Main is the template's `main.workspace` (a page of its own), or — `inner` — the `section.center` under a library's head and
+// tabs (screens/library-frame.js). `screen` and `state` become data-screen / data-state on <main>: tests wait for
+// data-state="ready".
 import { html } from '../lib/html.js'
+import { useApp } from '../lib/app-context.js'
 
 export function AppFrame({ sidebar, panel, children }) {
-  return html`<div class=${panel ? 'st-frame st-frame--panel' : 'st-frame'}>
+  const app = useApp()
+  // the right panel folded (settings.json panel.open false): the third column is the rail
+  const folded = Boolean(panel) && app?.appState?.data?.panel?.open === false
+  return html`<div class=${`app st-frame${panel ? ' st-frame--panel' : ' st-frame--no-panel'}${folded ? ' st-folded' : ''}`}>
     ${sidebar}
     ${children}
     ${panel ?? null}
   </div>`
 }
 
-export function Main({ screen, state, label, labelledby, children }) {
-  return html`<main class="st-main" data-screen=${screen} data-state=${state} aria-label=${label} aria-labelledby=${labelledby}>
+export function Main({ screen, state, label, labelledby, inner = false, children }) {
+  return html`<main class=${inner ? 'center st-main' : 'workspace st-main'} data-screen=${screen} data-state=${state} aria-label=${label} aria-labelledby=${labelledby}>
     ${children}
   </main>`
 }
 
-/** The right panel: optional tabs (PanelTabs) on top, then a scrolling body. */
+/** A side panel of a screen of its own (the component gallery): optional tabs on top, then a scrolling body. */
 export function Panel({ label, labelledby, tabs, children }) {
-  return html`<aside class="st-panel" aria-label=${label} aria-labelledby=${labelledby}>
+  return html`<aside class="context-panel st-panel" aria-label=${label} aria-labelledby=${labelledby}>
     ${tabs ?? null}
-    <div class="st-panel__body">${children}</div>
+    <div class="panel-scroll st-panel__body">${children}</div>
   </aside>`
 }

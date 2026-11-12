@@ -12,6 +12,10 @@
 //     folded by default and opened only to 「在资源管理器中显示」; a note → 资料库 with it open; its menu: Obsidian · the file manager;
 //   - 资料库: two columns (list · reader), no third column in the main area; its search still works.
 // Mutants (scripts/mutation-check.mjs l-panel-not-saved, l-records-open) must make the matching test red.
+// Redesign R1 (维护者 11-11 第 1、6、13 题; the R1 contract): the panel is the template's context-panel with 进度 · 待确认 · 详情 · 文件
+// (「等你决定」 renamed), its number counted on the 待确认 tab only (the sidebar's 主 Agent has none: [data-panel-badge="decide"] is
+// read where [data-badge="chat"] was); 概览 and the run dialog are gone — the queue tests below were rewritten for the head's run
+// button (no dialog, the button is the state); 详情's 「nothing chosen」 control is on 来源与要求 (was 概览).
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -19,7 +23,8 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { PANEL, QUEUE } from '../src/renderer/texts/panel.js'
-import { RUN } from '../src/renderer/texts/run.js'
+import { SHELL } from '../src/renderer/texts/shell.js'
+import { ROUND_PHASES } from '../src/renderer/texts/common.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { ready } from './support/app.mjs'
 import { seedPlanB, seedShelf, worldSession } from './support/seed.mjs'
@@ -59,8 +64,11 @@ const open = async (id, screen) => { await s.page.click(`[data-library-row="${id
 const libTab = async (id, screen = id) => { await s.page.click(`.st-lib-tabs [data-tab="${id}"]`); await ready(s.page, screen) }
 
 // ---- the queue ------------------------------------------------------------------------------------------------------------
+// redesign R1 (维护者 11-11 第 6 题, N06, F23; the R1 contract 「立即运行」): no run dialog and no 概览 any more — the head's button
+// is the state itself (立即运行 · 运行中 · 停止 · 排队中 · 第 n 位), and the queue shows in three places only: that button, the
+// sidebar's line, the panel's 进度. These tests were rewritten for it (the dialog's and the banner's checks went with them).
 
-test('the queue at start: 电动车 runs (its catch-up), 时尚 waits at place 2 — the sidebar\'s second lines and 库架\'s cards say so; the current library says nothing', async () => {
+test('the queue at start: 电动车 runs (its catch-up), 时尚 waits at place 2 — the sidebar\'s lines and 库架\'s cards say so; the current library says nothing', async () => {
   const { running, waiting, current } = W.q
   const view = (await bridge('getQueue')).data
   assert.equal(view.running?.libraryId, running, JSON.stringify(view))
@@ -68,29 +76,27 @@ test('the queue at start: 电动车 runs (its catch-up), 时尚 waits at place 2
   assert.deepEqual(view.waiting.map(w => [w.libraryId, w.why]), [[waiting, 'catch-up']])
   await until(([r, w]) => document.querySelector(`[data-library-row="${r}"] [data-library-queue="running"]`) !== null && document.querySelector(`[data-library-row="${w}"] [data-library-queue="queued"]`)?.dataset.position === '2', [running, waiting])
   const line = id => s.page.evaluate(i => document.querySelector(`[data-library-row="${i}"] [data-library-queue]`)?.textContent ?? null, id)
-  assert.equal(await line(running), QUEUE.running)
+  // 运行中 · <当前环节> (the step the round is at: 抓取 while its feeds are held)
+  assert.ok((await line(running)).startsWith(QUEUE.running), await line(running))
+  await until(([i, t]) => document.querySelector(`[data-library-row="${i}"] [data-library-queue]`)?.textContent === t, [running, fmt(QUEUE.runningPhase, { phase: ROUND_PHASES.fetch })])
   assert.equal(await line(waiting), fmt(QUEUE.queued, { n: 2 }))
-  assert.equal(await line(current), null, 'control: the library not in the line has no second line')
-  const card = id => s.page.evaluate(i => document.querySelector(`[data-shelf-card="${i}"] [data-part="queue"]`)?.textContent ?? null, id)
+  assert.equal(await line(current), null, 'control: the library not in the line has no queue line')
+  const card = id => s.page.evaluate(i => document.querySelector(`[data-shelf-card="${i}"] [data-part="queue"]`)?.textContent.trim() ?? null, id)
   assert.equal(await card(waiting), fmt(QUEUE.queued, { n: 2 }))
-  assert.equal(await card(running), QUEUE.running)
+  assert.ok((await card(running)).startsWith(QUEUE.running))
   assert.equal(await card(current), null)
 })
 
-test('时尚 (waiting) → 概览: the banner 「排队中 · 第 2 位」 names who runs and why; the button is 「已排上」 and cannot be pressed; 看进度 opens 进度', async () => {
+test('时尚 (waiting) → its page: the head\'s button is 「排队中 · 第 2 位」 and cannot be pressed; no banner, no dialog; 进度 has the order', async () => {
   const { running, waiting } = W.q
   await open(waiting, 'inbox')
-  await libTab('overview')
-  await until(() => document.querySelector('[data-part="queue"][data-position="2"]') !== null)
-  const banner = await s.page.evaluate(() => document.querySelector('main [data-part="queue"]').textContent)
-  assert.ok(banner.includes(fmt(QUEUE.banner.title, { n: 2 })), banner)
-  assert.ok(banner.includes(fmt(QUEUE.banner.text, { name: W.shelf.names[1], doing: QUEUE.doing['catch-up'] })), banner)
-  const button = await s.page.evaluate(() => { const b = document.querySelector('[data-action="run"]'); return { state: b.dataset.queueState, text: b.textContent.trim(), disabled: b.querySelector('button').disabled } })
-  assert.deepEqual(button, { state: 'queued', text: QUEUE.queuedButton, disabled: true })
-  // the bridge's answer to 开始 here (what the dialog would get): already waiting, place 2 — not 「a round is running」
+  await until(() => document.querySelector('[data-part="run-button"]')?.dataset.runState === 'queued')
+  const button = await s.page.evaluate(() => { const b = document.querySelector('[data-part="run-button"]'); return { state: b.dataset.runState, n: b.dataset.position, text: b.querySelector('button').textContent.trim(), disabled: b.querySelector('button').disabled } })
+  assert.deepEqual(button, { state: 'queued', n: '2', text: fmt(SHELL.head.run.queued, { n: 2 }), disabled: true })
+  assert.equal(await s.page.evaluate(() => document.querySelector('main [data-part="queue"], [data-dialog]')), null, 'no banner, no dialog: the place is said in three places only')
+  // the bridge's answer to 立即运行 here: already waiting, place 2 — not 「a round is running」
   assert.deepEqual(await bridge('startRound'), { ok: true, data: { started: false, already: 'queued', position: 2 } })
-  await s.page.click('[data-action="see-progress"] button')
-  await until(() => document.querySelector('[data-part="right-panel"]')?.dataset.tab === 'progress')
+  await tabTo('progress')
   const order = await s.page.evaluate(() => [...document.querySelectorAll('[data-queue-row]')].map(r => [r.dataset.queueRow, r.dataset.position, r.dataset.here, r.dataset.why]))
   assert.deepEqual(order, [[running, '1', 'false', 'catch-up'], [waiting, '2', 'true', 'catch-up']])
   const runningPart = await s.page.evaluate(() => { const r = document.querySelector('[data-part="running"]'); return r ? { lib: r.dataset.library, phase: r.dataset.phase, text: r.textContent } : null })
@@ -98,36 +104,40 @@ test('时尚 (waiting) → 概览: the banner 「排队中 · 第 2 位」 names
   assert.ok(runningPart.text.includes(W.shelf.names[1]))
   assert.ok(await s.page.evaluate(() => document.querySelectorAll('[data-next-row]').length) >= 2, 'the next timed slots')
   assert.equal(settingsOnDisk().panel.tab, 'progress', 'the tab chosen is kept')
+  // 电动车 (running) → its button is 「运行中 · 停止」, pressable
+  await open(running, 'inbox')
+  await until(() => document.querySelector('[data-part="run-button"]')?.dataset.runState === 'running')
+  assert.deepEqual(await s.page.evaluate(() => { const b = document.querySelector('[data-part="run-button"] button'); return [b.textContent.trim(), b.disabled] }), [SHELL.head.run.running, false])
 })
 
-test('开始 in a library not in the line (AI Agent 记忆): the dialog says who runs, why, and place 3 — not 「没能开始。」; pressed again: the same place', async () => {
+test('立即运行 in a library not in the line (AI Agent 记忆): no dialog — it goes to the end of the queue at place 3 and the button says so; pressed again: the same place', async () => {
   const { current } = W.q
   await open(current, 'inbox')
-  await libTab('overview')
-  await until(() => document.querySelector('[data-action="run"] button')?.disabled === false)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-action="run"]').dataset.queueState), 'idle', 'control: not in the line yet')
-  await s.page.click('[data-action="run"] button')
-  await until(() => document.querySelector('[data-dialog="run"] [data-action="start"] button')?.disabled === false)
-  await s.page.click('[data-dialog="run"] [data-action="start"] button')
-  await until(() => document.querySelector('[data-dialog="run"] [data-part="queued"]') !== null)
-  const d = await s.page.evaluate(() => { const q = document.querySelector('[data-part="queued"]'); return { kind: q.dataset.queued, n: q.dataset.position, lead: q.querySelector('[data-part="queued-lead"]').textContent, before: q.querySelector('[data-row="before"]')?.textContent ?? null, all: document.querySelector('[data-dialog="run"]').textContent } })
-  assert.equal(d.kind, 'queued')
-  assert.equal(d.n, '3')
-  assert.equal(d.lead, fmt(QUEUE.dialog.queued, { name: W.shelf.names[1], doing: QUEUE.doing['catch-up'], n: 3 }))
-  assert.ok(d.before?.includes(W.shelf.names[1]), d.before)
-  assert.equal(d.all.includes(RUN.failed), false, 'not the vague 「没能开始。」')
-  assert.equal(wording.scanStrings({ a: `${d.all} pending` }).ok, false, 'control: the scanner can fail here')
-  assert.deepEqual(wording.scanStrings({ dialog: d.all }).hits, [], 'the dialog\'s words pass the scanner')
-  await s.page.click('[data-dialog="run"] [data-action="ok"] button')
-  await until(() => document.querySelector('[data-dialog="run"]') === null)
-  await until(() => document.querySelector('[data-action="run"]')?.dataset.queueState === 'queued')
+  await until(() => document.querySelector('[data-part="run-button"] button')?.disabled === false)
+  const idle = await s.page.evaluate(() => { const b = document.querySelector('[data-part="run-button"]'); return [b.dataset.runState, b.querySelector('button').textContent.trim()] })
+  assert.deepEqual(idle, ['idle', SHELL.head.run.now], 'control: not in the line yet')
+  // the chip beside it: the next run and the estimate of model calls (estimateRound)
+  const est = core.estimateRound(s.world.library)
+  const chip = await s.page.evaluate(() => document.querySelector('[data-part="next-run"]').textContent)
+  assert.ok(chip.includes(est.expectedCalls[0] === est.expectedCalls[1] ? fmt(SHELL.head.run.callsOne, { n: est.expectedCalls[0] }) : fmt(SHELL.head.run.calls, { lo: est.expectedCalls[0], hi: est.expectedCalls[1] })), chip)
+  await s.page.click('[data-part="run-button"] button')
+  await until(() => document.querySelector('[data-part="run-button"]')?.dataset.runState === 'queued')
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-dialog]')), null, 'no dialog')
+  const b = await s.page.evaluate(() => { const x = document.querySelector('[data-part="run-button"]'); return [x.dataset.position, x.querySelector('button').textContent.trim(), x.querySelector('button').disabled] })
+  assert.deepEqual(b, ['3', fmt(SHELL.head.run.queued, { n: 3 }), true])
+  await until(i => document.querySelector(`[data-library-row="${i}"] [data-library-queue="queued"]`)?.dataset.position === '3', current)
   assert.deepEqual(await bridge('startRound'), { ok: true, data: { started: false, already: 'queued', position: 3 } }, 'pressed again: the same place, not queued twice')
   assert.deepEqual((await bridge('getQueue')).data.waiting.map(w => [w.libraryId, w.why]), [[W.q.waiting, 'catch-up'], [current, 'manual']])
+  await tabTo('progress')
+  assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-queue-row]')].map(r => [r.dataset.position, r.dataset.why])), [['1', 'catch-up'], ['2', 'catch-up'], ['3', 'manual']])
+  assert.deepEqual(wording.scanStrings({ head: await s.page.evaluate(() => document.querySelector('[data-part="library-head"]').textContent) }).hits, [], 'the head\'s words pass the scanner')
 })
 
 // ---- the panel: tabs, folded, remembered -----------------------------------------------------------------------------------
 
 test('four tabs switch; folded into the rail and unfolded; open / folded and the tab are in settings.json and come back after a reload', async () => {
+  // the four tabs, in the redesign's words (literal: 待确认 is 维护者's 11-11 name)
+  assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-panel-tab]')].map(b => [b.dataset.panelTab, b.textContent.replace(/\s*\d+$/, '').trim()])), [['progress', '进度'], ['decide', '待确认'], ['detail', '详情'], ['files', '文件']])
   for (const t of ['decide', 'files', 'detail', 'progress']) {
     await tabTo(t)
     assert.equal(await s.page.evaluate(() => document.querySelector('[data-pane]')?.dataset.pane), t)
@@ -164,13 +174,13 @@ test('four tabs switch; folded into the rail and unfolded; open / folded and the
 
 // ---- 等你决定 ---------------------------------------------------------------------------------------------------------------
 
-test('等你决定: every library\'s cards, as many as the sidebar\'s badge, each with its library; a proposal card → 和主 Agent 聊 scrolled to it', async () => {
+test('待确认: every library\'s cards, as many as the tab\'s number, each with its library; a proposal card → 主 Agent scrolled to it', async () => {
   await tabTo('decide')
-  await until(() => document.querySelectorAll('[data-decide]').length >= 2 && document.querySelector('[data-badge="chat"]') !== null)
-  const both = await s.page.evaluate(() => ({ list: document.querySelectorAll('[data-decide]').length, pane: Number(document.querySelector('[data-pane="decide"]').dataset.count), badge: Number(document.querySelector('[data-badge="chat"]').textContent), tab: Number(document.querySelector('[data-panel-badge="decide"]')?.textContent ?? -1) }))
+  await until(() => document.querySelectorAll('[data-decide]').length >= 2 && document.querySelector('[data-panel-badge="decide"]') !== null)
+  const both = await s.page.evaluate(() => ({ list: document.querySelectorAll('[data-decide]').length, pane: Number(document.querySelector('[data-pane="decide"]').dataset.count), badge: Number(document.querySelector('[data-panel-badge="decide"]').textContent), chat: document.querySelector('[data-nav="chat"] [data-nav-count], [data-badge="chat"]') }))
   assert.equal(both.list, both.badge, JSON.stringify(both))
   assert.equal(both.pane, both.badge)
-  assert.equal(both.tab, both.badge)
+  assert.equal(both.chat, null, '主 Agent in the sidebar carries no number (F10)')
   const pending = (await bridge('listProposals', { status: 'pending' })).data
   const suggestions = (await bridge('listSuggestions', null)).data.filter(x => !x.status || x.status === 'open')
   assert.equal(both.badge, pending.length + suggestions.length, 'the same source: pending cards + open suggestions')
@@ -184,7 +194,7 @@ test('等你决定: every library\'s cards, as many as the sidebar\'s badge, eac
 
 // ---- 详情 ------------------------------------------------------------------------------------------------------------------
 
-test('详情 follows the main area: 和主 Agent 聊 (this turn) · 待看 (the current card\'s steps, check, source) · 资料库 (the old third column) · 问库 (the cited notes) · 概览 (one sentence)', async () => {
+test('详情 follows the main area: 和主 Agent 聊 (this turn) · 待看 (the current card\'s steps, check, source) · 资料库 (the old third column) · 问库 (the cited notes) · 来源与要求 (one sentence)', async () => {
   await tabTo('detail')
   const detail = () => s.page.evaluate(() => { const p = document.querySelector('[data-pane="detail"]'); return { parts: [...p.querySelectorAll('[data-part]')].map(e => e.dataset.part), text: p.textContent } })
   const chat = await detail()
@@ -223,8 +233,8 @@ test('详情 follows the main area: 和主 Agent 聊 (this turn) · 待看 (the 
     await s.page.click(`[data-detail-cite="1"]`)
     await until(i => document.querySelector(`main[data-screen="library"] [data-reader="${i}"]`) !== null, cited[0])
   }
-  // 概览: nothing chosen — one sentence
-  await libTab('overview')
+  // 来源与要求: nothing chosen — one sentence (redesign R1: was 概览, gone)
+  await libTab('sources')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-pane="detail"] [data-part="detail-none"]')?.textContent), PANEL.detail.none)
 })
 

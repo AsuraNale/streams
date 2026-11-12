@@ -11,6 +11,9 @@
  * page's first frame is in that set, before any script runs (docs/desktop.md §五「主题」). v2 package K2: and
  * `data-appearance="light|dark"`, the appearance in force (the setting, or what Windows uses for 「跟随系统」).
  * v2 package K2: fonts/NotoSansSC-VF.ttf (the bundled UI font, styles/fonts.css) is served as font/ttf; nothing else of fonts/.
+ * Redesign R1: template/… is the design's template, copied byte for byte (src/renderer/template/manifest.json). Its
+ * design.css asks for ../fonts/NotoSansSC-VF.ttf, i.e. template/shared/fonts/NotoSansSC-VF.ttf: that one path is answered
+ * with fonts/NotoSansSC-VF.ttf (FILE_ALIASES; the same bytes), so the 17.8 MB font is not shipped twice.
  * GET only. The path rule is safe-path.mjs (docs/desktop.md §二): the path is judged as text first, so nothing
  * reaches the file system that could name another folder or another machine; then only a path inside the folder by
  * its text is looked up, links followed and still inside. Only the file types the page uses are served; the
@@ -70,6 +73,9 @@ function notFound() {
 
 export { safeSegments } from './safe-path.mjs'
 
+/** Redesign R1: a path of the page answered with another file of the renderer folder (relative, '/'-separated). */
+export const FILE_ALIASES = Object.freeze({ 'template/shared/fonts/NotoSansSC-VF.ttf': 'fonts/NotoSansSC-VF.ttf' })
+
 /** The page's files only a development run serves: the component gallery (screens/kit.js and its words, style).
  *  Compared with the path relative to the real folder (its case on disk), not with the request's spelling (N2). */
 export const DEV_ONLY = Object.freeze(['screens/kit.js', 'texts/kit.js', 'styles/screens/kit.css'])
@@ -118,6 +124,8 @@ export function createAppProtocolHandler({ rendererDir, sharedDir, vendor, csp, 
       let found = null
       if (root === rendererDir && rest[0] === 'texts' && rest.length === 2 && locale() === 'en') found = await resolveInside(root, ['texts-en', rest[1]])
       // then the file system, and only for a path inside the folder by its text (links followed: still inside)
+      const alias = root === rendererDir && Object.hasOwn(FILE_ALIASES, rest.join('/')) ? FILE_ALIASES[rest.join('/')] : null
+      if (!found && alias) found = await resolveInside(root, alias.split('/'))
       if (!found) found = await resolveInside(root, rest)
       if (found && !dev && root === rendererDir && DEV_ONLY.includes(found.rel)) return notFound()
       file = found ? found.file : null

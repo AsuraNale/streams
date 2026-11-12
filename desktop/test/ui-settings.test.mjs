@@ -1,3 +1,4 @@
+// redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // 设置 (screens/settings.js) on the seeded world opened through settings.json's libraryPath (not the development hook, so a
 // library chosen on the page can replace it): the three connection rows with their state, the radio 打分用这一条 → the active
 // connection in settings.json, the main model chosen → written, 设置… → a key saved → secrets/key-<vendor>.bin appears and the
@@ -125,7 +126,7 @@ test('库: 新建库 on the folder the hook gives → the sidebar carries the ne
   await click('[data-action="skip-trial"]')
   await s.page.waitForFunction(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] .fr-body')?.dataset.step === 'schedule', null, POLL)
   await click('[data-action="go-today"]')
-  await ready(s.page, 'overview')
+  await ready(s.page, 'inbox')
   await s.page.waitForFunction(name => document.querySelector('[data-library-row][data-active="true"] .st-sidebar__lib-name')?.textContent === name, basename(another), POLL)
   // back to 设置 for the next test (新建库 ends on the new library's page)
   await s.page.click('.st-sidebar__footer-button')

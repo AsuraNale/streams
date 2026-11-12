@@ -146,7 +146,7 @@ export async function seedLibrary(dir, { now = () => new Date() } = {}) {
 }
 
 // ---- a session on a world of a given kind (the counterpart of test/support/app.mjs appSession, which makes an empty world) ----
-//   const s = worldSession({ kind: 'seeded', env: world => ({ STREAMS_DEV_LIBRARY: world.library }), waitFor: 'overview' })
+//   const s = worldSession({ kind: 'seeded', env: world => ({ STREAMS_DEV_LIBRARY: world.library }), waitFor: 'inbox' })
 //   … s.world (the folders + `seed`) · s.app · s.page · s.errors
 // `env` may be an object or a function of the world (the library folder is only known once the world exists); `prepare(world)`
 // runs before the app starts (to put a file somewhere, to start a server) and may return a function run after the app closes.
@@ -159,7 +159,7 @@ import { makeWorld } from '../../scripts/lib/world.mjs'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 // (v2 package F: by default it waits for 概览, the screen the app opens on; v1.0 waited for 今日)
-export function worldSession({ kind = 'seeded', env = {}, settings = null, waitFor = 'overview', prepare = null } = {}) {
+export function worldSession({ kind = 'seeded', env = {}, settings = null, waitFor = 'inbox', prepare = null } = {}) {  // redesign R1: the app opens on 待看 (was 'overview')
   const s = { world: null, run: null, app: null, page: null, errors: [] }
   const folders = []
   let cleanup = null

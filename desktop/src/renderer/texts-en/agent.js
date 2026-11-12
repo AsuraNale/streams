@@ -6,8 +6,8 @@ export const AGENT = Object.freeze({
   you: 'You',
 
   chat: Object.freeze({
-    title: 'Chat with the main Agent',
-    subtitle: 'It looks after all your libraries: every new library and every change starts as a proposal you confirm',
+    title: 'Main agent',
+    subtitle: 'Create libraries, change their settings, ask how each is doing. Every change comes as a proposal and takes effect once confirmed.',
     intro: 'I look after all your libraries. Tell me what new thing you want to follow, or which library to change; anything that changes a library comes as a proposal first, and it only counts once you confirm it.',
     inputLabel: 'Tell the main Agent',
     placeholder: 'Tell the main Agent: a new library, a change, how a library is doing…',
@@ -145,7 +145,7 @@ export const AGENT = Object.freeze({
       failed: 'Did not take effect: {step}',
     }),
     queued: 'The first round is queued',
-    notQueued: 'The first round was not queued; press “Run a round now” on the overview',
+    notQueued: 'The first run could not be queued; click “Run now” in the library’s header',
     rolledBack: 'What was done has been undone; the library is as it was.',
     notRolledBack: 'Could not make sure everything was undone; have a look at Sources and brief.',
     createdKept: 'The library is created and registered; only its first round was not queued.',
@@ -190,7 +190,7 @@ export const AGENT = Object.freeze({
     accepted: 'Passed to the main Agent',
     dismissed: 'Not wanted',
     callFailed: 'That did not work. You can press it again.',
-    go: 'Go to the chat with the main Agent',
+    go: 'Go to Main agent',
     title: 'Suggestions from the main Agent for this library',
     none: 'The main Agent has no suggestion for this library for now.',
   }),

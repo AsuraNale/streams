@@ -1,3 +1,4 @@
+// redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // 库架 and the sidebar after a round of a library ends (found by the v2 draft acceptance test N6, UC2 step 1, 11-09): the
 // shelf card's 「上次更新」 and its problem, and the sidebar's amber dot, are the bridge's getLibrariesOverview — read again
 // when a round ends (`round-progress` with done: true), not only when the registry or a library's settings change. The world:
@@ -18,7 +19,7 @@ import { seedShelf, worldSession } from './support/seed.mjs'
 let shelf = null
 const s = worldSession({
   kind: 'seeded',
-  waitFor: 'overview',
+  waitFor: 'inbox',
   prepare: async world => { shelf = await seedShelf(world) },
   env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake' }),
 })

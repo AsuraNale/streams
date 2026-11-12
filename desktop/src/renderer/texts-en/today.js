@@ -9,13 +9,12 @@ export const TODAY = Object.freeze({
   connection: 'Connection: {name} · {model}',
   connectionDefault: 'Connection: {name} · default model',
   noConnection: 'No connection: fetching only, no scoring',
-  runNow: 'Run a round now',
   loadFailed: "Today's numbers could not be read.",
   // plan C8: from NO_OUTPUT_ROUNDS (the core's) rounds in a row that put nothing into the inbox (getHome().numbers.noOutputStreak)
   noOutput: Object.freeze({
-    text: 'No output for {n} rounds in a row: none of them put anything into the inbox.',
-    hint: 'Check whether the sources found anything new, or whether the pass lines are set too high.',
-    go: 'See the run status',
+    text: 'No new items in the Inbox in {n} runs in a row.',
+    hint: 'Check whether the sources have updates, or whether the pass thresholds are set too high.',
+    go: 'View run status',
   }),
 
   numbers: Object.freeze({
@@ -63,27 +62,27 @@ export const TODAY = Object.freeze({
   }),
 
   round: Object.freeze({
-    title: 'This round, {when}',
-    none: 'No round yet. Click "Run a round now" to start.',
+    title: 'Last run · {when}',
+    none: 'Not run yet. Click “Run now” in the header to start.',
     fetch: 'Fetched {n} source{n?|s}: {lines}',
     fetchLine: '{n} {state}',
-    dedup: 'After duplicates {fetched} → {new}',
-    node: '{name}: {passed} passed · {failed} did not',
-    nodeUnscored: ' · {n} unscored',
+    dedup: '{fetched} fetched, {new} new after dedup',
+    node: '{name}: {passed} passed · {failed} filtered out',
+    nodeUnscored: ' · {n} not scored',
     summary: '{n} summarized',
     inbox: '{n} into the inbox',
-    calls: '{n} call{n?|s}',
+    calls: '{n} model call{n?|s}',
     stopped: Object.freeze({
-      cap: 'Stopped at the limit; the rest waits for next time',
-      aborted: 'Stopped by hand; the rest waits for next time',
-      connection: 'Stopped on a connection error; the rest waits for next time',
+      cap: 'Stopped at the per-run cap; the rest waits for the next run',
+      aborted: 'Stopped manually; the rest waits for the next run',
+      connection: 'Stopped on a connection error; the rest waits for the next run',
     }),
   }),
 
   progress: Object.freeze({
-    title: 'A round is running',
+    title: 'This run is in progress',
     phase: '{phase}',
-    calls: 'Calls {calls} / {cap}',
+    calls: 'Model calls {calls} / {cap}',
     stop: 'Stop',
     stopping: 'Stopping after this item…',
   }),

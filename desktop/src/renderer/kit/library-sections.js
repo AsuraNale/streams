@@ -1,22 +1,19 @@
-// A library's five parts (v2 package F; docs/design/v2/streams-v2-design.html 导航): 概览 · 待看 · 资料库 · 问库 · 来源与要求.
-// One component, two layouts (the maintainer 11-05: plan B now, plan A kept):
-//   html`<${LibrarySections} layout="tabs" current="inbox" badges=${{ inbox: 7 }} onSelect=${id => …} />`
-//     plan B: tabs across the top of the library's page (nav.st-lib-tabs, button[data-tab=<id>][aria-current])
-//   html`<${LibrarySections} layout="sidebar" current="inbox" badges=${…} onSelect=${…} />`
-//     plan A: the same five as the sidebar's entries (kit/sidebar.js SidebarNav, a[data-nav=<id>]) inside the library
+// A library's parts — redesign R1 (维护者 11-11 第 1 题, F13): four tabs, 待看 · 资料库 · 问库 ｜ 来源与要求; 概览 is gone and a library
+// opens on 待看. The template's big tabs (`nav.panel-tabs.st-libtabs` of `.tab`, the design's streams/app.js libTabs: the
+// edition's tab icons when it has them, 待看's count as `st-count`).
+//   html`<${LibrarySections} current="inbox" badges=${{ inbox: 7 }} onSelect=${id => …} />`
 // `current` is the part you are on: a route of LIBRARY_ROUTES is shown as its part (TAB_OF: 资料库's graph view is 资料库).
-// And the library's mark: LibraryMark — its one or two characters on a square of its colour (core LIBRARY_COLORS: the token
-// --st-lib-<colour>, the words --st-on-lib; docs/tokens.md).
+// Test hooks: nav.st-lib-tabs (a hook class only) button[data-tab=<id>][aria-current] with [data-tab-badge].
+// And the library's mark: LibraryMark — its one or two characters (the sidebar's line, the shelf's card).
 import { html } from '../lib/html.js'
 import { fmt } from '../lib/format.js'
+import { TIcon, hasTabIcons } from '../lib/template-icons.js'
 import { SHELL } from '../texts/shell.js'
-import { Icon } from './icons.js'
-import { SidebarNav } from './sidebar.js'
 
-/** The five parts, in order, with their icons (问库: a speech bubble, feedback #1). */
-export const LIBRARY_SECTIONS = Object.freeze([['overview', 'chart'], ['inbox', 'inbox'], ['library', 'file'], ['ask', 'chat'], ['sources', 'rss']])
+/** The four parts, in order, with the template's tab icons (streams/app.js libTabs). */
+export const LIBRARY_SECTIONS = Object.freeze([['inbox', 'progress'], ['library', 'sources'], ['ask', 'draft'], ['sources', 'files']])
 /** route id → the part it belongs to (the graph is a view of 资料库) */
-export const TAB_OF = Object.freeze({ overview: 'overview', inbox: 'inbox', library: 'library', graph: 'library', ask: 'ask', sources: 'sources' })
+export const TAB_OF = Object.freeze({ inbox: 'inbox', library: 'library', graph: 'library', ask: 'ask', sources: 'sources' })
 /** every route that is a library's page */
 export const LIBRARY_ROUTES = Object.freeze(Object.keys(TAB_OF))
 /** the colour names a library may have (core LIBRARY_COLORS) */
@@ -24,25 +21,21 @@ export const LIBRARY_COLOR_NAMES = Object.freeze(['river', 'violet', 'green', 'm
 
 const count = n => (typeof n === 'number' && n > 0 ? n : null)
 
-export function LibrarySections({ layout = 'tabs', current, badges = {}, onSelect }) {
+export function LibrarySections({ current, badges = {}, onSelect }) {
   const here = Object.hasOwn(TAB_OF, current) ? TAB_OF[current] : current
-  if (layout === 'sidebar') {
-    return html`${LIBRARY_SECTIONS.map(([id, icon]) => html`<${SidebarNav} key=${id} id=${id} icon=${icon} isCurrent=${here === id}
-      badge=${badges[id] ?? null} badgeLabel=${id === 'inbox' ? fmt(SHELL.sidebar.inboxBadge, { n: badges[id] ?? 0 }) : undefined} onClick=${() => onSelect?.(id)}>${SHELL.tabs[id]}<//>`)}`
-  }
-  return html`<nav class="st-lib-tabs" aria-label=${SHELL.tabs.label}>
+  const icons = hasTabIcons()
+  return html`<nav class="panel-tabs st-libtabs st-lib-tabs" aria-label=${SHELL.tabs.label}>
     ${LIBRARY_SECTIONS.map(([id, icon]) => {
       const n = count(badges[id])
-      return html`<button type="button" key=${id} class="st-lib-tabs__tab" data-tab=${id} aria-current=${here === id ? 'page' : undefined} onClick=${() => onSelect?.(id)}>
-        <${Icon} name=${icon} /><span>${SHELL.tabs[id]}</span>
-        ${n !== null ? html`<span class="st-lib-tabs__badge" data-tab-badge=${id} aria-label=${fmt(SHELL.sidebar.inboxBadge, { n })}>${n}</span>` : null}
+      return html`<button type="button" key=${id} class=${`tab${here === id ? ' active' : ''}`} data-tab=${id} aria-current=${here === id ? 'page' : undefined} onClick=${() => onSelect?.(id)}>
+        ${icons ? html`<${TIcon} name=${icon} />` : null}${SHELL.tabs[id]}${n !== null ? html` <small class="st-count" data-tab-badge=${id} aria-label=${fmt(SHELL.sidebar.inboxBadge, { n })}>${n}</small>` : null}
       </button>`
     })}
   </nav>`
 }
 
-/** A library's mark: `size` 's' (the sidebar), 'm' (a library's head), 'l' (a card of the shelf). */
+/** A library's mark: its one or two characters. `size` 's' (the sidebar), 'm', 'l' (a card of the shelf). */
 export function LibraryMark({ icon, color, size = 'm' }) {
   const c = LIBRARY_COLOR_NAMES.includes(color) ? color : 'river'
-  return html`<span class=${`st-lib-mark st-lib-mark--${size} st-lib-mark--${c}`} data-color=${c} aria-hidden="true">${icon ?? ''}</span>`
+  return html`<span class=${`st-lib-mark st-lib-mark--${size}`} data-color=${c} aria-hidden="true">${icon ?? ''}</span>`
 }

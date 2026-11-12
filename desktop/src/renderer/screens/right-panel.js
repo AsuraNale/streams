@@ -1,24 +1,29 @@
-// The right panel of the main window (v2 package L; docs/checks/2026-11-10-wp-l/contract.md L2; design draft
-// docs/design/next/themes/ README 第四节): four tabs — 进度 · 等你决定 · 详情 · 文件 — and a button that folds it into a 52px rail
-// (its four icons, 等你决定's count; a click opens that tab). Open or folded, and the tab, are kept in settings.json
+// The right panel of the main window (v2 package L; redesign R1 — the template's context-panel, as the design's streams/app.js
+// builds it): four tabs — 进度 · 待确认 · 详情 · 文件 (维护者 11-11 第 13 题: 「等你决定」 is 「待确认」) — on the template's
+// `nav.panel-tabs` of `.tab` (the edition's tab icons, 待确认's number as `st-count`), and a button that folds it into a 52px
+// rail (its four icons, 待确认's number; a click opens that tab). Open or folded, and the tab, are kept in settings.json
 // (app.js setPanel → the bridge's setPanel; getAppState().panel), so the next start opens it the same way.
-//   进度      every library: the round that runs (its library, why, the step it is at, calls / cap, when it started), the queue
-//             in order with why each waits, each library's next timed slot (getQueue, app.js useQueue; names from the libraries)
-//   等你决定  every library's proposal cards waiting and suggestion cards not handled — the same list the sidebar's badge counts
-//             (app.js useWaitingItems): its library and one sentence each; a click goes where the card is (a proposal card:
-//             和主 Agent 聊, scrolled to it; a suggestion card: that library's 概览, its suggestions)
+//   进度      every library (the template's panel-summary, phase-row, mini-chart, activity-row): how many run and wait, the round
+//             that runs (its library, why, the step it is at, calls / cap, when it started), the queue in order with why each
+//             waits, each library's next timed slot (getQueue, app.js useQueue; names from the libraries) — the one place the
+//             queue is told in full (F23). On a library's page, under it: what 概览 had of that library (screens/last-run.js).
+//   待确认    every library's proposals waiting and system findings not handled — the same list the tab's number counts (app.js
+//             useWaitingItems): small confirmation cards, its library and one sentence each; a proposal → 主 Agent, scrolled to it;
+//             a finding → that library. On a library's page, its findings with their buttons below (screens/suggestion-card.js;
+//             the one kind of card is R5's).
 //   详情      follows the main area: the screen gives it (`detail`); a screen with nothing chosen: one sentence
 //   文件      the current library told as a structure (getLibraryOutline; read only): its notes grouped by the topics of their
-//             headers, 待看 (→ 待看), 「这个库的要求与来源」 (→ 来源与要求; never streams.json itself), 「程序记录（不用动）」 folded by
-//             default, opened only to 「在资源管理器中显示」 (revealProgramRecords). A note: click → read it in 资料库; right click
-//             or 「更多」 → 用 Obsidian 打开 (openInObsidian) · 在资源管理器中显示 (showNoteInFolder). No program file's name shows.
-//             A page with no library of its own (库架, 和主 Agent 聊, 设置): 「先选一个库」.
+//             headers, 待看 (→ 待看), 「该库的来源与要求」 (→ 来源与要求; never streams.json itself), 「程序记录（无需修改）」 folded
+//             by default, opened only to 「在资源管理器中显示」 (revealProgramRecords). A note: click → read it in 资料库; right click
+//             or 「更多」 → 在 Obsidian 中打开 (openInObsidian) · 在资源管理器中显示 (showNoteInFolder). No program file's name shows.
+//             A page with no library of its own (库架, 主 Agent, 设置): one sentence.
 // Words: texts/panel.js PANEL / QUEUE. Test hooks: aside[data-part="right-panel"][data-open][data-tab],
 // [data-panel-tab=<id>][aria-current] with [data-panel-badge], [data-action="fold"|"unfold"], [data-rail-tab=<id>],
-// [data-pane=progress|decide|detail|files]; 进度: [data-part=progress-summary|running|order|next], [data-queue-row=<id>]
-// [data-position][data-here], [data-next-row=<id>]; 等你决定: [data-decide=<proposal id | libraryId:key>][data-kind=proposal|suggestion]
-// [data-library]; 详情: [data-part="detail-none"]; 文件: [data-part=files-head|no-library], [data-tree=notes|inbox|requirements|
-// records][data-open], [data-tree-topic=<topic | "">], [data-tree-note=<id>], [data-action=reveal-library|reveal-records|
+// [data-pane=progress|decide|detail|files]; 进度: [data-part=progress-summary|running|order|next|last-run], [data-queue-row=<id>]
+// [data-position][data-here][data-why], [data-part="running-phase"], [data-calls][data-cap], [data-next-row=<id>][data-at];
+// 待确认: [data-decide=<proposal id | libraryId:key>][data-kind=proposal|suggestion][data-library], [data-part="suggestions"];
+// 详情: [data-part="detail-none"]; 文件: [data-part=files-head|no-library], [data-tree=notes|inbox|requirements|records][data-open],
+// [data-tree-topic=<topic | "">], [data-tree-note=<id>] (.st-rp-tree__row), [data-action=reveal-library|reveal-records|
 // note-more], the menu's [data-menu-item=obsidian|folder].
 import { html, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
@@ -26,32 +31,29 @@ import { call } from '../lib/bridge.js'
 import { fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
-import { doingOf } from '../lib/queue.js'
-import { Icon, LIBRARY_ROUTES, LibraryMark, Menu } from '../kit/index.js'
-import { NEXT_WHEN, NODE_NAMES, ROUND_PHASES, SEP, WHEN } from '../texts/common.js'
+import { doingOf, queueWords } from '../lib/queue.js'
+import { phaseWords } from '../lib/phase.js'
+import { TIcon, hasTabIcons } from '../lib/template-icons.js'
+import { LIBRARY_ROUTES, Menu } from '../kit/index.js'
+import { NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
 import { PANEL as T, QUEUE } from '../texts/panel.js'
 import { cardTitle } from './proposal-card.js'
-import { suggestionSentence } from './suggestion-card.js'
+import { LibrarySuggestions, suggestionSentence } from './suggestion-card.js'
+import { LastRunPart } from './last-run.js'
 
-/** The four tabs, in order, with their icons. */
-export const PANEL_TABS = Object.freeze([['progress', 'chart'], ['decide', 'checklist'], ['detail', 'info'], ['files', 'folder']])
+export { phaseWords }
+
+/** The four tabs, in order, with the template's tab icons (streams/app.js TABS). */
+export const PANEL_TABS = Object.freeze([['progress', 'progress'], ['decide', 'sources'], ['detail', 'draft'], ['files', 'files']])
 const TAB_IDS = PANEL_TABS.map(([id]) => id)
 
 const pad = n => String(n).padStart(2, '0')
-const nodeName = id => (Object.hasOwn(NODE_NAMES, id) ? NODE_NAMES[id] : id)
 
-/** A round's phase in words: 自检 · 抓取 · 打分 · 相关度 … */
-export function phaseWords(phase) {
-  if (typeof phase !== 'string') return ''
-  if (phase.startsWith('gate:')) return `${ROUND_PHASES.gate}${SEP}${nodeName(phase.slice(5))}`
-  return Object.hasOwn(ROUND_PHASES, phase) ? ROUND_PHASES[phase] : phase
-}
-
-/** The panel's grey head block (the draft's panel-summary): a small line, a title, a sentence. */
+/** The panel's head block (the template's panel-summary): a small line, a title, then what it is given. */
 export function PanelSummary({ eyebrow, title, part, children }) {
-  return html`<section class="st-rp-summary" data-part=${part}>
-    ${eyebrow ? html`<div class="st-rp-eyebrow">${eyebrow}</div>` : null}
-    ${title ? html`<h2 class="st-rp-summary__title">${title}</h2>` : null}
+  return html`<section class="panel-summary" data-part=${part}>
+    ${eyebrow ? html`<span class="eyebrow">${eyebrow}</span>` : null}
+    ${title ? html`<h2>${title}</h2>` : null}
     ${children}
   </section>`
 }
@@ -62,104 +64,113 @@ function useNames() {
   return { rows, rowOf: id => rows.find(r => r.id === id) ?? null }
 }
 
-function Mark({ row }) {
-  return html`<${LibraryMark} icon=${row?.icon ?? '?'} color=${row?.color} size="s" />`
-}
-
 // ---- 进度 ---------------------------------------------------------------------------------------------------------------
 
+/** One library of the queue (the template's phase-row): its place, its name and its state; open shows why and since when. */
+function QueueRow({ o, i, here, name, running, r, startedText }) {
+  const P = T.progress
+  const steps = running
+    ? [['check', fmt(P.runningLine, { why: doingOf(o.why, QUEUE.why) })], ['clock', fmt(P.phase, { phase: phaseWords(r?.phase) })], startedText ? ['clock', startedText] : null].filter(Boolean)
+    : [['clock', fmt(P.waitingLine, { why: doingOf(o.why, QUEUE.why), since: whenText(o.since, WHEN) ?? '' })], o.after ? ['clock', fmt(P.after, { name: o.after })] : null].filter(Boolean)
+  const state = running ? queueWords({ state: 'running' }, r?.phase) : queueWords({ state: 'queued', position: i + 1 })
+  return html`<details class=${`phase-row${running ? ' current' : ''}`} open=${running} data-part=${running ? 'running' : undefined}
+    data-library=${o.libraryId ?? ''} data-phase=${running ? r?.phase ?? '' : undefined}
+    data-queue-row=${o.libraryId ?? ''} data-position=${i + 1} data-here=${String(o.libraryId === here)} data-why=${o.why ?? ''}>
+    <summary class="phase-heading">
+      <span class="phase-index">${pad(i + 1)}</span>
+      <span class="phase-label">${name}<small>${state}${o.libraryId === here ? `${SEP}${P.here}` : ''}</small></span>
+      <${TIcon} name="down" />
+    </summary>
+    <div class="phase-details">
+      ${steps.map(([ic, t], k) => html`<div key=${k} class="step-line" data-part=${running && k === 1 ? 'running-phase' : undefined}><${TIcon} name=${ic} /><span>${t}</span></div>`)}
+    </div>
+  </details>`
+}
+
 function ProgressPane() {
-  const { queue, appState } = useApp()
+  const { queue, appState, route } = useApp()
   const { rowOf } = useNames()
   const here = appState?.data?.library?.libraryId ?? null
+  const onLibrary = LIBRARY_ROUTES.includes(route?.screen) && here !== null
   const q = queue?.data ?? null
   const P = T.progress
-  if (!q) return html`<p class="st-t-small st-t-muted" role=${queue?.status === 'error' ? 'alert' : undefined}>${queue?.status === 'error' ? P.loadFailed : ''}</p>`
+  if (!q) {
+    return html`<div class="st-rp-pane" data-pane="progress">
+      <p class="muted" role=${queue?.status === 'error' ? 'alert' : undefined}>${queue?.status === 'error' ? P.loadFailed : ''}</p>
+      ${onLibrary ? html`<${LastRunPart} />` : null}
+    </div>`
+  }
   const name = id => rowOf(id)?.name ?? P.unknownLibrary
   const now = new Date()
   const r = q.running
   const waiting = Array.isArray(q.waiting) ? q.waiting : []
   const next = Array.isArray(q.next) ? q.next : []
-  const pct = r && r.cap > 0 ? Math.min(100, Math.floor((r.calls / r.cap) * 100)) : 0
+  const busy = Boolean(r) || waiting.length > 0
   const order = [...(r ? [{ libraryId: r.libraryId, running: true, why: r.why }] : []), ...waiting]
+  const withAfter = order.map((o, i) => (i > 0 && !o.running ? { ...o, after: name(order[i - 1].libraryId) } : o))
+  const pct = r && r.cap > 0 ? Math.min(100, Math.floor((r.calls / r.cap) * 100)) : 0
   return html`<div class="st-rp-pane" data-pane="progress">
-    <${PanelSummary} part="progress-summary" eyebrow=${fmt(P.eyebrow, { hm: `${pad(now.getHours())}:${pad(now.getMinutes())}` })}
-      title=${r || waiting.length ? fmt(P.summary, { running: r ? 1 : 0, waiting: waiting.length }) : P.idle}>
+    <${PanelSummary} part="progress-summary" eyebrow=${P.eyebrow} title=${busy ? fmt(P.summary, { running: r ? 1 : 0, waiting: waiting.length }) : P.idle}>
       <p>${P.rule}</p>
+      <div class="progress-line" aria-hidden="true"><span class=${busy ? 'now' : 'done'}></span><span></span></div>
+      <div class="progress-caption"><span>${busy ? fmt(P.queueSize, { n: order.length }) : fmt(P.asOf, { hm: `${pad(now.getHours())}:${pad(now.getMinutes())}` })}</span><span>${r ? doingOf(r.why, QUEUE.why) : ''}</span></div>
     <//>
-    ${r ? html`<section class="st-rp-card st-rp-running" data-part="running" data-library=${r.libraryId ?? ''} data-phase=${r.phase ?? ''}>
-      <div class="st-rp-running__head">
-        <${Mark} row=${rowOf(r.libraryId)} />
-        <div class="st-rp-running__text">
-          <div class="st-t-strong">${fmt(P.running, { name: name(r.libraryId) })}</div>
-          <div class="st-t-small st-t-sub">${[doingOf(r.why, QUEUE.why), r.startedAt ? fmt(P.started, { when: whenText(r.startedAt, WHEN) ?? '' }) : null].filter(Boolean).join(SEP)}</div>
-        </div>
-      </div>
-      <div class="st-t-small" data-part="running-phase">${fmt(P.phase, { phase: phaseWords(r.phase) })}</div>
-      <div class="st-rp-meter">
-        <span class="st-t-small st-t-sub">${P.calls}</span>
-        <span class="st-rp-meter__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow=${pct}><span class="st-rp-meter__fill" style=${{ width: `${pct}%` }}></span></span>
-        <b class="st-rp-meter__value" data-calls=${r.calls ?? 0} data-cap=${r.cap ?? ''}>${r.cap ? fmt(P.callsValue, { calls: r.calls ?? 0, cap: r.cap }) : fmt(P.callsNoCap, { calls: r.calls ?? 0 })}</b>
-      </div>
-    </section>` : null}
-    <h3 class="st-rp-heading">${P.order}</h3>
-    ${order.length ? html`<ol class="st-rp-queue" data-part="order">
-      ${order.map((o, i) => html`<li key=${`${o.libraryId}:${i}`} class=${`st-rp-queue__row${o.libraryId === here ? ' st-rp-queue__row--here' : ''}`}
-        data-queue-row=${o.libraryId ?? ''} data-position=${i + 1} data-here=${String(o.libraryId === here)} data-why=${o.why ?? ''}>
-        <span class="st-rp-queue__n">${i + 1}</span>
-        <${Mark} row=${rowOf(o.libraryId)} />
-        <span class="st-rp-queue__text">
-          <span>${name(o.libraryId)}</span>
-          ${o.libraryId === here ? html`<span class="st-t-tiny st-t-sub" data-part="here">${P.here}</span>` : null}
-          <span class="st-t-tiny st-t-sub">${o.running ? fmt(P.runningLine, { why: doingOf(o.why, QUEUE.why) }) : fmt(P.waitingLine, { why: doingOf(o.why, QUEUE.why), since: whenText(o.since, WHEN) ?? '' })}</span>
-          ${!o.running && i > 0 ? html`<span class="st-t-tiny st-t-sub">${fmt(P.after, { name: name(order[i - 1].libraryId) })}</span>` : null}
-        </span>
-      </li>`)}
-    </ol>` : html`<p class="st-t-small st-t-muted" data-part="order" data-empty="true">${P.orderNone}</p>`}
-    <h3 class="st-rp-heading">${P.next}</h3>
-    ${next.length ? html`<ul class="st-rp-next" data-part="next">
-      ${next.map(n => html`<li key=${n.libraryId} class="st-rp-next__row" data-next-row=${n.libraryId} data-at=${n.at}>
-        <${Mark} row=${rowOf(n.libraryId)} /><span class="st-rp-next__name">${name(n.libraryId)}</span>
-        <span class="st-rp-next__when">${nextText(n.at, NEXT_WHEN) ?? ''}</span>
-      </li>`)}
-    </ul>` : html`<p class="st-t-small st-t-muted" data-part="next" data-empty="true">${P.nextNone}</p>`}
+    <div class="st-rp-order" data-part="order" data-empty=${String(order.length === 0)}>
+      ${withAfter.map((o, i) => html`<${QueueRow} key=${`${o.libraryId}:${i}`} o=${o} i=${i} here=${here} name=${name(o.libraryId)} running=${Boolean(o.running)} r=${r}
+        startedText=${o.running && r?.startedAt ? fmt(P.started, { when: whenText(r.startedAt, WHEN) ?? '' }) : null} />`)}
+      ${r ? html`<div class="mini-chart" data-part="running-calls"><div class="chart-row"><span>${P.calls}</span><div class="chart-track"><div class="chart-bar" style=${{ '--value': `${pct}%` }}></div></div>
+        <b data-calls=${r.calls ?? 0} data-cap=${r.cap ?? ''}>${r.cap ? fmt(P.callsValue, { calls: r.calls ?? 0, cap: r.cap }) : fmt(P.callsNoCap, { calls: r.calls ?? 0 })}</b></div></div>` : null}
+      ${order.length ? null : html`<p class="limit-note">${P.orderNone}</p>`}
+    </div>
+    <div class="panel-section" data-part="next" data-empty=${String(next.length === 0)}>
+      <div class="section-label"><span>${P.next}</span></div>
+      ${next.length ? next.map(n => html`<div key=${n.libraryId} class="activity-row" data-next-row=${n.libraryId} data-at=${n.at}>${name(n.libraryId)}<small>${nextText(n.at, NEXT_WHEN) ?? ''}</small></div>`)
+        : html`<p class="limit-note">${P.nextNone}</p>`}
+    </div>
+    ${onLibrary ? html`<${LastRunPart} />` : null}
   </div>`
 }
 
-// ---- 等你决定 -----------------------------------------------------------------------------------------------------------
+// ---- 待确认 -------------------------------------------------------------------------------------------------------------
+
+/** One thing waiting (a small confirmation card): where it is from, what it is, where it is handled; a click goes there. */
+function DecideCard({ id, kind, libraryId, eyebrow, title, where, onGo }) {
+  return html`<article class="confirmation st-rp-decide" data-decide=${id} data-kind=${kind} data-library=${libraryId ?? ''} tabindex="0" role="button"
+    onClick=${onGo} onKeyDown=${e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGo() } }}>
+    <div class="card-body"><span class="eyebrow">${eyebrow}</span><h3>${title}</h3></div>
+    <div class="confirm-footer"><span class="muted">${where}</span><${TIcon} name="arrow" /></div>
+  </article>`
+}
 
 function DecidePane() {
-  const { waitingItems, navigate, openLibrary } = useApp()
+  const { waitingItems, navigate, openLibrary, appState, route } = useApp()
   const { rowOf } = useNames()
   const D = T.decide
   const cards = waitingItems?.cards ?? []
   const suggestions = waitingItems?.suggestions ?? []
   const n = cards.length + suggestions.length
   const name = id => rowOf(id)?.name ?? null
+  const here = appState?.data?.library?.libraryId ?? null
+  const onLibrary = LIBRARY_ROUTES.includes(route?.screen) && here !== null
   return html`<div class="st-rp-pane" data-pane="decide" data-count=${n}>
     <${PanelSummary} part="decide-summary" eyebrow=${D.eyebrow} title=${n ? fmt(D.title, { n }) : D.none}>
       <p>${D.lead}</p>
     <//>
-    ${cards.map(c => html`<button type="button" key=${c.id} class="st-rp-decide" data-decide=${c.id} data-kind="proposal" data-library=${c.libraryId ?? ''}
-      onClick=${() => navigate('chat', { card: c.id })}>
-      <span class="st-rp-decide__kind st-rp-decide__kind--proposal">${D.proposal}</span>
-      <span class="st-rp-decide__lib">${c.libraryId ? html`<${Mark} row=${rowOf(c.libraryId)} />` : null}<span>${c.libraryId ? name(c.libraryId) ?? '' : D.newLibrary}</span></span>
-      <b class="st-rp-decide__title">${cardTitle(c, name(c.libraryId))}</b>
-      <span class="st-rp-decide__where">${D.whereChat}<${Icon} name="chevron-right" /></span>
-    </button>`)}
-    ${suggestions.map(s => html`<button type="button" key=${`${s.libraryId}:${s.key}`} class="st-rp-decide" data-decide=${`${s.libraryId}:${s.key}`} data-kind="suggestion" data-library=${s.libraryId ?? ''}
-      onClick=${() => openLibrary(s.libraryId, { screen: 'overview', params: { section: 'suggestions' } })}>
-      <span class="st-rp-decide__kind st-rp-decide__kind--suggestion">${D.suggestion}</span>
-      <span class="st-rp-decide__lib"><${Mark} row=${rowOf(s.libraryId)} /><span>${name(s.libraryId) ?? ''}</span></span>
-      <b class="st-rp-decide__title">${suggestionSentence(s, name)}</b>
-      <span class="st-rp-decide__where">${fmt(D.whereLibrary, { name: name(s.libraryId) ?? '' })}<${Icon} name="chevron-right" /></span>
-    </button>`)}
+    <div class="st-stack">
+      ${cards.map(c => html`<${DecideCard} key=${c.id} id=${c.id} kind="proposal" libraryId=${c.libraryId}
+        eyebrow=${`${D.proposal} / ${c.libraryId ? name(c.libraryId) ?? '' : D.newLibrary}`} title=${cardTitle(c, name(c.libraryId))}
+        where=${D.whereChat} onGo=${() => navigate('chat', { card: c.id })} />`)}
+      ${suggestions.map(s => html`<${DecideCard} key=${`${s.libraryId}:${s.key}`} id=${`${s.libraryId}:${s.key}`} kind="suggestion" libraryId=${s.libraryId}
+        eyebrow=${`${D.suggestion} / ${name(s.libraryId) ?? ''}`} title=${suggestionSentence(s, name)}
+        where=${fmt(D.whereLibrary, { name: name(s.libraryId) ?? '' })} onGo=${() => openLibrary(s.libraryId)} />`)}
+    </div>
+    ${onLibrary ? html`<div class="panel-section st-rp-findings"><div class="section-label"><span>${D.thisLibrary}</span></div><${LibrarySuggestions} libraryId=${here} /></div>` : null}
   </div>`
 }
 
 // ---- 详情 ---------------------------------------------------------------------------------------------------------------
 
-/** 详情's frame for a screen that has something chosen: the grey head (where · the title), then what the screen gives. */
+/** 详情's frame for a screen that has something chosen: the head (where · the title), then what the screen gives. */
 export function DetailBlock({ where, title, part, children }) {
   return html`<div class="st-rp-detail" data-part=${part}>
     <${PanelSummary} part="detail-head" eyebrow=${fmt(T.detail.eyebrow, { where })} title=${title} />
@@ -169,61 +180,58 @@ export function DetailBlock({ where, title, part, children }) {
 
 function DetailPane({ detail }) {
   return html`<div class="st-rp-pane" data-pane="detail">
-    ${detail ?? html`<p class="st-t-small st-t-sub st-rp-none" data-part="detail-none">${T.detail.none}</p>`}
+    ${detail ?? html`<div class="panel-summary"><span class="eyebrow">${T.tabs.detail}</span><p class="st-rp-none" data-part="detail-none">${T.detail.none}</p></div>`}
   </div>`
 }
 
 // ---- 文件 ---------------------------------------------------------------------------------------------------------------
 
-function NoteLeaf({ note, onOpen, onMenu }) {
+function NoteLeaf({ note, topic, onOpen, onMenu }) {
   const more = useRef(null)
-  return html`<li class="st-rp-tree__leaf" data-tree-note=${note.id}>
-    <button type="button" class="st-rp-tree__row st-rp-tree__row--leaf" onClick=${() => onOpen(note.id)}
+  return html`<div class="st-rp-tree__leaf" data-tree-note=${note.id}>
+    <button type="button" class="file-row st-rp-tree__row" onClick=${() => onOpen(note.id)}
       onContextMenu=${e => { e.preventDefault(); onMenu(note, e.clientX, e.clientY, null) }}>
-      <${Icon} name="file" /><span class="st-rp-tree__text">${note.title}</span>
+      <span class="file-icon"><${TIcon} name="file" /></span><span class="file-text">${note.title}<small>${topic}</small></span>
     </button>
     <span class="st-act" data-action="note-more">
-      <button type="button" class="st-rp-tree__more" ref=${more} aria-label=${`${T.files.more}${SEP}${note.title}`} aria-haspopup="menu"
-        onClick=${() => { const r = more.current?.getBoundingClientRect(); onMenu(note, r ? r.left : 0, r ? r.bottom + 4 : 0, more.current) }}><${Icon} name="more" /></button>
+      <button type="button" class="icon-btn" ref=${more} aria-label=${`${T.files.more}${SEP}${note.title}`} aria-haspopup="menu"
+        onClick=${() => { const r = more.current?.getBoundingClientRect(); onMenu(note, r ? r.left : 0, r ? r.bottom + 4 : 0, more.current) }}><${TIcon} name="down" /></button>
     </span>
-  </li>`
+  </div>`
 }
 
-/** A row that folds what is under it: a chevron, an icon, its words and the line under them. */
-function FoldRow({ open, onToggle, icon, label, hint }) {
-  return html`<button type="button" class="st-rp-tree__row" aria-expanded=${String(open)} onClick=${onToggle}>
-    <span class=${`st-rp-tree__chev${open ? ' st-rp-tree__chev--open' : ''}`}><${Icon} name="chevron-down" /></span>
-    ${icon ? html`<span class="st-rp-tree__icon"><${Icon} name=${icon} size=${16} /></span>` : null}
-    <span class="st-rp-tree__text"><span>${label}</span>${hint ? html`<small>${hint}</small>` : null}</span>
+/** A heading that folds what is under it (the template's section-label as a button). */
+function FoldRow({ open, onToggle, label, hint }) {
+  return html`<button type="button" class="section-label st-rp-fold" aria-expanded=${String(open)} onClick=${onToggle}>
+    <span>${label}</span><small class="muted">${hint ?? ''} <${TIcon} name="down" /></small>
   </button>`
 }
 
 function TopicGroup({ group, first, onOpen, onMenu }) {
   const [open, setOpen] = useState(first)
   const label = fmt(T.files.topic, { topic: group.topic ?? T.files.untopiced, n: group.count })
-  return html`<li class="st-rp-tree__topic" data-tree-topic=${group.topic ?? ''} data-open=${String(open)}>
+  return html`<div class="st-rp-tree__topic" data-tree-topic=${group.topic ?? ''} data-open=${String(open)}>
     <${FoldRow} open=${open} onToggle=${() => setOpen(o => !o)} label=${label} />
-    ${open ? html`<ul class="st-rp-tree__list">${group.notes.map(n => html`<${NoteLeaf} key=${n.id} note=${n} onOpen=${onOpen} onMenu=${onMenu} />`)}</ul>` : null}
-  </li>`
+    ${open ? group.notes.map(n => html`<${NoteLeaf} key=${n.id} note=${n} topic=${group.topic ?? T.files.untopiced} onOpen=${onOpen} onMenu=${onMenu} />`) : null}
+  </div>`
 }
 
 function FilesPane() {
   const { appState, navigate, route } = useApp()
-  const { rowOf } = useNames()
   const F = T.files
   const current = appState?.data?.library ?? null
   const id = current?.libraryId ?? null
-  // a page of a library has one; 库架, 和主 Agent 聊, 设置 do not (contract L2)
+  // a page of a library has one; 库架, 主 Agent, 设置 do not (contract L2)
   const onLibrary = LIBRARY_ROUTES.includes(route?.screen) && id !== null
   const outline = useLoad(() => (onLibrary ? call('getLibraryOutline') : null), [onLibrary, id])
   useEvent('library-changed', () => { if (onLibrary) outline.reload() }, [onLibrary, id])
   useEvent('inbox-changed', p => { if (onLibrary && (!p?.libraryId || p.libraryId === id)) outline.reload() }, [onLibrary, id])
   const [notesOpen, setNotesOpen] = useState(true)
-  // 程序记录（不用动）: folded until you open it (contract L2)
+  // 程序记录（无需修改）: folded until you open it (contract L2)
   const [recordsOpen, setRecordsOpen] = useState(false)
   const [menu, setMenu] = useState(null)
   const [error, setError] = useState(null)
-  if (!onLibrary) return html`<div class="st-rp-pane" data-pane="files"><p class="st-t-small st-t-sub st-rp-none" data-part="no-library">${F.noLibrary}</p></div>`
+  if (!onLibrary) return html`<div class="st-rp-pane" data-pane="files"><div class="panel-summary"><span class="eyebrow">${F.eyebrow}</span><p class="st-rp-none" data-part="no-library">${F.noLibrary}</p></div></div>`
   const o = outline.data
   const doCall = async (name, ...args) => {
     setError(null)
@@ -233,42 +241,41 @@ function FilesPane() {
   const onMenu = (note, x, y, back) => setMenu({ note, x, y, back })
   const groups = o?.notes?.groups ?? []
   return html`<div class="st-rp-pane" data-pane="files">
-    <section class="st-rp-summary" data-part="files-head">
-      <div class="st-rp-eyebrow">${F.eyebrow}</div>
-      <h2 class="st-rp-summary__title"><${Mark} row=${rowOf(id)} /><span>${o?.name ?? current?.name ?? ''}</span></h2>
+    <${PanelSummary} part="files-head" eyebrow=${F.eyebrow} title=${o?.name ?? current?.name ?? ''}>
       <p>${F.lead}</p>
-      <span class="st-act" data-action="reveal-library"><button type="button" class="st-button st-rp-small-button" onClick=${() => doCall('revealLibrary')}><${Icon} name="folder" />${F.reveal}</button></span>
-    </section>
-    ${error ? html`<p class="st-t-small st-t-wait" role="alert">${error}</p>` : null}
-    ${outline.status === 'error' && !o ? html`<p class="st-t-small st-t-wait" role="alert">${F.loadFailed}</p>` : null}
-    ${o ? html`<ul class="st-rp-tree" aria-label=${F.eyebrow}>
-      <li class="st-rp-tree__node" data-tree="notes" data-open=${String(notesOpen)}>
-        <${FoldRow} open=${notesOpen} onToggle=${() => setNotesOpen(v => !v)} icon="book" label=${fmt(F.notes, { n: o.notes.count })} hint=${F.notesHint} />
-        ${notesOpen ? (groups.length ? html`<ul class="st-rp-tree__list">${groups.map((g, i) => html`<${TopicGroup} key=${g.topic ?? ''} group=${g} first=${i === 0} onOpen=${openNote} onMenu=${onMenu} />`)}</ul>`
-          : html`<p class="st-t-small st-t-muted st-rp-tree__empty">${F.notesNone}</p>`) : null}
-      </li>
-      <li class="st-rp-tree__node" data-tree="inbox">
-        <button type="button" class="st-rp-tree__row st-rp-tree__row--go" onClick=${() => navigate('inbox')}>
-          <span class="st-rp-tree__icon"><${Icon} name="clock" size=${16} /></span>
-          <span class="st-rp-tree__text"><span>${fmt(F.inbox, { n: o.inbox.count })}</span><small>${F.inboxHint}</small></span>
-          <${Icon} name="chevron-right" />
-        </button>
-      </li>
-      <li class="st-rp-tree__node" data-tree="requirements">
-        <button type="button" class="st-rp-tree__row st-rp-tree__row--go" onClick=${() => navigate('sources')}>
-          <span class="st-rp-tree__icon"><${Icon} name="sheet" size=${16} /></span>
-          <span class="st-rp-tree__text"><span>${F.requirements}</span><small>${fmt(F.requirementsHint, { sources: o.requirements?.sources ?? 0, topics: o.requirements?.topics ?? 0 })}</small></span>
-          <${Icon} name="chevron-right" />
-        </button>
-      </li>
-      <li class="st-rp-tree__node" data-tree="records" data-open=${String(recordsOpen)}>
-        <${FoldRow} open=${recordsOpen} onToggle=${() => setRecordsOpen(v => !v)} icon="folder" label=${F.records} hint=${F.recordsHint} />
-        ${recordsOpen ? html`<div class="st-rp-tree__records">
-          <p>${F.recordsText}</p>
-          <span class="st-act" data-action="reveal-records"><button type="button" class="st-button st-rp-small-button" onClick=${() => doCall('revealProgramRecords')}><${Icon} name="folder" />${F.reveal}</button></span>
-        </div>` : null}
-      </li>
-    </ul>` : null}
+    <//>
+    ${error ? html`<p class="progress-alert" role="alert">${error}</p>` : null}
+    ${outline.status === 'error' && !o ? html`<p class="progress-alert" role="alert">${F.loadFailed}</p>` : null}
+    ${o ? html`<div class="st-rp-tree" aria-label=${F.eyebrow}>
+      <div class="st-rp-tree__node" data-tree="notes" data-open=${String(notesOpen)}>
+        <${FoldRow} open=${notesOpen} onToggle=${() => setNotesOpen(v => !v)} label=${fmt(F.notes, { n: o.notes.count })} hint=${F.notesHint} />
+        ${notesOpen ? (groups.length ? groups.map((g, i) => html`<${TopicGroup} key=${g.topic ?? ''} group=${g} first=${i === 0} onOpen=${openNote} onMenu=${onMenu} />`)
+          : html`<p class="limit-note">${F.notesNone}</p>`) : null}
+      </div>
+      <div class="panel-section">
+        <div class="section-label"><span>${F.other}</span></div>
+        <div class="st-rp-tree__node" data-tree="inbox">
+          <button type="button" class="file-row" onClick=${() => navigate('inbox')}>
+            <span class="file-icon"><${TIcon} name="clock" /></span><span class="file-text">${fmt(F.inbox, { n: o.inbox.count })}<small>${F.inboxHint}</small></span><${TIcon} name="arrow" />
+          </button>
+        </div>
+        <div class="st-rp-tree__node" data-tree="requirements">
+          <button type="button" class="file-row" onClick=${() => navigate('sources')}>
+            <span class="file-icon"><${TIcon} name="settings" /></span><span class="file-text">${F.requirements}<small>${fmt(F.requirementsHint, { sources: o.requirements?.sources ?? 0, topics: o.requirements?.topics ?? 0 })}</small></span><${TIcon} name="arrow" />
+          </button>
+        </div>
+        <div class="st-rp-tree__node" data-tree="records" data-open=${String(recordsOpen)}>
+          <button type="button" class="file-row" aria-expanded=${String(recordsOpen)} onClick=${() => setRecordsOpen(v => !v)}>
+            <span class="file-icon"><${TIcon} name="book" /></span><span class="file-text">${F.records}<small>${F.recordsHint}</small></span><${TIcon} name="down" />
+          </button>
+          ${recordsOpen ? html`<div class="st-rp-tree__records">
+            <p class="limit-note">${F.recordsText}</p>
+            <span class="st-act" data-action="reveal-records"><button type="button" class="btn" onClick=${() => doCall('revealProgramRecords')}><${TIcon} name="external" /> ${F.reveal}</button></span>
+          </div>` : null}
+        </div>
+      </div>
+      <span class="st-act st-rp-reveal" data-action="reveal-library"><button type="button" class="btn" onClick=${() => doCall('revealLibrary')}><${TIcon} name="external" /> ${F.reveal}</button></span>
+    </div>` : null}
     ${menu ? html`<${Menu} label=${F.moreLabel} x=${menu.x} y=${menu.y} items=${[{ id: 'obsidian', label: F.obsidian }, { id: 'folder', label: F.folder }]}
       onSelect=${choice => { const n = menu.note; setMenu(null); doCall(choice === 'obsidian' ? 'openInObsidian' : 'showNoteInFolder', n.id) }}
       onClose=${({ restoreFocus }) => { const b = menu.back; setMenu(null); if (restoreFocus) b?.focus() }} />` : null}
@@ -284,12 +291,13 @@ export function RightPanel({ detail = null }) {
   const open = panel?.open !== false
   const tab = TAB_IDS.includes(panel?.tab) ? panel.tab : 'detail'
   const n = waitingItems?.count ?? 0
-  const badge = id => (id === 'decide' && n > 0 ? html`<span class="st-rp-badge" data-panel-badge=${id} aria-label=${fmt(T.decideBadge, { n })}>${n}</span>` : null)
+  const icons = hasTabIcons()
+  const badge = id => (id === 'decide' && n > 0 ? html` <small class="st-count" data-panel-badge=${id} aria-label=${fmt(T.decideBadge, { n })}>${n}</small>` : null)
   if (!open) {
-    return html`<aside class="st-rpanel st-rpanel--folded" data-part="right-panel" data-open="false" data-tab=${tab} aria-label=${T.label}>
-      <span class="st-act" data-action="unfold"><button type="button" class="st-rp-icon-button" aria-label=${T.unfold} title=${T.unfold} onClick=${() => setPanel({ open: true })}><${Icon} name="panel" size=${16} /></button></span>
-      ${PANEL_TABS.map(([id, icon]) => html`<button type="button" key=${id} class="st-rp-icon-button st-rp-rail" data-rail-tab=${id} aria-label=${T.tabs[id]} title=${T.tabs[id]}
-        onClick=${() => setPanel({ open: true, tab: id })}><${Icon} name=${icon} size=${16} />${badge(id)}</button>`)}
+    return html`<aside class="context-panel st-rail" data-part="right-panel" data-open="false" data-tab=${tab} aria-label=${T.label}>
+      <span class="st-act" data-action="unfold"><button type="button" class="icon-btn" aria-label=${T.unfold} title=${T.unfold} onClick=${() => setPanel({ open: true })}><${TIcon} name="back" /></button></span>
+      ${PANEL_TABS.map(([id, icon]) => html`<button type="button" key=${id} class=${`icon-btn st-rail__tab${id === tab ? ' active' : ''}`} data-rail-tab=${id} aria-label=${T.tabs[id]} title=${T.tabs[id]}
+        onClick=${() => setPanel({ open: true, tab: id })}><${TIcon} name=${icon} />${badge(id)}</button>`)}
     </aside>`
   }
   let pane
@@ -297,16 +305,14 @@ export function RightPanel({ detail = null }) {
   else if (tab === 'decide') pane = html`<${DecidePane} />`
   else if (tab === 'files') pane = html`<${FilesPane} />`
   else pane = html`<${DetailPane} detail=${detail} />`
-  return html`<aside class="st-rpanel" data-part="right-panel" data-open="true" data-tab=${tab} aria-label=${T.label}>
-    <div class="st-rp-head">
-      <nav class="st-tabs st-rp-tabs" aria-label=${T.tabsLabel}>
-        ${PANEL_TABS.map(([id, icon]) => html`<button type="button" key=${id} class="st-tabs__tab st-rp-tab" data-panel-tab=${id}
-          aria-current=${id === tab ? 'true' : undefined} onClick=${() => { if (id !== tab) setPanel({ tab: id }) }}>
-          <${Icon} name=${icon} /><span>${T.tabs[id]}</span>${badge(id)}
-        </button>`)}
-      </nav>
-      <span class="st-act" data-action="fold"><button type="button" class="st-rp-icon-button" aria-label=${T.fold} title=${T.fold} onClick=${() => setPanel({ open: false })}><${Icon} name="panel" size=${16} /></button></span>
-    </div>
-    <div class="st-rp-body">${pane}</div>
+  return html`<aside class="context-panel" data-part="right-panel" data-open="true" data-tab=${tab} aria-label=${T.label}>
+    <nav class="panel-tabs st-rp-tabs" role="tablist" aria-label=${T.tabsLabel}>
+      ${PANEL_TABS.map(([id, icon]) => html`<button type="button" key=${id} role="tab" class=${`tab${id === tab ? ' active' : ''}`} data-panel-tab=${id}
+        aria-selected=${String(id === tab)} aria-current=${id === tab ? 'true' : undefined} onClick=${() => { if (id !== tab) setPanel({ tab: id }) }}>
+        ${icons ? html`<${TIcon} name=${icon} />` : null}${T.tabs[id]}${badge(id)}
+      </button>`)}
+      <span class="st-act st-rp-fold-button" data-action="fold"><button type="button" class="icon-btn" aria-label=${T.fold} title=${T.fold} onClick=${() => setPanel({ open: false })}><${TIcon} name="arrow" /></button></span>
+    </nav>
+    <div class="panel-scroll" id="panel" role="tabpanel">${pane}</div>
   </aside>`
 }

@@ -94,7 +94,7 @@ test('「打开原文」 on an item of 抓到的 opens the reading window in 阅
   assert.equal(got.scripts, 0)
   // v2 package K2: the default theme is 精密国际主义 (was river); the reading page cannot load the bundled font (a data: page that
   // loads nothing), so styles/reader.css names the system's Chinese UI face — the same family this check always looked for
-  assert.equal(got.theme, 'precision', 'the app\'s theme (the default set)')
+  assert.equal(got.theme, 'research', 'the app\'s theme (the default set; redesign R1: research, was precision)')
   assert.match(got.font, /Microsoft YaHei UI/)
   assert.match(got.csp, /default-src 'none'/)
   assert.equal(site.hits('/script-ran'), 0, 'the page\'s script never ran: its request never arrived')

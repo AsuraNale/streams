@@ -88,7 +88,7 @@ export const FIRST_RUN = Object.freeze({
     failed: 'Could not start.',
     skip: 'Skip it for now',
     goInbox: 'Go to the inbox',
-    goToday: 'Go to the overview',
+    goToday: 'Go to the Inbox',
   }),
 
   schedule: Object.freeze({
@@ -101,7 +101,7 @@ export const FIRST_RUN = Object.freeze({
     close: 'Closing the window puts Streams in the tray, where it runs on time; the tray menu can quit it.',
     later: 'The time and the switch can be changed later on the library\'s Sources & Brief tab.',
     finishInbox: 'Done, go to the inbox',
-    finishToday: 'Done, go to the overview',
+    finishToday: 'Done, go to the Inbox',
     failed: 'The schedule could not be saved.',
   }),
 })

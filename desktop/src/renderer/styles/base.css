@@ -1,49 +1,25 @@
-/* Base and text styles. v2 package K2: the body weight, the digits and the selection follow the theme (the K1 draft's
-   app.css); the text styles take the theme's display weight and tracking. The design draft keeps --st-fs-title (22px) and
-   --st-fs-heading (26px) for the page's own title; a card's title and a part's heading are smaller there (16–19px), so the two
-   text classes below say their own size. */
+/* Base styles of the app's own (redesign R1): the template's sheets (src/renderer/template/, loaded per theme before this
+   file) give the page its font, colours and body; here only what the app's frame needs, and the text styles the screens
+   not yet rebuilt on the template still use (docs/desktop.md §五). */
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body { margin: 0; height: 100%; }
-
-body {
-  background: var(--st-page);
-  color: var(--st-text);
-  font-family: var(--st-font);
-  font-size: var(--st-fs-body);
-  font-weight: var(--st-weight-body);
-  line-height: var(--st-lh);
-  font-variant-numeric: lining-nums tabular-nums;
-  overflow: hidden;
-}
+body { overflow: hidden; }
 
 #root { height: 100%; }
 
 h1, h2, h3, h4, p, figure, blockquote { margin: 0; }
 
-button, input, textarea, select { font: inherit; color: inherit; }
-
-b, strong { font-weight: var(--st-weight-display); }
-
-a { color: var(--st-accent); }
-a:hover { color: var(--st-accent-hover); }
-
-:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
-::selection { background: var(--st-selected); color: var(--st-text); }
-
-/* slim scrollbars, : a light grey thumb, no track */
-* { scrollbar-width: thin; scrollbar-color: var(--st-control-border) transparent; }
-
 /* text styles (docs/desktop.md §五) */
-.st-t-heading { font-size: 19px; font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); line-height: 1.4; }
-.st-t-title { font-size: 16px; font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); }
-.st-t-body { font-size: var(--st-fs-body); }
-.st-t-small { font-size: var(--st-fs-small); }
-.st-t-tiny { font-size: var(--st-fs-tiny); }
-.st-t-strong { font-weight: var(--st-weight-display); }
-.st-t-ink { color: var(--st-text); }
-.st-t-sub { color: var(--st-text-2); }
-.st-t-muted { color: var(--st-text-3); }
-.st-t-wait { color: var(--st-wait); }
-.st-t-done { color: var(--st-done); }
+.st-t-heading { font-size: 19px; font-weight: 650; line-height: 1.4; }
+.st-t-title { font-size: 16px; font-weight: 650; }
+.st-t-body { font-size: 13px; }
+.st-t-small { font-size: 12px; }
+.st-t-tiny { font-size: 11px; }
+.st-t-strong { font-weight: 650; }
+.st-t-ink { color: var(--ink11); }
+.st-t-sub { color: var(--sub11); }
+.st-t-muted { color: var(--sub11); }
+.st-t-wait { color: var(--ink11); }
+.st-t-done { color: var(--accent11); }
 .st-t-num { font-variant-numeric: tabular-nums; }

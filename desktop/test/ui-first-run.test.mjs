@@ -1,3 +1,4 @@
+// redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // 首次打开 (v2 package I, contract I1; screens/first-run.js, screens/chat.js's guide, screens/new-library.js) on the running app.
 // v2 package I rewrote this file: v1.0's 首次设置 was five steps in one wizard, shown while no library was open; 首次打开 is
 // shown while the app knows no library at all and is two steps — 连接方式, then 和主 Agent 聊 with a guide — and v1.0's other
@@ -212,7 +213,7 @@ test('the connection skipped → setupConnection skipped; the guide says 还没�
 // the reverse: a library registered, none current
 const c = worldSession({
   kind: 'empty',
-  waitFor: 'overview',
+  waitFor: 'inbox',
   prepare: world => {
     const r = core.withLibrary(core.emptyRegistry(), world.library, { name: 'kept-but-not-current' })
     core.writeRegistry(join(world.appData, 'libraries.json'), r.registry)

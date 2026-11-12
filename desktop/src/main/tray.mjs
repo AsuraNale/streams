@@ -1,6 +1,8 @@
 /**
  * The tray icon (plan A2; docs/desktop.md §4.3): the app's icon in the system tray while it runs, its hint 「流息 · n 条待看」
- * (updated with every `inbox-changed`), its menu 「打开流息」「现在跑一轮」「退出」; a click on the icon opens the window too.
+ * (updated with every `inbox-changed`), its menu 「打开流息」「立即运行」「退出」; a click on the icon opens the window too.
+ * Redesign R1 (N06): 「立即运行」 follows the head button's rule — the current library at once, or, while another library runs or
+ * waits, at the end of the one queue (main.mjs: scheduler.startOne → startCurrent); never a dialog.
  * The words: main/texts/app.js and main/texts-en/app.js `tray`, in the language the app runs in when the menu is made.
  *
  * Electron is given (Tray, Menu), so this runs in plain Node under test. In a test run of the app (hidden windows) no icon
@@ -23,7 +25,7 @@ const fmt = (template, values) => String(template).replace(/\{(\w+)\}/g, (whole,
  * @param {(line: string) => void} [o.log]
  * @param {() => 'zh-CN'|'en'} [o.locale]
  * @param {() => void} o.onOpen - 「打开流息」, a click on the icon
- * @param {() => void} o.onRunNow - 「现在跑一轮」
+ * @param {() => void} o.onRunNow - 「立即运行」
  * @param {() => void} o.onQuit - 「退出」
  */
 export function createTray({ Tray, Menu, icon, hidden = false, log = () => {}, locale = () => 'zh-CN', onOpen, onRunNow, onQuit }) {

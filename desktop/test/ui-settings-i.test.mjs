@@ -56,12 +56,14 @@ function hashTree(dir, base = dir, out = {}) {
 
 test('five groups in the design\'s order, each with its parts; 主 Agent 用这条连接的主模型; nothing of the current library', async () => {
   await until(() => document.querySelector('[data-group="library"] [data-part="library-root"] [data-root-path]') !== null)
-  const groups = await s.page.evaluate(() => [...document.querySelectorAll('main[data-screen="settings"] [data-group]')].map(g => [g.dataset.group, g.querySelector('.settings__group-name').textContent, [...g.querySelectorAll(':scope .settings__part')].map(p => p.dataset.part)]))
+  const groups = await s.page.evaluate(() => [...document.querySelectorAll('main[data-screen="settings"] [data-group]')].map(g => [g.dataset.group, g.querySelector('.settings__group-name').textContent, [...g.querySelectorAll(':scope > .settings__group-parts > [data-part]')].map(p => p.dataset.part)]))
   assert.deepEqual(groups, [
     ['connection', SETTINGS.groups.connection, ['connections']],
     ['agent', SETTINGS.groups.agent, ['agent']],
     ['library', SETTINGS.groups.library, ['library-root', 'schedules', 'usage']],
-    // v2 package K2: 外观与语言 has 「外观」 (light · dark · system) between the theme and the language
+    // v2 package K2: 外观与语言 has 「外观」 (light · dark · system) between the theme and the language. Redesign R1: the theme and
+    // the appearance are the template's parts (filters, a field) — no .settings__part of the old layout — so a group's parts
+    // are read as its [data-part] children (was :scope .settings__part)
     ['look', SETTINGS.groups.look, ['theme', 'appearance', 'language']],
     ['software', SETTINGS.groups.software, ['about', 'advanced']],
   ])

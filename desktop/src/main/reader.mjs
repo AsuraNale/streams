@@ -32,7 +32,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { themeOf, windowColour } from './theme.mjs'
-import { isScheme } from '../shared/themes.mjs'
+import { THEME_TEMPLATE, isScheme } from '../shared/themes.mjs'
 import { APP } from './texts/app.js'
 import { APP as APP_EN } from './texts-en/app.js'
 
@@ -193,14 +193,16 @@ export const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ESCAPES[
 export const READER_PAGE_CSP = "default-src 'none'; img-src http: https: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; frame-ancestors 'none'"
 
 // v2 package K2: `look` is { theme, scheme } (main.mjs currentLook): <html> gets data-theme and data-appearance (light | dark),
-// both checked, so the reading window is in the same set as the app's
+// both checked, so the reading window is in the same set as the app's. Redesign R1: <body> also gets the theme's template
+// classes and data-appearance, so the template's round 11 colours (readerCss) are the theme's (its layout is R3's)
 function page({ words, look, css, title, bodyClass, lang, dir, body }) {
   const d = dir === 'rtl' ? ' dir="rtl"' : ''
   const scheme = isScheme(look?.scheme) ? look.scheme : 'light'
+  const t = THEME_TEMPLATE[themeOf(look?.theme)]
   return `<!doctype html><html lang="${escapeHtml(lang || words.lang)}"${d} data-theme="${themeOf(look?.theme)}" data-appearance="${scheme}"><head><meta charset="utf-8">`
     + `<meta http-equiv="Content-Security-Policy" content="${READER_PAGE_CSP}">`
     + `<meta name="referrer" content="no-referrer"><title>${escapeHtml(title)}</title><style>${css}</style></head>`
-    + `<body class="${bodyClass}">${body}</body></html>`
+    + `<body class="${t.bodyClass} ${bodyClass}" data-appearance="${scheme}">${body}</body></html>`
 }
 
 /**
@@ -334,10 +336,17 @@ export function readabilitySource(desktopDir) {
   return readFileSync(join(desktopDir, 'node_modules', '@mozilla', 'readability', 'Readability.js'), 'utf8')
 }
 
-/** What the reading pages are styled with: the app's tokens and the reader's own file. */
+/**
+ * What the reading pages are styled with (redesign R1): the template's round 11 colours (workbench.css, and round 12's
+ * line.css for 单线黑白 — unchanged files of src/renderer/template/), the interim names the reader's file uses
+ * (styles/interim.css) and the reader's own file. Until R3 rebuilds the reading window on the template, only its colours
+ * follow the theme.
+ */
 export function readerCss(rendererDir) {
   const styles = join(rendererDir, 'styles')
-  return `${readFileSync(join(styles, 'tokens.css'), 'utf8')}\n${readFileSync(join(styles, 'reader.css'), 'utf8')}`
+  const tpl = join(rendererDir, 'template', 'shared')
+  return [join(tpl, 'round11', 'workbench.css'), join(tpl, 'round12', 'line.css'), join(styles, 'interim.css'), join(styles, 'reader.css')]
+    .map(f => readFileSync(f, 'utf8')).join('\n')
 }
 
 const withTimeout = (promise, ms, what) => {

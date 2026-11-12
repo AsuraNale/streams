@@ -106,10 +106,10 @@ frame-ancestors 'none'
 <!-- bridge:begin -->
 | 方法 | 参数 | 返回的 `data` | 谁用 |
 |---|---|---|---|
-| `getAppState()` | 无 | `{ library: { libraryId, path, name } \| null, recentLibraries: [{ path, name }], showDeveloperInfo, language: { setting, resolved }, version, devBuild, theme, libraryCount, activeConnection }`；`library` 是当前库（侧栏显示 `name`，没有就是「未打开库」；v2 包 A 起带登记 id `libraryId`，`name` 是登记表的名字，默认文件夹名）；`recentLibraries` 是登记表里的库（v2 包 A 起不再读 `settings.json`）；`version` 是 `installer/setup/release.json` 的版本，`devBuild` 为真时是开发版；`theme` 是 `river` · `paper` · `night` 之一（§五「主题」）——**v2 包 K2** 起是 `precision` · `glass` · `research` 之一，另有 `appearance`（`light` · `dark` · `system`，设置）、`scheme`（现在生效的 `light` · `dark`：跟随系统时是 Windows 现在用的）、`defaultTheme`（`precision`，设置页给那张卡标「默认」）；**v2 包 I**：`libraryCount` = 应用知道的库有几个（登记表的，加上开发钩子那个临时库），0 → 首次打开；`activeConnection` = `settings.json` 里选定的连接（`claude-code` · `codex` · `api` · `null`，只读设置、不检测），和主 Agent 聊的引导据此说「还没有连接」；**v2 包 L**：`panel` = `{ open, tab }`，右栏展开与否和当前标签（`settings.json`，§4.12） | `app.js`（每一屏经 `useApp().appState`）、设置页 |
+| `getAppState()` | 无 | `{ library: { libraryId, path, name } \| null, recentLibraries: [{ path, name }], showDeveloperInfo, language: { setting, resolved }, version, devBuild, theme, libraryCount, activeConnection }`；`library` 是当前库（侧栏显示 `name`，没有就是「未打开库」；v2 包 A 起带登记 id `libraryId`，`name` 是登记表的名字，默认文件夹名）；`recentLibraries` 是登记表里的库（v2 包 A 起不再读 `settings.json`）；`version` 是 `installer/setup/release.json` 的版本，`devBuild` 为真时是开发版；`theme` 是 `river` · `paper` · `night` 之一（§五「主题」）——**v2 包 K2** 起是 `precision` · `glass` · `research` 之一，另有 `appearance`（`light` · `dark` · `system`，设置）、`scheme`（现在生效的 `light` · `dark`：跟随系统时是 Windows 现在用的）、`defaultTheme`（`precision`，设置页给那张卡标「默认」；**重设计 R1** 起 `theme` 是 `precision` · `glass` · `research` · `monoline` 之一，`defaultTheme` 是 `research`，§4.13）；**v2 包 I**：`libraryCount` = 应用知道的库有几个（登记表的，加上开发钩子那个临时库），0 → 首次打开；`activeConnection` = `settings.json` 里选定的连接（`claude-code` · `codex` · `api` · `null`，只读设置、不检测），和主 Agent 聊的引导据此说「还没有连接」；**v2 包 L**：`panel` = `{ open, tab }`，右栏展开与否和当前标签（`settings.json`，§4.12） | `app.js`（每一屏经 `useApp().appState`）、设置页 |
 | `onEvent(topic, callback)` | 下面事件表里的一个主题；一个函数 | 不是信封：返回取消订阅的函数；主题不在表里、`callback` 不是函数就抛错 | `app.js` |
 | `setLanguage(language)` | `'auto'` · `'zh-CN'` · `'en'` | `{ setting, resolved, changed }`；写进设置并重新决定界面语言；`changed` 为真时页面自己重新载入（§六） | 设置页「语言」 |
-| `setTheme(id)` | **v2 包 K2**：`'precision'` · `'glass'` · `'research'`（别的 → `bad_arguments`，v1.0 的三个 id 也是） | `{ theme, appearance, scheme }`；写进 `settings.json` 的 `theme`，主进程跟着改每个窗口的底色（那一组的 `--st-page`）和阅读窗口；发 `settings-changed`。页面自己马上把 `<html data-theme>`、`data-appearance` 换掉（§五「主题」） | 设置页「主题」三张卡 |
+| `setTheme(id)` | **重设计 R1**：`'precision'` · `'glass'` · `'research'` · `'monoline'`（v2 包 K2 是前三个）（别的 → `bad_arguments`，v1.0 的三个 id 也是） | `{ theme, appearance, scheme }`；写进 `settings.json` 的 `theme`，主进程跟着改每个窗口的底色（那一组的 `--st-page`）和阅读窗口；发 `settings-changed`。页面自己马上把 `<html data-theme>`、`data-appearance` 换掉（§五「主题」） | 设置页「主题」三张卡 |
 | `setAppearance(appearance)` | **v2 包 K2**：`'light'` · `'dark'` · `'system'`（别的 → `bad_arguments`） | `{ theme, appearance, scheme }`；写进 `settings.json` 的 `appearance`，主进程改 `nativeTheme.themeSource`（同名；`system` 时 Electron 跟着 Windows）、窗口底色与阅读窗口；发 `settings-changed`；`scheme` 是现在生效的浅 / 深 | 设置页「外观」 |
 | `setShowDeveloperInfo(on)` | 布尔 | `{ showDeveloperInfo }` | 设置页「显示开发者信息」 |
 | `setPanel(patch)` | **v2 包 L**：`{ open?: boolean, tab?: 'progress' \| 'decide' \| 'detail' \| 'files' }`，至少一个字段（别的 → `bad_arguments`） | `{ open, tab }`：写进 `settings.json` 的 `panel`（只改给的字段），下次启动右栏照旧；不发事件（页面自己用这个回答） | 右栏的收起 / 展开按钮、四个标签（§4.12） |
@@ -142,10 +142,10 @@ frame-ancestors 'none'
 | `applyStarterPack(packId, edits)` | `packId` 在核心 `STARTER_PACKS` 里或 `'blank'`；`edits = { removeSources: [name…], addRss: [{ name, url }] }` | 写 `streams.json` 的 `topics` / `sources`，并对每个来源试抓一次（不写盘）：`{ topics: [name…], sources: [{ name, kind, url, status, hint, count, message }] }` | S1 第 3 步 |
 | `getStarterPacks()` | 无 | 核心 `STARTER_PACKS` 的 `[{ id, name, topics, sources: [{name, kind, url, query?, topic}] }]`（名字按界面语言；arXiv / HN 来源 `url` 为 null、带 `query`）；不需要打开库 | S1 第 3 步 |
 | `getHome()` | 无 | 见 §4.1「今日」 | S2 |
-| `estimateRound()` | 无 | 核心 `estimateRound` + `{ connection: { kind, model, verifyModel } }` | S12 |
+| `estimateRound()` | 无 | 核心 `estimateRound` + `{ connection: { kind, model, verifyModel } }` | 库页头按钮旁的「预计 a–b 次模型调用」（重设计 R1；S12 的跑一轮对话框已删） |
 | `setRoundCap(cap)` | 正整数 | `{ cap }`；写 `streams.json` 的 `pipeline.cap` | S12「改上限」、设置「每轮上限」 |
-| `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；走全应用的队列（v2 包 A，§4.4）。**v2 包 L**：队列忙（别的库在跑或在排）时**不再回 `bad_arguments`**，而是把当前库排到队尾：`{ started: false, queued: true, position, runningLibraryId }`（`position` 1 = 在跑的那个，2 = 第一个在排的…）；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排（§4.12）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | S12「开始」、S13「重试打分」 |
-| `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 概览（v1.0 的「今日」）进度条旁 |
+| `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；走全应用的队列（v2 包 A，§4.4）。**v2 包 L**：队列忙（别的库在跑或在排）时**不再回 `bad_arguments`**，而是把当前库排到队尾：`{ started: false, queued: true, position, runningLibraryId }`（`position` 1 = 在跑的那个，2 = 第一个在排的…）；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排（§4.12）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | 库页头的「立即运行」（重设计 R1：直接调，不弹对话框，忙时排到队尾，§4.13）、本次运行未开始卡的「重试」、新建库的首轮 |
+| `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 库页头的「运行中 · 停止」（重设计 R1；原概览进度条旁）、右栏进度里「当前库 · 上次运行」的停止 |
 | `getRoundState()` | 无 | `{ running, roundId, libraryId, progress, last: runRound 的返回 \| null, lastProblems }`（`libraryId`：那一轮是哪个库的，v2 包 A；全应用同一时间只有一轮） | S2 |
 | `getInbox()` | 无 | `{ items: 核心 listInbox(), recentDismissReasons: [{ts, reason, title}] }` | S3 |
 | `keepItem(url)` | url 必须在 inbox 里 | `{ id, file }`（`file` = `notes/` 里的文件名）；发 `inbox-changed`、`library-changed`（索引重建了） | S3「收藏」 |
@@ -567,6 +567,36 @@ frame-ancestors 'none'
 
 **测试**：`test/services-queue.test.mjs`（排到队尾、已在排不重复、托盘与页面同答、维护者 的原场景——在旧行为下是 `bad_arguments`，红；`getQueue` 与 `queue-changed`）、`tests/acceptance/v2-draft` 的 N4（第 4 段改成「忙时排上、不叠加」）、`test/settings.test.mjs`（`panel` 字段）、`test/ui-panel.test.mjs`（真窗口：三处排队说法、四个标签、收起与标签记住、等你决定与左栏同数、详情随四个主区变、文件树与笔记头一致且程序记录默认折叠、资料库两栏；世界见 `test/support/queue-world.mjs`：本机假源把补跑的那一轮卡在抓取里）。变异（`npm run mutants -- l-refuse l-panel-not-saved l-records-open`）：改回拒绝、收起状态不写盘、程序记录默认展开，各自变红。截图：`node scripts/shots-l.mjs` → `docs/shots/2026-11-10-l/`。
 
+### 4.13 §四补：重设计 R1——模板主题、外壳、立即运行与排队（11-11）
+
+<!-- redesign R1: 维护者 11-11「可以开始重新施工了」；契约 docs/checks/2026-11-11-r1/contract.md；设计依据 docs/design/redesign/source/（赞妮的设计目录原样副本，来源与 sha256 见 docs/design/redesign/来源.md） -->
+
+本节取代 §五「主题」（K2 的三套 token）、§4.12 里「概览」「跑一轮对话框」「已排上」的说法，以及 §五「界面结构」里左栏、库页头、五个标签的写法；其余照旧。
+
+**主题直接用模板**（维护者 11-11，04 第 19–21 题）：
+- 主题四选一：`precision` 精密国际主义 · `glass` 澄明玻璃 · `research` 研究对话（**默认**）· `monoline` 单线黑白；外观 `system`（默认）· `light` · `dark`。`src/shared/themes.mjs THEME_TEMPLATE` 写每套加载哪些样式表（按顺序）、`<body>` 的 class 与 `data-theme`，与设计目录 `07-模板版/templates/<主题>/index.html` 一致（`test/theme.test.mjs` 逐套读那四个文件比对）。深色是模板自带的 `<body data-appearance="dark">`。
+- 模板文件**原样**放在 `src/renderer/template/`（23 个：四套用到的样式表、`streams/streams.css`、五个图标数据 `edition.js`、`round12/brand/streams.svg`），每个文件的 sha256 与设计目录相同，清单 `template/manifest.json`（`node scripts/template-manifest.mjs` 生成，逐字节核对后才写）。唯一的不同是一个文件夹名：设计的 `templates/精密国际主义-精修/` 在应用里叫 `templates/precision-detail/`（应用代码里不写中文路径），里面两个文件不变。设计里的 `streams/app.js`（演示用的渲染脚本）、`round11/interactions.js`（给演示条加「深色」按钮、把深色记在 localStorage）、`round12/brand.js`（演示条的产品切换）**不进应用**：演示条「视觉 / 画面 / 下一个画面 / 深色」不出现。
+- 模板的 `design.css` 要 `../fonts/NotoSansSC-VF.ttf`（即 `template/shared/fonts/…`）：`app://` 用 `fonts/NotoSansSC-VF.ttf` 回答这一个路径（`main/protocol.mjs FILE_ALIASES`，同一份字节），17.8 MB 的字体不放两份。K2 自己的 `styles/fonts.css` 删了（模板声明的是 `Yunzhi Noto`，同一个文件）。
+- **CSP 照旧**（只允许 `app://` 自身）：模板的样式表与脚本都从 `app://ui/template/…` 读；模板里没有外部网络资源——字体只有 `design.css` 的 `url('../fonts/NotoSansSC-VF.ttf')`（本地，见上）与数字用的 `local('Cascadia Mono')` 等系统字体，图只有 `round12/line.css` 的 `url(brand/streams.svg)`（本地，随模板放进来；它的 `yunzhi.svg` 只在 `data-product` 不是 `streams` 时用到，应用始终是 `streams`，不带）。`index.html` 的 CSP 没改一个字。
+- **首帧**：`main/theme.mjs withTheme` 在送出 `index.html` 时把那套的样式表插到 `<!--theme-sheets-->` 处，`<body>` 写上 class、`data-theme`（如 `research11`）、`data-appearance`、`data-product="streams"`，`<html>` 照旧写 `data-theme` / `data-appearance`（应用自己的钩子）；窗口用 `THEME_PAGE` 的底色建（八种组合的页面底色从真窗口读出：`node scripts/theme-colours.mjs` 打印并比对，`test/ui-theme.test.mjs` 同样核）。
+- **换**：设置「外观与语言」一节——四个主题（模板的 `.filters` / `.filter`，各带一个 radio：`[data-part="theme"] [data-theme-card=<id>][data-checked]`，「默认」标在研究对话上）；外观是模板的 `.field` 下拉 `select[data-field="appearance"]`（跟随系统 · 浅色 · 深色）。选了立刻 `setTheme` / `setAppearance`，页面用 `lib/theme.js applyLook` 换样式表（新的先载入、再去掉旧的）与 `<body>`，阅读窗口跟着重画，写进 `settings.json`。跟随系统时 Windows 换深浅，主进程 `nativeTheme` 的 `updated` → `settings-changed` → 页面照新的 `scheme` 换。
+- **迁移**（读 `settings.json` 时，`migrateLook`，只动这两个字段）：没有主题、`river` 或别的值 → `research` + `system`；`paper` → `research` + `light`；`night` → `research` + `dark`；四个现行 id 原样（外观经校验）。
+- **移除**：`styles/tokens.css`、`scripts/gen-tokens.mjs`、`test/support/tokens.mjs`、`test/support/contrast-pairs.mjs`、kit.css 里按 `[data-theme]` 写的每套小记号、`styles/fonts.css`；`docs/tokens.md` 作废。
+- **过渡**：还没换到模板部件的页面（待看的卡、资料库、问库、来源与要求、主 Agent 的对话、设置的其余各节、首次打开、新建库、对话框与菜单）仍写 `var(--st-…)`；`styles/interim.css` 把这些名字一律指到模板自己的变量（`--bench --panel --paper --well --ink11 --sub11 --accent11 --pick --inverse11 --rule11 --float11`），不定义任何颜色（`test/kit.test.mjs` 核），R2–R4 换完即删。应用自己的一层覆盖 `styles/template-app.css`（`.app` 占满窗口——模板减去了演示条的 34px；右栏收起成 52px；没有右栏时两栏；库页的头、标签、横幅；模板没有的几个小零件），也只用模板的变量。
+
+**外壳**（照设计目录 `streams/app.js` 的搭法，部件对应见 `07-模板版/说明.md`「用了模板的哪些部件」）：
+- **左栏**（`kit/sidebar.js`）：`brand`（流息的标、流息、个人资料库）→「新建库」（`navitem.new`，`[data-action="add-library"]`）→「库架」（后面是库的个数）→「主 Agent」（**不带数字**：待确认的数只在右栏，F10）→「我的库」→ 每个库一行 `project-item`：图标、名字、待看数（或琥珀点 `[data-problem]`）、一行小字——运行中 · <当前环节> / 排队中 · 第 n 位 / 来源异常（等问题）/ n 条待看 / 暂无待看（`[data-library-line]`，排队时 `[data-library-queue][data-position]`）→ 底部 `side-footer`：套餐用量（`st-quota` + `mini-chart`，读不到整块不显示）、设置。`st-sidebar` 等旧 class 只作测试钩子留在元素上，没有样式。
+- **右栏外框**（`screens/right-panel.js`）：模板的 `context-panel`、`panel-tabs`：**进度 · 待确认 · 详情 · 文件**（「等你决定」改名「待确认」，维护者 定第 13 题）；待确认的数用 `st-count`，与清单同源（`useWaitingItems`）；标签行末一个收起按钮，收起成 52px 的竖条（四个图标）；收起与当前标签照旧记在 `settings.json panel`。进度：`panel-summary`（1 个运行中 · 1 个排队中 / 当前无运行任务）、每个库一张 `phase-row`（在跑的展开：为什么、当前步骤、开始时间，下面 `mini-chart` 是模型调用 / 上限；排队的：手动触发 · 何时加入队列、前一任务完成后自动开始）、`activity-row` 的下次运行时间；在库页上，下面是该库的「上次运行」（原概览的数字、上一轮、最近收藏、运行状态、来源横幅、连续无产出：`screens/last-run.js`，R2 搬到新家）。待确认：小确认卡（主 Agent 提议 / 系统检测 + 库名 + 一句话，点了去处理处）；在库页上，下面是该库的系统检测卡，就地可点（R5 并成一种卡）。文件：`panel-summary` + 按主题分组的 `file-row`、待看、来源与要求、程序记录（无需修改，默认收起）。详情：照旧由各屏给（R2、R5 再改）。
+- **库页**（`screens/library-frame.js`）：`work-header`——库名 `h1#lib-head-name`、一行概况（追踪范围：… · n 个来源）、屏自己的按钮、`status-chip`「下次运行 明天 08:00 · 预计 2–8 次模型调用」（`getHome().nextRun`、`estimateRound().expectedCalls`）、**运行按钮**；然后四个标签 **待看 · 资料库 · 问库 ｜ 来源与要求**（`nav.panel-tabs.st-libtabs`，待看的数 `st-count`）；然后「本次运行未开始」的卡（`[data-part="problem"]`，原概览的 S13 卡，四个标签都看得见，V6；措辞与新家在 R2）；然后屏本身。**概览去掉了**（路由、屏、样式都删），进库落在待看；v1.0 的 `today` / `status` 也到待看。
+- **库架**（`screens/shelf.js`，维护者 定第 2 题 B：留着，左栏第一项）：`home-content`（eyebrow、大标题、说明、搜索库、新建库）+ 每个库一张 `project-tile`（上次运行 · n 个来源、状态 chip「运行中 · 抓取」/「排队中 · 第 n 位」/ 问题、库名、追踪范围、底部「n 条待看 · 来源正常 / 来源异常」与「进入待看」）+ 一行「新建库 · 由主 Agent 生成」。
+
+**立即运行**（维护者 定第 6 题、N06、F22、F23）：
+- 页头按钮**本身就是状态**：「立即运行」（点了直接 `startRound`，**不弹对话框**；没有别的库在跑 → 马上开始；有别的库在跑或在排 → 排到队尾）·「运行中 · 停止」（点了 `cancelRound`；停的过程中「正在停止」）·「排队中 · 第 n 位」（不可点）。按钮旁的小字是下次运行与预计模型调用次数。钩子：`[data-part="run-button"][data-run-state=idle|running|queued|stopping][data-position]`。
+- 托盘「立即运行」（原「现在跑一轮」）同一规则：`scheduler.startOne` → `startCurrent`，忙时排到队尾，从不弹框。
+- 排队只在三处显示：页头按钮、左栏库行的小字、右栏进度（唯一写明细的地方）；库架卡片上的 chip 与左栏同一个说法。**跑一轮对话框（`screens/run-dialog.js`）及其排队说法、「已排上」「看进度」、概览的排队横幅都删了**；改上限只在来源与要求（R4 换样子）。
+
+**测试**：`test/theme.test.mjs`（四套 × 设计页的样式表与 class、模板文件的 sha256、迁移表与变异、首帧底色表）、`test/ui-theme.test.mjs`（真窗口：首帧、八种组合的底色与表一致、跟随系统、设置里的四个主题与外观、阅读窗口跟着变）、`test/ui-shell.test.mjs`（左栏、四个标签、进库落在待看、没有概览、库架）、`test/ui-run.test.mjs`（立即运行不弹框、忙时排队、按钮三态、托盘同一规则）、`test/ui-panel.test.mjs`（右栏四个标签、收起记忆、待确认的数）。截图：`node scripts/shots-r1.mjs` → `docs/shots/2026-11-11-r1/`。变异（`npm run mutants -- <id>`，在 `desktop/` 的临时副本里改坏、对应测试必须红）：`r1-default-precision`（默认改回精密国际主义）· `r1-night-light`（night 迁移成浅色）· `r1-first-frame-wrong`（首帧底色表错一格）· `r1-sheets-out-of-order`（研究对话的样式表换了顺序）· `r1-run-does-nothing`（立即运行不调 startRound）· `r1-refuse-when-busy`（忙时拒绝而不排队）· `r1-overview-back`（进库不落在待看）· `colour-in-app-styles`（应用样式里写了颜色），以及原有的 `l-panel-not-saved`（右栏状态不存）。
+
 ## 五、界面写法
 
 **选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。
@@ -580,8 +610,11 @@ src/renderer/
   screens/          index.js（SCREENS：id → 组件；ALIASES；FIRST_SCREEN；LIBRARY_FIRST_SCREEN）· first-run.js（S1 四步）· shelf.js（P1 库架）· chat.js（P2 和主 Agent 聊，v2 包 G：等你定的事、对话流、输入框；AgentBubble、Notice、Compose）· proposal-card.js（P8 提议卡，包 G）· suggestion-card.js（建议卡、概览那一块，包 G）· new-library.js（「新建库」对话框）· library-frame.js（库页外壳：库头 + 五个标签 + 屏；ViewSwitch）· overview.js（P3 概览 = v1.0 今日 S2 + S13 出错卡片 + 运行状态）· status.js（概览里「运行状态」那一块 RunStatus）· run-dialog.js（S12，概览上的对话框）· inbox.js（S3 / P4）· library.js（S6 / P5）· graph.js（S9，资料库的图谱视图）· edit-dialog.js（S7）· verdict-dialog.js（S15）· ask.js（S10 / P6）· sources.js（S5 + 要求 + 本库定时与上限 + 谁定的 = P7 来源与要求）· pipeline.js（S4 的部件 = 来源与要求里的「关卡」GatesSection）· settings.js（S14 / P9；连接行的零件也从这里导出）· settings-update.js · placeholder.js（没人用的占位工厂）· kit.js（开发时）
   texts/            页面自己写的所有字：common.js（品牌、侧栏的两个入口与「设置」、五种状态、日期、三种连接与登录回路的词、节点名、阶段名）· shell.js（v2 包 F：我的库、角标、五个标签、库头、库架、新建库、谁定的、要求、关卡、定时一览、用量合计）· first-run.js · today.js（概览）· inbox.js · run.js · settings.js · library.js（含编辑与核验记录两个对话框的字）· sources.js · pipeline.js · status.js · ask.js · graph.js · screens.js（占位页）· kit.js；common.js 末尾加了界面 B 共用的：五态的「怎么办」句 `FETCH_HINTS`、`SOURCE_STATES`（已暂停 / 还没抓过）、`SOURCE_KINDS`、`NOTE_STATUS`、`NO_CONNECTION`
   texts-en/         英文字典，与 texts/ 同名同键（§六）
-  styles/           app.css（@import 列表）· tokens.css（token 名单，docs/tokens.md）· base.css · kit.css · menu.css · screens/<屏幕>.css
+  styles/           app.css（@import 列表）· interim.css（重设计 R1：旧 --st- 名指到模板变量，过渡）· base.css · kit.css · menu.css · screens/<屏幕>.css · template-app.css（应用对模板的一层覆盖）
+  template/         重设计 R1：设计目录里模板的样式表、图标数据、流息的标，原样（manifest.json 是 sha256 清单）
 ```
+
+> **重设计 R1（11-11）**：左栏、右栏、库页头与标签（四个，概览已删）、库架改用模板部件，见 §4.13；下面是 v2 包 F 的原写法。
 
 **界面结构（v2 包 F，11-05：方案 B；设计稿 `docs/design/v2/streams-v2-design.html` 的导航、P1、P3–P7、P9）**
 
@@ -603,6 +636,8 @@ src/renderer/
 - v1.0 的 id 仍然能用（`screens/index.js ALIASES`：`today` → 概览、`status` → 概览并滚到「运行状态」、`pipeline` → 来源与要求并滚到「关卡」），所以开发钩子 `--screen today`、通知的 `open-screen`、首次设置的「去今日」都有去处。
 
 **加一屏**：1. `screens/<id>.js` 导出组件；库外的屏外面套 `AppFrame`（`sidebar=${html\`<${AppSidebar} current=${id} />\`}`）、`Main screen=${id} state=${…}`，库页的一个标签套 `LibraryFrame tab=<标签> state=${…} actions=${…} panel=${…}`（再在 `kit/library-sections.js` 的 `LIBRARY_SECTIONS` / `TAB_OF` 加一行）；2. `screens/index.js` 的 `SCREENS` 加它；3. 字写进 `texts/<id>.js` 并给 `texts-en/<id>.js`；4. 样式写进 `styles/screens/<id>.css`（类名用屏幕前缀），在 `styles/app.css` 加 `@import`；5. 数据走 §四 的桥。
+
+> **重设计 R1（11-11）起，下面这段 K2 的主题写法已被取代**：主题直接用模板的样式表，四套、默认研究对话、tokens.css 已删，见 §4.13。
 
 **主题**（**v2 包 K2，11-10 起**；维护者 11-10 #6「定」与「K1 设计稿的四件事」；契约 `docs/checks/2026-11-10-wp-k2/contract.md`；token 表 `docs/tokens.md`）：三套主题——**精密国际主义 `precision`（默认）· 澄明玻璃 `glass` · 研究对话 `research`**（英文版：Precision · Clear Glass · Research），每套有浅色、深色——加一个**外观**设置：浅色 `light` · 深色 `dark` · 跟随系统 `system`（默认）。v1.0 的河蓝 · 素灰 · 夜间换掉了。设计依据是 K1 设计稿 `docs/design/next/themes/`（第五节 token 映射、第六节对比度、第九节 K2 清单）；本包只换外观，界面的结构没动（右栏四个标签、资料库两栏、排队的说法是包 L）。
 - **设置**：`settings.json` 的 `theme`（三个 id 之一，别的 = 默认）和 `appearance`（三个之一，别的 = 默认）；两个默认只在 `src/main/theme.mjs` 的 `DEFAULT_THEME` / `DEFAULT_APPEARANCE` 各一处。id、外观、六组的窗口底色（`THEME_PAGE`，= 各组 `--st-page`）在 `src/shared/themes.mjs`（主进程和设置页都读）。

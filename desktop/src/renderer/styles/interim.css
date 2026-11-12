@@ -1,0 +1,101 @@
+/* Interim (redesign R1 → removed when R2–R4 have rebuilt the screens on the template's parts): the screens not rebuilt yet
+   (待看's cards, 资料库, 问库, 来源与要求, 主 Agent's chat, 设置's other parts, 首次打开, 新建库, the dialogs and menus) still
+   name v2's variables (--st-*). Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
+   these screens stay readable and usable in every theme until they are rebuilt, each name points at the template's own
+   variable of the theme in force (round 11's roles, set on <body>: --bench --panel --paper --well --ink11 --sub11 --accent11
+   --pick --inverse11 --rule11 --float11). No colour is defined here: only var() of the template's, and sizes. */
+.r11 {
+  --st-fs-body: 13px;
+  --st-fs-small: 12px;
+  --st-fs-tiny: 11px;
+  --st-fs-title: 22px;
+  --st-fs-heading: 26px;
+  --st-lh: 1.65;
+  --st-control-h: 34px;
+  --st-gutter: 12px;
+  --st-col-sidebar: 232px;
+  --st-col-panel: 380px;
+  --st-step: 8px;
+  --st-step-gap: 3px;
+  --st-radius: 10px;
+  --st-radius-key: 10px;
+  --st-radius-s: 8px;
+  --st-radius-xs: 5px;
+  --st-weight-body: 400;
+  --st-weight-label: 600;
+  --st-weight-display: 650;
+  --st-tracking-display: 0;
+  --st-font-mono: 'Consolas', monospace;
+  --st-icon-weight: 1.8;
+  --st-icon-cap: round;
+  --st-icon-join: round;
+
+  --st-page: var(--bench);
+  --st-surface: var(--paper);
+  --st-surface-2: var(--well);
+  --st-card-head: var(--well);
+  --st-table-head: var(--well);
+  --st-selected: var(--pick);
+  --st-active-fill: var(--pick);
+  --st-border: var(--rule11);
+  --st-control-border: var(--rule11);
+  --st-divider: var(--rule11);
+  --st-divider-soft: var(--rule11);
+  --st-sidebar: var(--panel);
+  --st-sidebar-text: var(--ink11);
+  --st-sidebar-text-2: var(--sub11);
+  --st-sidebar-divider: var(--rule11);
+  --st-sidebar-button: var(--well);
+  --st-sidebar-selected-title: var(--ink11);
+  --st-sidebar-selected-sub: var(--sub11);
+  --st-text: var(--ink11);
+  --st-text-2: var(--sub11);
+  --st-text-3: var(--sub11);
+  --st-accent: var(--accent11);
+  --st-accent-hover: var(--accent11);
+  --st-accent-alt: var(--accent11);
+  --st-accent-alt-soft: var(--pick);
+  --st-on-accent: var(--inverse11);
+  --st-on-lib: var(--inverse11);
+  --st-focus: var(--accent11);
+  --st-wait: var(--ink11);
+  --st-wait-bg: var(--well);
+  --st-wait-border: var(--rule11);
+  --st-done: var(--accent11);
+  --st-done-bg: var(--well);
+  --st-done-border: var(--accent11);
+  --st-danger: var(--ink11);
+  --st-danger-bg: var(--well);
+  --st-step-todo: var(--rule11);
+  --st-step-done-past: var(--accent11);
+  --st-shadow-card: var(--float11);
+  --st-shadow-menu: var(--float11);
+  --st-scrim: color-mix(in srgb, var(--ink11) 35%, transparent);
+  --st-chart-2: var(--accent11);
+  --st-chart-3: var(--accent11);
+  --st-chart-4: var(--accent11);
+  --st-lib-river: var(--accent11);
+  --st-lib-violet: var(--accent11);
+  --st-lib-green: var(--accent11);
+  --st-lib-muted: var(--sub11);
+  --st-fetch-ok: var(--accent11);
+  --st-fetch-ok-bg: var(--well);
+  --st-fetch-empty: var(--sub11);
+  --st-fetch-empty-bg: var(--well);
+  --st-fetch-gap: var(--ink11);
+  --st-fetch-gap-bg: var(--pick);
+  --st-fetch-failed: var(--ink11);
+  --st-fetch-failed-bg: var(--pick);
+  --st-fetch-blocked: var(--ink11);
+  --st-fetch-blocked-bg: var(--pick);
+}
+/* 单线黑白's --pick is the inverted ink (its selected things turn black); the screens not rebuilt yet put their text on
+   --st-selected, so there it is the template's light well */
+.r12-line.r11 {
+  --st-selected: var(--well);
+  --st-active-fill: var(--well);
+  --st-accent-alt-soft: var(--well);
+  --st-fetch-gap-bg: var(--well);
+  --st-fetch-failed-bg: var(--well);
+  --st-fetch-blocked-bg: var(--well);
+}

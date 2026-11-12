@@ -1,0 +1,199 @@
+@font-face {
+  font-family: 'Workbench Numerals';
+  src: local('Cascadia Mono'), local('Consolas'), local('Menlo'), local('DejaVu Sans Mono');
+  font-weight: 100 900;
+  unicode-range: U+0030-0039;
+}
+
+/* These roles are shared by the workspace, the document reader and its dialogs.
+   Numeric glyphs resolve through the same face even inside editable Chinese text. */
+.r9 {
+  --copy: 'Workbench Numerals', var(--chinese), 'Yunzhi Noto', sans-serif;
+  --display: 'Workbench Numerals', var(--display-chinese), var(--chinese), 'Yunzhi Noto', sans-serif;
+  --data: 'Workbench Numerals', 'Cascadia Mono', 'Consolas', var(--chinese), 'Yunzhi Noto', sans-serif;
+  --body-font: var(--copy);
+  --heading-font: var(--display);
+  --mono: var(--data);
+  color: var(--text-ink);
+  font-family: var(--copy);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.r9.r9 :is(button, a, input, select, option, textarea, p, dd, th, td, blockquote, small) {
+  font-family: var(--copy);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.r9.r9 :is(.brandname, .project-heading h1, .confirm-title h2, .panel-summary h2,
+  .reader-title, .reader-section h3, .home-title, .project-tile h3, .new-content h2,
+  .home-context h3, .draft-preview h3, .dialog-head h2) {
+  font-family: var(--display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-spacing);
+  line-height: 1.45;
+}
+
+.r9.r9 :is(.project-name, .phase-label, .file-text, .source-card h3,
+  .record b, .field > span, .navitem, .document-link, .btn, .tab, .speaker) {
+  font-family: var(--copy);
+  font-weight: var(--label-weight);
+}
+
+.r9.r9 :is(.decision-points dd, .intro-copy, .reader-section p, .user-message,
+  .field input, .field textarea, .composer textarea) {
+  font-family: var(--copy);
+  font-size: var(--reading-size, 14px);
+  font-weight: 400;
+  line-height: 1.85;
+  color: var(--text-ink);
+}
+
+.r9.r9 :is(.point-index, .confirm-title small, .confirm-number, .document-link small,
+  .eyebrow, .phase-index, .status-chip, .header-meta, .project-meta, .reader-meta,
+  .file-text small, .activity-row small, .progress-caption, .chart-row b, .cite,
+  .record small, .project-tile-footer, [data-badge], .navitem small) {
+  font-family: var(--data);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.r9.r9 :is(.header-meta, .project-meta, .file-text small, .activity-row small,
+  .record small, .progress-caption, .reader-meta, .composer-tools small) {
+  color: var(--secondary-ink);
+  font-size: 11px;
+}
+
+.r9.r9 :is(.decision-points dt, .section-label, .reader-table th) {
+  color: var(--secondary-ink);
+  font-weight: var(--label-weight);
+}
+
+.r9.r9 .project-list { padding: 5px 10px 16px; margin: -5px -10px 0; }
+.r9.r9 .decision-points > div { padding: 8px 0; }
+.r9.r9 .project-heading h1 { font-size: 23px; }
+.r9.r9 .confirm-title h2 { font-size: 23px; }
+.r9.r9 .panel-summary h2 { font-size: 26px; }
+.r9.r9 .reader-section h3 { font-size: 18px; }
+.r9.r9 .document-link small { font-size: 11px; white-space: nowrap; }
+.r9.r9 .tab { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.r9.r9 :is(.tab, .navitem, .btn, .filter, .document-link, .source-card, .project-item, .send-btn) {
+  transition: color 140ms, background-color 140ms, border-color 140ms, box-shadow 140ms, transform 140ms;
+}
+
+.r9.r9 .ico {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--icon-weight);
+  stroke-linecap: var(--cap);
+  stroke-linejoin: var(--join);
+  flex-shrink: 0;
+}
+.r9.r9 :is(.navitem, .btn, .document-link, .reader-header, .file-icon, .selection-tools) .ico {
+  width: 16px;
+  height: 16px;
+}
+.r9.r9 :is(.tab, .step-line, .section-label, .phase-index, .after-card) .ico {
+  width: 14px;
+  height: 14px;
+  stroke-width: var(--small-icon-weight);
+}
+.r9.r9 :is(.tab.active, .project-item.active, .filter.active, .source-card.selected, .navitem.active) {
+  background: var(--selected-surface);
+  color: var(--selected-ink);
+  border-color: var(--selected-edge);
+  box-shadow: var(--selected-shadow);
+}
+.r9.r9 :is(.btn.primary, .send-btn) {
+  color: white;
+  background: var(--primary-surface);
+  border: 1px solid var(--primary-edge);
+  border-radius: var(--key-radius);
+  box-shadow: var(--key-shadow);
+}
+.r9.r9 :is(.btn.primary, .send-btn):hover:not(:disabled) {
+  background: var(--primary-hover);
+  box-shadow: var(--key-hover-shadow);
+  transform: translateY(-1px);
+}
+.r9.r9 :is(.btn.primary, .send-btn):active:not(:disabled) {
+  background: var(--primary-down);
+  box-shadow: var(--key-down-shadow);
+  transform: translateY(1px);
+}
+.r9.r9 :is(button, a, summary, input, textarea, select):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.r9.r9 ::selection { background: var(--highlight); color: var(--text-ink); }
+.r9.r9 .readable mark {
+  background: var(--highlight);
+  color: var(--text-ink);
+  border-bottom: 1px solid var(--focus);
+}
+.r9.r9 .annotation {
+  background: var(--selected-surface);
+  border-left: 2px solid var(--focus);
+  color: var(--text-ink);
+}
+.r9.r9 .selection-tools {
+  background: var(--floating-surface);
+  border: 1px solid var(--selected-edge);
+  border-radius: var(--key-radius);
+  box-shadow: var(--selected-shadow);
+}
+.r9.r9 .selection-tools button { color: var(--selected-ink); }
+.r9.r9 .composer:focus-within,
+.r9.r9 .field :is(input, select, textarea):focus {
+  border-color: var(--selected-edge);
+  box-shadow: var(--focus-shadow);
+}
+.r9.r9 .project-item.active:hover, .r9.r9 .source-card.selected:hover {
+  border-color: var(--focus);
+  box-shadow: var(--key-hover-shadow);
+}
+.r9.r9 .tab.active:active, .r9.r9 .project-item.active:active {
+  transform: translateY(1px);
+  box-shadow: var(--key-down-shadow);
+}
+.r9.r9 :is(input, select, textarea) { accent-color: var(--focus); }
+.r9.r9 input::file-selector-button {
+  font: 500 12px var(--copy);
+  color: var(--selected-ink);
+  padding: 4px 9px;
+  border-radius: var(--key-radius);
+  border: 1px solid var(--selected-edge);
+  background: var(--floating-surface);
+}
+.r9.r9 .file-icon .ico { width: 16px; height: 16px; }
+.r9.r9 :is(.side-nav, .side-section) .sidebar-symbol {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.r9.r9 .sidebar-symbol .symbol-solid { fill: currentColor; stroke: none; }
+.r9.r9 .sidebar-symbol .symbol-wash { fill: currentColor; fill-opacity: .14; }
+.r9-glass .sidebar-symbol { color: #536da9; }
+.r9-research .sidebar-symbol { color: #365e8c; }
+.r9.r9 .step-dots i.complete,
+.r9.r9 .progress-line span.done,
+.r9.r9 .chart-row:first-child .chart-bar { background: var(--focus); }
+.r9.r9 .step-dots i.wait {
+  background: var(--floating-surface);
+  border-color: var(--focus);
+}
+.r9.r9 .progress-line span.now { background: color-mix(in srgb, var(--focus) 52%, white); }
+.r9.r9 .source-card:focus-visible, .r9.r9 .file-row:focus-visible {
+  outline-color: var(--focus);
+}
+@media (prefers-reduced-motion: reduce) {
+  .r9 *, .r9 *::before, .r9 *::after { transition: none !important; animation: none !important; }
+}
+.r9.r9 .control-symbol .symbol-solid { fill: currentColor; stroke: none; }
+.r9.r9 .control-symbol .symbol-wash { fill: currentColor; fill-opacity: .15; }
+.r9 .file-chip button { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; }
+.r9.r9 .file-chip button .ico { width: 14px; height: 14px; }
+.r9.r9 .file-row { padding-inline: 9px; align-items: center; }
+.r9 .file-row > .ico:last-child { margin-left: auto; }
+.r9.r9 .filter { min-height: 27px; }
+.r9.r9 .navitem.new[aria-current] { outline: 2px solid var(--focus); outline-offset: 2px; }
+.r9.r9 .attach-btn:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
+.r9.r9 :is(.tab,.btn):disabled { opacity: .48; cursor: default; box-shadow: none; }

@@ -1,330 +1,44 @@
-/* The component kit (src/renderer/kit/). Colours only via tokens.
-   v2 package K2: restyled after the approved design draft (docs/design/next/themes/css/app.css and themes.css, K1): the main
-   area lies flat on --st-page (no framed card), cards are --st-surface with --st-shadow-card and no border, controls are
-   --st-surface-2 without a border, the current place is --st-selected; the weights, the corners and the icon strokes come from
-   the theme's tokens. One set of components for all three themes: what differs is in the tokens, and the few marks of each
-   theme's own (精密国际主义's 3px bar, 澄明玻璃's glow, 研究对话's bookmark and underlined quiet buttons) are the last
-   section of this file. The class names and the structure are as they were. */
+/* The component kit (src/renderer/kit/) — the parts not yet rebuilt on the template's (redesign R1). Colours only through the
+   --st- names, which styles/interim.css points at the template's variables of the theme in force.
+   Redesign R1: the frame, the sidebar, the top bar, the buttons, the tabs and the library mark are the template's own parts
+   now (kit/frame.js, sidebar.js, topbar.js, button.js, library-sections.js; styles/template-app.css): their rules here are gone,
+   and so is K2's last section of each theme's own marks (the themes are the template's sheets). What is left is v2's, until
+   R2–R4 rebuild the screens that use it. */
 
 /* ---- frame: 232px sidebar · main · (panel) ---------------------------------------------------------- */
-.st-frame {
-  display: grid;
-  grid-template-columns: var(--st-col-sidebar) minmax(0, 1fr);
-  height: 100vh;
-  background: var(--st-page);
-  overflow: hidden;
-}
-.st-frame--panel { grid-template-columns: var(--st-col-sidebar) minmax(0, 1fr) var(--st-col-panel); }
 
-.st-main,
-.st-panel {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  margin: 0;
-  background: var(--st-page);
-}
 /* the right panel: the sidebar's colour, as the draft's context panel */
-.st-panel { overflow: hidden; background: var(--st-sidebar); }
-.st-main__body,
-.st-panel__body { flex-grow: 1; min-height: 0; overflow: auto; }
 
 /* ---- sidebar --------------------------------------------------------------------------------------- */
-.st-sidebar {
-  background: var(--st-sidebar);
-  color: var(--st-sidebar-text);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 18px 14px 12px;
-  min-height: 0;
-  overflow-y: auto;
-}
-/* the brand: the mark (the accent square), the name, 「STREAMS」 under it */
-.st-sidebar__brand {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: 11px;
-  align-items: center;
-  padding: 4px 4px 16px;
-  border-bottom: 1px solid var(--st-sidebar-divider);
-  margin-bottom: 12px;
-}
-.st-sidebar__mark {
-  grid-row: 1 / 3;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--st-radius-s);
-  background: var(--st-accent);
-  color: var(--st-on-accent);
-  font-weight: var(--st-weight-display);
-  font-size: 19px;
-}
-.st-sidebar__name { align-self: end; font-size: 21px; font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); line-height: 1.15; }
-.st-sidebar__tagline { align-self: start; margin-top: 3px; font-size: var(--st-fs-tiny); font-weight: 500; letter-spacing: 0.14em; line-height: 1.3; color: var(--st-sidebar-text-2); }
 
-.st-sidebar__nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  padding: 0 11px;
-  border-radius: var(--st-radius-s);
-  color: var(--st-sidebar-text);
-  font-weight: var(--st-weight-label);
-  text-decoration: none;
-}
-.st-sidebar__new {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  padding: 0 11px;
-  border: 0;
-  border-radius: var(--st-radius-s);
-  background: var(--st-sidebar-button);
-  color: var(--st-sidebar-text);
-  font-weight: var(--st-weight-label);
-  cursor: pointer;
-}
+/* the brand: the mark (the accent square), the name, 「STREAMS」 under it */
+
 /* the library line under the brand: the folder's name, or 「未打开库」 (kit/sidebar.js SidebarLibrary) */
-.st-sidebar__library {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 0 11px;
-  margin-bottom: 8px;
-  border-radius: var(--st-radius-s);
-  background: var(--st-sidebar-button);
-  color: var(--st-sidebar-text);
-  font-size: var(--st-fs-small);
-}
-.st-sidebar__library[data-library='none'] { color: var(--st-sidebar-text-2); }
-.st-sidebar__library-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.st-sidebar__group {
-  margin: 18px 0 7px;
-  padding: 0 11px;
-  font-size: var(--st-fs-tiny);
-  font-weight: var(--st-weight-label);
-  letter-spacing: 0.04em;
-  color: var(--st-sidebar-text-2);
-}
-.st-sidebar__project {
-  position: relative;
-  display: block;
-  padding: 8px 10px;
-  border-radius: var(--st-radius-s);
-  color: var(--st-sidebar-text);
-  text-decoration: none;
-}
+
 /* a long name without a break point wraps inside the 232px column (it must never widen it) */
-.st-sidebar__project-title { line-height: 1.45; overflow-wrap: anywhere; font-weight: var(--st-weight-label); }
-.st-sidebar__project-sub span { min-width: 0; overflow-wrap: anywhere; }
-.st-sidebar__project-sub {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--st-fs-tiny);
-  margin-top: 2px;
-  color: var(--st-sidebar-text-2);
-}
+
 /* a count on an entry: 和主 Agent 聊's things waiting (amber, the draft's badge--wait) */
-.st-sidebar__badge {
-  flex-shrink: 0;
-  min-width: 19px;
-  height: 19px;
-  padding: 0 5px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: var(--st-radius-xs);
-  background: var(--st-wait-bg);
-  color: var(--st-wait);
-  box-shadow: inset 0 0 0 1px var(--st-wait-border);
-  font: 600 var(--st-fs-tiny)/1 var(--st-font-mono);
-}
-.st-sidebar__spacer { flex-grow: 1; min-height: 16px; }
-.st-sidebar__footer-button {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  margin-top: 9px;
-  padding: 0 11px;
-  border: 0;
-  border-radius: var(--st-radius-s);
-  background: transparent;
-  color: var(--st-sidebar-text);
-  font-weight: var(--st-weight-label);
-  text-align: left;
-  cursor: pointer;
-}
+
 /* the line above 设置 (the draft's side-footer) */
-.st-sidebar__footer-button::before { content: ''; position: absolute; left: 0; right: 0; top: -5px; border-top: 1px solid var(--st-sidebar-divider); }
-.st-sidebar__note {
-  padding: 10px 8px 4px;
-  border-top: 1px solid var(--st-sidebar-divider);
-  font-size: var(--st-fs-tiny);
-  line-height: 1.6;
-  color: var(--st-sidebar-text-2);
-}
+
 /* v2 package M: the corner above 设置 (kit/sidebar.js SidebarQuota). v2 package K2: the draft's small card — the title and
    「截至 …」, then one row per window: its span, a bar, the per cent, when it resets under them */
-.st-sidebar__quota {
-  margin: 0 0 4px;
-  padding: 10px 11px 9px;
-  border-radius: var(--st-radius-s);
-  background: var(--st-surface);
-  box-shadow: var(--st-shadow-card);
-  font-size: var(--st-fs-tiny);
-  line-height: 1.5;
-  color: var(--st-text-2);
-}
-.st-sidebar__quota-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-bottom: 6px; }
-.st-sidebar__quota-title { color: var(--st-text); font-weight: var(--st-weight-label); font-size: var(--st-fs-small); }
-.st-sidebar__quota-as-of { color: var(--st-text-2); white-space: nowrap; }
-.st-sidebar__quota-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) 34px; align-items: center; column-gap: 7px; margin-top: 4px; }
-.st-sidebar__quota-span { color: var(--st-text); white-space: nowrap; }
-.st-sidebar__quota-track { position: relative; height: 5px; border-radius: var(--st-radius-xs); background: var(--st-step-todo); overflow: hidden; }
-.st-sidebar__quota-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--st-accent); }
-.st-sidebar__quota-pct { font-family: var(--st-font-mono); text-align: right; color: var(--st-text); }
-.st-sidebar__quota-when { grid-column: 2 / 4; color: var(--st-text-2); }
-.st-sidebar__quota-money { display: block; font: 600 18px/1.3 var(--st-font-mono); color: var(--st-text); }
 
 /* hover and the current place: --st-selected (the draft's --pick) */
-.st-sidebar__nav:hover,
-.st-sidebar__lib:hover,
-.st-sidebar__add:hover,
-.st-sidebar__project:hover,
-.st-sidebar__footer-button:hover { background: var(--st-selected); color: var(--st-sidebar-text); }
-.st-sidebar__nav[aria-current],
-.st-sidebar__new[aria-current],
-.st-sidebar__project[aria-current],
-.st-sidebar__footer-button[aria-current] {
-  background: var(--st-selected);
-  color: var(--st-sidebar-selected-title);
-}
-.st-sidebar__project[aria-current] .st-sidebar__project-sub { color: var(--st-sidebar-selected-sub); }
-.st-sidebar :focus-visible { outline-color: var(--st-focus); }
 
 /* v2 (package F, plan B): 「我的库」 — one line per library (its mark, its name, an amber dot, its 待看 count), 「+ 新建库」 */
-.st-sidebar__nav .st-sidebar__nav-text { flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.st-sidebar__libs { display: flex; flex-direction: column; gap: 3px; }
-.st-sidebar__lib {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  padding: 7px 10px;
-  border-radius: var(--st-radius-s);
-  color: var(--st-sidebar-text);
-  font-weight: var(--st-weight-label);
-  text-decoration: none;
-}
-.st-sidebar__lib-name { flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.st-sidebar__lib[aria-current] { background: var(--st-selected); color: var(--st-sidebar-selected-title); }
-.st-sidebar__lib .st-lib-mark { width: 24px; height: 24px; font-size: 12px; }
+
 /* a library's 待看 count: quiet digits (the draft's .count) */
-.st-sidebar__lib .st-sidebar__badge { min-width: 0; height: auto; padding: 0; background: transparent; box-shadow: none; color: var(--st-sidebar-text-2); font-weight: 400; }
-.st-sidebar__dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--st-wait); }
-.st-sidebar__add {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  margin-top: 8px;
-  padding: 0 11px;
-  border-radius: var(--st-radius-s);
-  background: var(--st-sidebar-button);
-  color: var(--st-sidebar-text);
-  font-weight: var(--st-weight-label);
-  text-decoration: none;
-}
 
 /* a library's mark: its one or two characters on a square of its colour (kit/library-sections.js LibraryMark) */
-.st-lib-mark {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--st-radius-xs);
-  color: var(--st-on-lib);
-  background: var(--st-lib-river);
-  font-weight: 700;
-  line-height: 1;
-}
-.st-lib-mark--river { background: var(--st-lib-river); }
-.st-lib-mark--violet { background: var(--st-lib-violet); }
-.st-lib-mark--green { background: var(--st-lib-green); }
-.st-lib-mark--muted { background: var(--st-lib-muted); }
-.st-lib-mark--s { width: 20px; height: 20px; font-size: var(--st-fs-tiny); }
-.st-lib-mark--m { width: 30px; height: 30px; font-size: 15px; border-radius: var(--st-radius-s); }
-.st-lib-mark--l { width: 40px; height: 40px; font-size: 18px; border-radius: var(--st-radius-s); }
 
 /* a library's five parts as tabs across its page (plan B; kit/library-sections.js LibrarySections layout="tabs") */
-.st-lib-tabs { display: flex; align-items: center; gap: 4px; padding: 0 28px 12px; border-bottom: 1px solid var(--st-divider); background: var(--st-page); }
-.st-lib-tabs__tab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 0 13px;
-  border: 0;
-  border-radius: var(--st-radius-s);
-  background: transparent;
-  color: var(--st-text);
-  font-weight: var(--st-weight-label);
-  white-space: nowrap;
-  cursor: pointer;
-}
-.st-lib-tabs__tab:hover { background: var(--st-selected); }
-.st-lib-tabs__tab[aria-current] { background: var(--st-selected); }
+
 /* the 待看 count after the tab's name (the draft's tab-count) */
-.st-lib-tabs__badge { font: 500 var(--st-fs-tiny)/1 var(--st-font-mono); color: var(--st-wait); }
 
 /* ---- top bar: the draft's work-header — on the page, the title in the display weight ------------------- */
-.st-topbar {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 22px 28px 14px;
-  background: var(--st-page);
-}
-.st-topbar__text { flex-grow: 1; min-width: 0; overflow-wrap: anywhere; }
-.st-topbar__title { margin: 0; font-size: var(--st-fs-title); font-weight: var(--st-weight-display); letter-spacing: var(--st-tracking-display); line-height: 1.35; }
-.st-topbar__subtitle { margin-top: 3px; font-size: var(--st-fs-small); color: var(--st-text-2); }
 
 /* ---- buttons: the draft's .btn — no border; secondary on --st-surface-2, primary on the accent ----------- */
-.st-button {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: var(--st-control-h);
-  padding: 0 16px;
-  border: 0;
-  border-radius: var(--st-radius-s);
-  background: var(--st-surface-2);
-  color: var(--st-text);
-  font-weight: var(--st-weight-label);
-  white-space: nowrap;
-  cursor: pointer;
-}
-.st-button:hover:not(:disabled) { background: var(--st-selected); }
-.st-button--primary { background: var(--st-accent); color: var(--st-on-accent); border-radius: var(--st-radius-key); }
-.st-button--primary:hover:not(:disabled) { background: var(--st-accent-hover); }
-.st-button:active:not(:disabled) { transform: scale(0.985); }
-.st-button--wide { padding: 0 24px; }
-.st-button:disabled { background: var(--st-surface-2); color: var(--st-text-2); cursor: default; }
 
 /* a plain text button that looks like a link */
 .st-link-button {
@@ -340,19 +54,6 @@
 .st-link-button:hover { color: var(--st-accent-hover); text-decoration-color: currentColor; }
 
 /* ---- panel tabs (the draft's panel-tabs) ------------------------------------------------------------- */
-.st-tabs { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 3px; padding: 12px 12px 8px; }
-.st-tabs__tab {
-  min-height: 36px;
-  border: 0;
-  border-radius: var(--st-radius-s);
-  background: transparent;
-  color: var(--st-text);
-  font-size: var(--st-fs-small);
-  font-weight: var(--st-weight-label);
-  cursor: pointer;
-}
-.st-tabs__tab:hover { background: var(--st-selected); }
-.st-tabs__tab[aria-current] { background: var(--st-selected); }
 
 /* ---- card frame (cards with a head line): the draft's confirmation card -------------------------------- */
 .st-cardframe {
@@ -464,53 +165,11 @@
 /* ==== v2 package K2: each theme's own marks (the draft's css/themes.css), colours from the tokens ==================== */
 /* the current thing of a list: the library in the sidebar, the card under the keys in 待看, a row of a list */
 /* 精密国际主义 (the default): square corners, a 3px bar on the left of the current thing, a dashed focus ring */
-:root[data-theme='precision'] :is(.st-sidebar__lib[aria-current], .st-sidebar__project[aria-current], .inbox-card--current, .lib-row--current .lib-row__link) { box-shadow: inset 3px 0 var(--st-accent); }
-:root[data-theme='precision'] .settings__theme[data-checked='true'] { box-shadow: inset 3px 0 var(--st-accent), inset 0 0 0 1px var(--st-accent); }
-:root[data-theme='precision'] :focus-visible { outline: 2px dashed var(--st-focus); }
-:root[data-theme='precision'] :is(.st-lib-tabs__tab, .st-tabs__tab)[aria-current] { box-shadow: inset 0 -2px var(--st-accent); }
-:root[data-theme='precision'] .st-sidebar__name { letter-spacing: -0.04em; }
-:root[data-theme='precision'] .st-step { border-radius: 0; }
-:root[data-theme='precision'] .settings__group-name { padding-bottom: 6px; border-bottom: 1px solid var(--st-divider); }
 
 /* 澄明玻璃: round corners, the current thing a glow of the selected colour toward violet with a 2px light on its left,
    secondary buttons as pills, round marks */
-:root[data-theme='glass'] :is(.st-sidebar__lib[aria-current], .st-sidebar__nav[aria-current], .st-sidebar__footer-button[aria-current], .st-sidebar__project[aria-current], .inbox-card--current, .lib-row--current .lib-row__link) {
-  background: linear-gradient(105deg, var(--st-selected), color-mix(in srgb, var(--st-selected) 85%, var(--st-accent-alt)));
-  box-shadow: inset 2px 0 var(--st-accent);
-}
-:root[data-theme='glass'] .inbox-card--current { box-shadow: inset 2px 0 var(--st-accent), var(--st-shadow-card); }
-:root[data-theme='glass'] .st-tabs { padding: 4px; margin: 12px 12px 8px; border-radius: var(--st-radius); background: var(--st-surface-2); }
-:root[data-theme='glass'] .st-tabs__tab[aria-current] { background: var(--st-surface); box-shadow: var(--st-shadow-card); }
-:root[data-theme='glass'] .st-button:not(.st-button--primary) { border-radius: 999px; }
-:root[data-theme='glass'] :is(.st-sidebar__mark, .agent-av, .ask-a__mark) { border-radius: 50%; }
-:root[data-theme='glass'] .st-lib-mark { border-radius: 8px; }
-:root[data-theme='glass'] .st-sidebar__name { -webkit-text-stroke: 0.18px currentColor; }
-:root[data-theme='glass'] .settings__theme[data-checked='true'] { box-shadow: inset 0 0 0 2px var(--st-accent), var(--st-shadow-card); }
 
 /* 研究对话: a bookmark on the right top corner of the current thing, quiet buttons as underlined words, 3px primary corners */
-:root[data-theme='research'] :is(.st-sidebar__lib[aria-current], .st-sidebar__project[aria-current], .inbox-card--current, .lib-row--current .lib-row__link)::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 10px;
-  width: 8px;
-  height: 14px;
-  background: var(--st-accent);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%);
-  pointer-events: none;
-}
-:root[data-theme='research'] :is(.inbox-card__actions, .pc-actions, .sc-actions) .st-button:not(.st-button--primary) {
-  background: transparent;
-  padding-inline: 6px;
-  color: var(--st-accent);
-  text-decoration: underline;
-  text-decoration-color: var(--st-control-border);
-  text-underline-offset: 4px;
-}
-:root[data-theme='research'] :is(.inbox-card__actions, .pc-actions, .sc-actions) .st-button:not(.st-button--primary):hover:not(:disabled) { background: var(--st-selected); }
-:root[data-theme='research'] :is(.st-lib-tabs__tab, .st-tabs__tab)[aria-current] { box-shadow: inset 0 -3px var(--st-accent); border-radius: var(--st-radius-s) var(--st-radius-s) 0 0; }
-:root[data-theme='research'] :is(.chat-me, .ask-q) { border-radius: 14px 14px 3px 14px; }
-:root[data-theme='research'] .settings__theme[data-checked='true'] { box-shadow: inset 0 0 0 1px var(--st-accent), inset 0 -3px var(--st-accent); }
-:root[data-theme='glass'] :is(.chat-me, .ask-q) { border-radius: 17px 17px 4px 17px; }
+
 /* the bookmark sits where the count would be: make room for it (the draft's padding-right: 28px) */
-:root[data-theme='research'] :is(.st-sidebar__lib[aria-current], .inbox-card--current) { padding-right: 28px; }
+

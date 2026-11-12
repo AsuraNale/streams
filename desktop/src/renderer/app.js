@@ -10,9 +10,9 @@
 // the shelf, the chat's guide) is the route 'new-library' (screens/new-library.js, v1.0's steps without the connection).
 //
 // v2 package F (plan B; docs/desktop.md §五「界面结构」): the sidebar does not change with the library — 库架 ('shelf'),
-// 和主 Agent 聊 ('chat'), one line per library, 「新建库」, 设置. A library's page is five tabs, each a route of LIBRARY_ROUTES
-// (kit/library-sections.js): overview · inbox · library (and its graph view, 'graph') · ask · sources; they all work on the
-// current library (package A's 「当前库」). v1.0's ids still lead somewhere (ALIASES: 今日 and 运行状态 are 概览 now, 流水线 is
+// 和主 Agent 聊 ('chat'), one line per library, 「新建库」, 设置. A library's page is four tabs, each a route of LIBRARY_ROUTES
+// (kit/library-sections.js): inbox · library (and its graph view, 'graph') · ask · sources (redesign R1: 概览 gone); all on the
+// current library (package A's 「当前库」). v1.0's ids still lead somewhere (ALIASES: 今日 and 运行状态 open 待看, 流水线 is
 // the 关卡 part of 来源与要求). Each library remembers, in memory, the route you were on and how far its page was scrolled
 // (`memory`): a click on a library (openLibrary) makes it the current one (setActiveLibrary) and goes back to that route,
 // or to its 待看 the first time.
@@ -22,12 +22,13 @@ import { call } from './lib/bridge.js'
 import { useEvent } from './lib/use-events.js'
 import { useLoad } from './lib/use-load.js'
 import { useLibraries, useWaitingItems } from './lib/libraries.js'
-// v2 package L: the one queue of the rounds (the right panel, the sidebar, 库架, 概览)
+// v2 package L: the one queue of the rounds (the right panel, the sidebar, 库架, the library's head)
 import { useQueue } from './lib/queue.js'
 import { ALIASES, FIRST_SCREEN, LIBRARY_FIRST_SCREEN, SCREENS } from './screens/index.js'
 import { FirstRunScreen } from './screens/first-run.js'
 import { LIBRARY_ROUTES } from './kit/index.js'
 import { BRAND } from './texts/common.js'
+import { applyLook } from './lib/theme.js'
 
 // the page's language and title come from the brand table (docs/desktop.md §六): in English the main process serves
 // texts-en/common.js for this import, so <html lang> and the window title follow the words; index.html stays Chinese
@@ -69,15 +70,13 @@ function App() {
       setSetup(none)
     } else if (appState.status === 'error') setSetup(false) // the state could not be read: the screens say so themselves
   }, [appState.data, appState.status])
-  // the theme (docs/desktop.md §五「主题」): the first frame already has it (the main process serves index.html with
-  // data-theme); a change in 设置 sets it at once, and the app state keeps <html> in step after that
-  // v2 package K2: and data-appearance, the set in force (light | dark: for 跟随系统 what Windows uses — a change there sends
-  // settings-changed, below, and the state comes back with the new scheme)
+  // the look (docs/desktop.md §五「主题」; redesign R1): the first frame already has it (the main process serves index.html with
+  // the theme's template sheets and <body> class); a change in 设置 — or Windows turning dark under 跟随系统 (settings-changed,
+  // below: the state comes back with the new scheme) — swaps the sheets and the classes (lib/theme.js)
   useEffect(() => {
     const theme = appState.data?.theme
-    if (typeof theme === 'string' && document.documentElement.dataset.theme !== theme) document.documentElement.dataset.theme = theme
     const scheme = appState.data?.scheme
-    if ((scheme === 'light' || scheme === 'dark') && document.documentElement.dataset.appearance !== scheme) document.documentElement.dataset.appearance = scheme
+    if (typeof theme === 'string' && (scheme === 'light' || scheme === 'dark')) applyLook({ theme, scheme })
   }, [appState.data?.theme, appState.data?.scheme])
   useEvent('settings-changed', () => appState.reload())
   useEvent('library-changed', () => appState.reload())
@@ -113,7 +112,7 @@ function App() {
   }
   /**
    * A library of the sidebar or the shelf: the current one from now on, then its page where you left it (else 待看). v2 package
-   * L: `to` — a route of its page to go to instead ({ screen, params }: the right panel's 等你决定 → that library's 概览).
+   * L: `to` — a route of its page to go to instead ({ screen, params }).
    */
   const openLibrary = async (id, to = null) => {
     const back = () => setRoute(to ?? memory.current.routes.get(id) ?? { screen: LIBRARY_FIRST_SCREEN, params: {} })

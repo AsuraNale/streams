@@ -1,0 +1,155 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>P14 · 来源与要求 · 流息页面稿</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#d9d7cf;color:#23282c;font:14px/1.6 "Noto Sans SC","Microsoft YaHei UI","PingFang SC",sans-serif}
+a{color:inherit;text-decoration:none}
+button,input,textarea,select{font:inherit;color:inherit}
+.bar{display:flex;gap:16px;align-items:center;padding:10px 16px;background:#23282c;color:#f3f2ec;font-size:13px}
+.bar b{font-size:15px}.bar .go,.bar .tg{cursor:pointer;border:1px solid #6a7076;padding:2px 10px}
+.bar .sp{flex:1}.bar .lg{background:#b3125b;padding:0 5px;font:600 10px/16px Consolas,monospace}
+.note{max-width:1440px;margin:10px auto;padding:10px 14px;background:#fffdf3;border-left:4px solid #b3125b;font-size:13px}
+.note li{margin-left:18px}
+.frame{width:1440px;min-height:960px;margin:14px auto 40px;display:grid;grid-template-columns:232px 1fr 372px;background:#f7f6f1;box-shadow:0 2px 14px rgba(0,0,0,.25);position:relative}
+.frame.solo{display:block}
+.frame.w1100{width:1100px;min-height:860px;display:block}
+/* 左栏 */
+.rail{background:#f1f0ea;padding:20px 14px 14px;display:flex;flex-direction:column;gap:6px;border-right:1px solid #e3e1d9}
+.logo{display:flex;gap:12px;align-items:center;margin-bottom:14px;padding-bottom:16px;border-bottom:1px solid #dcdad2}
+.logo i{width:38px;height:38px;background:#23282c;color:#fff;display:grid;place-items:center;font:700 18px/1 inherit;font-style:normal}
+.logo b{font-size:19px;line-height:1.1}.logo small{display:block;font:11px/1 Consolas,monospace;letter-spacing:2px;color:#5d6368;margin-top:4px}
+.nav{display:flex;gap:10px;align-items:center;padding:8px 10px;font-weight:500}
+.nav.on{background:#e6e5df}
+.rail .cap{font-size:11px;color:#5d6368;margin:12px 10px 2px}
+.lib{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;padding:8px 10px}
+.lib.on{background:#e6e5df;box-shadow:inset 3px 0 0 #23282c}
+.lib small{grid-column:2/4;font-size:11px;color:#5d6368;margin-top:-6px}
+.lib em{font:600 12px Consolas,monospace;font-style:normal;color:#8a5a12}
+.ico{width:24px;height:24px;display:grid;place-items:center;color:#fff;font:700 12px/1 inherit;background:#24708f}
+.ico.z{background:#5a47a8}.ico.big{width:40px;height:40px;font-size:18px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#8a5a12;margin-right:5px}
+.dot.g{background:#1f6b57}
+.rail .fill{flex:1}
+.quota{background:#fdfdfb;padding:10px 12px;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.quota b{font-size:12px}.quota .r{display:grid;grid-template-columns:42px 1fr 30px;gap:6px;align-items:center;margin-top:5px}
+.meter{height:4px;background:#e3e1d9}.meter i{display:block;height:4px;background:#23282c}
+/* 主区 */
+main{padding:0;min-width:0}
+.lh{display:flex;gap:14px;align-items:center;padding:22px 28px 10px}
+.lh h1{font-size:23px;line-height:1.2}.lh p{font-size:12px;color:#5d6368;max-width:430px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lh .run{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:12px;color:#5d6368;text-align:right}
+.tabs{display:flex;gap:6px;padding:0 28px;border-bottom:1px solid #dcdad2}
+.tabs a{padding:8px 14px;font-weight:500;border-bottom:2px solid transparent}
+.tabs a.on{background:#e6e5df;border-bottom-color:#23282c}
+.tabs b{font:600 11px Consolas,monospace;color:#8a5a12;margin-left:4px}
+.tabs .sp{flex:1}
+.body{padding:20px 28px 28px}
+h2{font-size:18px}h3{font-size:13px;font-weight:600;margin:18px 0 8px}
+.sub{font-size:12px;color:#5d6368}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.btn{border:0;background:#e8e7e1;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#2b3035;color:#fff}.btn.sm{padding:3px 9px;font-size:12px}.btn.ghost{background:transparent;border:1px solid #cfcdc4}
+.btn.busy{background:#f3e9da;color:#6d4608}
+.lnk{border-bottom:1px solid #8b9095;font-size:13px}
+.card{background:#fdfdfb;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:12px}
+.card.sel{background:#e9e8e3;box-shadow:inset 3px 0 0 #23282c}
+.card h4{font-size:16px;line-height:1.4}
+.meta{font:12px/1.6 Consolas,"Noto Sans SC",monospace;color:#5d6368}
+.flag{display:inline-block;background:#f3e9da;color:#6d4608;font-size:12px;padding:1px 8px}
+.ok{display:inline-block;background:#e3efe9;color:#1f6b57;font-size:12px;padding:1px 8px}
+.chip{display:inline-block;background:#e8e7e1;font-size:12px;padding:2px 9px;border:0;cursor:pointer}
+.chip.on{background:#2b3035;color:#fff}
+ul.pt{margin:6px 0 8px 20px}ul.pt li{margin:2px 0}
+.inw{display:inline-block}.inw.blk{display:block}
+input,textarea,select{border:1px solid #cfcdc4;background:#fdfdfb;padding:6px 9px;font-size:13px}
+textarea{width:100%;display:block;resize:vertical}input.w{width:100%}
+.inw.blk input{width:100%}
+.banner{background:#f3e9da;border:1px solid #d9c3a0;padding:12px 16px;margin-bottom:14px}
+.fold{border-top:1px solid #dcdad2;padding:10px 0}
+.sum{border:0;background:none;font-weight:600;font-size:13px;cursor:pointer;padding:0;text-align:left}
+.kv{display:grid;grid-template-columns:86px 1fr;gap:6px 12px;font-size:13px}
+.kv dt{color:#5d6368}
+.funnel{display:flex;gap:0;align-items:stretch;margin:10px 0}
+.funnel>*{flex:1;display:block;background:#e8e7e1;padding:8px 10px;border-right:2px solid #f7f6f1}
+.funnel b{display:block;font:600 20px/1.2 Consolas,monospace}.funnel span{font-size:11px;color:#5d6368}
+.funnel .hit{background:#f3e9da}
+.bub{background:#e8e7e1;padding:10px 14px;margin:0 0 12px auto;max-width:70%;width:fit-content}
+.faint{font-size:12px;color:#8b9095;margin:6px 0}
+.sec{background:#fdfdfb;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.sec>h3{margin-top:0}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t td,table.t th{border-bottom:1px solid #e3e1d9;padding:7px 6px;text-align:left;vertical-align:top}
+table.t th{font-weight:500;color:#5d6368;font-size:12px}
+.menu{position:absolute;right:0;top:28px;background:#fdfdfb;box-shadow:0 2px 10px rgba(0,0,0,.2);display:flex;flex-direction:column;z-index:4;min-width:110px}
+.menu .btn{background:transparent;text-align:left;font-weight:500}
+.seg{display:inline-flex;background:#e8e7e1}.seg .btn.on{background:#fdfdfb;box-shadow:inset 0 0 0 1px #cfcdc4}
+/* 右栏 */
+.rp{background:#f1f0ea;padding:12px 14px;border-left:1px solid #e3e1d9;font-size:13px}
+.rpt{display:flex;gap:2px;align-items:center;margin-bottom:12px}
+.rpt a{padding:7px 9px;font-weight:500;font-size:12px;border-bottom:2px solid transparent;white-space:nowrap}
+.rpt a.on{background:#e6e5df;border-bottom-color:#23282c}
+.rpt b{font:600 11px Consolas,monospace;color:#8a5a12;margin-left:3px}
+.rpt .btn{margin-left:auto;background:transparent;padding:4px 6px}
+.rph{background:#e6e5df;padding:12px 14px;margin-bottom:12px}
+.rph small{font:11px Consolas,"Noto Sans SC",monospace;color:#5d6368}.rph b{display:block;font-size:17px;line-height:1.35}
+.rp .card{padding:12px 14px}
+.rp h3{font-size:12px;margin:14px 0 6px}
+.from{font-size:11px;color:#5d6368}
+/* 对话框 */
+.dim{position:absolute;inset:0;background:rgba(35,40,44,.45);display:grid;place-items:center;z-index:9}
+.dlg{background:#fdfdfb;padding:22px 24px;width:560px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.dlg h2{margin-bottom:10px}.dlg .row{margin-top:14px}
+.center{max-width:720px;margin:0 auto;padding:70px 0}
+/* 功能编号小标签 */
+.tags [data-f] :is(input,textarea,select)[data-f]::after,.tags [data-f]:has(> label[data-f])::after{display:none}
+:where([data-f]){position:relative}
+.tags [data-f]::after{content:attr(data-f);position:absolute;right:0;top:-9px;font:600 9px/12px Consolas,monospace;background:#b3125b;color:#fff;padding:0 3px;white-space:nowrap;z-index:6;pointer-events:none;letter-spacing:0;text-transform:none}
+</style></head>
+<body class="tags ">
+<div class="bar"><b>P14 · 来源与要求</b><span>流息 UX 重设计 · 页面稿（精密国际主义 · 浅色 · 中文）</span><span class="sp"></span><span class="lg">F24</span><span>= 功能地图里的编号</span>
+<span class="tg" onclick="document.body.classList.toggle('tags')">显示 / 隐藏编号</span>
+<span class="go" onclick="location.href='../'+encodeURI('总览.html')">总览</span>
+<span class="go" onclick="location.href='P13-问库.html'">← P13</span><span class="go" onclick="location.href='P15-来源与要求-高级.html'">P15 →</span></div>
+<div class="note"><b>改 F45–F50、F54；F51–F55 收进「高级设置」（P15）。</b>现在这一页有七块、约 3.5 屏；新稿只留四块、一屏多一点（O18）：<ul><li><b>要求</b>：文本框常开，改了点保存。旁边是「严格程度」三档（N01）——只有这里叫「要求」，关卡里那一大段改叫「提示词」并收进高级（O8）。库名也在这里改（N08）。</li><li><b>来源</b>：加来源不弹对话框，贴了回车，就地认种类、试抓；每行写状态和「怎么办」（五种状态不变，V3）；四个操作收进「⋯」。</li><li><b>主题</b>：一排标签，点一个才看到它的关键词。</li><li><b>定时与上限</b>：一行。</li><li>「谁定的」不再每块旁边标，改成高级里的一张变更记录。「贴一个链接进待看」搬去了待看页；「立即运行」在页头（O20）。</li></ul></div>
+<div class="frame "><aside class="rail">
+  <div class="logo"><i>流</i><div><b>流息</b><small>STREAMS</small></div></div>
+  <a href="P23-库架.html" class="nav " data-f="F10 F12">▦ 库架</a>
+  <a href="P03-和主Agent聊.html" class="nav " data-f="F10 F14">▭ 主 Agent</a>
+  <div class="cap">我的库</div>
+  <a href="P05-待看.html" class="lib on" data-f="F10"><span class="ico ">A</span><span>AI Agent 长期记忆</span><span></span></a><a href="P05-待看.html" class="lib " data-f="F10"><span class="ico z">中</span><span>中国电动车</span><span></span></a>
+  <a href="P04-新建库-自己填.html" class="nav " data-f="F10 F56">＋ 新建库</a>
+  <div class="fill"></div>
+  <div class="quota" data-f="F11"><div class="row"><b>套餐用量</b><span class="sp"></span><span>截至 今天 20:36</span></div>
+    <div class="r"><span>5 小时</span><div class="meter"><i style="width:8%"></i></div><span>8%</span></div>
+    <div class="r"><span>7 天</span><div class="meter"><i style="width:26%"></i></div><span>26%</span></div></div>
+  <a href="P17-设置.html" class="nav " data-f="F10" style="border-top:1px solid #dcdad2;margin-top:8px;padding-top:12px">⚙ 设置</a>
+</aside>
+    <main><header class="lh"><span class="ico big ">A</span><div><h1>AI Agent 长期记忆</h1><p>追踪范围：追踪 AI agent 长期记忆的评测与对比数据。</p></div>
+  <div class="run"><span data-f="F58">下次运行 明天 08:00<br>预计 2–8 次模型调用</span><button class="btn pri" data-f="F22 N06">▷ 立即运行</button></div></header>
+  <nav class="tabs"><a href="P05-待看.html" class="" data-f="F13">待看</a><a href="P09-资料库.html" class="" data-f="F13">资料库</a><a href="P13-问库.html" class="" data-f="F13">问库</a><span class="sp"></span><a href="P14-来源与要求.html" class="on" data-f="F13">来源与要求</a></nav>
+    <div class="body">
+      <div class="sec"><div class="row"><h3 style="margin:0">追踪要求</h3><span class="sp"></span><span>库名称</span><span class="inw " data-f="N08"><input data-f="N08" placeholder="" value="AI Agent 长期记忆" style="width:220px"></span></div>
+        <div style="margin-top:8px"><span class="inw blk" data-f="F45"><textarea data-f="F45" rows="3" placeholder="描述需要追踪的内容与需要排除的内容">追踪 AI agent 长期记忆的评测与对比数据：基准与评测方法、实验结果与消融、不同记忆方案的对比。框架作者的工程笔记、经验谈不要；营销稿、产品通稿不要。</textarea></span></div>
+        <div class="row" style="margin-top:10px" data-f="N01"><span>严格程度</span><label class="inw" data-f="N01" style="margin-right:14px"><input type="radio" name="st" data-f="N01" > 宽松</label><label class="inw" data-f="N01" style="margin-right:14px"><input type="radio" name="st" data-f="N01" checked> 标准</label><label class="inw" data-f="N01" style="margin-right:14px"><input type="radio" name="st" data-f="N01" > 严格</label><span class="sub">标准：相关度 ≥ 0.5 且实质 ≥ 0.6 视为通过</span><span class="sp"></span><button class="btn pri" data-f="F45">保存</button></div></div>
+      <div class="sec"><h3>来源 · 2 个</h3>
+        <div class="row"><span class="inw blk" data-f="F49"><input data-f="F49" placeholder="输入 RSS 地址、arXiv 检索词或 Hacker News 关键词，按回车添加" value="agent memory benchmark" style="width:520px"></span></div>
+        <div class="banner row" style="margin:8px 0;padding:8px 12px;flex-wrap:nowrap" data-f="F49"><span>已识别为 <b>Hacker News 关键词</b> · 试抓结果 <span class="ok">正常 · 1 条</span> 最新：「Launch HN: …」</span><span class="sp"></span><button class="btn pri sm" data-f="F49">添加</button><button class="btn sm" data-f="F49">取消</button></div>
+        <table class="t" data-f="F48"><tr><th>来源</th><th>状态与处理建议</th><th>主题</th><th></th></tr>
+          <tr><td><b>my-feed</b><div class="meta">RSS · http://127.0.0.1:47831/feed.xml</div></td><td><span class="ok">正常 · 5 条</span><div class="sub">上次成功抓取：今天 20:35</div></td><td><span class="chip">记忆评测</span></td>
+  <td style="position:relative;text-align:right"><button class="btn sm" data-f="F48">⋯</button><span class="menu"><button class="btn " data-f="F48">测试抓取</button><button class="btn " data-f="F48">暂停</button><button class="btn " data-f="F48">修改地址</button><button class="btn " data-f="F48">删除</button></span></td></tr>
+          <tr><td><b>arxiv-agent-memory</b><div class="meta">arXiv · "agent memory" evaluation</div></td><td><span class="chip">无更新</span><div class="sub">非故障：本次运行无新内容。</div></td><td><span class="chip">记忆方案</span></td>
+  <td style="position:relative;text-align:right"><button class="btn sm" data-f="F48">⋯</button></td></tr>
+        </table></div>
+      <div class="sec"><h3>主题 · 2 个</h3><div class="row"><button class="btn chip" data-f="F46">记忆方案 · 0 篇</button><button class="btn chip on" data-f="F46">记忆评测 · 2 篇</button><span class="inw " data-f="F46"><input data-f="F46" placeholder="输入主题名称，按回车添加" value="" ></span></div>
+        <div class="row" style="margin-top:10px" data-f="F46"><span class="sub">「记忆评测」的关键词（固定，系统不会自动修改）：</span><span class="chip">benchmark</span><span class="chip">evaluation</span><span class="chip">LoCoMo</span><span class="chip">评测</span><button class="btn sm" data-f="F46">编辑关键词</button><button class="btn sm ghost" data-f="F46">删除主题</button></div></div>
+      <div class="sec"><h3>定时与上限</h3><div class="row"><label class="inw" data-f="F47"><input type="checkbox" data-f="F47" checked> 每天</label><span class="inw " data-f="F47"><input data-f="F47" placeholder="" value="08:00" style="width:70px"></span><span>自动运行　·　单次运行最多</span><span class="inw " data-f="F47"><input data-f="F47" placeholder="" value="30" style="width:60px"></span><span>次模型调用</span><span class="sp"></span><button class="btn " data-f="F47">保存</button></div>
+        <p class="sub" style="margin-top:6px">下次运行：明天 08:00。需保持流息运行（窗口或托盘）；错过的运行将在下次启动时补上一次，不累加。达到上限后停止，剩余内容留待下次运行处理。</p></div>
+      <div class="row"><a href="P15-来源与要求-高级.html" class="lnk" data-f="F51 F54 F55">高级设置：评分环节与提示词 · 变更记录 · 库文件夹 →</a></div>
+    </div></main>
+    <aside class="rp"><div class="rpt"><a href="P16-右栏四个标签.html" class="" data-f="F58">进度</a><a href="P16-右栏四个标签.html" class="" data-f="F59">待确认</a><a href="P16-右栏四个标签.html" class="" data-f="F60">详情</a><a href="P16-右栏四个标签.html" class="on" data-f="F61">文件</a><button class="btn" data-f="F62" title="收起右栏">▯</button></div><div class="rph"><small>文件 · 库的文件结构</small><b>AI Agent 长期记忆</b></div>
+  <div class="row" style="margin-bottom:8px"><button class="btn sm" data-f="F61 F37">在资源管理器中显示</button></div>
+  <div class="fold"><button class="sum" data-f="F61">▾ 笔记（3）· 按主题</button><p style="margin:6px 0 0 14px">记忆评测（2）<br><a href="#" class="lnk" data-f="F61 F35">长期运行的 agent 怎么记住用户：三种记忆方案的对比评测</a><br><a href="#" class="lnk" data-f="F61 F35">关于「隔天回来」的几点想法</a></p><p style="margin:6px 0 0 14px">未分类（1）<br><a href="#" class="lnk" data-f="F61 F35">MemBench 第二轮结果：开源 agent 记忆方案在「隔天回来」上普遍失分</a></p></div>
+  <div class="fold"><button class="sum" data-f="F61">▸ 待看（2）· 尚未生成文件</button></div>
+  <div class="fold"><button class="sum" data-f="F61">▸ 该库的来源与要求</button></div>
+  <div class="fold"><button class="sum" data-f="F61">▸ 程序记录（无需修改）</button></div></aside></div>
+<script>function fit(){var f=document.querySelector('.frame');var w=f.classList.contains('w1100')?1100:1440;f.style.zoom=Math.min(1,(document.documentElement.clientWidth-16)/w)}addEventListener('resize',fit);fit()</script>
+</body></html>

@@ -1,0 +1,123 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>P22 · 窗口外：托盘与通知 · 流息页面稿</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#d9d7cf;color:#23282c;font:14px/1.6 "Noto Sans SC","Microsoft YaHei UI","PingFang SC",sans-serif}
+a{color:inherit;text-decoration:none}
+button,input,textarea,select{font:inherit;color:inherit}
+.bar{display:flex;gap:16px;align-items:center;padding:10px 16px;background:#23282c;color:#f3f2ec;font-size:13px}
+.bar b{font-size:15px}.bar .go,.bar .tg{cursor:pointer;border:1px solid #6a7076;padding:2px 10px}
+.bar .sp{flex:1}.bar .lg{background:#b3125b;padding:0 5px;font:600 10px/16px Consolas,monospace}
+.note{max-width:1440px;margin:10px auto;padding:10px 14px;background:#fffdf3;border-left:4px solid #b3125b;font-size:13px}
+.note li{margin-left:18px}
+.frame{width:1440px;min-height:960px;margin:14px auto 40px;display:grid;grid-template-columns:232px 1fr 372px;background:#f7f6f1;box-shadow:0 2px 14px rgba(0,0,0,.25);position:relative}
+.frame.solo{display:block}
+.frame.w1100{width:1100px;min-height:860px;display:block}
+/* 左栏 */
+.rail{background:#f1f0ea;padding:20px 14px 14px;display:flex;flex-direction:column;gap:6px;border-right:1px solid #e3e1d9}
+.logo{display:flex;gap:12px;align-items:center;margin-bottom:14px;padding-bottom:16px;border-bottom:1px solid #dcdad2}
+.logo i{width:38px;height:38px;background:#23282c;color:#fff;display:grid;place-items:center;font:700 18px/1 inherit;font-style:normal}
+.logo b{font-size:19px;line-height:1.1}.logo small{display:block;font:11px/1 Consolas,monospace;letter-spacing:2px;color:#5d6368;margin-top:4px}
+.nav{display:flex;gap:10px;align-items:center;padding:8px 10px;font-weight:500}
+.nav.on{background:#e6e5df}
+.rail .cap{font-size:11px;color:#5d6368;margin:12px 10px 2px}
+.lib{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;padding:8px 10px}
+.lib.on{background:#e6e5df;box-shadow:inset 3px 0 0 #23282c}
+.lib small{grid-column:2/4;font-size:11px;color:#5d6368;margin-top:-6px}
+.lib em{font:600 12px Consolas,monospace;font-style:normal;color:#8a5a12}
+.ico{width:24px;height:24px;display:grid;place-items:center;color:#fff;font:700 12px/1 inherit;background:#24708f}
+.ico.z{background:#5a47a8}.ico.big{width:40px;height:40px;font-size:18px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#8a5a12;margin-right:5px}
+.dot.g{background:#1f6b57}
+.rail .fill{flex:1}
+.quota{background:#fdfdfb;padding:10px 12px;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.quota b{font-size:12px}.quota .r{display:grid;grid-template-columns:42px 1fr 30px;gap:6px;align-items:center;margin-top:5px}
+.meter{height:4px;background:#e3e1d9}.meter i{display:block;height:4px;background:#23282c}
+/* 主区 */
+main{padding:0;min-width:0}
+.lh{display:flex;gap:14px;align-items:center;padding:22px 28px 10px}
+.lh h1{font-size:23px;line-height:1.2}.lh p{font-size:12px;color:#5d6368;max-width:430px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lh .run{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:12px;color:#5d6368;text-align:right}
+.tabs{display:flex;gap:6px;padding:0 28px;border-bottom:1px solid #dcdad2}
+.tabs a{padding:8px 14px;font-weight:500;border-bottom:2px solid transparent}
+.tabs a.on{background:#e6e5df;border-bottom-color:#23282c}
+.tabs b{font:600 11px Consolas,monospace;color:#8a5a12;margin-left:4px}
+.tabs .sp{flex:1}
+.body{padding:20px 28px 28px}
+h2{font-size:18px}h3{font-size:13px;font-weight:600;margin:18px 0 8px}
+.sub{font-size:12px;color:#5d6368}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.btn{border:0;background:#e8e7e1;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#2b3035;color:#fff}.btn.sm{padding:3px 9px;font-size:12px}.btn.ghost{background:transparent;border:1px solid #cfcdc4}
+.btn.busy{background:#f3e9da;color:#6d4608}
+.lnk{border-bottom:1px solid #8b9095;font-size:13px}
+.card{background:#fdfdfb;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:12px}
+.card.sel{background:#e9e8e3;box-shadow:inset 3px 0 0 #23282c}
+.card h4{font-size:16px;line-height:1.4}
+.meta{font:12px/1.6 Consolas,"Noto Sans SC",monospace;color:#5d6368}
+.flag{display:inline-block;background:#f3e9da;color:#6d4608;font-size:12px;padding:1px 8px}
+.ok{display:inline-block;background:#e3efe9;color:#1f6b57;font-size:12px;padding:1px 8px}
+.chip{display:inline-block;background:#e8e7e1;font-size:12px;padding:2px 9px;border:0;cursor:pointer}
+.chip.on{background:#2b3035;color:#fff}
+ul.pt{margin:6px 0 8px 20px}ul.pt li{margin:2px 0}
+.inw{display:inline-block}.inw.blk{display:block}
+input,textarea,select{border:1px solid #cfcdc4;background:#fdfdfb;padding:6px 9px;font-size:13px}
+textarea{width:100%;display:block;resize:vertical}input.w{width:100%}
+.inw.blk input{width:100%}
+.banner{background:#f3e9da;border:1px solid #d9c3a0;padding:12px 16px;margin-bottom:14px}
+.fold{border-top:1px solid #dcdad2;padding:10px 0}
+.sum{border:0;background:none;font-weight:600;font-size:13px;cursor:pointer;padding:0;text-align:left}
+.kv{display:grid;grid-template-columns:86px 1fr;gap:6px 12px;font-size:13px}
+.kv dt{color:#5d6368}
+.funnel{display:flex;gap:0;align-items:stretch;margin:10px 0}
+.funnel>*{flex:1;display:block;background:#e8e7e1;padding:8px 10px;border-right:2px solid #f7f6f1}
+.funnel b{display:block;font:600 20px/1.2 Consolas,monospace}.funnel span{font-size:11px;color:#5d6368}
+.funnel .hit{background:#f3e9da}
+.bub{background:#e8e7e1;padding:10px 14px;margin:0 0 12px auto;max-width:70%;width:fit-content}
+.faint{font-size:12px;color:#8b9095;margin:6px 0}
+.sec{background:#fdfdfb;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.sec>h3{margin-top:0}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t td,table.t th{border-bottom:1px solid #e3e1d9;padding:7px 6px;text-align:left;vertical-align:top}
+table.t th{font-weight:500;color:#5d6368;font-size:12px}
+.menu{position:absolute;right:0;top:28px;background:#fdfdfb;box-shadow:0 2px 10px rgba(0,0,0,.2);display:flex;flex-direction:column;z-index:4;min-width:110px}
+.menu .btn{background:transparent;text-align:left;font-weight:500}
+.seg{display:inline-flex;background:#e8e7e1}.seg .btn.on{background:#fdfdfb;box-shadow:inset 0 0 0 1px #cfcdc4}
+/* 右栏 */
+.rp{background:#f1f0ea;padding:12px 14px;border-left:1px solid #e3e1d9;font-size:13px}
+.rpt{display:flex;gap:2px;align-items:center;margin-bottom:12px}
+.rpt a{padding:7px 9px;font-weight:500;font-size:12px;border-bottom:2px solid transparent;white-space:nowrap}
+.rpt a.on{background:#e6e5df;border-bottom-color:#23282c}
+.rpt b{font:600 11px Consolas,monospace;color:#8a5a12;margin-left:3px}
+.rpt .btn{margin-left:auto;background:transparent;padding:4px 6px}
+.rph{background:#e6e5df;padding:12px 14px;margin-bottom:12px}
+.rph small{font:11px Consolas,"Noto Sans SC",monospace;color:#5d6368}.rph b{display:block;font-size:17px;line-height:1.35}
+.rp .card{padding:12px 14px}
+.rp h3{font-size:12px;margin:14px 0 6px}
+.from{font-size:11px;color:#5d6368}
+/* 对话框 */
+.dim{position:absolute;inset:0;background:rgba(35,40,44,.45);display:grid;place-items:center;z-index:9}
+.dlg{background:#fdfdfb;padding:22px 24px;width:560px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.dlg h2{margin-bottom:10px}.dlg .row{margin-top:14px}
+.center{max-width:720px;margin:0 auto;padding:70px 0}
+/* 功能编号小标签 */
+.tags [data-f] :is(input,textarea,select)[data-f]::after,.tags [data-f]:has(> label[data-f])::after{display:none}
+:where([data-f]){position:relative}
+.tags [data-f]::after{content:attr(data-f);position:absolute;right:0;top:-9px;font:600 9px/12px Consolas,monospace;background:#b3125b;color:#fff;padding:0 3px;white-space:nowrap;z-index:6;pointer-events:none;letter-spacing:0;text-transform:none}
+</style></head>
+<body class="tags ">
+<div class="bar"><b>P22 · 窗口外：托盘与通知</b><span>流息 UX 重设计 · 页面稿（精密国际主义 · 浅色 · 中文）</span><span class="sp"></span><span class="lg">F24</span><span>= 功能地图里的编号</span>
+<span class="tg" onclick="document.body.classList.toggle('tags')">显示 / 隐藏编号</span>
+<span class="go" onclick="location.href='../'+encodeURI('总览.html')">总览</span>
+<span class="go" onclick="location.href='P21-移除这个库.html'">← P21</span><span class="go" onclick="location.href='P23-库架.html'">P23 →</span></div>
+<div class="note"><b>F04、F05、F06 保留。</b>这三样是 Windows 原生的，不在流息的窗口里，这里只画示意。行为不变：有库开着定时，关窗口就收进托盘；托盘菜单三项；一轮跑完且窗口不在前面时弹通知，点了打开到那个库的待看。</div>
+<div class="frame solo"><div class="center" style="max-width:860px">
+      <h2 style="margin-bottom:14px">窗口以外的界面（示意）</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div class="sec" data-f="F05"><h3>托盘图标与菜单</h3><p class="sub">悬停提示：流息 · 2 条待看</p>
+          <div class="menu" style="position:static;margin-top:10px;width:180px"><button class="btn " data-f="F05">打开流息</button><button class="btn " data-f="F05 F22">立即运行</button><button class="btn " data-f="F05">退出</button></div>
+          <p class="sub" style="margin-top:10px">「立即运行」作用于当前库；其他库运行中时自动排队。</p></div>
+        <div><div class="sec" data-f="F06"><h3>系统通知</h3><div class="card" style="background:#2b3035;color:#fff"><b>流息</b><p>AI Agent 长期记忆：本次运行新增 2 条待看。</p></div><p class="sub">点击通知，打开该库的「待看」。</p></div>
+          <div class="sec" data-f="F04"><h3>关闭窗口</h3><p class="sub">有库启用定时：最小化到托盘，按时自动运行。全部定时关闭：直接退出。再次启动时仅将已打开的窗口置于前台。</p></div></div>
+      </div></div></div>
+<script>function fit(){var f=document.querySelector('.frame');var w=f.classList.contains('w1100')?1100:1440;f.style.zoom=Math.min(1,(document.documentElement.clientWidth-16)/w)}addEventListener('resize',fit);fit()</script>
+</body></html>

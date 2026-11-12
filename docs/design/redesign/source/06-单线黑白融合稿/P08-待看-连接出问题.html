@@ -1,0 +1,221 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>P08 · 待看 · 连接出问题 · 流息页面稿</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#d9d7cf;color:#23282c;font:14px/1.6 "Noto Sans SC","Microsoft YaHei UI","PingFang SC",sans-serif}
+a{color:inherit;text-decoration:none}
+button,input,textarea,select{font:inherit;color:inherit}
+.bar{display:flex;gap:16px;align-items:center;padding:10px 16px;background:#23282c;color:#f3f2ec;font-size:13px}
+.bar b{font-size:15px}.bar .go,.bar .tg{cursor:pointer;border:1px solid #6a7076;padding:2px 10px}
+.bar .sp{flex:1}.bar .lg{background:#b3125b;padding:0 5px;font:600 10px/16px Consolas,monospace}
+.note{max-width:1440px;margin:10px auto;padding:10px 14px;background:#fffdf3;border-left:4px solid #b3125b;font-size:13px}
+.note li{margin-left:18px}
+.frame{width:1440px;min-height:960px;margin:14px auto 40px;display:grid;grid-template-columns:232px 1fr 372px;background:#f7f6f1;box-shadow:0 2px 14px rgba(0,0,0,.25);position:relative}
+.frame.solo{display:block}
+.frame.w1100{width:1100px;min-height:860px;display:block}
+/* 左栏 */
+.rail{background:#f1f0ea;padding:20px 14px 14px;display:flex;flex-direction:column;gap:6px;border-right:1px solid #e3e1d9}
+.logo{display:flex;gap:12px;align-items:center;margin-bottom:14px;padding-bottom:16px;border-bottom:1px solid #dcdad2}
+.logo i{width:38px;height:38px;background:#23282c;color:#fff;display:grid;place-items:center;font:700 18px/1 inherit;font-style:normal}
+.logo b{font-size:19px;line-height:1.1}.logo small{display:block;font:11px/1 Consolas,monospace;letter-spacing:2px;color:#5d6368;margin-top:4px}
+.nav{display:flex;gap:10px;align-items:center;padding:8px 10px;font-weight:500}
+.nav.on{background:#e6e5df}
+.rail .cap{font-size:11px;color:#5d6368;margin:12px 10px 2px}
+.lib{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;padding:8px 10px}
+.lib.on{background:#e6e5df;box-shadow:inset 3px 0 0 #23282c}
+.lib small{grid-column:2/4;font-size:11px;color:#5d6368;margin-top:-6px}
+.lib em{font:600 12px Consolas,monospace;font-style:normal;color:#8a5a12}
+.ico{width:24px;height:24px;display:grid;place-items:center;color:#fff;font:700 12px/1 inherit;background:#24708f}
+.ico.z{background:#5a47a8}.ico.big{width:40px;height:40px;font-size:18px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#8a5a12;margin-right:5px}
+.dot.g{background:#1f6b57}
+.rail .fill{flex:1}
+.quota{background:#fdfdfb;padding:10px 12px;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.quota b{font-size:12px}.quota .r{display:grid;grid-template-columns:42px 1fr 30px;gap:6px;align-items:center;margin-top:5px}
+.meter{height:4px;background:#e3e1d9}.meter i{display:block;height:4px;background:#23282c}
+/* 主区 */
+main{padding:0;min-width:0}
+.lh{display:flex;gap:14px;align-items:center;padding:22px 28px 10px}
+.lh h1{font-size:23px;line-height:1.2}.lh p{font-size:12px;color:#5d6368;max-width:430px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lh .run{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:12px;color:#5d6368;text-align:right}
+.tabs{display:flex;gap:6px;padding:0 28px;border-bottom:1px solid #dcdad2}
+.tabs a{padding:8px 14px;font-weight:500;border-bottom:2px solid transparent}
+.tabs a.on{background:#e6e5df;border-bottom-color:#23282c}
+.tabs b{font:600 11px Consolas,monospace;color:#8a5a12;margin-left:4px}
+.tabs .sp{flex:1}
+.body{padding:20px 28px 28px}
+h2{font-size:18px}h3{font-size:13px;font-weight:600;margin:18px 0 8px}
+.sub{font-size:12px;color:#5d6368}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.btn{border:0;background:#e8e7e1;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#2b3035;color:#fff}.btn.sm{padding:3px 9px;font-size:12px}.btn.ghost{background:transparent;border:1px solid #cfcdc4}
+.btn.busy{background:#f3e9da;color:#6d4608}
+.lnk{border-bottom:1px solid #8b9095;font-size:13px}
+.card{background:#fdfdfb;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:12px}
+.card.sel{background:#e9e8e3;box-shadow:inset 3px 0 0 #23282c}
+.card h4{font-size:16px;line-height:1.4}
+.meta{font:12px/1.6 Consolas,"Noto Sans SC",monospace;color:#5d6368}
+.flag{display:inline-block;background:#f3e9da;color:#6d4608;font-size:12px;padding:1px 8px}
+.ok{display:inline-block;background:#e3efe9;color:#1f6b57;font-size:12px;padding:1px 8px}
+.chip{display:inline-block;background:#e8e7e1;font-size:12px;padding:2px 9px;border:0;cursor:pointer}
+.chip.on{background:#2b3035;color:#fff}
+ul.pt{margin:6px 0 8px 20px}ul.pt li{margin:2px 0}
+.inw{display:inline-block}.inw.blk{display:block}
+input,textarea,select{border:1px solid #cfcdc4;background:#fdfdfb;padding:6px 9px;font-size:13px}
+textarea{width:100%;display:block;resize:vertical}input.w{width:100%}
+.inw.blk input{width:100%}
+.banner{background:#f3e9da;border:1px solid #d9c3a0;padding:12px 16px;margin-bottom:14px}
+.fold{border-top:1px solid #dcdad2;padding:10px 0}
+.sum{border:0;background:none;font-weight:600;font-size:13px;cursor:pointer;padding:0;text-align:left}
+.kv{display:grid;grid-template-columns:86px 1fr;gap:6px 12px;font-size:13px}
+.kv dt{color:#5d6368}
+.funnel{display:flex;gap:0;align-items:stretch;margin:10px 0}
+.funnel>*{flex:1;display:block;background:#e8e7e1;padding:8px 10px;border-right:2px solid #f7f6f1}
+.funnel b{display:block;font:600 20px/1.2 Consolas,monospace}.funnel span{font-size:11px;color:#5d6368}
+.funnel .hit{background:#f3e9da}
+.bub{background:#e8e7e1;padding:10px 14px;margin:0 0 12px auto;max-width:70%;width:fit-content}
+.faint{font-size:12px;color:#8b9095;margin:6px 0}
+.sec{background:#fdfdfb;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.sec>h3{margin-top:0}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t td,table.t th{border-bottom:1px solid #e3e1d9;padding:7px 6px;text-align:left;vertical-align:top}
+table.t th{font-weight:500;color:#5d6368;font-size:12px}
+.menu{position:absolute;right:0;top:28px;background:#fdfdfb;box-shadow:0 2px 10px rgba(0,0,0,.2);display:flex;flex-direction:column;z-index:4;min-width:110px}
+.menu .btn{background:transparent;text-align:left;font-weight:500}
+.seg{display:inline-flex;background:#e8e7e1}.seg .btn.on{background:#fdfdfb;box-shadow:inset 0 0 0 1px #cfcdc4}
+/* 右栏 */
+.rp{background:#f1f0ea;padding:12px 14px;border-left:1px solid #e3e1d9;font-size:13px}
+.rpt{display:flex;gap:2px;align-items:center;margin-bottom:12px}
+.rpt a{padding:7px 9px;font-weight:500;font-size:12px;border-bottom:2px solid transparent;white-space:nowrap}
+.rpt a.on{background:#e6e5df;border-bottom-color:#23282c}
+.rpt b{font:600 11px Consolas,monospace;color:#8a5a12;margin-left:3px}
+.rpt .btn{margin-left:auto;background:transparent;padding:4px 6px}
+.rph{background:#e6e5df;padding:12px 14px;margin-bottom:12px}
+.rph small{font:11px Consolas,"Noto Sans SC",monospace;color:#5d6368}.rph b{display:block;font-size:17px;line-height:1.35}
+.rp .card{padding:12px 14px}
+.rp h3{font-size:12px;margin:14px 0 6px}
+.from{font-size:11px;color:#5d6368}
+/* 对话框 */
+.dim{position:absolute;inset:0;background:rgba(35,40,44,.45);display:grid;place-items:center;z-index:9}
+.dlg{background:#fdfdfb;padding:22px 24px;width:560px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.dlg h2{margin-bottom:10px}.dlg .row{margin-top:14px}
+.center{max-width:720px;margin:0 auto;padding:70px 0}
+/* 功能编号小标签 */
+.tags [data-f] :is(input,textarea,select)[data-f]::after,.tags [data-f]:has(> label[data-f])::after{display:none}
+:where([data-f]){position:relative}
+.tags [data-f]::after{content:attr(data-f);position:absolute;right:0;top:-9px;font:600 9px/12px Consolas,monospace;background:#b3125b;color:#fff;padding:0 3px;white-space:nowrap;z-index:6;pointer-events:none;letter-spacing:0;text-transform:none}
+
+/* —— 单线黑白 —— */
+.line .frame{background:#F5F5F3;color:#111418;font-variant-numeric:tabular-nums;
+  --cut:9px;--hatch:repeating-linear-gradient(135deg,#111418 0 1.5px,transparent 1.5px 5px);
+  --chamfer:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+.line .frame *{border-color:#DCDCD8}
+.line .frame :is(.sub,.meta,.from,.faint,.cap,.kv dt,th){color:#565C63}
+.line .frame :is(.rph small,.lh p,.lh .run,.funnel span,.lib small,.quota span){color:#565C63}
+.line .frame input{accent-color:#111418}
+/* 结构线 */
+.line .rail{background:#EFEFEC;border-right:1px solid #111418}
+.line .rp{background:#EFEFEC;border-left:1px solid #111418}
+.line .logo{border-bottom:2px solid #111418}
+.line .logo i{width:50px;height:38px;font-size:0;background:#fff url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20560%20360%22%3E%3Cpath%20transform%3D%22scale(40)%22%20fill%3D%22%23E53935%22%20d%3D%22M2%200L4.707%200L6.854%202.146L6.146%202.854L4.293%201L1%201ZM1%202L7.707%202L9.854%204.146L9.146%204.854L7.293%203L0%203ZM3%204L13%204L12%205L2%205ZM2%206L7.293%206L9.146%204.146L9.854%204.854L7.707%207L1%207ZM1%208L4.293%208L6.146%206.146L6.854%206.854L4.707%209L0%209Z%22%2F%3E%3Cpath%20transform%3D%22translate(40%200)%20scale(40)%22%20fill%3D%22%231E88E5%22%20d%3D%22M2%200L4.707%200L6.854%202.146L6.146%202.854L4.293%201L1%201ZM1%202L7.707%202L9.854%204.146L9.146%204.854L7.293%203L0%203ZM3%204L13%204L12%205L2%205ZM2%206L7.293%206L9.146%204.146L9.854%204.854L7.707%207L1%207ZM1%208L4.293%208L6.146%206.146L6.854%206.854L4.707%209L0%209Z%22%2F%3E%3Cpath%20transform%3D%22translate(20%200)%20scale(40)%22%20d%3D%22M2%200L4.707%200L6.854%202.146L6.146%202.854L4.293%201L1%201ZM1%202L7.707%202L9.854%204.146L9.146%204.854L7.293%203L0%203ZM3%204L13%204L12%205L2%205ZM2%206L7.293%206L9.146%204.146L9.854%204.854L7.707%207L1%207ZM1%208L4.293%208L6.146%206.146L6.854%206.854L4.707%209L0%209Z%22%2F%3E%3C%2Fsvg%3E") center/42px auto no-repeat}
+.line .logo b{font-weight:800;letter-spacing:.04em}.line .logo small{letter-spacing:.32em;color:#565C63}
+.line .tabs{border-bottom:2px solid #111418}
+.line .rpt{border-bottom:2px solid #111418;margin-bottom:12px}
+.line .fold{border-top:1px solid #111418}
+.line h1,.line h2,.line h4{font-weight:800}
+/* 当前所在：黑白反转 + 切角 */
+.line :is(.nav.on,.lib.on){background:#111418;color:#fff;clip-path:var(--chamfer);box-shadow:none}
+.line .lib{border-bottom:1px solid #DCDCD8}
+.line .lib.on small{color:#fff;opacity:.8}
+.line .nav{font-weight:600}
+.line :is(.tabs a,.rpt a){color:#565C63;font-weight:600;border-bottom:0}
+.line :is(.tabs a.on,.rpt a.on){background:#111418;color:#fff;font-weight:800;--cut:8px;clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%)}
+/* 数字角标：实心黑切角 */
+.line :is(.tabs b,.rpt b,.lib em){background:#111418;color:#fff;padding:0 6px;font-weight:800;--cut:5px;clip-path:var(--chamfer)}
+.line :is(.tabs a.on b,.rpt a.on b,.lib.on em){background:#fff;color:#111418}
+.line :is(.tabs b,.rpt b){margin-left:6px}
+/* 库的记号：实心切角 / 灰底切角，不靠颜色 */
+.line .ico{background:#111418;color:#fff;--cut:6px;clip-path:var(--chamfer);font-weight:800}
+.line .ico.z{background:#DCDCD8;color:#111418}
+.line .lib.on .ico{background:#fff;color:#111418}
+/* 按钮 */
+.line .btn{background:#fff;color:#111418;box-shadow:inset 0 0 0 1px #111418;font-weight:600}
+.line .btn.pri{background:#111418;color:#fff;font-weight:700;box-shadow:none;clip-path:var(--chamfer)}
+.line .btn.ghost{background:transparent;box-shadow:none;border:0;outline:1px dashed #565C63;outline-offset:-1px;color:#565C63}
+.line .btn.busy{background:linear-gradient(90deg,transparent 0 12px,#fff 12px),var(--hatch);padding-left:26px}
+.line .btn.sum{box-shadow:none;background:none;font-weight:700}
+.line .rpt .btn{box-shadow:inset 0 0 0 1px #DCDCD8}
+.line .seg{background:#fff;box-shadow:inset 0 0 0 1px #111418}
+.line .seg .btn{box-shadow:none}
+.line .seg .btn.on{background:#111418;color:#fff;font-weight:800;box-shadow:none;clip-path:none}
+.line .menu{background:#fff;box-shadow:none;outline:1px solid #111418}
+.line .menu .btn{box-shadow:none;background:transparent}
+.line .lnk{border-bottom:1px solid #111418}
+/* 标签与筛选：空框；选中翻黑 */
+.line :is(.chip,.btn.chip){background:#fff;color:#111418;box-shadow:inset 0 0 0 1px #111418;font-weight:500}
+.line :is(.chip.on,.btn.chip.on){background:#111418;color:#fff;box-shadow:none;font-weight:700;clip-path:none}
+/* 状态：完成 = 实心；需要确认或注意 = 左边一条斜纹 + 墨线框 */
+.line .ok{background:#111418;color:#fff;font-weight:700;padding:1px 10px;--cut:5px;clip-path:var(--chamfer)}
+.line .flag{background:linear-gradient(90deg,transparent 0 7px,#fff 7px),var(--hatch);box-shadow:inset 0 0 0 1px #111418;padding-left:14px;color:#111418;font-weight:600}
+.line .banner{background:linear-gradient(90deg,transparent 0 12px,#fff 12px),var(--hatch);box-shadow:inset 0 0 0 1px #111418;border:0;padding-left:28px !important;color:#111418}
+.line tr:has(.flag) td:first-child b{text-decoration:underline wavy;text-underline-offset:4px}
+.line .dot{width:8px;height:8px;border-radius:0;transform:skewX(-45deg);background:var(--hatch);box-shadow:inset 0 0 0 1px #111418}
+/* 卡片与面板：墨线框，不要阴影 */
+.line :is(.card,.sec,.dlg,.quota,.rph){background:#fff;box-shadow:inset 0 0 0 1px #111418}
+.line .card.sel{background:#E7E7E3;box-shadow:inset 0 0 0 1px #111418,inset 4px 0 #111418}
+.line .card[style*="dashed"]{box-shadow:none !important;outline:1px dashed #111418;outline-offset:-1px;border:0 !important}
+.line .card b[style*="color"]{color:#111418 !important}
+.line .bub{background:#E7E7E3;clip-path:var(--chamfer);padding-inline:20px}
+.line :is(input,textarea,select){border:1px solid #111418;background:#fff;color:#111418}
+.line table.t :is(td,th){border-bottom:1px solid #DCDCD8}
+.line .dim{background:rgb(17 20 24 / .62)}
+/* 量条与漏斗：实心 = 做完，斜纹 = 当前或等你，空框 = 没到 */
+.line .meter{height:7px;background:transparent;box-shadow:inset 0 -1px #111418}
+.line .meter i{height:7px;background:#111418;min-width:9px;clip-path:polygon(0 0,100% 0,calc(100% - 7px) 100%,0 100%)}
+.line .funnel{gap:0}
+.line .funnel>*{background:#fff;box-shadow:inset 0 0 0 1px #111418;border-right:0;margin-right:-1px;color:#111418}
+.line .funnel .dn{background:#111418;color:#fff;box-shadow:inset 0 0 0 1px #111418,inset -2px 0 #fff}.line .funnel .dn span{color:#fff;opacity:.8}
+.line .funnel .hit{background:linear-gradient(90deg,transparent 0 10px,#fff 10px),var(--hatch);padding-left:20px}
+/* 新增部件页 */
+.comps{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:26px 28px}
+.comp{background:#fff;padding:16px 18px;box-shadow:inset 0 0 0 1px #111418}
+.comp>h3{margin:0 0 4px;font-size:15px}.comp>p.sub{margin-bottom:12px}
+.comp .st{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.comp .st>small{width:92px;color:#565C63;font-size:12px;flex:none}
+</style></head>
+<body class="tags line">
+<div class="bar"><b>P08 · 待看 · 连接出问题</b><span>流息 UX 重设计 · 页面稿（单线黑白 · 浅色 · 中文）</span><span class="sp"></span><span class="lg">F24</span><span>= 功能地图里的编号</span>
+<span class="tg" onclick="document.body.classList.toggle('tags')">显示 / 隐藏编号</span>
+<span class="go" onclick="location.href='../'+encodeURI('总览.html')">总览</span>
+<span class="go" onclick="location.href='P07-待看-正在跑与排队.html'">← P07</span><span class="go" onclick="location.href='P09-资料库.html'">P09 →</span></div>
+<div class="note"><b>改 F20（碰 V6，见「要 维护者 定的事」第 1 条）。</b>库页顶上一次最多一条横幅，只留给「连接出问题」这一种——四个标签都看得见。按钮从 5 个减到 3 个（O19）。<ul><li>来源异常、连续几轮没产出不再叠横幅：需要你动手的成为右栏「待确认」里的一张卡，卡上直接带「怎么办」的按钮；不需要你动手的（暂时失败、无更新）只在「来源与要求」的来源行上写状态（五种状态的说法与「怎么办」不变，V3）。</li><li>抓到的条目照旧保留（V6）。</li></ul></div>
+<div class="frame "><aside class="rail">
+  <div class="logo"><i>流</i><div><b>流息</b><small>STREAMS</small></div></div>
+  <a href="P23-库架.html" class="nav " data-f="F10 F12">▦ 库架</a>
+  <a href="P03-和主Agent聊.html" class="nav " data-f="F10 F14">▭ 主 Agent</a>
+  <div class="cap">我的库</div>
+  <a href="P05-待看.html" class="lib " data-f="F10"><span class="ico ">A</span><span>AI Agent 长期记忆</span><span></span></a><a href="P05-待看.html" class="lib on" data-f="F10"><span class="ico z">中</span><span>中国电动车</span><span class="dot"></span></a>
+  <a href="P04-新建库-自己填.html" class="nav " data-f="F10 F56">＋ 新建库</a>
+  <div class="fill"></div>
+  <div class="quota" data-f="F11"><div class="row"><b>套餐用量</b><span class="sp"></span><span>截至 今天 20:36</span></div>
+    <div class="r"><span>5 小时</span><div class="meter"><i style="width:8%"></i></div><span>8%</span></div>
+    <div class="r"><span>7 天</span><div class="meter"><i style="width:26%"></i></div><span>26%</span></div></div>
+  <a href="P17-设置.html" class="nav " data-f="F10" style="border-top:1px solid #dcdad2;margin-top:8px;padding-top:12px">⚙ 设置</a>
+</aside>
+    <main><header class="lh"><span class="ico big z">中</span><div><h1>中国电动车</h1><p>追踪范围：追踪中国新能源车的月度数据：乘用车零售与批发、渗透率、动力电池装车量。</p></div>
+  <div class="run"><span data-f="F58">下次运行 明天 08:00<br>预计 2–8 次模型调用</span><button class="btn pri" data-f="F22 N06">▷ 立即运行</button></div></header>
+  <nav class="tabs"><a href="P05-待看.html" class="on" data-f="F13">待看</a><a href="P09-资料库.html" class="" data-f="F13">资料库</a><a href="P13-问库.html" class="" data-f="F13">问库</a><span class="sp"></span><a href="P14-来源与要求.html" class="" data-f="F13">来源与要求</a></nav>
+    <div class="body">
+      <div class="banner" data-f="F20"><p><b>连接你电脑上的 Claude Code 登录已过期，本次运行未完成评分。</b>已抓取的 1 条内容已保留。</p>
+        <p class="sub">请点击「前往登录」，在打开的窗口中完成登录后，点击「已登录，重试」。</p>
+        <div class="row" style="margin-top:8px"><button class="btn pri" data-f="F20">前往登录</button><button class="btn " data-f="F20">已登录，重试</button><a href="P17-设置.html" class="lnk" data-f="F20 F63">更换连接方式</a></div></div>
+      <h2>待看 · 0 条</h2><p class="sub" style="margin-bottom:16px">有 1 条内容已抓取、尚未评分，重试后将继续处理。</p>
+      <div class="sec" data-f="F18 N10"><h3>上次运行 · 今天 21:02 · 未完成</h3>
+        <div class="funnel"><div><b>1</b><span>已抓取（3 个来源）</span></div><div><b>1</b><span>去重后新增</span></div><div class="hit"><b>停</b><span>自检未通过：登录过期</span></div><div><b>–</b><span>相关度</span></div><div><b>–</b><span>进入待看</span></div></div></div>
+    </div></main>
+    <aside class="rp"><div class="rpt"><a href="P16-右栏四个标签.html" class="" data-f="F58">进度</a><a href="P16-右栏四个标签.html" class="on" data-f="F59">待确认<b>2</b></a><a href="P16-右栏四个标签.html" class="" data-f="F60">详情</a><a href="P16-右栏四个标签.html" class="" data-f="F61">文件</a><button class="btn" data-f="F62" title="收起右栏">▯</button></div><div class="rph"><small>全部库 · 待确认</small><b>2 项</b><span class="sub">以下事项均需确认后才会执行。</span></div>
+      <div class="card" data-f="F59 F16 N05"><span class="from">系统检测 · 中国电动车</span><p><b>来源「blog-x」地址无效</b></p><p class="sub">连续 2 次运行无法访问该地址（404）。建议：更新为当前可用的订阅地址，或暂停该来源。</p>
+        <div class="row" style="margin-top:8px"><button class="btn pri sm" data-f="F59 F48 N05">修改地址</button><button class="btn sm" data-f="F59 F48 N05">暂停该来源</button><button class="btn sm" data-f="F59 N05">忽略</button></div></div>
+      <div class="card" data-f="F59 F16 N05"><span class="from">系统检测 · 中国电动车</span><p><b>连续 3 次运行无内容进入待看</b></p><p class="sub">3 次运行共抓取 4 条，相关度最高 0.35（通过阈值 0.7）。</p>
+        <div class="row" style="margin-top:8px"><button class="btn pri sm" data-f="F59 N01 N05">将严格程度调整为「标准」</button><button class="btn sm" data-f="F59 F14 N05">交由主 Agent 分析</button><button class="btn sm" data-f="F59 N05">忽略</button></div></div></aside></div>
+<script>function fit(){var f=document.querySelector('.frame');var w=f.classList.contains('w1100')?1100:1440;f.style.zoom=Math.min(1,(document.documentElement.clientWidth-16)/w)}addEventListener('resize',fit);fit()</script>
+</body></html>

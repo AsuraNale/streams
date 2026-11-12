@@ -1,0 +1,120 @@
+{
+  "about": "Redesign R1: the files of the design's template the app uses, each byte for byte the design's. app: the path under src/renderer/template/; source: the path under docs/design/redesign/source/ (the design folder as copied, see docs/design/redesign/来源.md); sha256: of both. The app's copy renames one folder (templates/精密国际主义-精修 → templates/precision-detail) so its code names no Chinese path; the files are unchanged. Written by scripts/template-manifest.mjs; test/theme.test.mjs checks every hash.",
+  "files": [
+    {
+      "app": "shared/round10/edition.js",
+      "source": "07-模板版/shared/round10/edition.js",
+      "sha256": "95ef420e62efff480d69e839766b822358823775dfa72d3bb61f6fce06d889b5"
+    },
+    {
+      "app": "shared/round10/glass.css",
+      "source": "07-模板版/shared/round10/glass.css",
+      "sha256": "c7f610ebf28f2474f35f5e5bbc03ce810a9e7c325e7b1bbc059707b7e64fc45d"
+    },
+    {
+      "app": "shared/round11/edition.js",
+      "source": "07-模板版/shared/round11/edition.js",
+      "sha256": "a9d911289ab579b704ec573ecfa84a61c3fd303e1fb75e424252d7185700d124"
+    },
+    {
+      "app": "shared/round11/workbench.css",
+      "source": "07-模板版/shared/round11/workbench.css",
+      "sha256": "78a4b1c05a6a8c022c8b578acf717fe85e21d539087fb76ce050fdff83eb6dc0"
+    },
+    {
+      "app": "shared/round12/brand/streams.svg",
+      "source": "07-模板版/shared/round12/brand/streams.svg",
+      "sha256": "948d81367d96a76cabc983e1abac7966e1045c64b58c9d1f9c0170bcc5bff74f"
+    },
+    {
+      "app": "shared/round12/edition.js",
+      "source": "07-模板版/shared/round12/edition.js",
+      "sha256": "df49fa8df5a8e4ef317a65f4aa26c9ecd5f6e2d7016f173d41e698b938b9aea4"
+    },
+    {
+      "app": "shared/round12/line.css",
+      "source": "07-模板版/shared/round12/line.css",
+      "sha256": "9ba5cb8e04dfab98fdec1b5c1e364cefd146bf3aff28272e0b3ce3bb04423208"
+    },
+    {
+      "app": "shared/round3/themes/glass.css",
+      "source": "07-模板版/shared/round3/themes/glass.css",
+      "sha256": "7adec87afdcbff198b38d6f0d356a193cf7e54fe7edea01373166ceb296a0162"
+    },
+    {
+      "app": "shared/round3/themes/research.css",
+      "source": "07-模板版/shared/round3/themes/research.css",
+      "sha256": "6777d80da0090b62e7dc8bed200d033de5980607e8255edcb71c8ed710d04469"
+    },
+    {
+      "app": "shared/round6/base.css",
+      "source": "07-模板版/shared/round6/base.css",
+      "sha256": "d84b0d08517950f1857ac3e342f48e6859921cce383ca619da2d41defe9f185f"
+    },
+    {
+      "app": "shared/round6/design.css",
+      "source": "07-模板版/shared/round6/design.css",
+      "sha256": "fd740d8aa015dfac2613d985e1ecf806cacc173e251478eeb91cfbeabf14ca9c"
+    },
+    {
+      "app": "shared/round7/heritage/swiss.css",
+      "source": "07-模板版/shared/round7/heritage/swiss.css",
+      "sha256": "97d3f25b2e88b2dcaf8f01f8fbc9b195d876a9fc1870dedc56df29aa8499f353"
+    },
+    {
+      "app": "shared/round7/swiss.css",
+      "source": "07-模板版/shared/round7/swiss.css",
+      "sha256": "a1a72ae9d47863aba59d6566b51aeebbcf13f69b8bfd89d7b0b586fddc7fc3df"
+    },
+    {
+      "app": "shared/round8/common.css",
+      "source": "07-模板版/shared/round8/common.css",
+      "sha256": "e0dbb541cd63f9f47850337f79e8a8a0dfeef3749b8e8dd1e6d04df3e7e3972a"
+    },
+    {
+      "app": "shared/round8/precision.css",
+      "source": "07-模板版/shared/round8/precision.css",
+      "sha256": "07c428be8cdcab268c84eec276de9f848627ff8715eba11a1e79d18979c5073e"
+    },
+    {
+      "app": "shared/round9/edition.js",
+      "source": "07-模板版/shared/round9/edition.js",
+      "sha256": "acd449708c7d3a6f3abb7ef1439a6e28927f21457778b0d2f433c9c18d2d1924"
+    },
+    {
+      "app": "shared/round9/glass.css",
+      "source": "07-模板版/shared/round9/glass.css",
+      "sha256": "56dffb6810f1a7d86e45867e68beeb76fe2d717f4851f5b1d98f570a858fcdf2"
+    },
+    {
+      "app": "shared/round9/precision.css",
+      "source": "07-模板版/shared/round9/precision.css",
+      "sha256": "31870e0292089228d0af59ba6ec8ce3efc39f8b02bc85c31502cf85a6b822d59"
+    },
+    {
+      "app": "shared/round9/research.css",
+      "source": "07-模板版/shared/round9/research.css",
+      "sha256": "5b47c4474b6ab3f0055b7cd82e0cf7dd6043903a21c742cc4f742c091da52755"
+    },
+    {
+      "app": "shared/round9/system.css",
+      "source": "07-模板版/shared/round9/system.css",
+      "sha256": "aa26744dfe5359c5febe7c32fafa77517ceacd19d382c7177f1e79f066136a27"
+    },
+    {
+      "app": "streams/streams.css",
+      "source": "07-模板版/streams/streams.css",
+      "sha256": "229fea1198fefd6f0fa5444602229199d326cd66c915e841e08f5a549766c9ea"
+    },
+    {
+      "app": "templates/precision-detail/edition.js",
+      "source": "07-模板版/templates/精密国际主义-精修/edition.js",
+      "sha256": "907bfe6e1a2ba56a2bfc4e359354bf755f4a325b5c449da9cb2d15bfbcecb6bd"
+    },
+    {
+      "app": "templates/precision-detail/precision.css",
+      "source": "07-模板版/templates/精密国际主义-精修/precision.css",
+      "sha256": "67d6c5490ace588e6707485cc8522b204ffdeedf3f5bce3a5d1ce977742a992e"
+    }
+  ]
+}

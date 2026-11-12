@@ -1,6 +1,6 @@
 // v2 package L (docs/checks/2026-11-10-wp-l/contract.md; design draft docs/design/next/themes/ README 第三、四节): the right
-// panel of the main window — its four tabs 进度 · 等你决定 · 详情 · 文件 (screens/right-panel.js) — and the queue's words where
-// a library's place in it shows: the run dialog, 概览's banner and button, 库架's cards, the sidebar's library lines.
+// panel of the main window — its four tabs 进度 · 待确认 · 详情 · 文件 (screens/right-panel.js) — and the queue's words where
+// a library's place in it shows (redesign R1, F23): the library head's run button, the sidebar's line, 库架's cards.
 // Placeholders: {name}, filled by fmt (lib/format.js).
 
 export const PANEL = Object.freeze({
@@ -8,44 +8,49 @@ export const PANEL = Object.freeze({
   tabsLabel: '右栏标签',
   fold: '收起右栏',
   unfold: '展开右栏',
-  tabs: Object.freeze({ progress: '进度', decide: '等你决定', detail: '详情', files: '文件' }),
-  decideBadge: '{n} 件等你定',
+  tabs: Object.freeze({ progress: '进度', decide: '待确认', detail: '详情', files: '文件' }),
+  decideBadge: '{n} 项待确认',
 
-  // 进度: every library — the round that runs, the queue in order, each library's next timed slot
+  // 进度: every library — the round that runs, the queue in order, each library's next timed slot (redesign R1: the template's
+  // panel-summary, phase-row, mini-chart and activity-row; the words of 05-措辞规范)
   progress: Object.freeze({
-    eyebrow: '所有库 · 现在 {hm}',
-    summary: '{running} 个在跑 · {waiting} 个排队',
-    idle: '现在没有在跑的',
-    rule: '一次只跑一个库；排队的按先后自动接着跑。',
-    running: '{name} · 在跑',
+    eyebrow: '运行进度 / 全部库',
+    summary: '{running} 个运行中 · {waiting} 个排队中',
+    idle: '当前无运行任务',
+    rule: '同一时间仅运行一个库，其余按顺序自动执行。',
+    queueSize: '队列中有 {n} 个库',
+    asOf: '截至 {hm}',
+    running: '{name} · 运行中',
     started: '{when} 开始',
-    phase: '到了：{phase}',
-    calls: '调用',
-    callsValue: '{calls} / 上限 {cap}',
+    phase: '当前步骤：{phase}',
+    calls: '模型调用',
+    callsValue: '{calls} / {cap}',
     callsNoCap: '{calls}',
-    order: '排队的先后',
-    orderNone: '没有排队的库。',
-    here: '这个库',
-    runningLine: '在跑 · {why}',
-    waitingLine: '{why} · {since}排上的',
-    after: '排在「{name}」后面 · 它跑完自动接着跑',
-    next: '下次定时',
-    nextNone: '没有开着定时的库。',
-    loadFailed: '没能读出排队。',
-    unknownLibrary: '（不在登记里的库）',
+    order: '队列顺序',
+    orderNone: '队列中没有库。',
+    here: '当前库',
+    runningLine: '运行中 · {why}',
+    waitingLine: '{why} · {since} 加入队列',
+    after: '「{name}」完成后自动开始',
+    next: '下次运行时间',
+    nextNone: '没有开启定时运行的库。',
+    loadFailed: '未能读取运行队列。',
+    unknownLibrary: '（未登记的库）',
   }),
 
-  // 等你决定: every library's proposal cards waiting and suggestion cards not handled (the sidebar's badge counts the same)
+  // 待确认 (维护者 11-11 第 13 题: was 「等你决定」): every library's proposals waiting and system findings not handled (the same
+  // list as the tab's number); the current library's findings can be handled right here
   decide: Object.freeze({
-    eyebrow: '所有库 · 等你决定',
-    title: '{n} 件等你定',
-    none: '没有等你定的事。',
-    lead: '提议卡要你确认才生效；建议卡只是建议，按钮由你点。',
-    proposal: '提议卡',
-    suggestion: '建议卡',
+    eyebrow: '待确认 / 全部库',
+    title: '{n} 项',
+    none: '暂无待确认事项。',
+    lead: '以下事项均需确认后才会执行。',
+    proposal: '主 Agent 提议',
+    suggestion: '系统检测',
     newLibrary: '新库',
-    whereChat: '在「和主 Agent 聊」里 · 点了去那里',
-    whereLibrary: '在「{name}」的概览 · 点了去那里',
+    whereChat: '在「主 Agent」中处理',
+    whereLibrary: '在「{name}」中处理',
+    thisLibrary: '当前库 · 系统检测',
   }),
 
   // 详情: follows the main area
@@ -55,10 +60,10 @@ export const PANEL = Object.freeze({
       inbox: '待看 · 选中的这一条',
       library: '资料库 · 这一篇',
       ask: '问库 · 答案引用的笔记',
-      chat: '和主 Agent 聊 · 这一轮',
+      chat: '主 Agent · 本次对话',
     }),
     // the other screens: one sentence
-    none: '这一页没有选中的东西。在待看、资料库、问库、和主 Agent 聊里，这里显示选中的那一条的细节。',
+    none: '当前页面未选中任何内容。在待看、资料库、问库或主 Agent 中选中一项，这里显示它的详情。',
     inbox: Object.freeze({
       empty: '待看里没有条目。',
       scores: '每道关的分数与理由',
@@ -92,62 +97,41 @@ export const PANEL = Object.freeze({
 
   // 文件: the current library as a structure told to a person, not the folder as it is
   files: Object.freeze({
-    eyebrow: '文件 · 这个库是怎么组织的',
-    lead: '讲给人听的结构，不是原样的文件夹。点一篇在资料库里读；右键或「更多」可以用 Obsidian 打开。',
+    eyebrow: '文件 / 库的文件结构',
+    lead: '按主题列出该库的笔记。点击一篇在资料库中阅读；右键或「更多」可在 Obsidian 中打开。',
     reveal: '在资源管理器中显示',
     notes: '笔记（{n}）',
     notesHint: '按主题分组',
+    other: '其它',
     notesNone: '还没有笔记。',
     untopiced: '未分主题',
     topic: '{topic}（{n}）',
     inbox: '待看（{n}）',
-    inboxHint: '还没成文件 · 点了去待看',
-    requirements: '这个库的要求与来源',
-    requirementsHint: '{sources} 个来源 · {topics} 个主题 · 点了去「来源与要求」改，改动有「谁定的」记录',
-    records: '程序记录（不用动）',
-    recordsHint: '流息自己用的文件',
-    recordsText: '流息自己记的东西：抓取记录、待看、缓存。不用打开，也别手改。',
+    inboxHint: '尚未生成文件 · 点击前往待看',
+    requirements: '该库的来源与要求',
+    requirementsHint: '{sources} 个来源 · {topics} 个主题 · 点击前往「来源与要求」修改',
+    records: '程序记录（无需修改）',
+    recordsHint: '流息内部使用的文件',
+    recordsText: '流息的内部记录：抓取记录、待看与缓存。无需打开，也请勿手动修改。',
     expand: '展开',
     collapse: '收起',
     more: '更多',
-    moreLabel: '这一篇',
-    obsidian: '用 Obsidian 打开',
+    moreLabel: '该笔记',
+    obsidian: '在 Obsidian 中打开',
     folder: '在资源管理器中显示',
-    noLibrary: '先选一个库。在左栏「我的库」里点一个，这里显示它是怎么组织的。',
-    failed: '没能打开。',
-    loadFailed: '没能读出这个库的结构。',
+    noLibrary: '请先在左栏「我的库」中选择一个库，这里显示它的文件结构。',
+    failed: '未能打开。',
+    loadFailed: '未能读取该库的文件结构。',
   }),
 })
 
-// the queue (v2 package L, feedback #1): one round at a time; 开始 while another library runs or waits puts this one at the end
+// the queue (v2 package L; redesign R1, N06 · F23): one round at a time; 立即运行 while another library runs or waits puts this
+// one at the end. Its place shows in three places only: the library's head button, its line in the sidebar, the panel's 进度.
 export const QUEUE = Object.freeze({
-  // why a library waits / runs (getQueue's `why`), as 「它在…」
-  doing: Object.freeze({ schedule: '跑定时的一轮', 'catch-up': '补跑错过的那一轮', manual: '跑一轮' }),
-  // the same, as a line of the panel's list
-  why: Object.freeze({ schedule: '定时的一轮', 'catch-up': '补跑错过的那一轮', manual: '你点的「开始」' }),
-  // the second line of a library in the sidebar, on 库架's card, in 概览's head
-  running: '在跑',
+  // why a library runs / waits (getQueue's `why`), as a line of the panel's list
+  why: Object.freeze({ schedule: '定时运行', 'catch-up': '补跑错过的运行', manual: '手动触发' }),
+  // a library's place (the sidebar's line, 库架's card, the panel)
+  running: '运行中',
+  runningPhase: '运行中 · {phase}',
   queued: '排队中 · 第 {n} 位',
-  // 概览's button while this library runs or waits
-  runningButton: '正在跑',
-  queuedButton: '已排上',
-  banner: Object.freeze({
-    title: '排队中 · 第 {n} 位',
-    text: '前面是「{name}」：它在{doing}。它跑完，这个库自动接着跑，不用再点「开始」。',
-    textNoName: '轮到了会自动开始，不用再点「开始」。',
-    see: '看进度',
-  }),
-  // the run dialog after 开始
-  dialog: Object.freeze({
-    queued: '「{name}」正在{doing}；这个库排在第 {n} 位，轮到了会自动开始。',
-    queuedNoName: '这个库排在第 {n} 位，轮到了会自动开始。',
-    running: '这个库正在跑，不用再点「开始」。',
-    before: '前面',
-    beforeValue: '{name} · {phase} · 调用 {calls}',
-    beforeCap: '{name} · {phase} · 调用 {calls} / {cap}',
-    here: '这个库',
-    hereValue: '排在第 {n} 位 · 不用再点「开始」',
-    ok: '知道了',
-    see: '看进度',
-  }),
 })

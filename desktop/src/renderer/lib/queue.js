@@ -3,18 +3,22 @@
 //                                 and at the end of a round; while a round runs, its phase and calls follow `round-progress`
 //                                 (no read per step)
 //   queueStateOf(queue, id)     → where a library is: { state: 'running' } · { state: 'queued', position } · null
-//   queueWords(state)          → that place in words (texts/panel.js QUEUE), or null
-//   doingOf(why, table)         → why a round runs / waits in words (texts/panel.js QUEUE.doing / QUEUE.why); 'manual' when not known
+//   queueWords(state, phase)   → that place in words (texts/panel.js QUEUE): 运行中 · <当前环节> (phase: a round-progress
+//                                 phase, lib/phase.js phaseWords) / 运行中 / 排队中 · 第 n 位, or null
+//   doingOf(why, table)         → why a round runs / waits in words (texts/panel.js QUEUE.why); 'manual' when not known
 import { call } from './bridge.js'
 import { useEvent } from './use-events.js'
 import { useLoad } from './use-load.js'
 import { fmt } from './format.js'
 import { QUEUE } from '../texts/panel.js'
+import { phaseWords } from './phase.js'
 
-/** A library's place in words (the sidebar, 库架, 概览): 在跑 · 排队中 · 第 n 位, or null. */
-export function queueWords(state) {
+/** A library's place in words (the sidebar, 库架, the panel): 运行中 · <当前环节> · 排队中 · 第 n 位, or null. */
+export function queueWords(state, phase = null) {
   if (!state) return null
-  return state.state === 'running' ? QUEUE.running : fmt(QUEUE.queued, { n: state.position })
+  if (state.state !== 'running') return fmt(QUEUE.queued, { n: state.position })
+  const p = phaseWords(phase)
+  return p ? fmt(QUEUE.runningPhase, { phase: p }) : QUEUE.running
 }
 
 export function queueStateOf(queue, id) {

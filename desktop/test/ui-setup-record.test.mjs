@@ -1,3 +1,4 @@
+// redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // 首次设置's record of who decided each step (plan A1; docs/desktop.md §4.1「首次设置」), on the running app, read back from the
 // library's streams.json.
 // v2 package I rewrote session A and moved where the record is shown: v1.0's wizard is now 首次打开 (the connection, recorded in
@@ -76,7 +77,7 @@ test('the blank pack left as it is → pack chose blank, sources default; back f
   await stepIs('schedule')
   assert.equal(setup().trial.by, 'skipped')
   await click('[data-action="go-today"]')
-  await ready(a.page, 'overview')
+  await ready(a.page, 'inbox')
   const s = setup()
   assert.deepEqual(Object.keys(s).sort(), [...STEPS].sort())
   assert.deepEqual(STEPS.map(k => s[k].by), ['chose', 'skipped', 'chose', 'default', 'skipped', 'default'])

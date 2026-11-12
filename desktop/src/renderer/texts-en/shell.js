@@ -2,16 +2,21 @@
 
 export const SHELL = Object.freeze({
   sidebar: Object.freeze({
-    chatBadge: '{n} thing{n?|s} for you to decide',
     mine: 'My libraries',
     newLibrary: 'New library',
-    problem: 'Something is wrong with this library',
+    problem: 'This library has an issue',
     inboxBadge: '{n} item{n?|s} in the inbox',
+    inboxLine: '{n} to review',
+    idle: 'Nothing to review',
+    problems: Object.freeze({
+      missing: 'Folder cannot be read',
+      sources: 'Source issues',
+      'no-output': 'No new items in {n} runs',
+    }),
     // v2 package M: the corner above Settings
     quota: Object.freeze({
       label: 'What is left',
-      // v2 package L: the K1 draft's title (the used per cent)
-      plan: 'Plan used',
+      plan: 'Plan usage',
       balance: 'API balance',
       window: '{span}: {pct}% used · resets {when}',
       resets: Object.freeze({ today: '{hm}', tomorrow: 'tomorrow {hm}', date: '{m}/{d} {hm}' }),
@@ -20,44 +25,61 @@ export const SHELL = Object.freeze({
       minutes: '{n} min',
       amount: '{amount} {currency}',
       asOf: 'As of {when}',
-      // v2 package K2: the corner drawn as the K1 draft has it — under each window's bar, when it resets
       resetsAt: 'resets {when}',
     }),
   }),
 
   tabs: Object.freeze({
-    label: 'Parts of the library',
-    overview: 'Overview',
+    label: 'Library navigation',
     inbox: 'Inbox',
     library: 'Library',
     ask: 'Ask',
     sources: 'Sources & Brief',
   }),
   head: Object.freeze({
-    tracking: 'Following: {what}',
+    tracking: 'Tracking: {what}',
     trackingNone: 'No brief and no topics yet',
     loadFailed: 'This library could not be read.',
+    run: Object.freeze({
+      now: 'Run now',
+      running: 'Running · Stop',
+      stopping: 'Stopping',
+      queued: 'Queued · #{n}',
+      next: 'Next run {when}',
+      nextNone: 'No scheduled run',
+      calls: 'Est. {lo}–{hi} model calls',
+      callsOne: 'Est. {n} model call{n?|s}',
+      failed: 'The run could not start. Try again.',
+      stopFailed: 'The run could not be stopped. Try again.',
+    }),
   }),
   view: Object.freeze({ label: 'View', list: 'List', graph: 'Graph' }),
 
   shelf: Object.freeze({
     title: 'Shelf',
-    subtitle: '{n} librar{n?y|ies} · each runs on its own time',
+    subtitle: '{n} librar{n?y|ies} · each runs on its own schedule',
+    eyebrow: 'My libraries / LIBRARIES',
+    lead: 'See what is new every day. Keep what is worth keeping.',
+    text: 'Each library follows a set of sources and runs on its own schedule. Items that pass the filters go to the Inbox, where you decide what to keep.',
+    search: 'Search libraries',
+    searchNone: 'No library has “{q}” in its name or tracking.',
     newButton: 'New library',
-    newCard: 'New library · build it with the main Agent',
+    newCard: 'New library · drafted by the main agent',
     inboxLabel: 'in the inbox',
-    updated: 'Last updated {when}',
+    inboxLine: '{n} to review',
+    enter: 'Open Inbox',
+    updated: 'Last run {when}',
     updatedNever: 'Not run yet',
     sources: '{n} source{n?|s}',
-    fine: 'All sources are fine',
+    fine: 'Sources OK',
     problems: Object.freeze({
-      missing: 'The folder is gone or cannot be read',
-      sources: 'A source has a problem',
-      'no-output': '{n} rounds in a row with nothing new',
+      missing: 'Folder cannot be read',
+      sources: 'Source issues',
+      'no-output': 'No new items in {n} runs',
     }),
-    emptyText: 'No library yet. Tell the main Agent what you want to follow and it builds one with you, or make one yourself.',
-    emptyChat: 'Chat with the main Agent',
-    emptyManual: 'Make one myself',
+    emptyText: 'No library yet. Describe what you want to track to the main agent to get a proposal, or set one up manually.',
+    emptyChat: 'Drafted by the main agent',
+    emptyManual: 'Set up manually',
     loadFailed: 'The list of libraries could not be read.',
   }),
 
@@ -90,8 +112,8 @@ export const SHELL = Object.freeze({
     setup: 'First-time setup',
   }),
 
-  overview: Object.freeze({
-    title: 'Overview',
+  lastRun: Object.freeze({
+    title: 'This library · Last run',
     run: 'Run status',
   }),
 

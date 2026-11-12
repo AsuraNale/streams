@@ -1,3 +1,4 @@
+// redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // Events from the main process to the page (docs/desktop.md §四「事件」) on the running app. One channel carries
 // { topic, payload }; main sends with emit(topic, payload) (src/main/events.mjs), the page subscribes with
 // window.streams.onEvent(topic, callback) — only to the topics docs/desktop.md §四 lists — gets the payload alone,
@@ -53,11 +54,11 @@ test('onEvent (page): only a listed topic and a function; the payload alone arri
   await send({ topic: 'settings-changed', payload: { n: 2 } })
   await sleep(600)
   assert.deepEqual(await s.page.evaluate(() => window.__got), [[{ n: 1 }]], 'nothing after unsubscribing')
-  await ready(s.page, 'overview')
+  await ready(s.page, 'inbox')
 })
 
 test('a setting changed through the bridge → settings-changed → the page re-reads the app state, no reload', async () => {
-  await ready(s.page, 'overview')
+  await ready(s.page, 'inbox')
   await s.page.evaluate(() => { window.__sameDocument = true; window.__events = []; window.streams.onEvent('settings-changed', p => window.__events.push(p)) })
   // the developer switch: a change the page can see in the app state (the sidebar does not show it, so the test reads the state)
   const r = await s.page.evaluate(() => window.streams.setShowDeveloperInfo(true))
@@ -80,17 +81,17 @@ test('open-screen → the page goes to the screen named (an unknown screen is ig
   await ready(s.page, 'shelf')
   // v1.0's 运行状态 is a part of 概览 now
   await send({ topic: 'open-screen', payload: { screen: 'status' } })
-  await ready(s.page, 'overview')
+  await ready(s.page, 'inbox')
   await send({ topic: 'open-screen', payload: { screen: 'inbox' } })
   await ready(s.page, 'inbox')
   await send({ topic: 'open-screen', payload: { screen: 'today' } })
-  await ready(s.page, 'overview')
+  await ready(s.page, 'inbox')
 })
 
 // v2 package K2: the main area lies flat on the page right of the sidebar (the K1 draft has no 12px gutter around it), so it
 // starts at 232px, not 244px
 test('D9 · the sidebar keeps its 232px and the main area starts right after it (232px); nothing overflows the page', async () => {
-  await ready(s.page, 'overview')
+  await ready(s.page, 'inbox')
   const m = await s.page.evaluate(() => {
     const r = el => el.getBoundingClientRect()
     const side = document.querySelector('.st-sidebar')

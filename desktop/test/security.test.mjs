@@ -1,3 +1,4 @@
+// redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // A1-1 (work order 05 §六) on the running app: the page has no Node; an external address is refused — by the
 // page's CSP, and by the session even where no CSP applies; the bridge has exactly the documented methods.
 // Plus: the CSP the app sends is the one security.mjs defines, the app:// handler serves nothing outside its
@@ -38,7 +39,7 @@ after(async () => {
 })
 
 test('the page starts without errors', async () => {
-  await ready(s.page, 'overview')
+  await ready(s.page, 'inbox')
   assert.deepEqual(s.errors, [])
 })
 

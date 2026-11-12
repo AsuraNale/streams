@@ -10,6 +10,11 @@
 // that the fetched items are all there (the count is the core's homeNumbers().caught for the folder), and how to fix it
 // (去登录, then 重试打分); the library's content files are unchanged. Reverse: the same world with
 // STREAMS_DEV_CONNECTION=fake runs the round to the end and shows no card.
+// Redesign R1 (维护者 11-11 第 1、6 题): 概览 and the run dialog are gone — only how this file finds things changed: 「开始」 is the
+// library head's 立即运行 ([data-part="run-button"] button, which starts the round at once, no dialog), the screen waited for is
+// 待看 ('inbox', was 'overview'), and the card is looked for on the library's page (.lib-page, where it now sits on top of every
+// tab; was main[data-screen="overview"]); the right panel is opened on 进度, where the progress box of a run that started would be
+// (it was 概览's). The standard (standards.mjs) and every assertion on the card are as they were.
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { core } from './support/paths.mjs'
@@ -56,14 +61,13 @@ const POLL = { polling: 100, timeout: 90_000 }
 const CONTENT = rel => rel === 'streams.json' || rel.startsWith('notes/') || rel === '_pipeline/ledger.jsonl' || rel.startsWith('_pipeline/inbox/')
 
 async function startRoundFromToday(page) {
-  await page.click('[data-action="run"] button')
-  await page.waitForFunction(() => document.querySelector('[data-dialog="run"] [data-action="start"] button') !== null, null, POLL)
-  await page.click('[data-dialog="run"] [data-action="start"] button')
+  await page.waitForFunction(() => document.querySelector('[data-part="run-button"][data-run-state="idle"] button')?.disabled === false, null, POLL)
+  await page.click('[data-part="run-button"] button')
 }
 
 describe('V6 desktop: login expired', () => {
   const s = worldSession({
-    kind: 'seeded', waitFor: 'overview', settings: { connections: { active: 'claude-code' } },
+    kind: 'seeded', waitFor: 'inbox', settings: { connections: { active: 'claude-code' }, panel: { open: true, tab: 'progress' } },
     env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'login-expired' }),
   })
 
@@ -73,9 +77,9 @@ describe('V6 desktop: login expired', () => {
     assert.ok(Object.keys(before).length >= 6, 'control: the seeded library has its files')
     assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="problem"]')), null, 'no card before the round')
     await startRoundFromToday(s.page)
-    await s.page.waitForFunction(() => document.querySelector('main[data-screen="overview"] [data-part="problem"]') !== null, null, POLL)
+    await s.page.waitForFunction(() => document.querySelector('.lib-page [data-part="problem"]') !== null, null, POLL)
     const card = await s.page.evaluate(() => {
-      const c = document.querySelector('main[data-screen="overview"] [data-part="problem"]')
+      const c = document.querySelector('.lib-page [data-part="problem"]')
       return { code: c.dataset.code, connectionCode: c.dataset.connectionCode, text: c.textContent, head: c.querySelector('.today-problem__text')?.textContent ?? '', actions: [...c.querySelectorAll('[data-action]')].map(e => e.dataset.action) }
     })
     assert.equal(card.code, 'connection')
@@ -103,7 +107,7 @@ describe('V6 desktop: login expired', () => {
 
 describe('V6 desktop, reverse: a working (fake) connection', () => {
   const s = worldSession({
-    kind: 'seeded', waitFor: 'overview', settings: { connections: { active: 'claude-code' } },
+    kind: 'seeded', waitFor: 'inbox', settings: { connections: { active: 'claude-code' }, panel: { open: true, tab: 'progress' } },
     env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake' }),
   })
 

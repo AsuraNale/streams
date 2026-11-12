@@ -10,8 +10,9 @@ export const AGENT = Object.freeze({
   you: '你',
 
   chat: Object.freeze({
-    title: '和主 Agent 聊',
-    subtitle: '管你所有的库：建库、改库，都先出提议卡，你确认才生效',
+    // redesign R1 (05-措辞规范): the page's name is 「主 Agent」 (was 「和主 Agent 聊」)
+    title: '主 Agent',
+    subtitle: '创建库、调整库设置、查询各库情况。所有改动均以提议形式提交，确认后生效。',
     // the first words of the conversation (the start of the record: nothing earlier)
     intro: '我管你所有的库。想追什么新东西、想改哪个库，直接跟我说；要动库里的东西，我会先出一张提议卡，你确认了才算。',
     inputLabel: '和主 Agent 说',
@@ -156,7 +157,7 @@ export const AGENT = Object.freeze({
       failed: '没生效：{step}',
     }),
     queued: '第一轮排上了',
-    notQueued: '第一轮没排上，可以在概览里点「现在跑一轮」',
+    notQueued: '首次运行未能加入队列，可在该库页头点击「立即运行」',
     rolledBack: '已做的都撤回了，库没有变。',
     notRolledBack: '没能确认已做的都撤回了，去来源与要求里看一眼。',
     createdKept: '库已建好、已登记，只是第一轮没排上。',
@@ -202,7 +203,7 @@ export const AGENT = Object.freeze({
     accepted: '已交给主 Agent',
     dismissed: '没要',
     callFailed: '没能办成，可以再点一次。',
-    go: '去和主 Agent 聊',
+    go: '前往主 Agent',
     title: '主 Agent 给这个库的建议',
     none: '主 Agent 暂时没有给这个库的建议。',
   }),

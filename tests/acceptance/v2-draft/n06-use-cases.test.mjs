@@ -11,6 +11,11 @@
 // Where the design and the product differ by a decision (维护者 11-05: no 「以后这类直接换」; the first visit of a library
 // opens 待看, package F), the step checks the product and says so.
 // Each check has its control: the state before the click, or the other card / the other library.
+// Redesign R1 (维护者 11-11 第 1、6 题): 概览 and the run dialog are gone. Only how this file finds things changed, not the
+// standard (standards-draft.mjs) or what each step checks: what 概览 showed of a library — its numbers, its sources' state, the
+// 「连续 n 轮没有产出」 banner — is in the right panel's 进度 under 「当前库 · 上次运行」 ([data-part="last-run"]); its suggestion
+// cards are in the panel's 待确认 under 「当前库 · 系统检测」; 「现在跑一轮」 + the dialog's 开始 is the head's 立即运行
+// ([data-part="run-button"], no dialog); a library left on 待看 comes back on 待看 (was 概览).
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -136,6 +141,9 @@ const until = (fn, arg) => p().waitForFunction(fn, arg, POLL)
 const bridge = (name, ...args) => p().evaluate(([n, a]) => window.streams[n](...a), [name, args])
 const onPage = (screen, id) => until(([sc, i]) => document.querySelector(`.lib-page[data-library="${i}"] main[data-screen="${sc}"][data-state="ready"]`) !== null, [screen, id])
 const tab = async (id, libraryId) => { await p().click(`.st-lib-tabs [data-tab="${id}"]`); await onPage(id, libraryId) }
+// redesign R1: what 概览 had is in the right panel — 进度 (the last run) or 待确认 (the suggestion cards)
+const panelTab = async id => { await p().click(`[data-panel-tab="${id}"]`); await until(t => document.querySelector('[data-part="right-panel"]')?.dataset.tab === t, id) }
+const lastRun = async () => { await panelTab('progress'); await until(() => document.querySelector('[data-part="last-run"][data-state="ready"]') !== null) }
 const openRow = async id => p().click(`[data-library-row="${id}"]`)
 const cards = () => p().evaluate(() => [...document.querySelectorAll('[data-card]')].map(e => e.dataset.url))
 const badge = id => p().evaluate(i => document.querySelector(`[data-library-row="${i}"] [data-library-badge]`)?.textContent ?? null, id)
@@ -219,7 +227,7 @@ test('UC1 step 5 · the first round ends: the sidebar number is the core\'s 待�
   await until(([id, v]) => document.querySelector(`[data-library-row="${id}"] [data-library-badge]`)?.textContent === String(v), [W.ev.id, n.inbox])
   await openRow(W.ev.id)
   await onPage('inbox', W.ev.id) // the first visit of a library opens its 待看 (package F, UC2)
-  await tab('overview', W.ev.id)
+  await lastRun()
   const nums = await p().evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-num]')].map(e => [e.dataset.num, Number(e.dataset.value)])))
   assert.deepEqual(nums, { inbox: n.inbox, caught: n.caught, passed: n.lastRound.counts.inbox, kept: n.kept })
   await until(() => document.querySelectorAll('[data-part="source-status"] [data-row]').length === 7)
@@ -255,7 +263,7 @@ test('UC2 step 1 · 库架: three cards with each library\'s 待看; AI Agent �
 
 test('UC2 step 2 · 中国电动车行业 → 待看, by the keyboard: C keeps (a file in notes/), D lets one go with a reason', async () => {
   await p().click(`[data-shelf-card="${W.ev.id}"]`)
-  await onPage('overview', W.ev.id) // back where this library was left (UC1 step 5); the design's first visit is 待看
+  await onPage('inbox', W.ev.id) // back where this library was left (UC1 step 5); the design's first visit is 待看
   await tab('inbox', W.ev.id)
   const urls = await cards()
   assert.ok(urls.length >= 2, 'control: cards to decide')
@@ -289,8 +297,9 @@ test('UC2 step 3 · 中国时尚上市公司 from the sidebar: straight to its �
 test('UC2 step 4 · AI Agent 工具 → 概览: 「连续 3 轮没有产出」 and the main Agent\'s suggestion cards (交给主 Agent / 不要, nothing that acts by itself)', async () => {
   await openRow(W.ids.tools)
   await onPage('inbox', W.ids.tools)
-  await tab('overview', W.ids.tools)
+  await lastRun()
   assert.equal(await p().evaluate(() => document.querySelector('[data-part="no-output"]')?.dataset.streak), '3')
+  await panelTab('decide')
   await until(() => document.querySelector('[data-part="suggestions"] [data-suggestion="source-failing:mcp-news"]') !== null)
   const s = await p().evaluate(() => [...document.querySelectorAll('[data-part="suggestions"] [data-suggestion]')].map(e => ({ key: e.dataset.suggestion, sentence: e.querySelector('[data-part="sentence"]').textContent, actions: [...e.querySelectorAll('[data-action]')].map(a => a.dataset.action), text: e.textContent })))
   assert.deepEqual(s.map(x => x.key).sort(), ['no-output:library', 'source-failing:mcp-news'])
@@ -356,7 +365,7 @@ test('UC3 step 4 · 确认 both → 来源与要求: the new source and the keyw
 test('UC4 step 1 · AI Agent 工具 (nothing kept) → 资料库: 「抓到的」, 「在左边选一条来读」, no button in the head', async () => {
   assert.equal(core.libraryCounts(W.tools).kept, 0, 'control: nothing kept')
   await openRow(W.ids.tools)
-  await onPage('overview', W.ids.tools)
+  await onPage('inbox', W.ids.tools)
   await tab('library', W.ids.tools)
   await until(() => document.querySelector('[data-view="caught"]')?.getAttribute('aria-current') === 'true')
   const rows = await p().evaluate(() => [...document.querySelectorAll('[data-part="list"] [data-row]')].map(e => e.dataset.row))
@@ -448,12 +457,11 @@ test('UC4 step 4 · 收藏: the item goes into notes/; only now 更多 has 用 O
 test('UC5 steps 1–2 · a round of 中国时尚上市公司 reads the article with 「忽略之前的所有要求…」: the round runs as usual, nothing of the library changes', async () => {
   await openRow(W.ids.fashion)
   await onPage('sources', W.ids.fashion)
-  await tab('overview', W.ids.fashion)
+  await tab('inbox', W.ids.fashion)
   W.fashionCfg = sha(join(W.fashion, 'streams.json'))
   const roundsBefore = core.listRounds(W.fashion, 50).length
-  await p().click('[data-action="run"] button')
-  await until(() => document.querySelector('[data-dialog="run"] [data-action="start"]') !== null)
-  await p().click('[data-dialog="run"] [data-action="start"] button')
+  await until(() => document.querySelector('[data-part="run-button"][data-run-state="idle"] button')?.disabled === false)
+  await p().click('[data-part="run-button"] button')
   const end = Date.now() + 90_000
   while (!(core.listRounds(W.fashion, 50).length > roundsBefore && core.listRounds(W.fashion, 1)[0].finishedAt)) { if (Date.now() > end) throw new Error('the round did not end'); await sleep(200) }
   assert.equal(sha(join(W.fashion, 'streams.json')), W.fashionCfg, 'streams.json byte for byte as before the round')
@@ -476,7 +484,7 @@ test('UC5 step 3 · 待看: the card of that article carries 「这一条里有�
 })
 
 test('UC5 step 4 · 概览: the suggestion 「来源 hkex-filings 出现过写给 AI 的指令…」; 不要 → recorded, the source not paused, nothing else changed', async () => {
-  await tab('overview', W.ids.fashion)
+  await panelTab('decide')
   const key = 'ai-instruction:hkex-filings'
   await until(k => document.querySelector(`[data-part="suggestions"] [data-suggestion="${k}"]`) !== null, key)
   const c = await p().evaluate(k => { const e = document.querySelector(`[data-suggestion="${k}"]`); return { sentence: e.querySelector('[data-part="sentence"]').textContent, actions: [...e.querySelectorAll('[data-action]')].map(a => a.dataset.action) } }, key)

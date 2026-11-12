@@ -184,7 +184,9 @@ test('the bar: the address escaped; 阅读模式 only when there is text; the fa
   assert.match(fell, /data-reader-action="reading" aria-disabled="true"/)
   // v2 package K2: the look is the theme and the appearance in force (was the theme id alone): both on <html>, both checked
   assert.match(fell, /data-theme="glass" data-appearance="dark"/)
-  assert.match(barPage({ url, mode: 'original', canRead: true, fallback: false, words: WORDS, look: { theme: 'night', scheme: '"><b>' }, css: CSS }), /data-theme="precision" data-appearance="light"/, 'an unknown theme and scheme are the defaults')
+  // redesign R1: the default theme is research (was precision); <body> carries the theme's template class and data-appearance
+  assert.match(barPage({ url, mode: 'original', canRead: true, fallback: false, words: WORDS, look: { theme: 'night', scheme: '"><b>' }, css: CSS }), /data-theme="research" data-appearance="light"/, 'an unknown theme and scheme are the defaults')
+  assert.match(fell, /<body class="theme-glass r9 r9-glass r10-glass r11 r11-glass rd-bar-body" data-appearance="dark">/)
   for (const page of [reading, fell]) for (const href of page.matchAll(/href="([^"]*)"/g)) assert.ok(href[1].startsWith(`${ACTION_ORIGIN}/`), href[1])
   assert.equal(WORDS.fallback, '这一页抽不出正文，显示的是原网页')
   assert.equal(readerWords('en').fallback.length > 0, true)
@@ -208,9 +210,12 @@ test('the reading page: a CSP with no script, frame or form; the title escaped; 
   assert.equal(escapeHtml(`"'<>&`), '&quot;&#39;&lt;&gt;&amp;')
 })
 
-test('the styles: the app\'s tokens and the reader\'s file; Readability\'s own file wrapped into the extraction script', () => {
+// redesign R1: the template's round 11 colours (and round 12's for 单线黑白) and the interim names, in place of tokens.css
+test('the styles: the template\'s colours, the interim names and the reader\'s file; Readability\'s own file wrapped into the extraction script', () => {
   const css = readerCss(join(DESKTOP_DIR, 'src', 'renderer'))
-  assert.match(css, /--st-font:/)
+  assert.match(css, /\.r11-research\.r11 \{--paper:/)
+  assert.match(css, /\.r12-line\.r11\.r11 \{/)
+  assert.match(css, /--st-page: var\(--bench\);/)
   assert.match(css, /\.rd-bar\b/)
   const src = readabilitySource(DESKTOP_DIR)
   assert.match(src, /function Readability\(doc, options\)/)

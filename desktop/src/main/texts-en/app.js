@@ -5,7 +5,7 @@ export const APP = Object.freeze({
   tray: Object.freeze({
     tooltip: 'Streams · {n} in the Inbox',
     open: 'Open Streams',
-    runNow: 'Run a round now',
+    runNow: 'Run now',
     quit: 'Quit',
   }),
   reader: Object.freeze({

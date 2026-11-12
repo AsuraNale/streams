@@ -1,0 +1,146 @@
+[
+  {
+    "id": "L00",
+    "name": "新增部件（单线黑白）",
+    "clickable": 43,
+    "height": 1959
+  },
+  {
+    "id": "P01",
+    "name": "首次打开",
+    "clickable": 8,
+    "height": 960
+  },
+  {
+    "id": "P02",
+    "name": "首次打开 · 连接要看一眼",
+    "clickable": 6,
+    "height": 960
+  },
+  {
+    "id": "P03",
+    "name": "和主 Agent 聊",
+    "clickable": 17,
+    "height": 960
+  },
+  {
+    "id": "P04",
+    "name": "新建库 · 自己填",
+    "clickable": 29,
+    "height": 972
+  },
+  {
+    "id": "P05",
+    "name": "待看",
+    "clickable": 38,
+    "height": 1131
+  },
+  {
+    "id": "P06",
+    "name": "待看 · 空着时",
+    "clickable": 19,
+    "height": 960
+  },
+  {
+    "id": "P07",
+    "name": "待看 · 正在跑与排队",
+    "clickable": 16,
+    "height": 960
+  },
+  {
+    "id": "P08",
+    "name": "待看 · 连接出问题",
+    "clickable": 25,
+    "height": 960
+  },
+  {
+    "id": "P09",
+    "name": "资料库",
+    "clickable": 38,
+    "height": 960
+  },
+  {
+    "id": "P10",
+    "name": "资料库 · 图谱",
+    "clickable": 28,
+    "height": 960
+  },
+  {
+    "id": "P11",
+    "name": "资料库 · 编辑",
+    "clickable": 22,
+    "height": 960
+  },
+  {
+    "id": "P12",
+    "name": "资料库 · 缺文件头的文件",
+    "clickable": 21,
+    "height": 960
+  },
+  {
+    "id": "P13",
+    "name": "问库",
+    "clickable": 25,
+    "height": 960
+  },
+  {
+    "id": "P14",
+    "name": "来源与要求",
+    "clickable": 49,
+    "height": 1047
+  },
+  {
+    "id": "P15",
+    "name": "来源与要求 · 高级",
+    "clickable": 36,
+    "height": 1498
+  },
+  {
+    "id": "P16",
+    "name": "右栏四个标签",
+    "clickable": 41,
+    "height": 960
+  },
+  {
+    "id": "P17",
+    "name": "设置",
+    "clickable": 43,
+    "height": 1050
+  },
+  {
+    "id": "P18",
+    "name": "设置 · 输入 API key",
+    "clickable": 17,
+    "height": 960
+  },
+  {
+    "id": "P19",
+    "name": "许可证与致谢",
+    "clickable": 13,
+    "height": 960
+  },
+  {
+    "id": "P20",
+    "name": "阅读窗口",
+    "clickable": 5,
+    "height": 860
+  },
+  {
+    "id": "P21",
+    "name": "移除这个库",
+    "clickable": 18,
+    "height": 960
+  },
+  {
+    "id": "P22",
+    "name": "窗口外：托盘与通知",
+    "clickable": 3,
+    "height": 960
+  },
+  {
+    "id": "P23",
+    "name": "库架",
+    "clickable": 15,
+    "height": 960
+  }
+]

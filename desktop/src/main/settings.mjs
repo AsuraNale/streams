@@ -11,11 +11,13 @@
  *   showDeveloperInfo   the advanced switch of the settings page (default off)
  *   schedule            the timed round (A2; docs/core-api.md 5.10): { enabled, time: 'HH:MM' }, default
  *                       { enabled: true, time: '08:30' }; each of the two fields checked on its own
- *   theme               the app's look (theme.mjs; v2 package K2): precision · glass · research; anything else is DEFAULT_THEME
- *   appearance          v2 package K2: light · dark · system (follow Windows); anything else is DEFAULT_APPEARANCE. v1.0's
- *                       theme ids are migrated when the file is read (theme.mjs migrateLook, the maintainer 11-10): none / river / any
- *                       other value → precision + system, paper → precision + light, night → precision + dark; the next
- *                       write stores the two new fields. No other field is touched by this.
+ *   theme               the app's look (theme.mjs; redesign R1): precision · glass · research · monoline (the template's four);
+ *                       anything else is DEFAULT_THEME (research)
+ *   appearance          light · dark · system (follow Windows); anything else is DEFAULT_APPEARANCE (system). Older theme ids
+ *                       are migrated when the file is read (theme.mjs migrateLook, the R1 contract's table): none / river /
+ *                       any other value → research + system, paper → research + light, night → research + dark, the four
+ *                       ids of now kept with their appearance; the next write stores the two fields. No other field is
+ *                       touched by this.
  *   libraryRoot         v2 package B: where a new library a proposal card makes goes when the card names no folder
  *                       (<libraryRoot>\<the library's name as a folder name>); an absolute path, or null (default) = the
  *                       app's default place (main.mjs: %USERPROFILE%\Documents\Streams in the packaged app). v2 package I: the
@@ -167,7 +169,7 @@ export function readSettings(file) {
     connections: normalizeConnections(own(data, 'connections')),
     showDeveloperInfo: own(data, 'showDeveloperInfo') === true,
     schedule: normalizeSchedule(own(data, 'schedule')),
-    // v2 package K2: the theme and the appearance, v1.0's ids migrated (theme.mjs migrateLook); only these two fields
+    // the theme and the appearance, older ids migrated (theme.mjs migrateLook, redesign R1); only these two fields
     ...migrateLook(own(data, 'theme'), own(data, 'appearance')),
     libraryRoot: typeof root === 'string' && isAbsolute(root) ? root : DEFAULTS.libraryRoot,
     setupConnection: setupConnectionOf(own(data, 'setupConnection')),

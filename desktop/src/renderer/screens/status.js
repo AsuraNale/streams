@@ -1,5 +1,5 @@
 // 运行状态 (mockup S11; docs/desktop.md §4.2) — v2 package F: no screen of its own any more, the 「运行状态」 part of a library's
-// 概览 (screens/overview.js). Straight from getStatus (the core's statusView: lastRound, lastRoundItems, lastDecisionAt,
+// 概览 (screens/overview.js; redesign R1: the right panel's 进度, screens/last-run.js). Straight from getStatus (the core's statusView: lastRound, lastRoundItems, lastDecisionAt,
 // monthUsage, sources): three numbers (上次运行 · 上次你拍板 · 本月调用次数; 下次运行 is in the library's head now), the sources
 // of the last round — the five words and the rounds in a row, what the software already did / what you need to do, 「去处理」
 // to 来源与要求 for an address or a refusal — and 「复制诊断信息」, 「打开运行记录文件夹」. Read again on `library-changed` and
@@ -71,7 +71,7 @@ export function RunStatus() {
   const sources = Array.isArray(d?.sources) ? d.sources : []
   return html`<section class="stat-part" data-part="run" aria-labelledby="stat-run">
     <div class="stat-part__head">
-      <h2 class="st-t-small st-t-sub st-t-strong" id="stat-run">${SHELL.overview.run}</h2>
+      <h2 class="st-t-small st-t-sub st-t-strong" id="stat-run">${SHELL.lastRun.run}</h2>
       <div class="stat-actions">
         ${copied ? html`<span class="st-t-small st-t-done" role="status">${T.copied}</span>` : null}
         <${Act} name="copy-diagnostics" icon="copy" onClick=${copy}>${T.copy}<//>

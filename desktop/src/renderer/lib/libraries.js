@@ -90,6 +90,8 @@ export function useWaitingItems(enabled) {
   }, [enabled])
   useEvent('proposals-changed', () => { if (enabled) items.reload() }, [enabled])
   useEvent('agent-changed', p => { if (enabled && p?.phase === 'done') items.reload() }, [enabled])
+  // redesign R1: and the cards a round records (the tab's number follows at once)
+  useEvent('round-progress', p => { if (enabled && p?.done === true) items.reload() }, [enabled])
   usePageEvent(SUGGESTIONS_EVENT, () => { if (enabled) items.reload() }, [enabled])
   const cards = items.data?.cards ?? []
   const suggestions = items.data?.suggestions ?? []

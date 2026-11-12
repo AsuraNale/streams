@@ -1,3 +1,4 @@
+// redesign R1: 概览 is gone — the screens waited for are 'inbox' (was 'overview'); 「away and back」 goes by 来源与要求 (was 概览)
 // 导入已有文件夹 (plan A3, mockup S8; docs/desktop.md §4.3) on the running app, with a folder of the user's own .md files
 // written by test/support/seed.mjs seedImportFolder (no streams.json): five files that need a header (three the core can
 // propose one for, one whose name cannot be an id, one whose header cannot be read), one that conforms, a sub folder.
@@ -71,7 +72,7 @@ async function openPending() {
   // v2 package I: from 新建库 (its own sidebar): the page loaded again opens on the current library, the folder just imported
   if (await page().evaluate(() => document.querySelector('main[data-screen="new-library"]') !== null)) {
     await page().evaluate(() => { location.hash = ''; location.reload() })
-    await ready(page(), 'overview')
+    await ready(page(), 'inbox')
   }
   // v2 package F: 资料库 is a tab of the library's page (from 设置: the library's line first)
   if (await page().evaluate(() => document.querySelector('.st-lib-tabs') === null)) {
@@ -145,8 +146,9 @@ test('「跳过」 writes nothing and hides the card; opened again, the card is 
   assert.equal(await page().evaluate(() => document.querySelector('[data-part="skipped-line"]').dataset.count), '1')
   untouched(['untitled.md'])
   // away and back: the page forgets the skip, the file is still to tidy
-  await page().click('.st-lib-tabs [data-tab="overview"]')
-  await ready(page(), 'overview')
+  // redesign R1: 概览 is gone — away to 来源与要求 instead
+  await page().click('.st-lib-tabs [data-tab="sources"]')
+  await ready(page(), 'sources')
   await openPending()
   assert.ok((await cards()).includes('untitled.md'))
   untouched(['untitled.md'])

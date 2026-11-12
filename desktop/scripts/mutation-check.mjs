@@ -97,17 +97,13 @@ const MUTANTS = [
     edits: [['scripts/lib/dev-root.mjs', '    if (entries.length && !hasMarker(root)) {', '    if (false) {']],
     test: ['test/start.test.mjs', '--test-name-pattern=did not make is refused'],
   },
+  // redesign R1: tokens.css and docs/tokens.md's table are gone (the check that the two name the same tokens went with them);
+  // the app's style files write no colour at all now (the colours are the template's)
   {
-    id: 'tokens-undocumented',
-    what: 'a token defined but not in docs/tokens.md',
-    edits: [['src/renderer/styles/tokens.css', '  --st-step-gap: 3px;\n', '  --st-step-gap: 3px;\n  --st-made-up: 1px;\n']],
-    test: ['test/kit.test.mjs', '--test-name-pattern=name the same tokens'],
-  },
-  {
-    id: 'colour-outside-tokens',
-    what: 'a colour written in a style file other than tokens.css',
-    edits: [['src/renderer/styles/base.css', 'a { color: var(--st-accent); }', 'a { color: #1F6E8C; }']],
-    test: ['test/kit.test.mjs', '--test-name-pattern=no colour is written'],
+    id: 'colour-in-app-styles',
+    what: 'a colour written in a style file of the app (the colours are the template\'s)',
+    edits: [['src/renderer/styles/base.css', 'body { overflow: hidden; }', 'body { overflow: hidden; color: #1F6E8C; }']],
+    test: ['test/kit.test.mjs', '--test-name-pattern=no colour in any app style file'],
   },
   {
     id: 'en-missing-key',
@@ -232,6 +228,49 @@ const MUTANTS = [
     what: '文件\'s 程序记录（不用动） is open by default',
     edits: [['src/renderer/screens/right-panel.js', 'const [recordsOpen, setRecordsOpen] = useState(false)', 'const [recordsOpen, setRecordsOpen] = useState(true)']],
     test: ['test/ui-panel.test.mjs', '--test-name-pattern=文件'],
+  },
+  // redesign R1: the template's themes, the run button, the four tabs
+  {
+    id: 'r1-default-precision',
+    what: 'the default theme is 精密国际主义 again (K2\'s), not 研究对话',
+    edits: [['src/main/theme.mjs', "export const DEFAULT_THEME = 'research'", "export const DEFAULT_THEME = 'precision'"]],
+    test: ['test/theme.test.mjs', '--test-name-pattern=four themes|migration'],
+  },
+  {
+    id: 'r1-night-light',
+    what: 'v1.0\'s night is migrated to light (not dark)',
+    edits: [['src/main/theme.mjs', "export const LEGACY_THEMES = Object.freeze({ paper: 'light', night: 'dark' })", "export const LEGACY_THEMES = Object.freeze({ paper: 'light', night: 'light' })"]],
+    test: ['test/theme.test.mjs', '--test-name-pattern=migration'],
+  },
+  {
+    id: 'r1-first-frame-wrong',
+    what: 'the window\'s colour before the first frame is not the page\'s (one cell of THEME_PAGE off by one)',
+    edits: [['src/shared/themes.mjs', "research: Object.freeze({ light: '#F7F7F3', dark: '#161A19' }),", "research: Object.freeze({ light: '#F7F7F3', dark: '#161A1A' }),"]],
+    test: ['test/ui-theme.test.mjs', '--test-name-pattern=first frame|every theme'],
+  },
+  {
+    id: 'r1-sheets-out-of-order',
+    what: '研究对话 loads its sheets in another order than the design page',
+    edits: [['src/shared/themes.mjs', "'shared/round6/base.css', 'shared/round6/design.css', 'shared/round3/themes/research.css',", "'shared/round6/design.css', 'shared/round6/base.css', 'shared/round3/themes/research.css',"]],
+    test: ['test/theme.test.mjs', '--test-name-pattern=design page'],
+  },
+  {
+    id: 'r1-run-does-nothing',
+    what: '立即运行 asks nothing of the main process (as if a dialog had to be answered first)',
+    edits: [['src/renderer/screens/library-frame.js', "onAnswer?.(await call('startRound'))", 'onAnswer?.(null)']],
+    test: ['test/ui-run.test.mjs', '--test-name-pattern=立即运行: the run starts'],
+  },
+  {
+    id: 'r1-refuse-when-busy',
+    what: '立即运行 while another library runs is refused (package A\'s rule) instead of queued at the end — on the page',
+    edits: [['src/main/services/schedule.mjs', "      const q = enqueue(e, why, 'manual')\n", "      if (busy()) { log(`schedule: ${why}: a round is running, no second one`); return { started: false, reason: 'running' } }\n      const q = enqueue(e, why, 'manual')\n"]],
+    test: ['test/ui-panel.test.mjs', '--test-name-pattern=立即运行 in a library not in the line'],
+  },
+  {
+    id: 'r1-overview-back',
+    what: 'a library opens on another tab than 待看',
+    edits: [['src/renderer/screens/index.js', "export const LIBRARY_FIRST_SCREEN = 'inbox'", "export const LIBRARY_FIRST_SCREEN = 'sources'"]],
+    test: ['test/ui-shell.test.mjs', '--test-name-pattern=a click on a library'],
   },
 ]
 

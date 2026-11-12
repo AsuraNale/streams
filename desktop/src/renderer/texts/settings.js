@@ -42,7 +42,7 @@ export const SETTINGS = Object.freeze({
     talkLine: '{turns} 轮 · {entries} 条记录',
     summary: '上次缩写',
     summaryNone: '还没缩写过',
-    open: '打开和主 Agent 聊',
+    open: '打开主 Agent',
     failed: '没能读出主 Agent 的状态。',
   }),
 
@@ -126,20 +126,20 @@ export const SETTINGS = Object.freeze({
   languageNote: '只改流息自己写的字；库里的文件和模型写的内容不受影响。',
   languageReload: '切换后这一页会重新载入。',
 
-  // the app's look (docs/desktop.md §五「主题」). v2 package K2 (维护者 11-10): three themes (the K1 design draft's names) and
-  // the appearance — 浅色 · 深色 · 跟随系统
+  // the app's look (docs/desktop.md §五「主题」). Redesign R1 (维护者 11-11): the template's four themes and the appearance —
+  // 浅色 · 深色 · 跟随系统
   theme: '主题',
-  themeHint: '界面用哪一套颜色和形状',
+  themeHint: '界面的配色与形状',
   themeGroup: '选择主题',
-  themes: Object.freeze({ precision: '精密国际主义', glass: '澄明玻璃', research: '研究对话' }),
+  themes: Object.freeze({ precision: '精密国际主义', glass: '澄明玻璃', research: '研究对话', monoline: '单线黑白' }),
   themeDefault: '默认',
   appearance: '外观',
-  appearanceHint: '跟随系统：Windows 换深色，流息跟着换',
+  appearanceHint: '跟随系统：Windows 切换深色时，流息随之切换',
   appearanceGroup: '选择外观',
   appearances: Object.freeze({ light: '浅色', dark: '深色', system: '跟随系统' }),
-  themeNote: '选了马上换，下次打开还是它；首次打开、对话框、图谱、问库和阅读窗口都跟着换。',
-  themeFailed: '没能换主题。',
-  appearanceFailed: '没能换外观。',
+  themeNote: '选择后立即生效，主窗口与阅读窗口同时切换；下次打开保持所选。',
+  themeFailed: '未能切换主题。',
+  appearanceFailed: '未能切换外观。',
 
   advanced: '高级',
   advancedHint: '给排查问题用，平时不用管',

@@ -1,0 +1,24 @@
+/* 流息的补充样式：只放丽芙的模板里没有的小部件，全部以 st- 开头；颜色、线条、圆角都跟着各主题走（继承或用 currentColor）。 */
+/* 库页的四个标签：用模板右栏的 .panel-tabs / .tab，这里只管位置 */
+.st-libtabs { flex: none; margin: 14px 32px 0; }
+/* 一组提议或待看条目之间留空 */
+.st-stack { display: grid; gap: 18px; margin-bottom: 18px; }
+/* 资料库的两栏：左列表、右阅读 */
+.st-split { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 36%) minmax(0, 1fr); }
+.st-list { min-height: 0; overflow: auto; padding: 18px 20px 28px 32px; display: grid; gap: 12px; align-content: start; }
+.st-split .reader { min-width: 0; }
+/* 左栏底部的套餐用量 */
+.st-quota { padding: 4px 6px 12px; }
+.st-quota .section-label { margin: 0 0 6px; }
+/* 标签上的数字 */
+.st-count { margin-left: 6px; font-weight: 800; font-style: normal; }
+/* 图谱：模板里没有图，节点用模板的 .filter，这里只管摆放和连线 */
+.st-graph { position: relative; flex: 1; min-height: 440px; margin: 8px 32px 28px; }
+.st-graph svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .5; }
+.st-node { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; }
+/* 阅读窗口是另开的独立窗口：只留中间一栏 */
+.st-window { grid-template-columns: minmax(0, 1fr) !important; }
+.st-window > .sidebar, .st-window > .context-panel { display: none; }
+/* 阅读窗口的地址框占满剩余宽度（模板的搜索框按输入框的默认宽度走，放不下一条地址） */
+.st-window .reader-header .search-field { flex: 1 1 0; min-width: 0; }
+.st-window .reader-header .search-field input { flex: 1 1 0; min-width: 0; }

@@ -6,7 +6,8 @@
 export const BRAND = Object.freeze({
   mark: '流',
   name: '流息',
-  tagline: 'STREAMS',
+  // redesign R1: the line under the name in the sidebar's brand (the template's brand small)
+  tagline: '个人资料库',
   // <html lang> (app.js sets it from here; the English table says 'en', and the dates follow it: lib/format.js)
   htmlLang: 'zh-CN',
 })
@@ -18,7 +19,8 @@ export const SIDEBAR = Object.freeze({
   label: '导航',
   entries: Object.freeze({
     shelf: '库架',
-    chat: '和主 Agent 聊',
+    // redesign R1 (05-措辞规范): 「和主 Agent 聊」 → 「主 Agent」
+    chat: '主 Agent',
   }),
   settings: '设置',
   // the library the app has open: its folder name, or this while none is
@@ -113,11 +115,11 @@ export const NODE_NAMES = Object.freeze({
 
 // the phases of a round (round-progress events)
 export const ROUND_PHASES = Object.freeze({
-  'self-check': '自检',
+  'self-check': '运行前自检',
   fetch: '抓取',
-  gate: '打分',
+  gate: '评分',
   summary: '摘要',
-  done: '完成',
+  done: '已完成',
 })
 
 // ---- 11-03 界面 B: words more than one of its screens use (资料库 · 来源与主题 · 流水线 · 运行状态 · 问库 · 图谱) ----

@@ -1,12 +1,12 @@
 /* The reading window (src/main/reader.mjs; docs/desktop.md §4.9): its bar and the reading page. Not part of the app's page
-   (app.css does not import it): the main process puts tokens.css and this file into the two static pages it makes for the
-   window, under <html data-theme="…">, so they have the app's font and the current set's colours. Tokens only. */
+   (app.css does not import it): the main process puts the template's round 11 colours (workbench.css, line.css), the
+   interim names (interim.css) and this file into the two static pages it makes for the window, the theme's template class
+   on <body> (main/reader.mjs readerCss; redesign R1 — its layout is rebuilt on the template in R3). Variables only. */
 
 html, body { margin: 0; padding: 0; }
 body {
   background: var(--st-page);
   color: var(--st-text);
-  font-family: var(--st-font);
   font-size: var(--st-fs-body);
   line-height: var(--st-lh);
 }

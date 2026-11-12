@@ -1,18 +1,18 @@
-/* All of the page's styles, in order: tokens, base and text styles, the kit, then one file per screen.
+/* The app's own styles, in order (redesign R1): before this file index.html has loaded the theme's template sheets
+   (src/shared/themes.mjs THEME_TEMPLATE; main/theme.mjs puts them in <head>, lib/theme.js swaps them). Then: the variables
+   the screens not yet rebuilt on the template still name (interim.css, removed by R2–R4), base and text styles, the kit,
+   one file per screen, and last the app's layer over the template (template-app.css).
    A new screen adds its own file under screens/ and one @import line here (docs/desktop.md §五).
    (The gallery's screens/kit.css is not here: screens/kit.js links it, in development only.) */
-@import url('./tokens.css');
-/* v2 package K2: the bundled UI font (Noto Sans SC) */
-@import url('./fonts.css');
+@import url('./interim.css');
 @import url('./base.css');
 @import url('./kit.css');
 @import url('./menu.css');
 @import url('./screens/placeholder.css');
 @import url('./screens/settings.css');
 @import url('./screens/first-run.css');
-@import url('./screens/overview.css');
+@import url('./screens/last-run.css');
 @import url('./screens/inbox.css');
-@import url('./screens/run.css');
 @import url('./screens/library.css');
 @import url('./screens/sources.css');
 @import url('./screens/pipeline.css');
@@ -21,5 +21,7 @@
 @import url('./screens/graph.css');
 @import url('./screens/shell.css');
 @import url('./screens/agent.css');
-/* v2 package L: the right panel, the queue's marks */
+/* v2 package L: the right panel's 详情 parts */
 @import url('./screens/panel.css');
+/* redesign R1: the app's layer over the template */
+@import url('./template-app.css');

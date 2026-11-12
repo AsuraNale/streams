@@ -1,3 +1,4 @@
+// redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // The tray and the timed round on the running app (docs/desktop.md §4.3). A test run makes no tray icon: the log says what it
 // would show (`tray: …`). Four sessions on the seeded world:
 //   on       the schedule on: the window's close button leaves the app running (the window still there, the bridge answers);
@@ -33,7 +34,7 @@ const notifications = world => { const f = join(world.appData, 'logs', 'notifica
 const closeWindow = s => s.app.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0].close() })
 const env = world => ({ STREAMS_DEV_LIBRARY: world.library })
 
-const on = worldSession({ kind: 'seeded', waitFor: 'overview', settings: { schedule: { enabled: true, time: '08:30' } }, env })
+const on = worldSession({ kind: 'seeded', waitFor: 'inbox', settings: { schedule: { enabled: true, time: '08:30' } }, env })
 
 test('the schedule on: the tray\'s hint carries the count; the close button leaves the app running with its window', async () => {
   const hint = APP.tray.tooltip.replace('{n}', String(on.world.seed.inbox.length))
@@ -52,7 +53,7 @@ test('the schedule on: the tray\'s hint carries the count; the close button leav
   assert.equal((await on.page.evaluate(() => window.streams.getSchedule())).ok, true, 'the page still answers')
 })
 
-const off = worldSession({ kind: 'seeded', waitFor: 'overview', settings: { schedule: { enabled: false, time: '08:30' } }, env })
+const off = worldSession({ kind: 'seeded', waitFor: 'inbox', settings: { schedule: { enabled: false, time: '08:30' } }, env })
 
 test('control: the schedule off, the same close button ends the app', async () => {
   const child = off.app.process()
@@ -84,7 +85,7 @@ async function serveTwo() {
 
 const missed = worldSession({
   kind: 'seeded',
-  waitFor: 'overview',
+  waitFor: 'inbox',
   settings: { schedule: { enabled: true, time: '08:30' } },
   prepare: async world => {
     feed = await serveTwo()
@@ -123,7 +124,7 @@ test('missed: the last round before the last slot → one round at start, one no
 
 const covered = worldSession({
   kind: 'seeded',
-  waitFor: 'overview',
+  waitFor: 'inbox',
   settings: { schedule: { enabled: true, time: '00:00' } },
   env: world => ({ ...env(world), STREAMS_DEV_NOW: localIso(0, '12:00') }),
 })

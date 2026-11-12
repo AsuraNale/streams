@@ -14,9 +14,12 @@ import { CONNECTIONS } from '../src/renderer/texts/common.js'
 import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
 // v2 package F: 今日 is the 概览 tab of a library's page now (screen 'overview', the screen the app opens on); this file's assertions are v1.0's, only the screen id changed
+// redesign R1 (维护者 11-11 第 1、6 题): 概览 and the run dialog are gone — 立即运行 in the library's head starts the run at once
+// ([data-part="run-button"] button, no dialog), and the card sits on top of the library's page, under its tabs, whatever the tab;
+// this file finds them there. Its assertions on the card are the ones of before.
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
-const s = worldSession({ kind: 'seeded', waitFor: 'overview', settings: { connections: { active: 'claude-code' } }, env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'login-expired' }) })
+const s = worldSession({ kind: 'seeded', waitFor: 'inbox', settings: { connections: { active: 'claude-code' } }, env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'login-expired' }) })
 const POLL = { polling: 100, timeout: 60_000 }
 const click = sel => s.page.click(`${sel} button`)
 
@@ -41,10 +44,10 @@ test('开始 with an expired sign-in → the card: the sentence with 没丢 and 
   before = contentHashes(s.world.library)
   assert.ok(Object.keys(before).length >= 6, `control: ${Object.keys(before).length} content files hashed`)
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="problem"]')), null, 'control: no card before the round')
-  await click('[data-action="run"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-dialog="run"] [data-row="cap"]') !== null, null, POLL)
-  await click('[data-dialog="run"] [data-action="start"]')
-  await s.page.waitForFunction(() => document.querySelector('main[data-screen="overview"] [data-part="problem"]') !== null, null, POLL)
+  await s.page.waitForFunction(() => document.querySelector('[data-part="run-button"][data-run-state="idle"] button')?.disabled === false, null, POLL)
+  await click('[data-part="run-button"]')
+  await s.page.waitForFunction(() => document.querySelector('.lib-page [data-part="problem"]') !== null, null, POLL)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-dialog]')), null, 'no dialog on the way')
   const card = await s.page.evaluate(() => {
     const c = document.querySelector('[data-part="problem"]')
     return { code: c.dataset.code, connectionCode: c.dataset.connectionCode, kind: c.dataset.kind, text: c.querySelector('.today-problem__text').textContent, actions: [...c.querySelectorAll('[data-action]')].map(e => e.dataset.action), login: c.querySelector('[data-part="login"]')?.textContent ?? null }

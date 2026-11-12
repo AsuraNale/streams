@@ -1,0 +1,237 @@
+/* 单线黑白 · 第十二轮
+   The skin follows the four rules of the 云织 / 流息 marks: black and white only, one line weight, 0 / 90 / 45 degrees,
+   and exposed ends cut at 45 degrees. Colour never carries meaning here: rank is black-on-white turned over,
+   "waiting for you" is a 45-degree hatch, done is solid, not started is an empty frame.
+   Layout, components and behaviour are round 11's; this file only repaints them. */
+
+.r12-line.r11.r11 {
+  --paper:#ffffff; --bench:#f5f5f3; --panel:#efefec; --well:#e7e7e3;
+  --ink11:#111418; --sub11:#565c63; --accent11:#111418; --inverse11:#ffffff;
+  --pick:#111418; --selected-ink:#ffffff; --selected-surface:#111418; --selected-edge:transparent; --selected-shadow:none;
+  --rule11:#d5d7da; --float11:none; --shadow:none;
+  --focus:var(--ink11); --focus-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink11);
+  --cut:9px;
+  --hatch:repeating-linear-gradient(135deg,var(--ink11) 0 1.5px,transparent 1.5px 5px);
+  --chamfer:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)));
+}
+.r12-line.r11.r11[data-appearance=dark] {
+  --paper:#16181b; --bench:#0f1113; --panel:#1b1e21; --well:#24282c;
+  --ink11:#f2f3f4; --sub11:#a9afb6; --accent11:#f2f3f4; --inverse11:#111418;
+  --pick:#f2f3f4; --selected-ink:#111418; --selected-surface:#f2f3f4; --rule11:#3a3f45;
+}
+
+/* no curves, no shadows */
+.r12-line.r11.r11 :is(.btn,.navitem,.project-item,.confirmation,.phase-row,.composer,.tab,.chip,.status-chip,.filter,
+  .source-card,.phase-index,.file-icon,.avatar,.brandmark,.user-message,.send-btn,.attach-btn,.icon-btn,.dialog,
+  .search-field,.document-link,.confirm-number,.profile-circle,.reader-paper,.draft-preview,.project-tile,.toast,
+  .selection-tools,.empty-state,.upload-area,.file-chip,.progress-alert,.reader-note,.reader-callout,.annotation,
+  .step-dots i,.chart-track,.chart-bar,.progress-line span,.dot,.field input,.field textarea,.field select,
+  .prototype-bar select,[data-badge]) { border-radius:0; box-shadow:none; }
+
+/* icons: one weight, flat ends, sharp joins */
+.r12-line.r11.r11 svg.ico { stroke-width:2; stroke-linecap:butt; stroke-linejoin:miter; fill:none; stroke:currentColor; }
+.r12-line.r11.r11 svg.ico[data-glyph=stop] path { fill:currentColor; }
+
+/* type: heavy titles, spaced small labels (as the English line of the wordmark) */
+.r12-line.r11.r11 :is(.confirm-title h2,.reader-title,.project-heading h1,.panel-summary h2,.home-title,.new-content h2,
+  .project-tile h3,.draft-preview h3,.dialog-head h2) { font-weight:800; letter-spacing:-.2px; color:var(--ink11); }
+.r12-line.r11.r11 .eyebrow { font-size:10px; font-weight:700; letter-spacing:2.4px; color:var(--sub11); }
+
+/* structure lines: solid ink between the columns and under the headers */
+.r12-line.r11.r11 .sidebar { background:var(--bench); border-right:1px solid var(--ink11); }
+.r12-line.r11.r11 .context-panel { background:var(--bench); border-left:1px solid var(--ink11); }
+.r12-line.r11.r11 .work-header { background:var(--paper); border-bottom:2px solid var(--ink11); }
+.r12-line.r11.r11 .panel-tabs { background:var(--bench); border-bottom:2px solid var(--ink11); }
+.r12-line.r11.r11 .workspace,.r12-line.r11.r11 .thread-scroll,.r12-line.r11.r11 .composer-wrap { background:var(--paper); }
+.r12-line.r11.r11 .prototype-bar { background:var(--paper); border-bottom:1px solid var(--ink11); }
+
+/* brand: the finished mark with its red and blue edge, on a white tile in both appearances */
+.r12-line.r11.r11 .brand { border-bottom:2px solid var(--ink11); padding-bottom:18px; margin-bottom:14px; align-items:center; }
+.r12-line.r11.r11 .brandmark { width:52px; height:40px; flex:none; border:0; background:#fff url(brand/yunzhi.svg) center/40px auto no-repeat; }
+.r12-line.r11.r11[data-product=streams] .brandmark { background-image:url(brand/streams.svg); background-size:44px auto; }
+.r12-line.r11.r11 .brandmark svg { display:none; }
+.r12-line.r11.r11 .brandname { font-size:20px; font-weight:800; letter-spacing:1px; color:var(--ink11); }
+.r12-line.r11.r11 .brand small { letter-spacing:2px; color:var(--sub11); }
+
+/* rank by turning black and white over; solid blocks get the 45-degree cut */
+.r12-line.r11.r11 :is(.btn.primary,.send-btn,.navitem.new) {
+  background:var(--ink11); color:var(--inverse11); border:0; font-weight:700; clip-path:var(--chamfer); }
+.r12-line.r11.r11 :is(.btn.primary,.send-btn,.navitem.new):hover:not(:disabled) {
+  background:var(--ink11) var(--hatch); background-blend-mode:normal; filter:none; transform:none;
+  box-shadow:inset 0 0 0 2px var(--ink11), inset 0 0 0 4px var(--inverse11); }
+.r12-line.r11.r11 :is(.btn.primary,.send-btn,.navitem.new):active:not(:disabled) { box-shadow:inset 0 0 0 2px var(--ink11), inset 0 0 0 100px var(--inverse11); color:var(--ink11); }
+.r12-line.r11.r11 .send-btn { width:34px; height:34px; --cut:7px; }
+
+.r12-line.r11.r11 :is(.btn:not(.primary):not(.quiet),.document-link,.filter) {
+  background:var(--paper); color:var(--ink11); border:1px solid var(--ink11); font-weight:600; }
+.r12-line.r11.r11 :is(.btn:not(.primary),.document-link,.filter,.icon-btn,.attach-btn):hover:not(:disabled) {
+  background:var(--ink11); color:var(--inverse11); filter:none; }
+.r12-line.r11.r11 :is(.btn:not(.primary),.document-link,.filter,.icon-btn,.attach-btn):hover:not(:disabled) :is(small,.ico) { color:inherit; }
+.r12-line.r11.r11 .btn.quiet { border:1px solid transparent; color:var(--sub11); text-decoration:underline; text-underline-offset:4px; }
+.r12-line.r11.r11 .filter.filter.active { background:var(--ink11); color:var(--inverse11); }
+.r12-line.r11.r11 :is(.icon-btn,.attach-btn) { background:transparent; color:var(--ink11); border:1px solid var(--rule11); }
+.r12-line.r11.r11 .document-link .ico { color:inherit; }
+
+/* sidebar */
+.r12-line.r11.r11 .navitem { color:var(--ink11); font-weight:600; }
+.r12-line.r11.r11 .navitem:not(.new):hover { background:var(--well); }
+.r12-line.r11.r11 .navitem.active { background:transparent; box-shadow:inset 0 -2px var(--ink11); font-weight:800; }
+.r12-line.r11.r11 .project-item { border:0; border-bottom:1px solid var(--rule11); margin-bottom:0; padding:13px 12px; background:transparent; }
+.r12-line.r11.r11 .project-item:hover { background:var(--well); }
+.r12-line.r11.r11 .project-item.active { background:var(--ink11); color:var(--inverse11); box-shadow:none; border-color:transparent; clip-path:var(--chamfer); }
+.r12-line.r11.r11 .project-item.active :is(.project-meta,small) { color:var(--inverse11); opacity:.78; }
+.r12-line.r11.r11 .project-name { font-weight:800; }
+.r12-line.r11.r11 .dot { width:7px; height:7px; background:var(--hatch); outline:1px solid currentColor; outline-offset:-1px; transform:skewX(-45deg); }
+.r12-line.r11.r11 .project-item.active .dot { background:var(--inverse11); }
+.r12-line.r11.r11 [data-badge]:not(:empty) { background:var(--ink11); color:var(--inverse11); font-weight:800; min-width:20px; text-align:center;
+  padding:1px 6px; --cut:5px; clip-path:var(--chamfer); }
+.r12-line.r11.r11 .project-item.active [data-badge]:not(:empty) { background:var(--inverse11); color:var(--ink11); opacity:1; }
+.r12-line.r11.r11 .profile { border-top:1px solid var(--ink11); }
+.r12-line.r11.r11 .profile-circle { background:var(--paper); border:1px solid var(--ink11); font-weight:800; color:var(--ink11); }
+.r12-line.r11.r11 .side-footer .navitem { color:var(--sub11); }
+
+/* header */
+.r12-line.r11.r11 :is(.chip,.confirm-number) { background:var(--paper); border:1px solid var(--ink11); color:var(--ink11); font-weight:700; }
+.r12-line.r11.r11 .status-chip { background:var(--ink11); color:var(--inverse11); border:0; font-weight:700; padding:5px 12px; --cut:6px; clip-path:var(--chamfer); }
+.r12-line.r11.r11 .header-meta .sep { width:6px; height:1px; border-radius:0; background:var(--sub11); }
+
+/* thread */
+.r12-line.r11.r11 .date-line:before,.r12-line.r11.r11 .date-line:after { background:var(--ink11); width:48px; }
+.r12-line.r11.r11 .user-message { background:var(--well); border:0; color:var(--ink11); clip-path:var(--chamfer); padding:14px 20px; }
+.r12-line.r11.r11 .avatar { background:#fff url(brand/yunzhi.svg) center/20px auto no-repeat; border:1px solid var(--rule11); }
+.r12-line.r11.r11[data-product=streams] .avatar { background-image:url(brand/streams.svg); }
+.r12-line.r11.r11 .avatar svg { display:none; }
+.r12-line.r11.r11 .speaker { font-weight:800; }
+
+/* the confirmation card: the thing waiting for you carries the hatch */
+.r12-line.r11.r11 .confirmation { background:var(--paper); border:1px solid var(--ink11); }
+.r12-line.r11.r11 .confirm-top { background:var(--paper); border-bottom:1px solid var(--ink11); position:relative; padding-left:30px; }
+.r12-line.r11.r11 .confirm-top::before { content:''; position:absolute; left:0; top:0; bottom:0; width:12px; background:var(--hatch); border-right:1px solid var(--ink11); }
+.r12-line.r11.r11 .confirm-title>.ico { color:var(--ink11); background:transparent; border:0; }
+.r12-line.r11.r11 .decision-points>div { border-bottom:1px solid var(--rule11); }
+.r12-line.r11.r11 .point-index { color:var(--ink11); font-weight:700; }
+.r12-line.r11.r11 .confirm-footer { background:var(--bench); border-top:1px solid var(--ink11); }
+.r12-line.r11.r11 .decision-status { color:var(--ink11); font-weight:700; }
+
+/* composer */
+.r12-line.r11.r11 .composer { background:var(--paper); border:1px solid var(--ink11); }
+.r12-line.r11.r11 .composer:focus-within,.r12-line.r11.r11 .search-field:focus-within,
+.r12-line.r11.r11 .field :is(input,textarea,select):focus { border-color:var(--ink11); box-shadow:inset 0 0 0 1px var(--ink11); outline:none; }
+.r12-line.r11.r11 :is(.search-field,.field input,.field textarea,.field select) { background:var(--paper); border:1px solid var(--ink11); }
+.r12-line.r11.r11 .composer-tools .chip { border-color:var(--rule11); font-weight:600; }
+
+/* right column */
+.r12-line.r11.r11 .tab { color:var(--sub11); font-weight:600; border-bottom:0; }
+.r12-line.r11.r11 .tab:hover:not(:disabled) { background:var(--well); color:var(--ink11); }
+.r12-line.r11.r11 .tab.active { background:var(--ink11); color:var(--inverse11); font-weight:800; --cut:8px;
+  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%); }
+.r12-line.r11.r11 .tab.active .ico { color:inherit; }
+
+/* progress: a row of equal bars with slanted ends — solid is done, hatch is where it waits, a frame is not started */
+.r12-line.r11.r11 .progress-line { height:9px; gap:7px; padding:0 5px; }
+.r12-line.r11.r11 .progress-line span { background:transparent; border:1px solid var(--ink11); transform:skewX(-45deg); opacity:1; }
+.r12-line.r11.r11 .progress-line span.done { background:var(--ink11); }
+.r12-line.r11.r11 .progress-line span.now { background:var(--hatch); opacity:1; }
+.r12-line.r11.r11 .step-dots i { width:9px; height:9px; background:transparent; border:1px solid var(--ink11); transform:skewX(-45deg); }
+.r12-line.r11.r11 .step-dots i.complete { background:var(--ink11); }
+.r12-line.r11.r11 .step-dots i.wait { background:var(--hatch); border:1px solid var(--ink11); }
+
+.r12-line.r11.r11 .phase-row { background:var(--paper); border:1px solid var(--rule11); }
+.r12-line.r11.r11 .phase-row.current { border-color:var(--ink11); }
+.r12-line.r11.r11 .phase-row.current .phase-heading { background:var(--ink11); color:var(--inverse11); }
+.r12-line.r11.r11 .phase-row.current .phase-heading :is(small,.ico) { color:var(--inverse11); }
+.r12-line.r11.r11 .phase-row.current .phase-heading .step-dots i { border-color:var(--inverse11); }
+.r12-line.r11.r11 .phase-row.current .phase-heading .step-dots i.complete { background:var(--inverse11); }
+.r12-line.r11.r11 .phase-row.current .phase-heading .step-dots i.wait {
+  background:repeating-linear-gradient(135deg,var(--inverse11) 0 1.5px,transparent 1.5px 4px); }
+.r12-line.r11.r11 .phase-index { background:var(--paper); color:var(--ink11); border:1px solid var(--ink11); font-weight:700; }
+.r12-line.r11.r11 .phase-row.current .phase-index { background:var(--inverse11); color:var(--ink11); border:0; --cut:6px; clip-path:var(--chamfer); }
+.r12-line.r11.r11 .phase-label { font-weight:800; }
+.r12-line.r11.r11 .step-line { color:var(--ink11); }
+.r12-line.r11.r11 .step-line .ico { color:var(--ink11); }
+
+.r12-line.r11.r11 .mini-chart { border-top:1px solid var(--rule11); }
+.r12-line.r11.r11 .chart-track { height:7px; background:transparent; border-bottom:1px solid var(--rule11); }
+.r12-line.r11.r11 .chart-bar { background:var(--ink11); opacity:1; border:0; clip-path:polygon(0 0,100% 0,calc(100% - 7px) 100%,0 100%); }
+.r12-line.r11.r11 .chart-row:nth-child(2) .chart-bar { opacity:1; }
+.r12-line.r11.r11 .chart-row:nth-child(n+3) .chart-bar { background:var(--hatch); opacity:1; border:0; }
+.r12-line.r11.r11 .chart-row:nth-child(n+4) .chart-bar { background:transparent; outline:1px solid var(--ink11); outline-offset:-1px; clip-path:none; }
+.r12-line.r11.r11 .chart-row { color:var(--ink11); }
+
+.r12-line.r11.r11 .section-label { color:var(--ink11); font-weight:700; border-bottom:1px solid var(--ink11); padding-bottom:7px; }
+.r12-line.r11.r11 .section-label button { color:var(--ink11); font-weight:700; }
+.r12-line.r11.r11 .activity-row { border-left:1px solid var(--ink11); }
+.r12-line.r11.r11 .activity-row:before { width:7px; height:7px; left:-4px; border-radius:0; background:var(--ink11); transform:rotate(45deg); }
+
+.r12-line.r11.r11 :is(.source-card,.project-tile,.draft-preview,.reader-paper,.dialog) { background:var(--paper); border:1px solid var(--ink11); }
+.r12-line.r11.r11 :is(.source-card.selected,.file-row[aria-current]) { background:var(--well); box-shadow:inset 4px 0 var(--ink11); }
+.r12-line.r11.r11 .file-icon { background:var(--paper); border:1px solid var(--ink11); color:var(--ink11); }
+.r12-line.r11.r11 :is(.empty-state,.upload-area) { border:1px dashed var(--ink11); background:transparent; }
+.r12-line.r11.r11 :is(.progress-alert,.reader-callout) { background:var(--well); color:var(--ink11); border-left:4px solid var(--ink11); }
+.r12-line.r11.r11 .reader-table th { background:var(--ink11); color:var(--inverse11); }
+.r12-line.r11.r11 .reader-table :is(th,td) { border-color:var(--ink11); }
+.r12-line.r11.r11 :is(.reader a,.cite) { color:var(--ink11); text-decoration-thickness:2px; }
+.r12-line.r11.r11 mark { background:var(--hatch); border-bottom:2px solid var(--ink11); }
+.r12-line.r11.r11 .toast { background:var(--ink11); color:var(--inverse11); border:0; clip-path:var(--chamfer); padding:11px 20px; }
+.r12-line.r11.r11 .selection-tools { background:var(--paper); border:1px solid var(--ink11); }
+.r12-line.r11.r11 .selection-tools button { color:var(--ink11); font-weight:700; }
+.r12-line.r11.r11 .resize-handle:before { background:var(--ink11); border-radius:0; }
+.r12-line.r11.r11 :is(.btn,a,summary,button):focus-visible { outline:2px solid var(--ink11); outline-offset:2px; box-shadow:none; }
+
+/* demo bar */
+.r12-line.r11.r11 .prototype-bar :is(a,button) { color:var(--ink11); }
+.r12-line.r11.r11 .prototype-bar select { background:var(--paper); border:1px solid var(--ink11); color:var(--ink11); }
+.r12-line .r12-product { font-size:11px; font-weight:700; padding:2px 8px; border:1px solid currentColor; }
+
+/* text on the turned-over blocks follows the block */
+.r12-line.r11.r11 .project-item.active .project-name,
+.r12-line.r11.r11 .phase-row.current .phase-heading .phase-label,
+.r12-line.r11.r11 .tab.active { color:var(--inverse11); }
+.r12-line.r11.r11 .phase-row.current .phase-heading>.ico { color:var(--inverse11); background:transparent; border:0; }
+
+/* the card's body follows the paper in both appearances */
+.r12-line.r11.r11 :is(.card-body,.decision-points,.decision-points>div) { background:var(--paper); }
+.r12-line.r11.r11 :is(.decision-points dd,.decision-points dt,.intro-copy) { color:var(--ink11); }
+.r12-line.r11.r11 .prototype-bar b { color:var(--ink11); }
+
+/* ---- second pass (2026-11-10): states checked in the running page ---- */
+.r12-line.r11.r11 {
+  --hatch-inv:repeating-linear-gradient(135deg,var(--inverse11) 0 1.5px,transparent 1.5px 5px);
+  font-variant-numeric:tabular-nums;
+}
+.r12-line.r11.r11 :is(.btn,.navitem,.tab,.filter,.document-link,.icon-btn,.attach-btn,.project-item,.source-card,.file-row,.send-btn) {
+  transition:background-color 80ms linear,color 80ms linear; }
+
+/* solid blocks: hover shows a hatched strip at the left edge (the same strip the waiting card carries; a full
+   hatch made the label hard to read), pressed turns the block over.
+   Their corners are cut, so the keyboard ring is drawn inside the block. */
+.r12-line.r11.r11 :is(.btn.primary,.send-btn,.navitem.new):hover:not(:disabled) {
+  background:linear-gradient(90deg,transparent 0 12px,var(--ink11) 12px),var(--hatch-inv),var(--ink11); box-shadow:none; color:var(--inverse11); }
+.r12-line.r11.r11 :is(.btn.primary,.send-btn,.navitem.new):active:not(:disabled) {
+  background:var(--inverse11); color:var(--ink11); box-shadow:inset 0 0 0 2px var(--ink11); }
+.r12-line.r11.r11 :is(.btn.primary,.send-btn,.navitem.new,.project-item.active,.tab.active):focus-visible {
+  outline:none; box-shadow:inset 0 0 0 2px var(--ink11),inset 0 0 0 4px var(--inverse11); }
+.r12-line.r11.r11 :is(.btn:not(.primary),.document-link,.filter,.icon-btn,.attach-btn):active:not(:disabled) {
+  background:var(--hatch),var(--paper); color:var(--ink11); }
+.r12-line.r11.r11 :is(.btn,.send-btn):disabled { opacity:1; background:transparent; color:var(--sub11); border:1px dashed var(--sub11); clip-path:none; }
+
+/* the right column's tabs when no project is open: plain, not a block */
+.r12-line.r11.r11 .tab:disabled,.r12-line.r11.r11 .tab.active:disabled {
+  background:transparent; color:var(--sub11); font-weight:600; clip-path:none; opacity:.55; }
+
+/* the outline chart (five sections) is all one kind: every bar solid. Only the evidence chart ranks its rows. */
+.r12-line.r11.r11 .mini-chart:has(>small) .chart-row .chart-bar {
+  background:var(--ink11); outline:0; clip-path:polygon(0 0,100% 0,calc(100% - 7px) 100%,0 100%); }
+
+/* dialog: a flat dim instead of the blur, and the head ruled like the page header */
+.r12-line.r11.r11 .dialog::backdrop { background:rgb(17 20 24 / .62); backdrop-filter:none; }
+.r12-line.r11.r11 .dialog-head { background:var(--paper); border-bottom:2px solid var(--ink11); }
+.r12-line.r11.r11 .record { border-bottom:1px solid var(--rule11); }
+.r12-line.r11.r11 .dialog blockquote { border-left:4px solid var(--ink11); background:var(--well); color:var(--ink11); }
+
+/* the browser's own file button, drawn as a secondary button */
+.r12-line.r11.r11 input[type=file] { color:var(--sub11); }
+.r12-line.r11.r11 input[type=file]::file-selector-button {
+  font:inherit; font-weight:600; padding:6px 12px; margin-right:10px; border:1px solid var(--ink11); border-radius:0;
+  background:var(--paper); color:var(--ink11); cursor:pointer; }
+.r12-line.r11.r11 input[type=file]::file-selector-button:hover { background:var(--ink11); color:var(--inverse11); }

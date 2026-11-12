@@ -1,23 +1,26 @@
-// 库架 (v2 package F; design P1): one card per library — its mark, its name, what it follows (lib/libraries.js tracking: the
-// brief's first sentence, else its topics), when it was last updated and how many sources it has, its 待看 count in large
-// figures, one line on what is wrong (the folder gone · a source with a problem · N rounds in a row without output) or that its
-// sources are fine — and last a card 「+ 新建库 · 和主 Agent 聊着建」 (→ 和主 Agent 聊). A click on a card is a click on that
-// library in the sidebar (openLibrary). No library: one line and two buttons (和主 Agent 聊 / 手动新建). The data is the app
-// context's libraries (listLibraries + getLibrariesOverview); words: texts/shell.js SHELL.shelf.
+// 库架 (v2 package F; redesign R1 — 维护者 11-11 第 2 题 B: kept, the sidebar's first entry; design P23, the template's
+// home-content / project-tile as the design's streams/app.js builds it): the eyebrow, the line, a search over the libraries'
+// names and what they follow, 「新建库」, then one card per library — when it last ran and how many sources it has, its state
+// chip (运行中 · <当前环节> / 排队中 · 第 n 位 — the same words as the sidebar and the panel — or its problem), its name, what it
+// follows (lib/libraries.js tracking), and at its foot its 待看 and its sources' state, 「进入待看」 — and last a card 「新建库 ·
+// 由主 Agent 生成」 (→ 主 Agent). A click on a card is a click on that library in the sidebar (openLibrary). No library: one line
+// and two buttons (由主 Agent 生成 / 手动创建). The data is the app context's libraries (listLibraries + getLibrariesOverview)
+// and its queue (getQueue); words: texts/shell.js SHELL.shelf.
 // Test hooks: main[data-screen="shelf"][data-state], [data-shelf-card=<id>] with [data-part=name|tracking|updated|inbox|problem]
-// ([data-problem=<problem>|"none"]), [data-action=new-card|new-library|empty-chat|empty-manual], [data-part="shelf-empty"].
-// v2 package L: a library whose round runs or waits says so on its card — 「在跑」 / 「排队中 · 第 n 位」 ([data-part="queue"]
-// [data-queue-state=running|queued][data-position]; the queue of the app context, getQueue); the window's right panel beside it.
-import { html } from '../lib/html.js'
+// ([data-problem=<problem>|"none"]) and [data-part="queue"][data-queue-state=running|queued][data-position];
+// [data-field="shelf-search"]; [data-action=new-card|new-library|empty-chat|empty-manual], [data-part="shelf-empty"].
+import { html, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { fmt, whenText } from '../lib/format.js'
 import { tracking } from '../lib/libraries.js'
 import { queueStateOf, queueWords } from '../lib/queue.js'
+import { TIcon } from '../lib/template-icons.js'
 import { RightPanel } from './right-panel.js'
 import { Act } from '../lib/action.js'
-import { AppFrame, AppSidebar, Icon, LibraryMark, LinkButton, Main, TopBar } from '../kit/index.js'
+import { AppFrame, AppSidebar, LinkButton, Main, TopBar } from '../kit/index.js'
 import { ERRORS, SEP, WHEN } from '../texts/common.js'
 import { SHELL } from '../texts/shell.js'
+import { PANEL } from '../texts/panel.js'
 
 const T = SHELL.shelf
 
@@ -33,48 +36,64 @@ function Card({ row, queue, onOpen }) {
   const problem = problemLine(row)
   const updated = row.lastRoundAt ? fmt(T.updated, { when: whenText(row.lastRoundAt, WHEN) ?? row.lastRoundAt }) : T.updatedNever
   const place = queueStateOf(queue, row.id)
-  return html`<button type="button" class="shelf-card" data-shelf-card=${row.id} data-active=${String(row.active)} onClick=${onOpen}>
-    <${LibraryMark} icon=${row.icon} color=${row.color} size="l" />
-    <span class="shelf-card__text">
-      <span class="shelf-card__name st-t-strong" data-part="name">${row.name}</span>
-      <span class="shelf-card__tracking st-t-small st-t-sub" data-part="tracking">${what ? fmt(SHELL.head.tracking, { what }) : SHELL.head.trackingNone}</span>
-      <span class="st-t-small st-t-sub" data-part="updated">${updated}${SEP}${fmt(T.sources, { n: row.sources ?? 0 })}</span>
-      ${place ? html`<span class=${`shelf-card__queue st-t-small st-queue-state st-queue-state--${place.state}`} data-part="queue" data-queue-state=${place.state} data-position=${place.position ?? 1}><span class="st-queue-dot" aria-hidden="true"></span>${queueWords(place)}</span>` : null}
-      <span class=${`shelf-card__problem st-t-small ${problem ? 'st-t-wait' : 'st-t-done'}`} data-part="problem" data-problem=${row.problem ?? 'none'}>
-        ${problem ? html`<span class="shelf-card__dot" aria-hidden="true"></span>` : null}${problem ?? T.fine}
-      </span>
-    </span>
-    <span class="shelf-card__inbox" data-part="inbox" data-value=${row.inbox ?? 0}>
-      <span class="shelf-card__count st-t-num">${row.inbox ?? 0}</span>
-      <span class="st-t-tiny st-t-sub">${T.inboxLabel}</span>
-    </span>
+  const words = queueWords(place, place?.state === 'running' ? queue?.running?.phase ?? null : null)
+  return html`<button type="button" class="project-tile" data-shelf-card=${row.id} data-active=${String(row.active)} onClick=${onOpen}>
+    <div class="row">
+      <span class="eyebrow" data-part="updated">${updated}${SEP}${fmt(T.sources, { n: row.sources ?? 0 })}</span>
+      <span class="spacer"></span>
+      ${place ? html`<span class="status-chip" data-part="queue" data-queue-state=${place.state} data-position=${place.position ?? 1}><span class="dot"></span> ${words}</span>`
+        : problem ? html`<span class="status-chip" data-part="chip"><span class="dot"></span> ${problem}</span>` : null}
+    </div>
+    <h3 data-part="name">${row.name}</h3>
+    <p data-part="tracking">${what ? fmt(SHELL.head.tracking, { what }) : SHELL.head.trackingNone}</p>
+    <div class="project-tile-footer">
+      <span><span data-part="inbox" data-value=${row.inbox ?? 0}>${fmt(T.inboxLine, { n: row.inbox ?? 0 })}</span>${SEP}<span data-part="problem" data-problem=${row.problem ?? 'none'}>${problem ?? T.fine}</span></span>
+      <span>${T.enter} <${TIcon} name="arrow" /></span>
+    </div>
   </button>`
 }
 
 export function ShelfScreen() {
   const { libraries, openLibrary, navigate, newLibrary, queue } = useApp()
+  const [q, setQ] = useState('')
   const rows = Array.isArray(libraries?.data) ? libraries.data : null
   const state = rows ? 'ready' : libraries?.status ?? 'loading'
-  const actions = html`<${Act} name="new-library" icon="plus" onClick=${() => newLibrary()}>${T.newButton}<//>`
+  const needle = q.trim().toLowerCase()
+  const shown = rows ? rows.filter(r => !needle || `${r.name} ${tracking(r, SEP) ?? ''}`.toLowerCase().includes(needle)) : []
+  const qd = queue?.data ?? null
+  const running = qd?.running ? 1 : 0
+  const waiting = Array.isArray(qd?.waiting) ? qd.waiting.length : 0
+  const chip = running || waiting ? html`<span class="status-chip" data-part="shelf-queue"><span class="dot"></span> ${fmt(PANEL.progress.summary, { running, waiting })}</span>` : null
   return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="shelf" />`} panel=${html`<${RightPanel} />`}>
     <${Main} screen="shelf" state=${state} labelledby="shelf-title">
-      <${TopBar} title=${T.title} subtitle=${rows ? fmt(T.subtitle, { n: rows.length }) : null} titleTag="h1" titleId="shelf-title" actions=${actions} />
-      <div class="st-main__body shelf-body">
-        ${libraries?.status === 'error' && !rows ? html`<div class="shelf-error" role="alert">${T.loadFailed}<${LinkButton} onClick=${() => libraries.reload()}>${ERRORS.retry}<//></div>` : null}
-        ${rows && rows.length === 0 ? html`<div class="shelf-empty" data-part="shelf-empty">
-          <p class="st-t-sub">${T.emptyText}</p>
-          <div class="shelf-empty__actions">
-            <${Act} name="empty-chat" variant="primary" icon="chat" onClick=${() => navigate('chat')}>${T.emptyChat}<//>
-            <${Act} name="empty-manual" icon="plus" onClick=${() => newLibrary()}>${T.emptyManual}<//>
+      <${TopBar} title=${T.title} subtitle=${rows ? fmt(T.subtitle, { n: rows.length }) : null} titleTag="h1" titleId="shelf-title" actions=${chip} />
+      <div class="center">
+        <div class="home-content st-main__body shelf-body">
+          <span class="eyebrow">${T.eyebrow}</span>
+          <h2 class="home-title">${T.lead}</h2>
+          <p>${T.text}</p>
+          <div class="home-toolbar">
+            <label class="search-field"><${TIcon} name="search" /><input aria-label=${T.search} placeholder=${T.search} data-field="shelf-search" value=${q} onInput=${e => setQ(e.currentTarget.value)} /></label>
+            <span class="st-act" data-action="new-library"><button type="button" class="btn primary" onClick=${() => newLibrary()}><${TIcon} name="newProject" fallback="plus" /> ${T.newButton}</button></span>
           </div>
-        </div>` : null}
-        ${rows && rows.length ? html`<div class="shelf-grid">
-          ${rows.map(r => html`<${Card} key=${r.id} row=${r} queue=${queue?.data ?? null} onOpen=${() => openLibrary(r.id)} />`)}
-          <button type="button" class="shelf-card shelf-card--new" data-action="new-card" onClick=${() => navigate('chat')}>
-            <${Icon} name="plus" /><span>${T.newCard}</span>
-          </button>
-        </div>` : null}
+          ${libraries?.status === 'error' && !rows ? html`<div class="progress-alert" role="alert">${T.loadFailed} <${LinkButton} onClick=${() => libraries.reload()}>${ERRORS.retry}<//></div>` : null}
+          ${rows && rows.length === 0 ? html`<div class="empty-state" data-part="shelf-empty">
+            <b>${T.emptyText}</b>
+            <div class="row st-empty-actions">
+              <${Act} name="empty-chat" variant="primary" onClick=${() => navigate('chat')}>${T.emptyChat}<//>
+              <${Act} name="empty-manual" onClick=${() => newLibrary()}>${T.emptyManual}<//>
+            </div>
+          </div>` : null}
+          ${rows && rows.length ? html`<div id="projectTiles">
+            ${shown.map(r => html`<${Card} key=${r.id} row=${r} queue=${qd} onOpen=${() => openLibrary(r.id)} />`)}
+            ${needle && shown.length === 0 ? html`<p class="limit-note" data-part="search-none">${fmt(T.searchNone, { q: q.trim() })}</p>` : null}
+            <button type="button" class="document-link" data-action="new-card" onClick=${() => navigate('chat')}>
+              <${TIcon} name="plus" /><span>${T.newCard}</span>
+            </button>
+          </div>` : null}
+        </div>
       </div>
     <//>
   <//>`
 }
+
