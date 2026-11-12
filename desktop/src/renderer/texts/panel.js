@@ -36,6 +36,13 @@ export const PANEL = Object.freeze({
     nextNone: '没有开启定时运行的库。',
     loadFailed: '未能读取运行队列。',
     unknownLibrary: '（未登记的库）',
+    // redesign R2 (P07 · P16): the run that runs, the queue, the rule, the current library's last run
+    runningTitle: '{name} · 运行中',
+    runningDetail: '{why} · {when} 开始 · 当前步骤：{phase}',
+    stop: '停止',
+    stopping: '正在停止',
+    waitingDetail: '{why} · {since} 加入队列 · 前一任务完成后自动开始',
+    keepRunning: '需保持流息运行（窗口或托盘）。错过的运行将在下次启动时补上一次。',
   }),
 
   // 待确认 (维护者 11-11 第 13 题: was 「等你决定」): every library's proposals waiting and system findings not handled (the same
@@ -64,19 +71,29 @@ export const PANEL = Object.freeze({
     }),
     // the other screens: one sentence
     none: '当前页面未选中任何内容。在待看、资料库、问库或主 Agent 中选中一项，这里显示它的详情。',
+    // redesign R2 (P05 · P16 详情, F30): the current card — 推荐理由, 核验, 核验记录 (folded; what the record dialog had), 来源
     inbox: Object.freeze({
-      empty: '待看里没有条目。',
-      scores: '每道关的分数与理由',
-      scoresNone: '这一条没有打分（没有连接时只抓不打分）。',
+      eyebrow: '当前条目',
+      empty: '暂无待看内容。',
+      scores: '推荐理由',
+      scoresNone: '这一条没有评分（未连接模型时只抓取不评分）。',
+      score: '{name} {score}',
       check: '核验',
       passed: '核验通过',
       failed: '未通过核验',
-      unchecked: '没有核验',
-      aiYes: '这一条里有写给 AI 的话，已忽略',
-      aiNo: '没有写给 AI 的话',
+      unchecked: '未核验',
+      aiYes: '检测到面向 AI 的指令，已忽略',
+      aiNo: '未检测到面向 AI 的指令',
+      record: '核验记录',
+      recordParts: '（{parts}）',
+      recordPart: '{name} {n} 项',
+      recordNone: '（暂无记录）',
       source: '来源',
-      sourceLine: '{source} · {date}',
-      record: '这一条的记录',
+      sourceLine: '{source} · 发布 {date} · 首次抓取 {when}',
+      sourceLineNoSeen: '{source} · 发布 {date}',
+      reasons: '最近的放弃原因',
+      reasonsNone: '暂无填写了原因的放弃。',
+      reasonLine: '{when} · {reason}',
     }),
     ask: Object.freeze({
       cites: '{n} 篇笔记',
@@ -129,7 +146,8 @@ export const PANEL = Object.freeze({
 // one at the end. Its place shows in three places only: the library's head button, its line in the sidebar, the panel's 进度.
 export const QUEUE = Object.freeze({
   // why a library runs / waits (getQueue's `why`), as a line of the panel's list
-  why: Object.freeze({ schedule: '定时运行', 'catch-up': '补跑错过的运行', manual: '手动触发' }),
+  // redesign R2 (O7): the four reasons, said as they are
+  why: Object.freeze({ first: '建库后的第一轮', manual: '手动触发', schedule: '定时', 'catch-up': '补跑' }),
   // a library's place (the sidebar's line, 库架's card, the panel)
   running: '运行中',
   runningPhase: '运行中 · {phase}',

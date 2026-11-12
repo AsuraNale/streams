@@ -4,8 +4,10 @@
 // check did not pass is marked on its own line: 「说做了其实没做」. The result line per step: passed or not and the
 // rounds (and the calls, when the core gives them). A check's words come from the pipeline's checklists (getPipeline:
 // the item's `desc`); one the pipeline does not list shows its id.
-// Opened from 资料库 (the right panel, a kept note; a caught item) and, once wired by the PM, from a card in 待看:
+// Opened from 资料库 (the right panel, a kept note; a caught item):
 //   html`<${VerdictDialog} url=${…} title=${…} onClose=${…} />`
+// Redesign R2 (F30): 待看 no longer opens the dialog — the right panel's 详情 folds the same record in (VerdictBody, the dialog's
+// content without the dialog), its summary line from verdictSummary (the check items of each step's last round).
 // Words: texts/library.js VERDICTS; the steps' names: texts/common.js NODE_NAMES.
 // Test hooks: [data-dialog="verdicts"][data-state], [data-verdict-node=<node>], [data-round=<n>] inside it,
 // [data-check=<item>][data-passed][data-kind], [data-said-not-done=<item>], [data-part="verdict-result"][data-passed].
@@ -93,6 +95,18 @@ function Round({ node, group, next, words }) {
   </section>`
 }
 
+/** Redesign R2: each step's check items in its last round ({ node, n }), in the order the core wrote them — 详情's summary line. */
+export function verdictSummary(groups) {
+  return [...byNode(groups).entries()].map(([node, gs]) => ({ node, n: Array.isArray(gs[gs.length - 1]?.items) ? gs[gs.length - 1].items.length : 0 }))
+}
+
+/** The record itself (what the dialog shows), for a place of its own (redesign R2: 待看's 详情). */
+export function VerdictBody({ url }) {
+  const data = useLoad(() => call('getVerdicts', url), [url])
+  const pipeline = useLoad(() => call('getPipeline').catch(() => null), [])
+  return html`<${Record} url=${url} data=${data} pipeline=${pipeline} />`
+}
+
 /**
  * @param {object} p
  * @param {string} p.url - the item (its address in the library's record)
@@ -102,11 +116,17 @@ function Round({ node, group, next, words }) {
 export function VerdictDialog({ url, title, onClose }) {
   const data = useLoad(() => call('getVerdicts', url), [url])
   const pipeline = useLoad(() => call('getPipeline').catch(() => null), [])
+  const actions = html`<${Act} name="close-verdicts" onClick=${onClose}>${T.close}<//>`
+  return html`<${Dialog} name="verdicts" title=${title ? fmt(T.subtitle, { node: T.title, title }) : T.title} onCancel=${onClose} actions=${actions}>
+    <${Record} url=${url} data=${data} pipeline=${pipeline} />
+  <//>`
+}
+
+function Record({ url, data, pipeline }) {
   const words = descriptions(pipeline.data)
   const nodes = byNode(data.data)
   const state = data.data ? 'ready' : data.status
-  const actions = html`<${Act} name="close-verdicts" onClick=${onClose}>${T.close}<//>`
-  return html`<${Dialog} name="verdicts" title=${title ? fmt(T.subtitle, { node: T.title, title }) : T.title} onCancel=${onClose} actions=${actions}>
+  return html`
     <div class="vd" data-state=${state} data-url=${url}>
       ${data.status === 'loading' && !data.data ? html`<p class="st-t-small st-t-muted">${T.loading}</p>` : null}
       ${data.status === 'error' && !data.data ? html`<p class="st-t-small st-t-wait" role="alert">${data.error?.code === 'bad_arguments' ? T.none : T.failed}</p>` : null}
@@ -124,6 +144,5 @@ export function VerdictDialog({ url, title, onClose }) {
           <div class=${`vd-result${passed ? ' vd-result--pass' : ''}`} data-part="verdict-result" data-passed=${String(passed)} data-rounds=${last.round ?? groups.length}>${result}</div>
         </section>`
       })}
-    </div>
-  <//>`
+    </div>`
 }

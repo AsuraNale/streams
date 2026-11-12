@@ -6,7 +6,11 @@
 //   进度      every library (the template's panel-summary, phase-row, mini-chart, activity-row): how many run and wait, the round
 //             that runs (its library, why, the step it is at, calls / cap, when it started), the queue in order with why each
 //             waits, each library's next timed slot (getQueue, app.js useQueue; names from the libraries) — the one place the
-//             queue is told in full (F23). On a library's page, under it: what 概览 had of that library (screens/last-run.js).
+//             queue is told in full (F23). Redesign R2 (P07 · P16): the round that runs says why (建库后的第一轮 · 手动触发 · 定时 ·
+//             补跑), when it started, its step, calls / cap and has 停止; each one waiting why, since when and 「前一任务完成后
+//             自动开始」; the rule 「需保持流息运行…」; nothing running: 「当前无运行任务」. On a library's page, last: that
+//             library's last run as the same funnel 待看 shows when empty (screens/run-funnel.js, getHome().lastRun) — not the
+//             four numbers, the banners or 运行状态 of R1 any more.
 //   待确认    every library's proposals waiting and system findings not handled — the same list the tab's number counts (app.js
 //             useWaitingItems): small confirmation cards, its library and one sentence each; a proposal → 主 Agent, scrolled to it;
 //             a finding → that library. On a library's page, its findings with their buttons below (screens/suggestion-card.js;
@@ -19,8 +23,9 @@
 //             A page with no library of its own (库架, 主 Agent, 设置): one sentence.
 // Words: texts/panel.js PANEL / QUEUE. Test hooks: aside[data-part="right-panel"][data-open][data-tab],
 // [data-panel-tab=<id>][aria-current] with [data-panel-badge], [data-action="fold"|"unfold"], [data-rail-tab=<id>],
-// [data-pane=progress|decide|detail|files]; 进度: [data-part=progress-summary|running|order|next|last-run], [data-queue-row=<id>]
-// [data-position][data-here][data-why], [data-part="running-phase"], [data-calls][data-cap], [data-next-row=<id>][data-at];
+// [data-pane=progress|decide|detail|files]; 进度: [data-part=progress-summary|running|order|next|last-run|keep-running], [data-queue-row=<id>]
+// [data-position][data-here][data-why], [data-part="running-phase"], [data-calls][data-cap], [data-next-row=<id>][data-at],
+// [data-action="panel-stop"];
 // 待确认: [data-decide=<proposal id | libraryId:key>][data-kind=proposal|suggestion][data-library], [data-part="suggestions"];
 // 详情: [data-part="detail-none"]; 文件: [data-part=files-head|no-library], [data-tree=notes|inbox|requirements|records][data-open],
 // [data-tree-topic=<topic | "">], [data-tree-note=<id>] (.st-rp-tree__row), [data-action=reveal-library|reveal-records|
@@ -32,6 +37,7 @@ import { fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { doingOf, queueWords } from '../lib/queue.js'
+import { RUN_STEPS, stepOf } from './run-steps.js'
 import { phaseWords } from '../lib/phase.js'
 import { TIcon, hasTabIcons } from '../lib/template-icons.js'
 import { LIBRARY_ROUTES, Menu } from '../kit/index.js'
@@ -39,7 +45,7 @@ import { NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
 import { PANEL as T, QUEUE } from '../texts/panel.js'
 import { cardTitle } from './proposal-card.js'
 import { LibrarySuggestions, suggestionSentence } from './suggestion-card.js'
-import { LastRunPart } from './last-run.js'
+import { RunFunnel } from './run-funnel.js'
 
 export { phaseWords }
 
@@ -67,24 +73,41 @@ function useNames() {
 // ---- 进度 ---------------------------------------------------------------------------------------------------------------
 
 /** One library of the queue (the template's phase-row): its place, its name and its state; open shows why and since when. */
-function QueueRow({ o, i, here, name, running, r, startedText }) {
+function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
   const P = T.progress
+  const why = doingOf(o.why, QUEUE.why)
   const steps = running
-    ? [['check', fmt(P.runningLine, { why: doingOf(o.why, QUEUE.why) })], ['clock', fmt(P.phase, { phase: phaseWords(r?.phase) })], startedText ? ['clock', startedText] : null].filter(Boolean)
-    : [['clock', fmt(P.waitingLine, { why: doingOf(o.why, QUEUE.why), since: whenText(o.since, WHEN) ?? '' })], o.after ? ['clock', fmt(P.after, { name: o.after })] : null].filter(Boolean)
+    ? [['check', fmt(P.runningDetail, { why, when: whenText(r?.startedAt, WHEN) ?? '', phase: phaseWords(r?.phase) || phaseWords('self-check') })]]
+    : [['clock', fmt(P.waitingDetail, { why, since: whenText(o.since, WHEN) ?? '' })]]
   const state = running ? queueWords({ state: 'running' }, r?.phase) : queueWords({ state: 'queued', position: i + 1 })
+  const at = running ? stepOf(r?.phase) : -1
   return html`<details class=${`phase-row${running ? ' current' : ''}`} open=${running} data-part=${running ? 'running' : undefined}
     data-library=${o.libraryId ?? ''} data-phase=${running ? r?.phase ?? '' : undefined}
     data-queue-row=${o.libraryId ?? ''} data-position=${i + 1} data-here=${String(o.libraryId === here)} data-why=${o.why ?? ''}>
     <summary class="phase-heading">
       <span class="phase-index">${pad(i + 1)}</span>
-      <span class="phase-label">${name}<small>${state}${o.libraryId === here ? `${SEP}${P.here}` : ''}</small></span>
+      <span class="phase-label">${running ? fmt(P.runningTitle, { name }) : name}<small>${state}${o.libraryId === here ? `${SEP}${P.here}` : ''}</small></span>
       <${TIcon} name="down" />
     </summary>
     <div class="phase-details">
-      ${steps.map(([ic, t], k) => html`<div key=${k} class="step-line" data-part=${running && k === 1 ? 'running-phase' : undefined}><${TIcon} name=${ic} /><span>${t}</span></div>`)}
+      ${running ? html`<span class="step-dots" aria-hidden="true">${RUN_STEPS.map((id, k) => html`<i key=${id} class=${k < at ? 'complete' : k === at ? 'wait' : ''}></i>`)}</span>` : null}
+      ${steps.map(([ic, t], k) => html`<div key=${k} class="step-line" data-part=${running && k === 0 ? 'running-phase' : undefined}><${TIcon} name=${ic} /><span>${t}</span></div>`)}
+      ${running ? html`<div class="mini-chart" data-part="running-calls"><div class="chart-row"><span>${P.calls}</span><div class="chart-track"><div class="chart-bar" style=${{ '--value': `${r && r.cap > 0 ? Math.min(100, Math.floor(((r.calls ?? 0) / r.cap) * 100)) : 0}%` }}></div></div>
+        <b data-calls=${r?.calls ?? 0} data-cap=${r?.cap ?? ''}>${r?.cap ? fmt(P.callsValue, { calls: r.calls ?? 0, cap: r.cap }) : fmt(P.callsNoCap, { calls: r?.calls ?? 0 })}</b></div></div>
+        <span class="st-act" data-action="panel-stop"><button type="button" class="btn" disabled=${stopping} onClick=${onStop}><${TIcon} name="stop" /> ${stopping ? P.stopping : P.stop}</button></span>` : null}
     </div>
   </details>`
+}
+
+/** The current library's last run (getHome().lastRun) as the funnel 待看 shows when empty: the same component, the same data. */
+function LastRunHere({ libraryId }) {
+  const home = useLoad(() => call('getHome'), [libraryId])
+  useEvent('inbox-changed', () => home.reload(), [libraryId])
+  useEvent('library-changed', () => home.reload(), [libraryId])
+  useEvent('round-progress', p => { if (p?.done) home.reload() }, [libraryId])
+  return html`<div class="panel-section" data-part="last-run-here">
+    ${home.data ? html`<${RunFunnel} lastRun=${home.data.lastRun} outcome=${false} here=${true} />` : null}
+  </div>`
 }
 
 function ProgressPane() {
@@ -92,12 +115,13 @@ function ProgressPane() {
   const { rowOf } = useNames()
   const here = appState?.data?.library?.libraryId ?? null
   const onLibrary = LIBRARY_ROUTES.includes(route?.screen) && here !== null
+  const [stopping, setStopping] = useState(null)
   const q = queue?.data ?? null
   const P = T.progress
   if (!q) {
     return html`<div class="st-rp-pane" data-pane="progress">
       <p class="muted" role=${queue?.status === 'error' ? 'alert' : undefined}>${queue?.status === 'error' ? P.loadFailed : ''}</p>
-      ${onLibrary ? html`<${LastRunPart} />` : null}
+      ${onLibrary ? html`<${LastRunHere} libraryId=${here} />` : null}
     </div>`
   }
   const name = id => rowOf(id)?.name ?? P.unknownLibrary
@@ -108,7 +132,10 @@ function ProgressPane() {
   const busy = Boolean(r) || waiting.length > 0
   const order = [...(r ? [{ libraryId: r.libraryId, running: true, why: r.why }] : []), ...waiting]
   const withAfter = order.map((o, i) => (i > 0 && !o.running ? { ...o, after: name(order[i - 1].libraryId) } : o))
-  const pct = r && r.cap > 0 ? Math.min(100, Math.floor((r.calls / r.cap) * 100)) : 0
+  const stop = async () => {
+    setStopping(r?.roundId ?? 'x')
+    try { await call('cancelRound') } catch { setStopping(null) }
+  }
   return html`<div class="st-rp-pane" data-pane="progress">
     <${PanelSummary} part="progress-summary" eyebrow=${P.eyebrow} title=${busy ? fmt(P.summary, { running: r ? 1 : 0, waiting: waiting.length }) : P.idle}>
       <p>${P.rule}</p>
@@ -116,18 +143,18 @@ function ProgressPane() {
       <div class="progress-caption"><span>${busy ? fmt(P.queueSize, { n: order.length }) : fmt(P.asOf, { hm: `${pad(now.getHours())}:${pad(now.getMinutes())}` })}</span><span>${r ? doingOf(r.why, QUEUE.why) : ''}</span></div>
     <//>
     <div class="st-rp-order" data-part="order" data-empty=${String(order.length === 0)}>
-      ${withAfter.map((o, i) => html`<${QueueRow} key=${`${o.libraryId}:${i}`} o=${o} i=${i} here=${here} name=${name(o.libraryId)} running=${Boolean(o.running)} r=${r}
-        startedText=${o.running && r?.startedAt ? fmt(P.started, { when: whenText(r.startedAt, WHEN) ?? '' }) : null} />`)}
-      ${r ? html`<div class="mini-chart" data-part="running-calls"><div class="chart-row"><span>${P.calls}</span><div class="chart-track"><div class="chart-bar" style=${{ '--value': `${pct}%` }}></div></div>
-        <b data-calls=${r.calls ?? 0} data-cap=${r.cap ?? ''}>${r.cap ? fmt(P.callsValue, { calls: r.calls ?? 0, cap: r.cap }) : fmt(P.callsNoCap, { calls: r.calls ?? 0 })}</b></div></div>` : null}
+      ${withAfter.map((o, i) => html`${i === (r ? 1 : 0) && !o.running ? html`<div class="section-label" key="order-label"><span>${P.order}</span></div>` : null}
+        <${QueueRow} key=${`${o.libraryId}:${i}`} o=${o} i=${i} here=${here} name=${name(o.libraryId)} running=${Boolean(o.running)} r=${r}
+          onStop=${stop} stopping=${Boolean(stopping) && stopping === (r?.roundId ?? 'x')} />`)}
       ${order.length ? null : html`<p class="limit-note">${P.orderNone}</p>`}
     </div>
     <div class="panel-section" data-part="next" data-empty=${String(next.length === 0)}>
       <div class="section-label"><span>${P.next}</span></div>
       ${next.length ? next.map(n => html`<div key=${n.libraryId} class="activity-row" data-next-row=${n.libraryId} data-at=${n.at}>${name(n.libraryId)}<small>${nextText(n.at, NEXT_WHEN) ?? ''}</small></div>`)
         : html`<p class="limit-note">${P.nextNone}</p>`}
+      <p class="limit-note" data-part="keep-running">${P.keepRunning}</p>
     </div>
-    ${onLibrary ? html`<${LastRunPart} />` : null}
+    ${onLibrary ? html`<${LastRunHere} libraryId=${here} />` : null}
   </div>`
 }
 

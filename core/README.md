@@ -112,7 +112,7 @@ node bin/streams-core.mjs keep <libraryDir> <url>   ·   dismiss <libraryDir> <u
 
 事件：`seen | scored | unscored | inbox | kept | dismissed`。`appendEvent` 自动补 `ts`（ISO），缺 `ev` / `url`、未知 `ev`、`scored`/`unscored` 缺 `node`、`kept` 缺 `id` 都抛 `bad-event` 且不写盘。
 
-重放得到 `{url, source, title, date, firstSeen, stage, scores:{node:{score|value, reason}}, unscored:{node:reason}, keptId?, dismissReason?, lastTs}`：
+重放得到 `{url, source, title, date, firstSeen, stage, scores:{node:{score|value, reason}}, unscored:{node:reason}, keptId?, dismissReason?, dismissQuick?, inboxRound?, moved?, lastTs}`（重设计 R2：`inboxRound` 是放进待看的那一轮，`moved:'rejected'` 是从未通过筛选手动移入的，`dismissed` 没有理由时没有 `dismissReason`）：
 
 - 同一 url 第二次 `seen` 什么都不改（连 `lastTs` 也不动）。
 - `kept` 与 `dismissed` 是终态：之后该 url 的任何事件都整条忽略（stage、scores、lastTs 都不动）。
@@ -352,7 +352,8 @@ fetchRound(libraryDir, { config?, ctx? })
 - 每次模型调用计 1（关卡、摘要、判定都算）；`calls ≥ cap` → 当前条目后停（`stoppedAt:'cap'`）；`signal.aborted` → `'aborted'`；连接错误 → `'connection'`。剩余条目保持原状态，下一轮接着跑；同一 url 同一关卡同一 cfg 永不第二次调用。
 - 关卡输出先过全规则核对单（JSON 键齐、分数 0–1、枚举在表内、理由 ≤120 字、`quote` 逐字在材料里）；没过带「你的输出不符合格式」重试一次；还没过 → 账本 `unscored`，条目留在「抓到的」，永不静默丢弃。
 - 摘要走 `verifyLoop`：规则项先、判定项打包成一次独立调用（核验槽）；退回只带没过的项；两轮不过仍进待看并标 `verification.passed:false`。每项每轮一行 `_pipeline/verdicts.jsonl`。
-- 拍板：`keep` 是全仓唯一调 `writeNoteFile(…,{by:'keep'})` 的地方；`dismiss` 理由必填且终态永不回流；`later` 零写盘。
+- 拍板：`keep` 是全仓唯一调 `writeNoteFile(…,{by:'keep'})` 的地方；`dismiss` 终态永不回流（**重设计 R2**：理由可不写，不写时事件里没有 `reason` 字段；快选理由另记 `quick`）；`later`（**重设计 R2**）记进 `_pipeline/later.json`、不写账本也不碰 `notes/`，`releaseLater` 让它们回到待看；`moveToInbox`（R2，未通过筛选 → 待看）不写 `notes/`。
+- **重设计 R2** 的运行记录：`rounds.jsonl` 一行多了 `callsBy = { selfCheck, gates:{<id>: n}, summary, verify }`（运行前自检的试调 + 各关自己的调用 + 摘要自己的调用 + 所有核验判定的调用；`selfCheck + calls` = 各分项之和）与停下时的 `stoppedNode`；`calls`（上限看的数）不变。`runFunnel` 把一行读成「已抓取 → 去重后新增 → 通过各关 → 进入待看」的漏斗，`roundOutcome` 给那一轮进待看的条目后来的处理情况。签名见 `docs/core-api.md` 4.2。
 - 假连接器：`src/connect/fakes.mjs`（固定 / 坏格式 / 登录过期 / 计数）与 `src/pipeline/fake.mjs`（按提示词形状应答的脚本连接器，`--connection fake`）。
 
 本机实跑（11-03）：一条一项的库，Claude Code 与 Codex 各跑一轮，关卡①各 1 次真调用、`quote` 逐字命中、账本 `scored` 写入。

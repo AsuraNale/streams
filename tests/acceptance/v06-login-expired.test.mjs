@@ -15,6 +15,9 @@
 // 待看 ('inbox', was 'overview'), and the card is looked for on the library's page (.lib-page, where it now sits on top of every
 // tab; was main[data-screen="overview"]); the right panel is opened on 进度, where the progress box of a run that started would be
 // (it was 概览's). The standard (standards.mjs) and every assertion on the card are as they were.
+// Redesign R2 (contract R2-8): the card is the banner on top of every tab of the library's page (screens/problem-card.js) — its
+// words still carry what this file reads (the design's new sentence waits for the maintainer, R6); the progress box looked for is now
+// 待看's run steps or the panel's running row. Only that locator changed.
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { core } from './support/paths.mjs'
@@ -96,7 +99,9 @@ describe('V6 desktop: login expired', () => {
     const state = await s.page.evaluate(() => window.streams.getRoundState())
     assert.equal(state.ok, true)
     assert.equal(state.data.running, false, 'no round is running')
-    assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="progress"]')), null, 'no progress box: the round did not start')
+    // redesign R2: the box of a run in progress is 待看's [data-part="run-steps"] and the panel's [data-part="running"] (was 概览's
+    // [data-part="progress"]); only the locator changed
+    assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="run-steps"], [data-part="right-panel"] [data-part="running"]')), null, 'no progress box: the round did not start')
     assert.deepEqual(hashes(dir, CONTENT), before, 'streams.json, the ledger, the inbox files and notes/ byte for byte')
   })
 

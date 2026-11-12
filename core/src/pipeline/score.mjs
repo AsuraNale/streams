@@ -5,9 +5,11 @@
 //   extra calls) -> not passed: the same prompt plus RETRY_NOTE naming the failed items, once more ->
 //   still not passed: ledger `unscored` (reason 'bad-format' | 'rule:<id>'); passed: ledger `scored`
 //   (+ one `scored { node:<enum field>, value }` per enum output field, e.g. freshness).
-//   -> { status: 'scored', score, passed, output, verification, calls }
-//   -> { status: 'unscored', reason, output?, verification?, calls }
-//   -> { status: 'connection', code, detail, calls }     (login-expired, network…: the round stops)
+//   -> { status: 'scored', score, passed, output, verification, calls, judgeCalls }
+//   -> { status: 'unscored', reason, output?, verification?, calls, judgeCalls }
+//   -> { status: 'connection', code, detail, calls, judgeCalls }     (login-expired, network…: the round stops)
+//   redesign R2: `calls` is every call of the gate (its own and the check's); `judgeCalls` the part of them the check made
+//   (the run record's 调用构成 = 相关度 / 实质 own calls + 核验)
 //   write:false runs everything but writes nothing (previewNode).
 //   「写给 AI 的话」 (v2 D1): detectAiInstructions on the material, plus the judge fallback item when the gate has judge
 //   items (aiCheck). A mark is stamped on the attempt's verdicts.jsonl lines, recorded in ai-instructions.jsonl and
@@ -77,6 +79,8 @@ export async function runGate({ libraryDir, cfg, node, item, body, materials, re
   const source = materialText({ item, body, bodyMaxChars: cfg.bodyMaxChars });
   const checklist = node.checklist ?? [];
   const counted = countingConnector(connector);
+  // redesign R2: the check's own calls, counted apart (they are in counted.calls() as well)
+  const judge = countingConnector(counted.connector);
   const scoreKey = scoreKeyOf(node);
   const nodeCfg = cfgOf(node);
   const mats = materials ?? node.material;
@@ -89,17 +93,17 @@ export async function runGate({ libraryDir, cfg, node, item, body, materials, re
   let mark = aiInstructionMark(rule);
   const recordIt = () => { if (write && mark) recordMark(libraryDir, mark, { at: now().toISOString(), source: item.source ?? '', itemId: item.url, node: node.id }); };
   recordIt();
-  const withMark = (out) => (mark ? { ...out, aiInstruction: mark } : out);
+  const withMark = (out) => ({ ...(mark ? { ...out, aiInstruction: mark } : out), judgeCalls: judge.calls() });
 
   for (let attempt = 1; attempt <= GATE_ATTEMPTS; attempt++) {
     const r = await completeJson(counted.connector, { prompt: current, format: 'json', model: 'main' }, { retries: 0 });
     if (!r.ok) {
-      if (r.code !== 'bad-format') return { status: 'connection', code: r.code, detail: r.detail, calls: counted.calls() };
+      if (r.code !== 'bad-format') return { status: 'connection', code: r.code, detail: r.detail, calls: counted.calls(), judgeCalls: judge.calls() };
       last = { reason: 'bad-format', failed: ['bad-format'] };
       current = retryPrompt(prompt, last.failed, language);
       continue;
     }
-    const v = await verifyOnce({ task: `gate:${node.id}`, checklist, output: r.json, claimed: [], source, connector: counted.connector, aiCheck: true });
+    const v = await verifyOnce({ task: `gate:${node.id}`, checklist, output: r.json, claimed: [], source, connector: judge.connector, aiCheck: true });
     lastOutput = r.json;
     lastVerification = v;
     if (v.aiJudge) judgeFlags.push(v.aiJudge);
@@ -107,7 +111,7 @@ export async function runGate({ libraryDir, cfg, node, item, body, materials, re
     mark = aiInstructionMark(rule, judgeFlags);
     if (mark && !before) recordIt();
     if (write) appendVerdict(libraryDir, { node: node.id, url: item.url, round: attempt, items: v.items, ts: now().toISOString(), ...(mark ? { aiInstruction: mark } : {}) });
-    if (v.code && v.code !== 'bad-format') return { status: 'connection', code: v.code, detail: 'judge call failed', calls: counted.calls() };
+    if (v.code && v.code !== 'bad-format') return { status: 'connection', code: v.code, detail: 'judge call failed', calls: counted.calls(), judgeCalls: judge.calls() };
     if (v.passed) {
       const score = r.json[scoreKey];
       if (write) {

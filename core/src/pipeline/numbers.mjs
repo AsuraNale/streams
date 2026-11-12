@@ -1,7 +1,8 @@
-// homeNumbers(libraryDir, { now }) -> { caught, inbox, inboxOldestDays, kept, dismissed, lastRound, noOutputStreak, sources:{ level, lines } }
+// homeNumbers(libraryDir, { now }) -> { caught, inbox, inboxOldestDays, later, kept, dismissed, lastRound, noOutputStreak, sources:{ level, lines } }
 // Every number is recomputed from the ledger, fetch_log and rounds.jsonl (mockup S2): nothing is cached.
 //   caught   items still at stage seen (fetched, not yet in the inbox nor decided)
-//   inbox    items at stage inbox; inboxOldestDays = the longest wait among them
+//   inbox    items at stage inbox; inboxOldestDays = the longest wait among them. Redesign R2: an item put aside with 稍后处理
+//            (later.mjs) is not counted here but in `later` — 「n 条待看」 is the list the page shows
 //   kept / dismissed  terminal counts
 //   lastRound  the last rounds.jsonl record (id, startedAt, finishedAt, counts, calls, stoppedAt) or null
 //   noOutputStreak  from the newest rounds.jsonl record back: how many rounds in a row put nothing into the inbox
@@ -13,6 +14,7 @@ import { replayLedger } from '../library/ledger.mjs';
 import { lastRoundStatus } from '../fetch/log.mjs';
 import { sourceHealth } from '../fetch/health.mjs';
 import { readRounds } from './rounds-log.mjs';
+import { readLater } from './later.mjs';
 
 export const MIN_CONSTANT_RUN = 5;
 // 今日's banner 「连续 N 轮没有产出」 shows from this many rounds in a row without output (plan C8)
@@ -26,10 +28,12 @@ function days(fromIso, now) {
 
 export function homeNumbers(libraryDir, { now = () => new Date() } = {}) {
   const { states } = replayLedger(libraryDir);
+  const later = readLater(libraryDir);
   const clock = now();
-  const out = { caught: 0, inbox: 0, inboxOldestDays: 0, kept: 0, dismissed: 0, lastRound: null, noOutputStreak: 0, sources: null };
+  const out = { caught: 0, inbox: 0, inboxOldestDays: 0, later: 0, kept: 0, dismissed: 0, lastRound: null, noOutputStreak: 0, sources: null };
   for (const s of states.values()) {
     if (s.stage === 'seen') out.caught += 1;
+    else if (s.stage === 'inbox' && later.has(s.url)) out.later += 1;
     else if (s.stage === 'inbox') {
       out.inbox += 1;
       out.inboxOldestDays = Math.max(out.inboxOldestDays, days(s.lastTs, clock));
@@ -39,7 +43,7 @@ export function homeNumbers(libraryDir, { now = () => new Date() } = {}) {
   const rounds = readRounds(libraryDir).reverse();
   const last = rounds[0];
   out.noOutputStreak = noOutputStreak(rounds);
-  if (last) out.lastRound = { id: last.id, startedAt: last.startedAt, finishedAt: last.finishedAt, counts: last.counts, gates: last.gates, calls: last.calls, stoppedAt: last.stoppedAt ?? null };
+  if (last) out.lastRound = { id: last.id, startedAt: last.startedAt, finishedAt: last.finishedAt, counts: last.counts, gates: last.gates, calls: last.calls, stoppedAt: last.stoppedAt ?? null, ...(last.callsBy ? { callsBy: last.callsBy } : {}) };
   out.sources = sourceHealth(lastRoundStatus(libraryDir));
   return out;
 }

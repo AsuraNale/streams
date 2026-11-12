@@ -43,6 +43,8 @@ export async function runSummary({ libraryDir, cfg, node, state, item, body, mat
   const source = materialText({ item, body, bodyMaxChars: cfg.bodyMaxChars });
   const checklist = node.checklist ?? [];
   const counted = countingConnector(connector);
+  // redesign R2: the check's calls (the judge of the verification loop), counted apart — they are in counted.calls() too
+  const judge = countingConnector(counted.connector);
   let connection = null;
 
   const produce = async (feedback, prior) => {
@@ -64,9 +66,9 @@ export async function runSummary({ libraryDir, cfg, node, state, item, body, mat
 
   let loop;
   try {
-    loop = await verifyLoop({ task: 'summary', checklist, source, connector: counted.connector, produce, maxRounds: cfg.maxVerifyRounds, aiCheck: true });
+    loop = await verifyLoop({ task: 'summary', checklist, source, connector: judge.connector, produce, maxRounds: cfg.maxVerifyRounds, aiCheck: true });
   } catch (e) {
-    if (connection) return { status: 'connection', code: connection.code, detail: connection.detail, calls: counted.calls() };
+    if (connection) return { status: 'connection', code: connection.code, detail: connection.detail, calls: counted.calls(), judgeCalls: judge.calls() };
     throw e;
   }
 
@@ -77,12 +79,12 @@ export async function runSummary({ libraryDir, cfg, node, state, item, body, mat
     if (aiInstruction) recordMark(libraryDir, aiInstruction, { at: ts, source: item.source ?? state?.source ?? '', itemId: item.url, node: node.id });
   }
   if (loop.last?.code && loop.last.code !== 'bad-format') {
-    return { status: 'connection', code: loop.last.code, detail: 'judge call failed', calls: counted.calls() };
+    return { status: 'connection', code: loop.last.code, detail: 'judge call failed', calls: counted.calls(), judgeCalls: judge.calls() };
   }
   const output = loop.output;
   if (!output || typeof output.what !== 'string') {
     if (write) appendEvent(libraryDir, { ts, ev: 'unscored', url: item.url, node: node.id, reason: 'bad-format', cfg: cfgOf(node), round });
-    return { status: 'unscored', reason: 'bad-format', calls: counted.calls() };
+    return { status: 'unscored', reason: 'bad-format', calls: counted.calls(), judgeCalls: judge.calls() };
   }
   const verification = verificationOf(loop);
   if (aiInstruction) verification.aiInstruction = aiInstruction;
@@ -106,5 +108,5 @@ export async function runSummary({ libraryDir, cfg, node, state, item, body, mat
     writeInboxItem(libraryDir, card);
     appendEvent(libraryDir, { ts, ev: 'inbox', url: item.url, round, verified: verification.passed, ...(marked ? { aiInstruction: true } : {}) });
   }
-  return { status: 'inbox', passed: verification.passed, rounds: loop.rounds, output, verification, calls: counted.calls(), ...(aiInstruction ? { aiInstruction } : {}) };
+  return { status: 'inbox', passed: verification.passed, rounds: loop.rounds, output, verification, calls: counted.calls(), judgeCalls: judge.calls(), ...(aiInstruction ? { aiInstruction } : {}) };
 }

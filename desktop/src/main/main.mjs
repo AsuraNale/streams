@@ -255,12 +255,16 @@ app.whenReady().then(() => {
   // line in the log (library-root.mjs)
   const defaultLibraryRoot = defaultRootOf({ packaged: app.isPackaged, getPath: name => app.getPath(name), devRoot: DEV_LIBRARY_ROOT, appData: layout.appData, log })
   // the libraries the app knows (v2 package A): the registry in layout.librariesFile, made from settings.json the first time
+  // redesign R2: what the pipeline holds (set once it is made, below)
+  let pipelineHeld = () => null
   const library = createLibraryService({
     // 新建库默认放在 (v2 package I): shown and changed on 设置, never inside the protected folder
     defaultLibraryRoot, protectedDirs: layout.protectedDirs,
     settingsFile: layout.settingsFile, registryFile: layout.librariesFile, emit, log, hidden: HIDDEN, dialog, shell, locale: currentLocale, now: clock, devLibrary: DEV_LIBRARY, devChooseFolder: DEV_CHOOSE_FOLDER,
     // the main agent's calls count in 「全部库本月用量合计」 on their own line (v2 package C)
     agentUsageFile: agentPaths(join(layout.appData, AGENT_DIR)).usage,
+    // redesign R2: 「n 条待看」 leaves out the 放弃 held by the pipeline (made below) until its bar closes
+    held: () => pipelineHeld(),
   })
   // v2 package M: the corner above 设置 (services/quota.mjs) — made right after the connections, which hand it every call's quota
   let quota = null
@@ -282,6 +286,9 @@ app.whenReady().then(() => {
     roundGate: () => scheduler.startCurrent('the page'),
     afterRound: r => agent?.afterRound(r),
   })
+  pipelineHeld = () => pipeline.held()
+  // redesign R2 (N03): a held 放弃 is written when the app quits (whatever quits it: 退出, an update, the last window) …
+  app.on('before-quit', () => { pipeline.settlePending('the app quits') })
   // interface B (docs/desktop.md §4.2): reading and editing, the sources and topics, asking the library, the run status
   const browse = createBrowseService({ library, emit, log, hidden: HIDDEN, shell })
   // 「打开原文」 (v2 package H; reader.mjs): the isolated reading window, 阅读模式 by @mozilla/readability
@@ -347,7 +354,12 @@ app.whenReady().then(() => {
   emitListeners.push((topic, payload) => {
     // another library's inbox (a timed round of it) leaves the current library's count as it is
     if (topic === 'inbox-changed') tray.setCount(Number.isInteger(payload?.count) && payload?.libraryId === library.current()?.libraryId ? payload.count : inboxNow())
-    else if (topic === 'library-changed') tray.setCount(inboxNow())
+    else if (topic === 'library-changed') {
+      tray.setCount(inboxNow())
+      // … and when another library becomes the current one (redesign R2: 换库 closes the bar)
+      const h = pipeline.held()
+      if (h && h.dir !== library.dir()) pipeline.settlePending('another library is open')
+    }
     else if (topic === 'settings-changed') tray.refresh()
     // a library registered, removed or switched to: the timer again, for the libraries as they are now
     else if (topic === 'libraries-changed') scheduler.arm()

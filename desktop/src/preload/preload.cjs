@@ -66,7 +66,10 @@ const METHODS = [
   'getInbox',
   'keepItem',
   'dismissItem',
+  'settleDismiss',
+  'undoDismiss',
   'laterItem',
+  'moveToInbox',
   'openItemUrl',
   'getPipelineSettings',
   // the timed round

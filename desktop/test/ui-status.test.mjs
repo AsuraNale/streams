@@ -17,7 +17,6 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { CONNECTIONS } from '../src/renderer/texts/common.js'
-import { STATUS } from '../src/renderer/texts/status.js'
 import { SHELL } from '../src/renderer/texts/shell.js'
 import { ready } from './support/app.mjs'
 import { seedPlanB, worldSession } from './support/seed.mjs'
@@ -48,36 +47,17 @@ const toSettings = async w => {
   await w.page.waitForFunction(() => document.querySelectorAll('[data-part="connections"] [data-connection]').length === 3, null, POLL)
 }
 
-test('the numbers are the core\'s statusView; the next run (in the library\'s head) says the schedule is off', async () => {
-  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-stat]') !== null, null, POLL)
-  const v = core.statusView(s.world.library)
-  const nums = await s.page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-stat]')].map(n => [n.dataset.stat, [n.dataset.value, n.querySelector('.stat-kv__label').textContent]])))
-  assert.deepEqual(Object.keys(nums), ['last-run', 'last-decision', 'month-calls'])
-  assert.deepEqual(nums['last-run'], [v.lastRound.startedAt, `上次运行 · 产出 ${v.lastRoundItems} 条`])
-  assert.equal(nums['last-decision'][0], v.lastDecisionAt)
-  assert.equal(nums['month-calls'][0], String(v.monthUsage.calls))
-  assert.ok(v.monthUsage.calls > 0, 'control: the seed\'s round made calls')
-  const next = await s.page.evaluate(() => { const n = document.querySelector('[data-part="next-run"]'); return [n.dataset.nextRun, n.textContent] })
-  assert.equal(next[0], '')
-  assert.ok(next[1].startsWith(SHELL.head.run.nextNone), next[1])
-})
-
-test('the sources of the last round: statusView\'s rows; the 404 one four rounds in a row and 去处理 → 来源与要求', async () => {
-  const v = core.statusView(s.world.library)
-  const rows = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="source-status"] [data-row]')].map(r => [r.dataset.row, r.dataset.state, r.dataset.consecutive]))
-  assert.deepEqual(rows, v.sources.map(x => [x.name, x.paused ? 'paused' : x.status ?? 'never', String(x.consecutive)]))
-  const old = await s.page.evaluate(() => { const r = document.querySelector('[data-part="source-status"] [data-row="old-blog"]'); return [r.querySelector('.st-fetch').textContent, r.querySelector('[data-what]').textContent, r.querySelector('[data-action="fix"]') !== null] })
-  assert.deepEqual(old, ['地址有问题 · HTTP 404 · 连续 4 轮', STATUS.sources.gap, true])
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="source-status"] [data-row="letta-blog"] [data-action="fix"]')), null, 'control: a source that is fine has nothing to do')
-})
-
-test('复制诊断信息 and 打开运行记录文件夹 go through the bridge; 去处理 opens 来源与要求', async () => {
-  await s.page.click('[data-part="run"] [data-action="copy-diagnostics"] button')
-  await waitFor(() => existsSync(join(s.world.appData, 'logs', 'clipboard.txt')))
-  await s.page.click('[data-part="run"] [data-action="logs"] button')
-  await waitFor(() => log(s).includes(`not opened in a test run: ${join(s.world.library, '_pipeline', 'logs')}`))
-  await s.page.click('[data-part="source-status"] [data-row="old-blog"] [data-action="fix"] button')
-  await s.page.waitForFunction(() => document.querySelector('main[data-screen="sources"][data-state="ready"]') !== null, null, POLL)
+// redesign R2 (contract R2-6: 「四个数字方块、运行状态块不再单独存在」): the 运行状态 part (screens/status.js: its numbers, the
+// sources of the last round, 复制诊断信息 / 打开运行记录文件夹) is gone from the right panel — the last run is the funnel
+// (test/ui-inbox.test.mjs, test/services-r2.test.mjs), the sources' state is on 来源与要求's rows (test/ui-sources.test.mjs), the
+// diagnostics are the banner's third button and the program records are 文件's 「在资源管理器中显示」 (test/ui-panel.test.mjs). The
+// three tests of that part are replaced by this one: none of it is drawn any more, on any tab.
+test('redesign R2: no 运行状态 block and no four number tiles in the right panel\'s 进度 (the funnel is there instead)', async () => {
+  await s.page.click('[data-panel-tab="progress"]').catch(() => {})
+  await s.page.waitForFunction(() => document.querySelector('[data-part="right-panel"] [data-part="last-run"][data-state="ready"]') !== null, null, POLL)
+  const gone = await s.page.evaluate(() => ['[data-part="run"]', '[data-stat]', '[data-num]', '[data-part="numbers"]', '[data-part="source-status"]', '.today-numbers', '.stat-kv'].filter(sel => document.querySelector(sel) !== null))
+  assert.deepEqual(gone, [])
+  assert.ok(await s.page.evaluate(() => document.querySelectorAll('[data-part="right-panel"] [data-funnel-cell]').length === 5), 'the funnel instead')
 })
 
 test('fake connection (设置): three rows, the chosen one in use, 现在试一次 answers; no row offers a sign-in (control)', async () => {

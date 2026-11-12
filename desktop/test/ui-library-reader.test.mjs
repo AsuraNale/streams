@@ -9,6 +9,9 @@
 //     待看 counts on the tab and in the sidebar go down by one
 //   - 待看: the card whose material had words for the AI carries the amber mark, with the sentence on hover and in
 //     「这一条的记录」; the cards without have neither
+// Redesign R2 (contract R2-1, R2-9): the mark's words are the design's (「检测到面向 AI 的指令，已忽略」, 05-措辞规范 P05, was
+// 「这一条里有写给 AI 的话，已忽略」), and the record is no dialog any more but the folded 核验记录 of the right panel's 详情 for the
+// current card — this test opens it there (select the card, 详情, unfold); what it checks of the record is as it was.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -94,24 +97,26 @@ test('待看: the card with words for the AI carries the amber mark (the sentenc
     else assert.equal(mark, null, `${url}: no mark (control)`)
   }
   assert.equal(marks.filter(([, m]) => m).length, 1)
-  assert.equal(INBOX.card.aiInstruction, '这一条里有写给 AI 的话，已忽略')
-  // 「这一条的记录」 of the marked card: the sentence; of another card: no such part
+  assert.equal(INBOX.card.aiInstruction, '检测到面向 AI 的指令，已忽略')
+  // 「这一条的记录」 of the marked card (redesign R2: 详情's 核验记录, unfolded): the sentence; of another card: no such part
+  const openRecord = async url => {
+    await s.page.click(`[data-card][data-url="${url}"] .card-body`)
+    if (await s.page.evaluate(() => document.querySelector('[data-part="right-panel"]')?.dataset.tab !== 'detail')) await s.page.click('[data-panel-tab="detail"]')
+    await s.page.waitForFunction(u => document.querySelector('[data-part="detail-scores"]')?.dataset.url === u, url, POLL)
+    if (await s.page.evaluate(() => document.querySelector('[data-part="detail-record"]')?.dataset.open !== 'true')) await s.page.click('[data-part="detail-record"] summary')
+    await s.page.waitForFunction(() => document.querySelector('[data-part="detail-record"] .vd[data-state="ready"]') !== null, null, POLL)
+  }
   const marked = want.find(i => i.aiInstruction).url
-  await s.page.click(`[data-card][data-url="${marked}"] [data-action="record"]`)
-  await s.page.waitForFunction(() => document.querySelector('[data-dialog="verdicts"] .vd[data-state="ready"]') !== null, null, POLL)
+  await openRecord(marked)
   const rec = await s.page.evaluate(() => ({
-    title: document.querySelector('[data-part="ai-instruction"] h3')?.textContent ?? null,
-    phrases: [...document.querySelectorAll('[data-part="ai-instruction"] [data-ai-phrase]')].map(e => e.dataset.aiPhrase),
+    title: document.querySelector('[data-part="detail-record"] [data-part="ai-instruction"] h3')?.textContent ?? null,
+    phrases: [...document.querySelectorAll('[data-part="detail-record"] [data-part="ai-instruction"] [data-ai-phrase]')].map(e => e.dataset.aiPhrase),
   }))
   assert.deepEqual(rec, { title: VERDICTS.ai.title, phrases: [AI_PHRASE] })
-  await s.page.click('[data-action="close-verdicts"] button')
-  await s.page.waitForFunction(() => document.querySelector('[data-dialog="verdicts"]') === null, null, POLL)
   const other = want.find(i => !i.aiInstruction).url
-  await s.page.click(`[data-card][data-url="${other}"] [data-action="record"]`)
-  await s.page.waitForFunction(() => document.querySelector('[data-dialog="verdicts"] .vd[data-state="ready"]') !== null, null, POLL)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="ai-instruction"]')), null, 'control: no mark, no part')
-  await s.page.click('[data-action="close-verdicts"] button')
-  await s.page.waitForFunction(() => document.querySelector('[data-dialog="verdicts"]') === null, null, POLL)
+  await openRecord(other)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="detail-record"] [data-part="ai-instruction"]')), null, 'control: no mark, no part')
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-dialog="verdicts"]')), null, 'no dialog')
   // the mark changes nothing of keep / let go: the marked card has its three buttons enabled
   assert.deepEqual(await s.page.evaluate(u => ['keep', 'dismiss', 'later'].map(a => document.querySelector(`[data-card][data-url="${u}"] [data-action="${a}"] button`)?.disabled), marked), [false, false, false])
 })

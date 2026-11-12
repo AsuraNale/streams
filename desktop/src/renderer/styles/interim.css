@@ -1,6 +1,8 @@
 /* Interim (redesign R1 → removed when R2–R4 have rebuilt the screens on the template's parts): the screens not rebuilt yet
-   (待看's cards, 资料库, 问库, 来源与要求, 主 Agent's chat, 设置's other parts, 首次打开, 新建库, the dialogs and menus) still
-   name v2's variables (--st-*). Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
+   (资料库, 问库, 来源与要求, 主 Agent's chat, 设置's other parts, 首次打开, 新建库, the dialogs and menus) still name v2's
+   variables (--st-*). Redesign R2: 待看 is rebuilt on the template's parts — its old rules (styles/screens/inbox.css, the
+   R1 interim last-run.css and status.css that drew 概览's four numbers and 运行状态 in the right panel) are deleted and it names
+   none of these variables; every variable below is still named by a screen not rebuilt yet. Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
    these screens stay readable and usable in every theme until they are rebuilt, each name points at the template's own
    variable of the theme in force (round 11's roles, set on <body>: --bench --panel --paper --well --ink11 --sub11 --accent11
    --pick --inverse11 --rule11 --float11). No colour is defined here: only var() of the template's, and sizes. */

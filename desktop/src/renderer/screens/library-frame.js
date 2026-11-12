@@ -13,6 +13,10 @@
 // What the frame remembers per library (app.js `memory`): how far the screen's body (.st-main__body) was scrolled — put back
 // once the screen has its data. `section` (a route's params.section, e.g. 流水线 → 来源与要求's 关卡): the part
 // [data-part=<section>] is scrolled into view once the screen has its data, instead.
+// Redesign R2 (P07 · P08): while this library runs, the chip says where it is — 「运行中：抓取 · 模型调用 0 / 上限 120」 (the queue's
+// running: phase, calls, cap); the banner on top of every tab is only for a run whose self-check did not pass (the codes of the
+// core's selfCheck: connection · not-writable · index · config), one at most (screens/problem-card.js). The source banners and
+// 「连续 n 次」 are cards of 待确认 now, never a banner here.
 // Test hooks: .lib-page[data-library=<id>], header[data-part="library-head"] with h1#lib-head-name, [data-part="tracking"] and
 // the screen's [data-action]s; [data-part="next-run"][data-next-run]; [data-part="run-button"][data-run-state=idle|running|queued|
 // stopping][data-position] with its button; [data-part="run-error"]; the problem card [data-part="problem"] (V6).
@@ -24,6 +28,8 @@ import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { tracking } from '../lib/libraries.js'
 import { queueStateOf } from '../lib/queue.js'
+import { phaseWords } from '../lib/phase.js'
+import { RUN } from '../texts/run.js'
 import { TIcon } from '../lib/template-icons.js'
 import { AppFrame, AppSidebar, LibrarySections, Main } from '../kit/index.js'
 import { SHELL } from '../texts/shell.js'
@@ -32,6 +38,14 @@ import { RightPanel } from './right-panel.js'
 import { ProblemCard } from './problem-card.js'
 
 const R = SHELL.head.run
+// redesign R2: the self-check's problems — the only ones that make the banner
+export const BANNER_CODES = Object.freeze(['connection', 'not-writable', 'index', 'config'])
+
+/** The chip while this library runs: 运行中：<当前环节> · 模型调用 n / 上限 m (getQueue's running). */
+function runningChip(running) {
+  const phase = phaseWords(running?.phase) || phaseWords('self-check')
+  return running?.cap ? fmt(RUN.chip, { phase, calls: running.calls ?? 0, cap: running.cap }) : fmt(RUN.chipNoCap, { phase, calls: running?.calls ?? 0 })
+}
 
 /** The chip beside the run button: 下次运行 … · 预计 a–b 次模型调用 (getHome().nextRun, estimateRound().expectedCalls). */
 function runChip(home, est) {
@@ -78,6 +92,8 @@ export function RunButton({ libraryId, onAnswer }) {
 }
 
 export function LibraryHead({ row, name, libraryId, actions, home, est, onAnswer }) {
+  const { queue } = useApp()
+  const runningHere = queue?.data?.running && queue.data.running.libraryId === libraryId ? queue.data.running : null
   const what = row ? tracking(row, SEP) : null
   const meta = [
     html`<span class="st-head__tracking" data-part="tracking">${what ? fmt(SHELL.head.tracking, { what }) : SHELL.head.trackingNone}</span>`,
@@ -90,7 +106,9 @@ export function LibraryHead({ row, name, libraryId, actions, home, est, onAnswer
     </div>
     <div class="header-actions">
       ${actions ?? null}
-      <span class="status-chip" data-part="next-run" data-next-run=${home?.nextRun ?? ''}>${home ? runChip(home, est) : ''}</span>
+      ${runningHere
+        ? html`<span class="status-chip" data-part="running-chip" data-phase=${runningHere.phase ?? ''} data-calls=${runningHere.calls ?? 0} data-cap=${runningHere.cap ?? ''}><span class="dot"></span> ${runningChip(runningHere)}</span>`
+        : html`<span class="status-chip" data-part="next-run" data-next-run=${home?.nextRun ?? ''}>${home ? runChip(home, est) : ''}</span>`}
       <${RunButton} libraryId=${libraryId} onAnswer=${onAnswer} />
     </div>
   </header>`
@@ -120,7 +138,7 @@ export function LibraryFrame({ tab, screen = tab, state, label, labelledby, acti
   }
   const redetect = async () => {
     setBusy(true)
-    try { await call('detectConnections') } catch { /* the card stays */ } finally { setBusy(false); home.reload() }
+    try { await call('detectConnections') } catch { /* the card stays */ } finally { setBusy(false) }
   }
   const content = useRef(null)
   const placed = useRef(false)
@@ -159,7 +177,8 @@ export function LibraryFrame({ tab, screen = tab, state, label, labelledby, acti
     const t = e.target
     if (memory && !placing.current && t?.classList?.contains('st-main__body')) memory.scroll.set(scrollKey, t.scrollTop)
   }
-  const problem = home.data?.problem ?? null
+  // redesign R2: a banner only for a self-check that did not pass (one at most)
+  const problem = BANNER_CODES.includes(home.data?.problem?.code) ? home.data.problem : null
   return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=${screen} />`} panel=${html`<${RightPanel} detail=${detail} />`}>
     <div class="workspace lib-page" data-library=${id ?? ''}>
       <${LibraryHead} row=${row} name=${current?.name ?? null} libraryId=${id} actions=${actions} home=${home.data} est=${est.data} onAnswer=${() => home.reload()} />

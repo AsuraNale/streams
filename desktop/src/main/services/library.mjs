@@ -99,7 +99,7 @@ function usable(path) {
  * @param {string[]} [o.protectedDirs] - v2 package I: folders a libraryRoot may not be in (layout.protectedDirs: the app data);
  *   default: the settings file's folder
  */
-export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null, agentUsageFile = null, defaultLibraryRoot = null, protectedDirs = [dirname(settingsFile)] }) {
+export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null, agentUsageFile = null, defaultLibraryRoot = null, protectedDirs = [dirname(settingsFile)], held = () => null }) {
   // the folder the last chooseLibraryFolder gave: the only path useChosenFolder and addLibrary act on
   let chosen = null
 
@@ -242,7 +242,10 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
     try { brief = readBrief(l.path) } catch (err) { log(`library: ${l.id}: brief unreadable: ${String(err?.message ?? err)}`) }
     const topics = (Array.isArray(cfg.topics) ? cfg.topics : []).map(t => t?.name).filter(x => typeof x === 'string' && x !== '')
     const sources = Array.isArray(cfg.sources) ? cfg.sources.length : 0
-    return { ...base, inbox: n.inbox, lastRoundAt: n.lastRound?.startedAt ?? null, problem, brief, topics, sources, noOutputStreak: n.noOutputStreak ?? 0 }
+    // redesign R2: a 放弃 held until its bar closes is off the list already (services/pipeline.mjs); later ones are not in n.inbox
+    const h = held()
+    const inbox = Math.max(0, n.inbox - (h && h.dir === l.path ? 1 : 0))
+    return { ...base, inbox, lastRoundAt: n.lastRound?.startedAt ?? null, problem, brief, topics, sources, noOutputStreak: n.noOutputStreak ?? 0 }
   }
 
   const handlers = {

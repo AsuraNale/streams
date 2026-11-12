@@ -147,10 +147,13 @@ frame-ancestors 'none'
 | `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；走全应用的队列（v2 包 A，§4.4）。**v2 包 L**：队列忙（别的库在跑或在排）时**不再回 `bad_arguments`**，而是把当前库排到队尾：`{ started: false, queued: true, position, runningLibraryId }`（`position` 1 = 在跑的那个，2 = 第一个在排的…）；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排（§4.12）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | 库页头的「立即运行」（重设计 R1：直接调，不弹对话框，忙时排到队尾，§4.13）、本次运行未开始卡的「重试」、新建库的首轮 |
 | `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 库页头的「运行中 · 停止」（重设计 R1；原概览进度条旁）、右栏进度里「当前库 · 上次运行」的停止 |
 | `getRoundState()` | 无 | `{ running, roundId, libraryId, progress, last: runRound 的返回 \| null, lastProblems }`（`libraryId`：那一轮是哪个库的，v2 包 A；全应用同一时间只有一轮） | S2 |
-| `getInbox()` | 无 | `{ items: 核心 listInbox(), recentDismissReasons: [{ts, reason, title}] }` | S3 |
-| `keepItem(url)` | url 必须在 inbox 里 | `{ id, file }`（`file` = `notes/` 里的文件名）；发 `inbox-changed`、`library-changed`（索引重建了） | S3「收藏」 |
-| `dismissItem(url, reason)` | 理由非空，否则 `bad_arguments` | `{ url }`；发 `inbox-changed` | S3「放弃」 |
-| `laterItem(url)` | | `{ url }`；不写盘 | S3「稍后」 |
+| `getInbox()` | 无 | **重设计 R2**：`{ items, later, rejected: { total, items }, manual, held, recentDismissReasons }`——`items` 是待拍板的卡（核心 listInbox 里不在「稍后处理」、不是挂起的那条）；`later` 是稍后处理的；`rejected` 是未通过筛选（核心 listRejected，最新在前、最多 50 条，`total` 是全部条数）；`manual` 是手动添加还没评分的（核心 listManualWaiting）；`held` 是挂起等小条关闭的放弃 `{ url, title }` 或 null；`recentDismissReasons: [{ts, reason, quick?, title, url}]`（没写理由的放弃不在里面）（§4.14） | S3 / 待看 |
+| `keepItem(url)` | url 必须在 inbox 里 | `{ id, file }`（`file` = `notes/` 里的文件名）；发 `inbox-changed`、`library-changed`（索引重建了）；**重设计 R2**：先把挂起的另一条放弃写进账本 | S3「收藏」 |
+| `dismissItem(url)` | url 必须在 inbox 里 | **重设计 R2**：`{ url, held: true }`——这条立刻从列表消失，**不写账本**，挂在主进程里等小条关闭（已有挂起的另一条先写进去，一次只有一条）；发 `inbox-changed`（数不含挂起的这条）（§4.14） | 待看「放弃」 |
+| `settleDismiss(reason, quick)` | `reason`：null 或 ≤ 300 字；`quick`：null 或 `marketing` · `irrelevant` · `shallow` · `duplicate` | **重设计 R2**：小条关闭——挂起的放弃写进账本（核心 `dismiss`：有字才有 `reason` 字段，快选另记 `quick`）；`{ settled: true, url }`，没有挂起的 `{ settled: false }`；发 `inbox-changed` | 待看的小条 |
+| `undoDismiss()` | 无 | **重设计 R2**：撤销——挂起的放弃作废，账本不写任何东西，卡回到原位；`{ undone: true, url }` 或 `{ undone: false }`；发 `inbox-changed` | 待看小条「撤销」 |
+| `laterItem(url)` | | `{ url }`；**重设计 R2**：在待看里的条目记进库的 `_pipeline/later.json`（核心 later；不写账本、不碰 `notes/`），本库下一次运行结束后回到待看；先把挂起的另一条放弃写进去；发 `inbox-changed` | 待看「稍后处理」 |
+| `moveToInbox(url)` | url 必须是没过某一关的条目，否则 `bad_arguments` | **重设计 R2**（N02）：核心 `moveToInbox`——这条进待看（卡上标「未通过筛选 · 手动移入」），**不写 `notes/`**；`{ url }`；发 `inbox-changed` | 待看「未通过筛选 · 移入待看」 |
 | `openItemUrl(url)` | 必须是 inbox 里或索引里某条的 `source`，否则 `bad_arguments` | `null`；`shell.openExternal`（测试只记日志） | S3「打开原文」 |
 | `getPipelineSettings()` | 无 | `{ cap, thresholds: { relevance, substance }, schedule }`；`schedule` = `getSchedule()` 的返回 | 设置「运行」 |
 | `getSchedule()` | 无 | 当前库的定时：`{ libraryId, enabled, time, nextRunAt: ISO \| null, lastRoundAt: ISO \| null, missed: boolean }`（§4.3–4.4；没打开库时是 `settings.json` 的、`libraryId` / `lastRoundAt` 为 null、`missed` 为 false） | 库页头「下次运行」（v2 包 F；v1.0 的设置「运行」与今日顶栏已不在，设置里是只读的「定时一览」，见 §4.10） |
@@ -597,6 +600,46 @@ frame-ancestors 'none'
 
 **测试**：`test/theme.test.mjs`（四套 × 设计页的样式表与 class、模板文件的 sha256、迁移表与变异、首帧底色表）、`test/ui-theme.test.mjs`（真窗口：首帧、八种组合的底色与表一致、跟随系统、设置里的四个主题与外观、阅读窗口跟着变）、`test/ui-shell.test.mjs`（左栏、四个标签、进库落在待看、没有概览、库架）、`test/ui-run.test.mjs`（立即运行不弹框、忙时排队、按钮三态、托盘同一规则）、`test/ui-panel.test.mjs`（右栏四个标签、收起记忆、待确认的数）。截图：`node scripts/shots-r1.mjs` → `docs/shots/2026-11-11-r1/`。变异（`npm run mutants -- <id>`，在 `desktop/` 的临时副本里改坏、对应测试必须红）：`r1-default-precision`（默认改回精密国际主义）· `r1-night-light`（night 迁移成浅色）· `r1-first-frame-wrong`（首帧底色表错一格）· `r1-sheets-out-of-order`（研究对话的样式表换了顺序）· `r1-run-does-nothing`（立即运行不调 startRound）· `r1-refuse-when-busy`（忙时拒绝而不排队）· `r1-overview-back`（进库不落在待看）· `colour-in-app-styles`（应用样式里写了颜色），以及原有的 `l-panel-not-saved`（右栏状态不存）。
 
+### 4.14 §四补：重设计 R2——待看与运行（11-11）
+
+<!-- redesign R2: 契约 docs/checks/2026-11-11-r2/contract.md；设计依据 03-页面稿 P05–P08、P16 的进度与详情，07-模板版 streams/app.js 的待看、待看空着时、运行与排队、连接出问题 -->
+
+本节取代 §4.13 里「上次运行（R1 暂放在右栏进度）」「本次运行未开始的卡（措辞与新家在 R2）」两处，以及 §4.12「详情 · 待看」的写法；其余照旧。页面全部用模板部件搭（`confirmation`、`section-label`、`file-row`、`phase-row`、`progress-alert`、`filters`、`empty-state`、`mini-chart`、`progress-line`、`step-line`、`step-dots`），覆盖层 `styles/template-app.css` 第 6 段只写尺寸与间距、颜色只用模板变量；R1 过渡用的 `styles/screens/inbox.css`、`last-run.css`、`status.css` 与 `screens/last-run.js`、`screens/status.js`（四个数字方块、运行状态块）删了。
+
+**待看**（`screens/inbox.js`，P05，F24–F28、F31、F38）：
+- 列表头（`section-label`）：「待看 · n 条 · 按评分排序」、键盘提示「J / K 切换 · C 收藏 · D 放弃 · L 稍后处理」、「＋ 添加链接」。n 是要拍板的卡（不含稍后处理的、不含挂起的放弃）；库页标签与左栏的待看数同一口径（核心 `homeNumbers.inbox` 不含稍后处理；`getLibrariesOverview` 再减去挂起的那条）。
+- 卡（`confirmation`）：标题（点了 `openReader(url, 'reader')`，流息的阅读窗口）；**一行**「来源 · 日期 · 相关度 0.90 · 实质 0.85 · 新 / 后续」；右上是标记（`status-chip`）：检测到面向 AI 的指令，已忽略 · 未通过核验 · 可能重复 · 没有打分 · 未通过筛选 · 手动移入 · 等了 n 天（≥ 14 天；不到 14 天写在卡脚）；内容概述与要点（`decision-points`）；按钮 **稍后处理 · 放弃 · 收藏**。**理由不在卡上**，只在右栏「详情」。点卡（不是按钮）就是选中它，选中的就是「详情」显示的那条；键盘 J K C D L 照旧（打字时、有修饰键、开着对话框时不算）。
+- 「详情」（F30）：当前条目——「推荐理由」三段（相关度 分数 + 理由、实质 分数 + 理由、新鲜度 新 / 后续 + 理由）、「核验」（核验通过 / 未通过核验 / 未核验；面向 AI 的指令有无）、「▸ 核验记录（相关度 n 项 · 实质 n 项 · 摘要 n 项）」默认收起，展开是原来核验记录对话框的内容（`verdict-dialog.js VerdictBody`，同一份 `getVerdicts`）；「来源 · 发布 日期 · 首次抓取 时间」（`listInbox` 卡上的 `firstSeen`）；下面是最近填了原因的放弃。**待看不再弹核验记录对话框**（资料库的那个照旧，R3 再改）。
+
+**放弃即生效 + 理由快选与撤销**（N03，F26）：点「放弃」或 D → 这条立刻从列表消失（`dismissItem(url)`），**主进程挂起、不写账本**；列表下出一条小条（`progress-alert`）：「已放弃「标题」。可选择原因：营销内容 · 不相关 · 内容过浅 · 重复 · 其他原因… · 撤销」，右边一个关闭。
+- 点一个理由 → `settleDismiss(那几个字, quick)` 写进账本（`reason` 是那几个字，`quick` 是 `marketing` · `irrelevant` · `shallow` · `duplicate`，R5 的 N04 读它）；「其他原因…」展开一个输入框，回车或「保存原因」写一句；关闭 → 写进账本**没有理由字段**。
+- 撤销 → `undoDismiss()`：挂起作废，卡回到原位，账本一个字不写。
+- 一次只有一条小条：对下一条动手（收藏 / 放弃 / 稍后处理 / 移入待看）先把挂起的写进去（没有理由）；离开这一页（换标签、换屏）页面调 `settleDismiss(null, null)`；换库（`library-changed` 后当前库不是挂起的那个库，或另一个库的 `getInbox`）主进程写进去；**退出应用**（任何退出：托盘「退出」、更新、关最后一个窗口）`main.mjs` 的 `before-quit` 调 `pipeline.settlePending('the app quits')`。重启后小条不会再出现，因为它已写进账本。
+- 账本 `kept` / `dismissed` 终态的规矩没放松：挂起期间账本里这条仍是 `inbox`，写进去的只有一次 `dismissed`。
+
+**稍后处理**（F27）：点「稍后处理」或 L → 这条收进列表下「▸ 稍后处理 · n 条（下次运行后重新列入待看）」一行（`phase-row`，可展开看，点一条开阅读窗口）。记录在库的 `_pipeline/later.json`（核心 `later` / `markLater`；不写账本、不碰 `notes/`），重启应用仍在。**本库**下一次运行结束（这一轮开始了，不管停没停）后主进程调核心 `releaseLater` 把它们放回待看；别的库运行不影响。待看可以因此清空。
+
+**未通过筛选与「移入待看」**（N02，F33 的一半）：待看页底部「▾ 未通过筛选 · n 条（不会入库）」（有才显示），默认收起；每行（`file-row`）标题、「未通过相关度 0.30」（哪一关与分数）、一句原因、「移入待看」。按最新判定在前，最多 50 条（核心 `listRejected`；超过时一句「仅列出最新的 50 条」）。「移入待看」→ `moveToInbox(url)`（核心 `moveToInbox`）：这条进待看，卡上标「未通过筛选 · 手动移入」（没有摘要、没有核验，内容概述位置是来源自带的摘要），**不写 `notes/`**；之后点收藏照常 `keep` → `writeNoteFile(by:'keep')`，写出的文件头合规范、过索引。重新评分（N07）在 R5。
+
+**添加链接**（N09，F50）：列表头「＋ 添加链接」开一个对话框（网址、标题选填），走原有的 `addManualLink` → 核心 `addManual`；加上后待看里立刻多一行「网址 · 标题 · 手动添加 · 将在下次运行时评分」+「待评分」（`getInbox().manual` = 核心 `listManualWaiting`）。坏网址：「请输入以 http:// 或 https:// 开头的网址。」；已在库里：「这个网址已在该库中，未重复添加。」。下次运行评完分照正常规矩走（过了进待看，不过进未通过筛选）。资料库那个入口（来源与要求的「贴一个链接进待看」）R3 再去。
+
+**待看空着时 = 上次运行小结**（N10，F18；`screens/run-funnel.js RunFunnel`）：「待看 · 0 条」、`empty-state`「暂无待看内容 / 下次运行：明天 08:00。」（没开定时：「未开启定时运行。」），下面：
+- 「上次运行 · 时间」一条漏斗（模板的 `mini-chart`）：**已抓取（n 个来源）→ 去重后新增 → 通过相关度 → 通过实质 → 进入待看**，每格是那一行运行记录的数（`counts.fetched` · `counts.new` · `gates.<关>.passed` · `counts.inbox`），条的长短是占已抓取的比例。没完成的运行（`stoppedAt`）停在出事那格（`stoppedNode`：某一关 → 那一关的格；摘要 → 进入待看），那格写「停」，之后写「—」，下面一行原因：「停 · 达到单次运行上限…」「停 · 已手动停止…」「停 · 连接出错：登录过期」。**自检没过**的那次（核心那时什么都不写）：主进程记下时间与原因（内存里，重启即忘），漏斗标题「上次运行 · 时间 · 未完成」、第一格「停」，下面「停 · 自检未通过：登录过期」；此时有尚未评分的条目，待看的 `empty-state` 写「有 n 条内容已抓取、尚未评分 / 重试后将继续处理。」（`getHome().toScore`：在流水线某一步排着的条目数）。
+- 「处理情况：收藏 a · 放弃 b · 稍后处理 c ｜ 模型调用 N 次 = 运行前自检 1 + 相关度 x + 实质 y + 摘要 z + 核验 w」：处理情况是那一轮放进待看的条目后来的去向（核心 `roundOutcome`）；**N 与分项都是运行记录的**（核心 `callsBy`：运行前自检的那次试调 + 各关自己的调用 + 摘要自己的调用 + 所有核验判定的调用），等号两边相等（核心 `runFunnel` 算，页面不算数）。**口径**：N 包含运行前自检，和 `usage.jsonl`（设置「全部库本月用量合计」里本库的数）一样——自检的试调经用量计数器记一行 `probe`，这一轮的记录里 `callsBy.selfCheck` 就是那一次（`withFirstProbe` 把那次的真实次数交给核心）；所以一个只跑过一轮的库，漏斗的 N = 设置里本库的数（`test/services-r2.test.mjs` 核）。运行中的「模型调用 n / 上限 m」是上限看的那个数（自检之后的调用），P07 的设计也是这样（自检已过时显示 0 / 120）。R2 之前的运行记录没有 `callsBy`：只写「模型调用 N 次」（N = 记录的 `calls`），不编分项。
+- 「最近收藏」最多 5 条（`file-row`），点了开阅读窗口；「▸ 未通过筛选」同上。
+- 四个数字方块、运行状态块不再存在；右栏进度里 R1 的「当前库 · 上次运行」也换成这同一个漏斗（`here`：标题「该库上次运行 · 时间」，不写处理情况）。来源的状态在来源与要求的来源行（R4 换样子）。
+
+**运行中与排队**（P07，F19、F23、N06）：
+- 正在跑的库，待看页（`screens/run-steps.js RunSteps`）：「本次运行 · 今天 20:56 开始 · 手动触发」+ 停止，模板的 `progress-line` 六段与说明（「1 / 6 个环节已完成」「当前步骤：抓取 2 个来源」），六步 `step-line`：运行前自检 · 抓取 n 个来源 · 去重 · 相关度评分 · 实质评分 · 摘要与核验，到哪一步亮到哪一步（`getQueue().running.phase`，`round-progress` 推）；还没有卡时上面是 `empty-state`「本次运行尚未完成 / 运行完成后，通过筛选的内容将显示在这里。运行期间可关闭窗口，任务会在后台继续。」。页头的小字换成「运行中：抓取 · 模型调用 0 / 上限 120」（`[data-part="running-chip"]`）。
+- **开始的原因照实写四种**（O7）：`建库后的第一轮`（`first`：从没跑过的库被要求跑——确认了的新建库卡、新建库的开始、新库上点立即运行；`services/schedule.mjs whyOf`）· `手动触发`（`manual`）· `定时`（`schedule`）· `补跑`（`catch-up`）；`QUEUE_WHY` 多了 `first`，说法在 `texts/panel.js QUEUE.why`（中英两张）。排队里每个库也带原因与加入时间。
+- 右栏「进度」（照 P16 / P07）：全部库 · 时间、「n 个运行中 · m 个排队中」/「当前无运行任务」、正在跑的那个（`phase-row` 展开：`step-dots`、「手动触发 · 今天 20:56 开始 · 当前步骤：抓取」、模型调用 n / 上限、停止）、「队列顺序」（第几位、原因 · 加入时间 · 前一任务完成后自动开始）、「下次运行时间」、「需保持流息运行（窗口或托盘）。错过的运行将在下次启动时补上一次。」；在库页上最后是该库上次运行的漏斗。排队仍只在三处（页头按钮、左栏库行小字、右栏进度）。
+
+**连接出问题的横幅**（P08，F20，V6；`screens/problem-card.js`）：库页顶上（四个标签都看得见），**一次最多一条，只给自检没过**（`getHome().problem.code` 是 `connection` · `not-writable` · `index` · `config`；跑到一半的内部错误不出横幅）：一句发生了什么（含「抓到的 n 条都在，没丢」= `homeNumbers.caught`）+ 一句怎么办 + **最多 3 个按钮**——登录过期 / 未登录（Claude Code、Codex）：**前往登录**（`openLogin`）· **已登录，重试**（`detectConnections` 再 `startRound`）· **更换连接方式**（去设置）；别的连接问题：重试 · 更换连接方式 · 复制诊断信息。重试成功或换了连接后横幅消失（`getHome().problem` 变回 null）。句子仍带 V6 读的那几个词（登录过期 · 这一轮没有打分 · 抓到的 n 条都在，没丢 · 去登录 · 重试打分）：设计的新句子要先给 维护者 看（`05-措辞规范` 最后一条），R6 改。**来源异常、连续几轮没产出不再是横幅**：只在右栏「待确认」里成卡（R1 已在那里，卡的新动作在 R5）。
+
+**桥**（§四表）：`getInbox` 的新形状、`dismissItem(url)` 只挂起、新的 `settleDismiss(reason, quick)` · `undoDismiss()` · `moveToInbox(url)`、`laterItem` 写 `later.json`；`getHome()` 多了 `lastRun: { funnel, outcome } | null`（核心 `runFunnel` / `failedStart`、`roundOutcome`）、`toScore`、`problem.at`，`recentKept` 最多 5 条且带 `source`。核心的改动见 `core/README.md`「流水线与核验」与 `docs/core-api.md` 4.2。
+
+**测试**：核心 `core/test/r2-inbox.test.mjs`（放弃不写理由时没有理由字段、快选理由、终态；later 文件、放回；未通过筛选与移入不写 `notes/`、再收藏合规；待评分；`callsBy` 分项相加 = 连接器收到的全部调用 = 用量文件；漏斗的五格、停的那格、没连接、旧记录只有合计、自检没过；处理情况）；桌面 `test/services-r2.test.mjs`（挂起 / 撤销 / 关闭 / 快选 / 下一条 / 退出 / 换库；本库运行放回、别的库不放回；未通过筛选与移入；漏斗 N = 分项 = 设置里本库的数；四种原因）、`test/ui-inbox.test.mjs`（真窗口：卡、详情与核验记录、J K、放弃与小条、稍后、空着时的漏斗、未通过筛选与移入再收藏、添加链接；退出时写进账本；重启后稍后仍在、本库运行结束后回到待看）、`test/ui-error.test.mjs`（横幅三个按钮、四个标签都在；来源异常没有横幅、在待确认）、`test/ui-panel.test.mjs`（运行中的待看六步与原因、页头小字、右栏进度）。变异（`npm run mutants -- <id>`；核心的在 `node core/scripts/mutation-check.mjs <id>`）：桌面 `r2-undo-writes` · `r2-no-write-at-quit` · `r2-placeholder-reason` · `r2-later-not-back` · `r2-later-any-library` · `r2-move-writes-notes` · `r2-calls-part-off` · `r2-reason-on-card` · `r2-no-unverified-mark` · `r2-no-manual-row` · `r2-catch-up-said-scheduled` · `r2-source-banner`；核心 `r2-dismiss-placeholder` · `r2-move-writes-notes` · `r2-calls-part-off` · `r2-later-kept`。截图：`node scripts/shots-r2.mjs` → `docs/shots/2026-11-11-r2/`。
+
 ## 五、界面写法
 
 **选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。
@@ -696,7 +739,7 @@ src/renderer/
 | `ui-theme.test.mjs` | 设置里是夜间时第一帧：发出的 index.html 带 `data-theme="night"`、页面底色、窗口底色、`nativeTheme`；选素灰马上换、写进设置、原生一侧跟着；不认识的 id → `bad_arguments` 不写盘；关掉再开还是素灰 | 是 |
 | `ui-setup-record.test.mjs` · `ui-first-run.test.mjs` | 首次设置六步的记录（读 `streams.json`）：选的 / 写的（删了来源、加了 RSS）/ 默认（空白包原样、定时照显示）/ 跳过（连接、试跑）；往回退再走只替换那一步；没有记录的库「没有记录」。**v2 包 I 起**：首次打开 = 登记表空才进（两步侧栏）；连接一步记进 `settings.json` 的 `setupConnection` → 和主 Agent 聊的引导（三个示例只填不发：正本没多一行；跳过连接时「还没有连接」+「去设置」只说一次）→「也可以手动新建」→ 新建库四步，库登记且成为当前库，`setup` 六条、连接那条从 `setupConnection` 抄来（时间不变）；反向：有库但没有当前库（在主进程里替换 `getAppState` 的回答）→ 库架、不是首次打开；记录显示在来源与要求的「这个库」 | 是 |
 | `services-library-root.test.mjs` · `ui-settings-i.test.mjs`（v2 包 I） | 不起 Electron：`getLibraryRoot` 默认 / 设过；`setLibraryRoot` 拒相对路径、应用数据文件夹本身与里面（大小写不论）、不写盘；`chooseLibraryRoot` 取消 = null、钩子代替对话框；没有库时 `recordSetupStep('connection')` 写 `setupConnection`、别的步 `no_library`、坏的 `bad_arguments`；新建库抄 `setupConnection`、打开已有的库不抄。真窗口：设置五组的顺序与各自的部分、没有当前库的项；主 Agent 状态（一轮之后变 1 轮）、打开和主 Agent 聊；新建库默认放在：默认 → 换 → 写进设置 → 恢复默认；桥上拒的路径不写盘、对话框选了应用数据里的文件夹页面说「不能用」；来源与要求「这个库」：路径、首次设置记录、重建索引、在资源管理器中显示（只记日志）、移除先问、取消不动、确认后登记没了而文件夹每个文件逐字节还在、去库架 | 部分 |
-| `ui-today.test.mjs` | （加）rounds.jsonl 末尾两轮没有产出不出横幅、三轮出琥珀横幅带「看运行状态」、中间有产出就从头数 | 是 |
+| `ui-today.test.mjs` | （加）rounds.jsonl 末尾两轮没有产出不出横幅、三轮出琥珀横幅带「看运行状态」、中间有产出就从头数 | 是（**重设计 R2 删了这个文件**：今日的四个数、来源横幅、连续无产出横幅都不存在了；漏斗与横幅的测试见 §4.14） |
 | `ui-shell.test.mjs`（v2 包 F） | 三个登记的库（`seedShelf`）+ 一张待定的提议卡：左栏方案 B 的结构、每行的图标 / 名字 / 待看数（核心 `homeNumbers` 重算）/ 问题小点 / 当前库高亮、和主 Agent 聊的角标；`inbox-changed` 带 libraryId 只改那一行（另两行不动）；点库 → `libraries.json` 的当前库变、进它的待看、库头「在追」是要求的第一句；五个标签都在当前库上、资料库的图谱视图；切库再切回标签与滚动各自记住、第一次开的库停在待看；库架的卡片（与 `getLibrariesOverview` 对照）、问题一行、点卡片进库、新建卡进和主 Agent 聊、一个库都没有时的空状态（登记移除、文件不动）；来源与要求：确认提议卡后「谁定的」= 主 Agent 提的 · 你确认的，自己保存要求 → `streams.json` 与 `changes.jsonl`（`you`）、空的要求在页面就拒；本库定时与上限在这里改（`streams.json`、谁定的 = 你）、关卡在这一页；设置没有定时与上限的编辑、定时一览三行、用量合计等于核心 `usageTotal`、点名字进那个库的来源与要求 | 是 |
 | `ui-agent.test.mjs`（v2 包 G） | 三个库 + 五张开发钩子出的卡 + 两张建议卡 + 113 行的旧对话 + 脚本化的主 Agent：等你定的事的数与左栏角标一致、可折叠；正本一页 100 行、加载更早的，lookup / note / summary 只一行淡字不露原文；UC1 一个问题带快捷回答（发出的是选项原文）→ 建库卡（试抓、没勾）→ 建库后左栏多一个库；四种 notice 各一句、连接问题带去设置；一轮进行中不可再发（主进程那一个方法加延迟）；建议卡交给主 Agent / 不要；提议卡不要 = declineProposal、确认连点只调一次、stale、failed、改一下；卡上没有任何开关；问库 unsure 两个按钮带对的 route、change 的「这句转给主 Agent」+ 卡 → 确认后「谁定的」、question 的回答；在页面里画出每种状态与四种建议卡 | 是 |
 | `ui-licenses.test.mjs` | 许可证与致谢：全文与仓库 LICENSE 逐字一致、「由 Starry Digital 开发」、五个组件的版本、开发时「打开完整的第三方声明」不可点并写原因、桥回 `open_failed` | 是 |

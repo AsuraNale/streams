@@ -76,7 +76,11 @@ test('channels and argument checks', () => {
   ok('applyStarterPack', ['blank', null]); ok('applyStarterPack', ['ai-agent-tools', { removeSources: [] }]); bad('applyStarterPack', ['', null]); bad('applyStarterPack', ['blank', 'x']); bad('applyStarterPack', ['blank'])
   ok('setRoundCap', [1]); bad('setRoundCap', [0]); bad('setRoundCap', [1.5]); bad('setRoundCap', ['10'])
   ok('keepItem', ['https://x/1']); bad('keepItem', [''])
-  ok('dismissItem', ['https://x/1', 'why']); bad('dismissItem', ['https://x/1', '  ']); bad('dismissItem', ['https://x/1'])
+  // redesign R2 (N03): 放弃 is held, its reason comes when the bar closes (settleDismiss) — dismissItem takes the url alone
+  ok('dismissItem', ['https://x/1']); bad('dismissItem', ['https://x/1', 'why']); bad('dismissItem', [''])
+  ok('settleDismiss', [null, null]); ok('settleDismiss', ['写一句', null]); ok('settleDismiss', ['营销内容', 'marketing']); bad('settleDismiss', [null, 'made-up']); bad('settleDismiss', ['x'.repeat(301), null]); bad('settleDismiss', [7, null]); bad('settleDismiss', [null])
+  ok('undoDismiss', []); bad('undoDismiss', ['x'])
+  ok('moveToInbox', ['https://x/1']); bad('moveToInbox', ['']); bad('moveToInbox', [])
   ok('laterItem', ['https://x/1']); bad('laterItem', [1])
   ok('openItemUrl', ['https://x/1']); bad('openItemUrl', [''])
   for (const name of ['chooseLibraryFolder', 'rebuildIndex', 'revealLibrary', 'getConnections', 'detectConnections', 'getStarterPacks', 'getHome', 'estimateRound', 'startRound', 'cancelRound', 'getRoundState', 'getInbox', 'getPipelineSettings']) { ok(name, []); bad(name, ['x']) }

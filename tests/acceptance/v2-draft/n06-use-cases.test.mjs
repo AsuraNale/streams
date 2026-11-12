@@ -16,6 +16,11 @@
 // 「连续 n 轮没有产出」 banner — is in the right panel's 进度 under 「当前库 · 上次运行」 ([data-part="last-run"]); its suggestion
 // cards are in the panel's 待确认 under 「当前库 · 系统检测」; 「现在跑一轮」 + the dialog's 开始 is the head's 立即运行
 // ([data-part="run-button"], no dialog); a library left on 待看 comes back on 待看 (was 概览).
+// Redesign R2 (docs/checks/2026-11-11-r2/contract.md R2-2, R2-6, R2-8): 放弃 has no dialog any more — D takes the card off and
+// a bar under the list offers the reasons (「其他原因…」 takes a sentence); the right panel's last run is the funnel, not four
+// numbers; 「连续 n 轮没有产出」 is no banner but the 待确认 card; the sources' state is on 来源与要求's rows. Where a step read one
+// of those, it reads the same thing where it is now — except two of UC1 step 5's four numbers (「抓到的」 and the total kept),
+// which the redesign shows nowhere any more: that step checks the two that remain (待看 and the last run's 进入待看).
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -228,13 +233,17 @@ test('UC1 step 5 · the first round ends: the sidebar number is the core\'s 待�
   await openRow(W.ev.id)
   await onPage('inbox', W.ev.id) // the first visit of a library opens its 待看 (package F, UC2)
   await lastRun()
-  const nums = await p().evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-num]')].map(e => [e.dataset.num, Number(e.dataset.value)])))
-  assert.deepEqual(nums, { inbox: n.inbox, caught: n.caught, passed: n.lastRound.counts.inbox, kept: n.kept })
-  await until(() => document.querySelectorAll('[data-part="source-status"] [data-row]').length === 7)
-  const states = await p().evaluate(() => [...document.querySelectorAll('[data-part="source-status"] [data-row]')].map(e => [e.dataset.row, e.dataset.state]))
+  // redesign R2: 待看's count is the list head; 「过关进入待看」 is the funnel's 进入待看 cell (the four tiles are gone, see the top)
+  const nums = await p().evaluate(() => ({ inbox: Number(document.querySelector('[data-part="inbox-count"]').dataset.count), passed: Number(document.querySelector('[data-part="right-panel"] [data-funnel-cell="inbox"]').dataset.value) }))
+  assert.deepEqual(nums, { inbox: n.inbox, passed: n.lastRound.counts.inbox })
+  // redesign R2: the sources' state is on 来源与要求's rows (运行状态 is gone from the panel)
+  await tab('sources', W.ev.id)
+  await until(() => document.querySelectorAll('[data-part="sources"] [data-row]').length === 7)
+  const states = await p().evaluate(() => [...document.querySelectorAll('[data-part="sources"] [data-row]')].map(e => [e.dataset.row, e.dataset.state]))
   assert.equal(states.length, 7)
   assert.deepEqual(states.filter(([, st]) => ['failed', 'blocked', 'gap'].includes(st)), [], JSON.stringify(states))
-  assert.equal(await p().evaluate(() => document.querySelector('[data-part="sources"]')?.dataset.level ?? 'none'), 'none', 'no source banner')
+  assert.equal(await p().evaluate(() => document.querySelector('.lib-page [data-part="problem"]') ? 'banner' : 'none'), 'none', 'no banner')
+  await tab('inbox', W.ev.id)
   await shot('uc1-5')
 })
 
@@ -275,11 +284,14 @@ test('UC2 step 2 · 中国电动车行业 → 待看, by the keyboard: C keeps (
   assert.equal(notes(), before + 1, 'C: one note file more')
   await p().focus('[data-card][data-current="true"]')
   await p().keyboard.press('d')
-  await until(() => document.querySelector('[data-dialog="dismiss"]') !== null)
-  await p().keyboard.type('只是转述，没有新数据')
-  await until(() => document.querySelector('[data-action="confirm-dismiss"] button')?.disabled === false)
-  await p().keyboard.press('Control+Enter')
+  // redesign R2: no dialog — the bar under the list; the reason written in 「其他原因…」
+  await until(() => document.querySelector('[data-part="dismiss-bar"]') !== null)
   await until(n => document.querySelectorAll('[data-card]').length === n, urls.length - 2)
+  await p().click('[data-part="dismiss-bar"] [data-reason="other"]')
+  await until(() => document.querySelector('[data-field="other-reason"]') !== null)
+  await p().fill('[data-field="other-reason"]', '只是转述，没有新数据')
+  await p().click('[data-part="dismiss-bar"] [data-action="save-reason"] button')
+  await until(() => document.querySelector('[data-part="dismiss-bar"]') === null)
   const ledger = jsonl(join(W.ev.path, '_pipeline', 'ledger.jsonl'))
   assert.equal(ledger.filter(e => e.ev === 'kept').length, 1)
   assert.deepEqual(ledger.filter(e => e.ev === 'dismissed').map(e => e.reason), ['只是转述，没有新数据'])
@@ -298,8 +310,10 @@ test('UC2 step 4 · AI Agent 工具 → 概览: 「连续 3 轮没有产出」 a
   await openRow(W.ids.tools)
   await onPage('inbox', W.ids.tools)
   await lastRun()
-  assert.equal(await p().evaluate(() => document.querySelector('[data-part="no-output"]')?.dataset.streak), '3')
+  // redesign R2: 「连续 3 轮没有产出」 is the 待确认 card now (no banner): its sentence carries the count
   await panelTab('decide')
+  await until(() => document.querySelector('[data-part="suggestions"] [data-suggestion="no-output:library"]') !== null)
+  assert.equal(await p().evaluate(() => document.querySelector('[data-part="suggestions"] [data-suggestion="no-output:library"] [data-part="sentence"]')?.textContent.match(/\d+/)?.[0]), '3')
   await until(() => document.querySelector('[data-part="suggestions"] [data-suggestion="source-failing:mcp-news"]') !== null)
   const s = await p().evaluate(() => [...document.querySelectorAll('[data-part="suggestions"] [data-suggestion]')].map(e => ({ key: e.dataset.suggestion, sentence: e.querySelector('[data-part="sentence"]').textContent, actions: [...e.querySelectorAll('[data-action]')].map(a => a.dataset.action), text: e.textContent })))
   assert.deepEqual(s.map(x => x.key).sort(), ['no-output:library', 'source-failing:mcp-news'])

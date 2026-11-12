@@ -110,6 +110,41 @@ test('时尚 (waiting) → its page: the head\'s button is 「排队中 · 第 2
   assert.deepEqual(await s.page.evaluate(() => { const b = document.querySelector('[data-part="run-button"] button'); return [b.textContent.trim(), b.disabled] }), [SHELL.head.run.running, false])
 })
 
+// redesign R2 (contract R2-7, P07 · P16): the running library's 待看 says this run — when it started, why (补跑 here: its catch-up),
+// the six steps lit up to where it is — and the head's chip says 「运行中：<环节> · 模型调用 n / 上限 m」; the right panel's 进度: the
+// running one with why, when it started, its step and 停止; the one waiting with why, since when and 「前一任务完成后自动开始」; the
+// rule 「需保持流息运行…」; the current library's last run as the funnel.
+test('R2 · the running library (its catch-up): 待看 says 本次运行 · … 开始 · 补跑 and six steps; the head\'s chip; 进度 has why, since when, 停止 and the rule', async () => {
+  const { running, waiting } = W.q
+  await open(running, 'inbox')
+  await until(() => document.querySelector('[data-part="run-steps"]') !== null && document.querySelector('[data-part="running-chip"]') !== null)
+  const steps = await s.page.evaluate(() => { const r = document.querySelector('[data-part="run-steps"]'); return { why: r.dataset.why, head: r.querySelector('.section-label').textContent, steps: [...r.querySelectorAll('[data-step]')].map(e => [e.dataset.step, e.dataset.done, e.dataset.now]), stop: r.querySelector('[data-action="cancel-run"]') !== null } })
+  assert.equal(steps.why, 'catch-up')
+  assert.ok(steps.head.includes(QUEUE.why['catch-up']) && steps.head.includes('开始') && !steps.head.includes(QUEUE.why.schedule), steps.head)
+  assert.deepEqual(steps.steps.map(x => x[0]), ['self-check', 'fetch', 'dedup', 'gate:relevance', 'gate:substance', 'summary'])
+  assert.deepEqual(steps.steps.filter(x => x[2] === 'true').map(x => x[0]), ['fetch'], 'held on the slow feeds: at 抓取')
+  assert.deepEqual(steps.steps.filter(x => x[1] === 'true').map(x => x[0]), ['self-check'])
+  assert.equal(steps.stop, true)
+  assert.ok(await s.page.evaluate(() => document.querySelector('main [data-part="run-pending"]')?.textContent.includes('本次运行尚未完成')), 'nothing in 待看 yet: 本次运行尚未完成')
+  const chip = await s.page.evaluate(() => { const c = document.querySelector('[data-part="running-chip"]'); return { text: c.textContent, calls: c.dataset.calls, cap: c.dataset.cap } })
+  assert.ok(chip.text.includes('运行中：抓取') && chip.text.includes(`模型调用 ${chip.calls} / 上限 ${chip.cap}`), chip.text)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="next-run"]')), null, 'the next-run chip gives way while it runs')
+  await tabTo('progress')
+  const p = await s.page.evaluate(() => ({
+    running: document.querySelector('[data-part="running"] [data-part="running-phase"]')?.textContent ?? '',
+    stop: document.querySelector('[data-part="running"] [data-action="panel-stop"]') !== null,
+    waiting: document.querySelector('[data-queue-row][data-position="2"] .phase-details')?.textContent ?? '',
+    rule: document.querySelector('[data-part="keep-running"]')?.textContent ?? '',
+    lastRun: document.querySelector('[data-pane="progress"] [data-part="last-run"]')?.dataset.complete ?? null,
+  }))
+  assert.ok(p.running.includes(QUEUE.why['catch-up']) && p.running.includes('开始') && p.running.includes('当前步骤：抓取'), p.running)
+  assert.equal(p.stop, true)
+  assert.ok(p.waiting.includes(QUEUE.why['catch-up']) && p.waiting.includes('加入队列') && p.waiting.includes('前一任务完成后自动开始'), p.waiting)
+  assert.equal(p.rule, PANEL.progress.keepRunning)
+  assert.equal(p.lastRun, 'none', 'this library has never run: its funnel says so')
+  void waiting
+})
+
 test('立即运行 in a library not in the line (AI Agent 记忆): no dialog — it goes to the end of the queue at place 3 and the button says so; pressed again: the same place', async () => {
   const { current } = W.q
   await open(current, 'inbox')

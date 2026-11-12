@@ -272,6 +272,79 @@ const MUTANTS = [
     edits: [['src/renderer/screens/index.js', "export const LIBRARY_FIRST_SCREEN = 'inbox'", "export const LIBRARY_FIRST_SCREEN = 'sources'"]],
     test: ['test/ui-shell.test.mjs', '--test-name-pattern=a click on a library'],
   },
+  // ---- redesign R2 (docs/checks/2026-11-11-r2/contract.md 「测」): each reverse the contract names, and a few more ----
+  {
+    id: 'r2-undo-writes',
+    what: '撤销 writes the held 放弃 into the ledger instead of dropping it',
+    edits: [['src/main/services/pipeline.mjs', "      if (!h) return { undone: false }\n      held = null\n", "      if (!h) return { undone: false }\n      settlePending('undo')\n"]],
+    test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-2 放弃 is held'],
+  },
+  {
+    id: 'r2-no-write-at-quit',
+    what: 'quitting the app no longer writes a held 放弃 (the before-quit line gone)',
+    edits: [['src/main/main.mjs', "  app.on('before-quit', () => { pipeline.settlePending('the app quits') })\n", '']],
+    test: ['test/ui-inbox.test.mjs', '--test-name-pattern=the app quits'],
+  },
+  {
+    id: 'r2-placeholder-reason',
+    what: 'a 放弃 closed without a reason is written with a made-up placeholder reason',
+    edits: [['src/main/services/pipeline.mjs', "choice.reason.trim() !== '' ? choice.reason.trim() : undefined", "choice.reason.trim() !== '' ? choice.reason.trim() : 'no reason given'"]],
+    test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-2 the bar closes'],
+  },
+  {
+    id: 'r2-later-not-back',
+    what: 'a run of the library that ended does not give 稍后处理 back to 待看',
+    edits: [['src/main/services/pipeline.mjs', 'try { const r = releaseLater(dir); if (r.released)', 'try { const r = { released: 0 }; if (r.released)']],
+    test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-3'],
+  },
+  {
+    id: 'r2-later-any-library',
+    what: 'any library\'s run gives the current library\'s 稍后处理 back (not only its own)',
+    edits: [['src/main/services/pipeline.mjs', 'try { const r = releaseLater(dir); if (r.released)', 'try { const r = releaseLater(library.dir() ?? dir); if (r.released)']],
+    test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-3'],
+  },
+  {
+    id: 'r2-move-writes-notes',
+    what: '移入待看 also keeps the item (a file in notes/) instead of only putting it in 待看',
+    edits: [['src/main/services/pipeline.mjs', '      try { moveToInbox(dir, url, { now }) } catch (err) {', '      try { moveToInbox(dir, url, { now }); keep(dir, url, { now }) } catch (err) {']],
+    test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-4'],
+  },
+  {
+    id: 'r2-calls-part-off',
+    what: 'one part of the funnel\'s 模型调用 is off by one (the last part, 核验, one more)',
+    edits: [['src/main/services/pipeline.mjs', '    return { funnel: runFunnel(rec), outcome: roundOutcome(dir, rec.id) }', '    return { funnel: (f => { if (f.calls.parts) f.calls.parts[f.calls.parts.length - 1].n += 1; return f })(runFunnel(rec)), outcome: roundOutcome(dir, rec.id) }']],
+    test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-6'],
+  },
+  {
+    id: 'r2-reason-on-card',
+    what: 'the relevance reason is on the card again (it belongs to 详情 only)',
+    edits: [['src/renderer/screens/inbox.js', "  const line = [item.source ?? '', item.date ?? '', ...scoreWords(item)].filter(Boolean).join(SEP)", "  const line = [item.source ?? '', item.date ?? '', ...scoreWords(item), item.scores?.relevance?.reason ?? ''].filter(Boolean).join(SEP)"]],
+    test: ['test/ui-inbox.test.mjs', '--test-name-pattern=cards in the core'],
+  },
+  {
+    id: 'r2-no-unverified-mark',
+    what: 'the card no longer carries 「未通过核验」',
+    edits: [['src/renderer/screens/inbox.js', "        ${unverified ? html`<${Mark} attrs=${{ 'data-unverified': '' }}>${T.card.unverified}<//>` : null}\n", '']],
+    test: ['test/ui-inbox.test.mjs', '--test-name-pattern=cards in the core'],
+  },
+  {
+    id: 'r2-no-manual-row',
+    what: 'a link added by hand gets no 「待评分」 row in 待看',
+    edits: [['src/renderer/screens/inbox.js', '        ${manual.length ? html`<div class="st-manual" data-part="manual">', '        ${false ? html`<div class="st-manual" data-part="manual">']],
+    test: ['test/ui-inbox.test.mjs', '--test-name-pattern=添加链接'],
+  },
+  {
+    id: 'r2-catch-up-said-scheduled',
+    what: '补跑 is said 定时',
+    edits: [['src/renderer/texts/panel.js', "schedule: '定时', 'catch-up': '补跑' }", "schedule: '定时', 'catch-up': '定时' }"]],
+    test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-7 why'],
+  },
+  {
+    id: 'r2-source-banner',
+    what: 'a library whose sources fail gets a banner on its page again (not only the card in 待确认)',
+    edits: [['src/renderer/screens/library-frame.js', '  const problem = BANNER_CODES.includes(home.data?.problem?.code) ? home.data.problem : null', "  const problem = BANNER_CODES.includes(home.data?.problem?.code) ? home.data.problem : row?.problem === 'sources' ? { code: 'connection', connectionCode: 'network', kind: null, caughtKept: 0 } : null"]],
+    test: ['test/ui-error.test.mjs', '--test-name-pattern=no banner on any tab'],
+  },
 ]
 
 function runTest(desktop, test) {

@@ -37,8 +37,18 @@ import { readSettings } from '../settings.mjs'
 import { byYou } from './changes.mjs'
 
 export const MAX_WAIT_MS = 10 * 60_000
-/** v2 package L: why a library waits — its slot came, a missed slot is caught up, or someone asked (开始 · the tray · a card). */
-export const QUEUE_WHY = Object.freeze(['schedule', 'catch-up', 'manual'])
+/**
+ * v2 package L: why a library waits — its slot came, a missed slot is caught up, or someone asked (开始 · the tray · a card).
+ * Redesign R2 (O7): 'first' — the first run of a library that has never run (建库后的第一轮): what a run someone asked for is
+ * called when the library has no run record yet (a confirmed 新建库 card, 新建库's 开始, 立即运行 on a new library).
+ */
+export const QUEUE_WHY = Object.freeze(['first', 'manual', 'schedule', 'catch-up'])
+
+/** Redesign R2: 'manual' for a library that has never run is its first run ('first'); everything else as it is. */
+export function whyOf(entry, kind) {
+  if (kind !== 'manual') return kind
+  try { return listRounds(entry.path, 1).length === 0 ? 'first' : 'manual' } catch { return 'manual' }
+}
 
 /**
  * @param {object} o
@@ -158,7 +168,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       log(`schedule: ${why}: ${entry.id} is in the queue already`)
       return { queued: false, reason: 'queued' }
     }
-    queue.push({ id: entry.id, why, kind: QUEUE_WHY.includes(kind) ? kind : 'schedule', since: now().toISOString() })
+    queue.push({ id: entry.id, why, kind: QUEUE_WHY.includes(kind) ? whyOf(entry, kind) : 'schedule', since: now().toISOString() })
     const position = positionOf(queue.length - 1)
     log(`schedule: ${why}: ${entry.id} queued (${queue.length} waiting${runningId ? `, ${runningId} running` : ''})`)
     changed()
@@ -183,7 +193,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       return { started: false, queued: true, position: q.position, runningLibraryId: runningLibrary() }
     }
     runningId = e.id
-    runningKind = 'manual'
+    runningKind = whyOf(e, 'manual')
     runningSince = now().toISOString()
     changed()
     let r

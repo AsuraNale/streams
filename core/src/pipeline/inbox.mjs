@@ -7,13 +7,16 @@
 // listInbox(libraryDir, { now })   -> cards sorted by relevance score desc, then substance desc
 //   [{ url, title, source, date, scores:{ relevance:{score,reason}, substance:{…}, freshness:{value,reason} },
 //      summary:{ what, points, quote }, verification:{ passed, rounds, failed:[], aiInstruction? }, waitingDays, maybeDuplicateOf?,
-//      inboxAt, aiInstruction? }]   aiInstruction:true = the material had 「写给 AI 的话」 (v2 D1; the ledger inbox event says so)
+//      inboxAt, aiInstruction?, firstSeen, moved?, later?, laterAt? }]   aiInstruction:true = the material had 「写给 AI 的话」
+//   (v2 D1; the ledger inbox event says so). Redesign R2: firstSeen (the ledger's first event), moved:'rejected' (moved in
+//   from 未通过筛选 by the user), later:true + laterAt (稍后处理, later.mjs) — the list still has them; the page sets them apart.
 //   waitingDays is computed from the ledger's inbox event ts, not from the file.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
 import { replayLedger } from '../library/ledger.mjs';
+import { readLater } from './later.mjs';
 
 export const INBOX_DIR = join('_pipeline', 'inbox');
 
@@ -58,6 +61,7 @@ function daysBetween(fromIso, now) {
 
 export function listInbox(libraryDir, { now = () => new Date() } = {}) {
   const { states } = replayLedger(libraryDir);
+  const later = readLater(libraryDir);
   const clock = now();
   const cards = [];
   for (const s of states.values()) {
@@ -75,11 +79,18 @@ export function listInbox(libraryDir, { now = () => new Date() } = {}) {
       verification: item.verification ?? { passed: false, rounds: 0, failed: [] },
       waitingDays: daysBetween(s.lastTs, clock),
       inboxAt: s.lastTs,
+      // redesign R2: when it was first fetched (详情 「首次抓取」)
+      firstSeen: s.firstSeen ?? null,
     };
+    // redesign R2: moved in by the user from 未通过筛选 (N02): no summary, no check — the card says so
+    if (s.moved === 'rejected' || item.moved === 'rejected') card.moved = 'rejected';
+    // redesign R2: put aside with 稍后处理 until the library's next run has ended (later.mjs)
+    if (later.has(s.url)) { card.later = true; card.laterAt = later.get(s.url); }
     if (s.maybeDuplicateOf) card.maybeDuplicateOf = s.maybeDuplicateOf;
     if (item.materials) card.materials = item.materials;
     if (s.aiInstruction === true || item.aiInstruction === true) card.aiInstruction = true;
     if (item.scoreless === true) { card.scoreless = true; card.excerpt = typeof item.excerpt === 'string' ? item.excerpt : ''; }
+    if (card.moved === 'rejected') card.excerpt = typeof item.excerpt === 'string' ? item.excerpt : '';
     cards.push(card);
   }
   const score = (c, k) => (typeof c.scores[k]?.score === 'number' ? c.scores[k].score : -1);

@@ -94,12 +94,16 @@ test('keep: the precondition is the ledger stage, not the caller\'s belief: a se
   assert.deepEqual(readdirSync(join(dir, 'notes')), []);
 });
 
-// 放弃：理由必填；账本 dismissed；删 inbox 文件；同 url 再抓再高分永不回队列或 inbox。
-test('dismiss: a reason is required; ledger dismissed; inbox file removed; the url never comes back even when fetched again with a high score', async (t) => {
+// 放弃：账本 dismissed；删 inbox 文件；同 url 再抓再高分永不回队列或 inbox。
+// redesign R2 (N03, contract R2-2): the reason is optional now — this test no longer asks for reason-required on an empty
+// reason (that case is the next test: no reason field at all); a reason that is not a string is still refused, and
+// everything about the terminal state below is as it was.
+test('dismiss: ledger dismissed with the reason; inbox file removed; the url never comes back even when fetched again with a high score', async (t) => {
   const { dir, urls, srv, items } = await inboxLibrary(t, 'decide-dismiss');
-  for (const bad of ['', '   ', undefined, null, 42]) {
-    assert.throws(() => dismiss(dir, urls[1], bad), (e) => e.code === 'reason-required', String(bad));
+  for (const bad of [42, {}, ['x']]) {
+    assert.throws(() => dismiss(dir, urls[1], bad), (e) => e.code === 'bad-argument', String(bad));
   }
+  assert.throws(() => dismiss(dir, urls[1], 'x', { quick: 'made-up' }), (e) => e.code === 'bad-argument');
   assert.equal(existsSync(inboxPath(dir, urls[1])), true, 'a refused dismiss leaves the card');
   const r = dismiss(dir, urls[1], '  off topic: a sales page  ', { now: () => CLOCK });
   assert.deepEqual(r, { url: urls[1] });
@@ -122,12 +126,19 @@ test('dismiss: a reason is required; ledger dismissed; inbox file removed; the u
   assert.deepEqual(recentDismissReasons(dir, 0), []);
 });
 
-test('later: zero disk changes, returns the stage', async (t) => {
+// redesign R2 (F27, contract R2-3): 稍后处理 is recorded now — one file, _pipeline/later.json, and nothing else (was: zero
+// disk changes). An url not in the inbox still writes nothing.
+test('later: an inbox item is marked in _pipeline/later.json only (not the ledger, not the note folder); anything else writes nothing', async (t) => {
   const { dir, urls } = await inboxLibrary(t, 'decide-later', 1);
   const before = hashTree(dir);
-  assert.deepEqual(later(dir, urls[0]), { url: urls[0], stage: 'inbox' });
   assert.deepEqual(later(dir, 'https://never/seen'), { url: 'https://never/seen', stage: null });
-  assert.deepEqual(hashTree(dir), before);
+  assert.deepEqual(hashTree(dir), before, 'an url not in the inbox: nothing written');
+  assert.deepEqual(later(dir, urls[0], { now: () => CLOCK }), { url: urls[0], stage: 'inbox', at: CLOCK.toISOString() });
+  const after = hashTree(dir);
+  const changed = Object.keys({ ...before, ...after }).filter((k) => before[k] !== after[k]);
+  assert.deepEqual(changed, ['_pipeline/later.json'], 'only the later file is new');
+  assert.equal(listInbox(dir)[0].later, true);
+  assert.equal(replayLedger(dir).states.get(urls[0]).stage, 'inbox', 'still in the inbox: keep / dismiss as ever');
   assert.equal(listInbox(dir).length, 1);
 });
 

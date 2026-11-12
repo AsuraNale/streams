@@ -62,7 +62,8 @@ test('homeNumbers: every number recomputed from the ledger / fetch_log / rounds.
   appendEvent(dir, { ev: 'seen', url: 'https://manual/1', source: 'manual', title: 'hand-fed' });
   assert.equal(homeNumbers(dir).caught, 3);
   const empty = makeLibrary('numbers-empty');
-  assert.deepEqual(homeNumbers(empty), { caught: 0, inbox: 0, inboxOldestDays: 0, kept: 0, dismissed: 0, lastRound: null, noOutputStreak: 0, sources: { level: 'quiet', counts: { ok: 0, empty: 0, gap: 0, failed: 0, blocked: 0, paused: 0 }, lines: ['no-fetch-yet'] } });
+  // redesign R2 (F27): `later` (items put aside with 稍后处理) is a field of its own, 0 here
+  assert.deepEqual(homeNumbers(empty), { caught: 0, inbox: 0, inboxOldestDays: 0, later: 0, kept: 0, dismissed: 0, lastRound: null, noOutputStreak: 0, sources: { level: 'quiet', counts: { ok: 0, empty: 0, gap: 0, failed: 0, blocked: 0, paused: 0 }, lines: ['no-fetch-yet'] } });
 });
 
 test('roundLog / listRounds: the structured record of each round, newest first; counts agree with the ledger events of that round', async (t) => {
@@ -90,7 +91,8 @@ test('roundLog / listRounds: the structured record of each round, newest first; 
     assert.equal(log.counts.inbox, ev.filter((e) => e.ev === 'inbox').length);
     assert.equal(log.calls, r.calls);
     assert.deepEqual(log.counts, r.counts);
-    assert.deepEqual(Object.keys(log), ['id', 'startedAt', 'finishedAt', 'counts', 'gates', 'calls', ...(r.stoppedAt ? ['stoppedAt'] : []), 'problems', 'warnings', 'fetch', 'unscored']);
+    // redesign R2 (N10): the record carries callsBy (the calls by part) and, for a stopped run, stoppedNode
+    assert.deepEqual(Object.keys(log), ['id', 'startedAt', 'finishedAt', 'counts', 'gates', 'calls', 'callsBy', ...(r.stoppedAt ? ['stoppedAt', 'stoppedNode'] : []), 'problems', 'warnings', 'fetch', 'unscored']);
   }
   assert.equal(r1.calls + r2.calls, 4 + 3 + 6, 'four at gate 1, three at gate 2, three summaries with a judge each');
   assert.equal(roundLog(dir, r1.round.id).fetch[0].newCount, 4);

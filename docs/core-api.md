@@ -87,7 +87,7 @@
 | `unscored` | url, node, reason（`bad-format` \| `rule:<id>` \| `connection:<code>`）, cfg, round | 关卡 |
 | `inbox` | url, round, verified: true \| false, aiInstruction?: true（材料里有写给 AI 的话，v2 包 D，见 5.14） | 摘要节点 |
 | `kept` | url, id | keep |
-| `dismissed` | url, reason | dismiss |
+| `dismissed` | url, reason?, quick? | dismiss（重设计 R2：没写理由时**没有** `reason` 字段，不编占位；快选理由另记 `quick`） |
 
 关卡② 的 `freshness` 以独立 `scored {node:'freshness', value}` 记录（索引 `scores.freshness` 就是它）。队列**从账本状态重建**（`replayLedger`），不是从本轮抓到的东西：`stage:'seen'` 且 relevance 没有当前 cfg 的 scored/unscored → 关卡①；relevance.score ≥ 过关线且 substance 没有 → 取正文 + 关卡②；substance.score ≥ 过关线且 stage ≠ inbox → 摘要 → inbox。低于过关线的停在原地（「抓到的」）。`kept` / `dismissed` 终态永不进队列。
 
@@ -101,14 +101,20 @@
 | `previewNode(libraryDir, {connector, nodeId, url? \| item?})` | 「试一条看结果」：对一条跑该关卡（或摘要），**不写账本、不写 inbox、不写 verdicts** | `{ok, output, verification, calls}` / `{ok:false, code}` |
 | `listInbox(libraryDir, {now?})` | 待看：按 relevance 分数降序再 substance；`waitingDays` 从 inbox 事件的 ts 算（`now` 可注入） | `[{url, title, source, date, scores:{relevance:{score,reason}, substance:{…}, freshness:{value,reason}}, summary:{what, points}, verification:{passed, rounds, failed:[]}, waitingDays, maybeDuplicateOf?, inboxAt}]` |
 | `keep(libraryDir, url, {topics?, now?})` | 收藏：前提 stage=inbox；id = `<date>-<slug(title)>`；**唯一**调用 `writeNoteFile(…, {by:'keep'})` 的地方；文件头 source / source_name / date / collected / kept / status:kept / topics / scores（带 reason）；正文 = 「**这是什么：**」一句 + 三行要点；账本 `kept`；删 inbox 文件；`rebuildIndex` | `{id, file}`；抛 `not-in-inbox` / `id-conflict`（notes/ 已有同 id，不覆盖）/ `invalid-note` |
-| `dismiss(libraryDir, url, reason)` | 放弃：理由必填；前提 stage=inbox；账本 `dismissed`；删 inbox 文件 | `{url}`；抛 `reason-required` / `not-in-inbox` |
-| `later(libraryDir, url)` | 稍后：磁盘零变化 | `{url, stage}` |
+| `dismiss(libraryDir, url, reason?, {quick?, now?})` | 放弃：前提 stage=inbox；账本 `dismissed`；删 inbox 文件。**重设计 R2（N03）**：理由可不写（undefined / null / 空白 → 事件里没有 `reason` 字段）；`quick` 是 `DISMISS_QUICK`（`marketing` · `irrelevant` · `shallow` · `duplicate`）之一，另记一个字段；终态规矩不变 | `{url}`；抛 `not-in-inbox` / `bad-argument`（理由不是字符串、`quick` 不在表里） |
+| `later(libraryDir, url, {now?})` | 稍后处理。**重设计 R2（F27）**：stage=inbox 的条目记进 `_pipeline/later.json`（`later.mjs markLater`；不写账本、不碰 `notes/`）；别的阶段什么都不写 | `{url, stage, at?}` |
+| `markLater` / `readLater` / `releaseLater(libraryDir)`（`later.mjs`） | 重设计 R2：稍后处理的记录 `_pipeline/later.json` = `{ items: [{ url, at }] }`；`readLater` 只返回仍在 stage inbox 的；`releaseLater` 删掉这个文件 = 全部回到待看（桌面层在**本库**一轮运行结束时调）；坏文件读作空 | `Map<url, at>` / `{released}` |
+| `moveToInbox(libraryDir, url, {now?})` | 重设计 R2（N02）：没过某一关的条目（stage seen、在当前配置下低于某关，从账本读）原样进待看：inbox 文件（没有摘要、没有核验，`moved:'rejected'`、`excerpt` 是来源自带的摘要）+ 账本 `inbox {moved:'rejected', from:<关卡>}`。**不写 `notes/`**；之后收藏照常走 `keep` → `writeNoteFile` | `{url}`；别的条目抛 `not-rejected` |
+| `listRejected(libraryDir, {limit = 50})` | 重设计 R2：未通过筛选——在当前配置下低于某关的条目，最新的判定在前 | `{total, items:[{url, title, source, date, gate, score, threshold, reason, at, firstSeen}]}` |
+| `listManualWaiting(libraryDir)` | 重设计 R2（N09）：手动添加（source `manual`）还没评分的条目（「待评分」） | `[{url, title, date, firstSeen, maybeDuplicateOf?}]` |
+| `roundOutcome(libraryDir, roundId)` | 重设计 R2（N10）：那一轮放进待看的条目后来怎样了（账本 `inbox` 事件的 `round`） | `{inbox, kept, dismissed, later, waiting}` |
+| `runFunnel(record)` / `failedStart({at, problems, gates?})` / `callsAddUp(funnel)`（`funnel.mjs`） | 重设计 R2（N10）：一条 rounds.jsonl 记录读成漏斗——已抓取（`sources` 个来源）→ 去重后新增 → 每道关通过的条数 → 进入待看；停了的那一轮停在出事那格（`stoppedNode`；旧记录没有就停在进入待看），之后的格为 null；没连接的一轮关卡格 `skipped`。`calls.total = callsBy.selfCheck + calls`，`parts` = 运行前自检 + 各关自己的调用 + 摘要 + 核验；旧记录没有 `callsBy` 只给合计（`parts: null`），不编分项。`failedStart` 是自检没过的那次（核心那时什么都不写，时间与原因由桌面层记在内存里） | 见 `src/pipeline/funnel.mjs` 头注释 |
 | `recentDismissReasons(libraryDir, n=10)` | 最近 n 条放弃理由（关卡设置页右栏） | `[{ts, reason, title, url}]` |
 | `pipelineConfig(libraryDir)` | 带默认值的 pipeline 配置（缺的节点补默认、底线项按 output 生成并标 `origin:'streams'`） | `{cap, callGapMs, maxVerifyRounds, bodyMaxChars, cacheDays, language, nodes:[…]}` |
 | `savePipelineConfig(libraryDir, cfg)` | 校验后写回 `streams.json`（其余键原样保留；v2 包 B 起整份经临时文件 + rename 写，同 5.6）。拒绝：删 / 改固定节点、改 `output`、删底线项、gate > 5、summary ≠ 1 | 抛 `locked-node`；`bad-config`（threshold 不在 0–1、未知 kind、material 不在 meta/body） |
 | `allowedActions(state, config)` / `assertAllowed(state, action)` | 不变量①：阶段 → 允许动作表。`seen` 只能 `gate:relevance`；relevance 过关才 `body` / `gate:substance`；substance 过关才 `summary`；`inbox` 才 `keep` / `dismiss` / `later`；`kept` / `dismissed` 什么都不能做 | 抛 `not-allowed` |
 | `roundLog(libraryDir, roundId)` / `listRounds(libraryDir, n=20)` | 运行记录（`rounds.jsonl` 的结构化行，最近的在前；logs/ 的 md 给人看） | 一行 = `{id, startedAt, finishedAt, counts, gates, calls, stoppedAt?, problems, warnings, fetch, unscored}`；`roundLog` 找不到返回 `null` |
-| `homeNumbers(libraryDir, {now?})` | 概览的数字（v1.0 的首页 / 今日，S2；v2 每个库各算各的）：全部从账本、fetch_log 与 rounds.jsonl 重算；`now` 可注入时钟（等待天数）。`noOutputStreak`（11-04，方案 C8）：从 rounds.jsonl 最新一轮往回数，`counts.inbox` 为 0（或缺、不是数）的连续轮数，碰到一轮有产出就停；没跑过为 0 | `{caught, inbox, inboxOldestDays, kept, dismissed, lastRound, noOutputStreak, sources:{level, lines}}` |
+| `homeNumbers(libraryDir, {now?})` | 概览的数字（v1.0 的首页 / 今日，S2；v2 每个库各算各的）：全部从账本、fetch_log 与 rounds.jsonl 重算；`now` 可注入时钟（等待天数）。`noOutputStreak`（11-04，方案 C8）：从 rounds.jsonl 最新一轮往回数，`counts.inbox` 为 0（或缺、不是数）的连续轮数，碰到一轮有产出就停；没跑过为 0。**重设计 R2**：`inbox` 不含稍后处理的条目（另计 `later`）；`lastRound` 带 `callsBy`（有的话） | `{caught, inbox, inboxOldestDays, later, kept, dismissed, lastRound, noOutputStreak, sources:{level, lines}}` |
 | `noOutputStreak(rounds)` / `NO_OUTPUT_ROUNDS` | 上面那个数的纯函数（`rounds` 最新的在前）；阈值常量 `NO_OUTPUT_ROUNDS = 3`：概览「连续 N 轮没有产出」从这个数起显示（库架卡片与建议卡 `no-output` 用同一个数）（桌面经 `getHome().noOutputRounds` 拿，页面不自己定） | 整数 |
 | `cleanCache(libraryDir, {days, now})` | 删 `_pipeline/cache/` 里超过 `cacheDays` 的正文 | `{removed}` |
 | `constantScoreWarning(scored, {min:5})` | 工具包 F3 移植：同一来源 ≥5 条分数全同 → 一句提醒（只提醒，不拒绝），进 `warnings` | `''` 或一句话 |

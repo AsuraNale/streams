@@ -284,7 +284,8 @@ test('维护者\'s scenario: 流息Test catching up, 安省中小企业补助 wa
   // a third library, pressed while two are in the line: the end, place 3, 流息Test named as the one running
   library.handlers.setActiveLibrary(ids.Rust)
   assert.deepEqual(await page.handlers.startRound(), { started: false, queued: true, position: 3, runningLibraryId: liu })
-  assert.deepEqual(s.handlers.getQueue().waiting.map(x => [x.libraryId, x.why]), [[an, 'catch-up'], [ids.Rust, 'manual']])
+  // redesign R2 (O7): Rust has never run, so the run asked for is its first one (建库后的第一轮), not 'manual'
+  assert.deepEqual(s.handlers.getQueue().waiting.map(x => [x.libraryId, x.why]), [[an, 'catch-up'], [ids.Rust, 'first']])
   // every change of the queue was said to the page
   const said = w.eventsOf('queue-changed').map(e => e.payload)
   assert.deepEqual(said.at(-1), { running: liu, waiting: [an, ids.Rust] })

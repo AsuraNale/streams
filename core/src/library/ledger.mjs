@@ -9,7 +9,9 @@
 // Replay rules:
 //   - first `seen` creates the state; a later `seen` for the same url changes nothing
 //   - `kept` and `dismissed` are terminal: once there, every later event for that url is ignored
-//   - `scored` / `unscored` fill scores / unscored per gate id; `inbox` moves stage to inbox
+//   - `scored` / `unscored` fill scores / unscored per gate id; `inbox` moves stage to inbox (redesign R2: it remembers the
+//     round that put it there as inboxRound, and moved:'rejected' for an item the user moved in from 未通过筛选)
+//   - `dismissed` may carry a reason and a quick reason id, or neither (redesign R2: the reason is optional)
 //   - malformed lines are skipped and reported, never fatal
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -132,6 +134,9 @@ function apply(states, ev) {
       s.stage = 'inbox';
       // v2 D1: the material had 「写给 AI 的话」 (the event carries aiInstruction:true only then)
       if (ev.aiInstruction === true) s.aiInstruction = true;
+      // redesign R2: the round that put it there (处理情况 of a run), and an item the user moved in from 未通过筛选 (N02)
+      if (typeof ev.round === 'string' && ev.round !== '') s.inboxRound = ev.round;
+      if (ev.moved === 'rejected') s.moved = 'rejected';
       break;
     case 'kept':
       s.stage = 'kept';
@@ -139,7 +144,9 @@ function apply(states, ev) {
       break;
     case 'dismissed':
       s.stage = 'dismissed';
-      s.dismissReason = ev.reason;
+      // redesign R2: a dismissal may carry no reason (the event then has no reason field)
+      if (typeof ev.reason === 'string') s.dismissReason = ev.reason;
+      if (typeof ev.quick === 'string') s.dismissQuick = ev.quick;
       break;
   }
   s.lastTs = ts;

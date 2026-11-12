@@ -67,6 +67,8 @@ const transcriptQuery = q => absent(q) || (isObject(q) && onlyKeys(q, ['limit', 
   && optional(q, 'limit', v => Number.isInteger(v) && v >= 1 && v <= 500) && optional(q, 'before', v => v === null || (Number.isInteger(v) && v >= 1)))
 const suggestionFilter = f => absent(f) || (isObject(f) && onlyKeys(f, ['libraryId']) && optional(f, 'libraryId', v => v === null || libraryId(v)))
 const suggestionKey = nonEmptyShort(300)
+// redesign R2: the quick reasons of the 放弃 bar (the core's DISMISS_QUICK)
+const DISMISS_QUICK_IDS = Object.freeze(['marketing', 'irrelevant', 'shallow', 'duplicate'])
 
 /** name → how many arguments it takes, and a check for them. */
 export const BRIDGE_METHODS = Object.freeze({
@@ -126,8 +128,13 @@ export const BRIDGE_METHODS = Object.freeze({
   getRoundState: Object.freeze({ args: 0 }),
   getInbox: Object.freeze({ args: 0 }),
   keepItem: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
-  dismissItem: Object.freeze({ args: 2, check: ([url, reason]) => nonEmpty(url) && nonEmpty(reason) }),
+  // redesign R2 (N03): 放弃 is held until its bar closes — settleDismiss writes it (a reason in words up to 300 characters, a
+  // quick id, or neither), undoDismiss drops it; moveToInbox (N02) puts an item that did not pass into 待看
+  dismissItem: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
+  settleDismiss: Object.freeze({ args: 2, check: ([reason, quick]) => (absent(reason) || shortString(300)(reason)) && (absent(quick) || DISMISS_QUICK_IDS.includes(quick)) }),
+  undoDismiss: Object.freeze({ args: 0 }),
   laterItem: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
+  moveToInbox: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
   openItemUrl: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
   getPipelineSettings: Object.freeze({ args: 0 }),
   // the timed round (services/schedule.mjs; docs/desktop.md §4.3): { enabled, time: 'HH:MM' } with 00:00–23:59, nothing else

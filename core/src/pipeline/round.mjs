@@ -12,7 +12,10 @@
 //   Counting: every connector.complete (gate, summary, judge) counts 1; calls >= cap -> stop after the current
 //   item (stoppedAt:'cap'); signal.aborted -> stop after the current item ('aborted'); a connection failure ->
 //   stop at once ('connection'). Items not reached keep their ledger state and are picked up next round.
-//   -> { ok, started, round:{ id, startedAt, finishedAt }, counts, gates, calls, stoppedAt?, problems, warnings }
+//   -> { ok, started, round:{ id, startedAt, finishedAt }, counts, gates, calls, callsBy, stoppedAt?, stoppedNode?, problems, warnings }
+//   redesign R2 (N10): callsBy = { selfCheck, gates: { <id>: n }, summary, verify } — the self-check's probe, each gate's own
+//   calls, the summary's own calls and every check's judge calls; selfCheck + calls = their sum (the run's 模型调用 N).
+//   `calls` (what the cap sees) is unchanged: the calls after the self-check. stoppedNode: where a stopped run stopped.
 //   -> { ok:false, started:false, problems }  when the self-check fails (nothing written)
 // previewNode(libraryDir, { connector, nodeId, url? | item?, ctx? }) -> { ok, output, verification, calls } | { ok:false, code }
 //   runs one gate or the summary on one item and writes nothing (no ledger, no inbox, no verdicts).
@@ -107,7 +110,8 @@ export async function selfCheck(libraryDir, { connector, scoreless = false } = {
     return out;
   }
   out.ok = true;
-  out.probe = { latencyMs: probe.latencyMs, model: probe.model };
+  // redesign R2: the probe's model calls (its usage; 1 when it does not say) — the run record's 运行前自检 part
+  out.probe = { latencyMs: probe.latencyMs, model: probe.model, calls: Number.isInteger(probe.usage?.calls) && probe.usage.calls >= 0 ? probe.usage.calls : 1 };
   return out;
 }
 
@@ -168,6 +172,18 @@ export async function runRound(libraryDir, { connector, scoreless = false, cap, 
   const firstGateScores = [];
   let calls = 0;
   let stoppedAt;
+  // redesign R2 (N10): the calls by part — 运行前自检 + each gate's own calls + 摘要 + 核验 (every check's judge calls); the
+  // parts add up to probe + calls. stoppedNode: the step the run stopped at (a gate id or the summary's), with stoppedAt.
+  const callsBy = { selfCheck: check.scoreless ? 0 : check.probe?.calls ?? 1, gates: {}, summary: 0, verify: 0 };
+  let stoppedNode;
+  const count = (r, part) => {
+    const all = Number.isFinite(r.calls) ? r.calls : 0;
+    const judged = Number.isFinite(r.judgeCalls) ? r.judgeCalls : 0;
+    calls += all;
+    callsBy.verify += judged;
+    if (part === 'summary') callsBy.summary += all - judged;
+    else callsBy.gates[part] = (callsBy.gates[part] ?? 0) + all - judged;
+  };
 
   const stopNow = () => {
     if (signal?.aborted) { stoppedAt = 'aborted'; return true; }
@@ -179,6 +195,7 @@ export async function runRound(libraryDir, { connector, scoreless = false, cap, 
   };
   const connectionStop = (r, node, url) => {
     stoppedAt = 'connection';
+    stoppedNode = node;
     problems.push({ code: 'connection', connectionCode: r.code, detail: r.detail ?? r.code, node, url });
   };
 
@@ -206,13 +223,14 @@ export async function runRound(libraryDir, { connector, scoreless = false, cap, 
   outer: for (let gi = 0; gi < (check.scoreless ? 0 : gateList.length); gi++) {
     const node = gateList[gi];
     const queue = buildQueue(libraryDir, cfg).byNode[node.id] ?? [];
+    callsBy.gates[node.id] = callsBy.gates[node.id] ?? 0;
     for (const state of queue) {
-      if (stopNow()) break outer;
+      if (stopNow()) { stoppedNode = node.id; break outer; }
       const mat = await materialFor({ libraryDir, cfg, node, state, ctx: c, summaries });
       const sourceTopic = topicOf(config, state.source);
       const related = relatedEntries(index, mat.item, { topic: sourceTopic });
       const r = await runGate({ libraryDir, cfg, node, item: mat.item, body: mat.body, materials: mat.materials, related, topics: libraryTopics(config), sourceTopic, connector: usage.wrap(spaced, `gate:${node.id}`), round: round.id, now: c.now });
-      calls += r.calls;
+      count(r, node.id);
       if (r.status === 'connection') {
         unscored.push({ url: state.url, node: node.id, reason: `connection:${r.code}` });
         connectionStop(r, node.id, state.url);
@@ -233,12 +251,12 @@ export async function runRound(libraryDir, { connector, scoreless = false, cap, 
   if (summary && stoppedAt === undefined && !check.scoreless) {
     const queue = buildQueue(libraryDir, cfg).summary;
     for (const state of queue) {
-      if (stopNow()) break;
+      if (stopNow()) { stoppedNode = summary.id; break; }
       const mat = await materialFor({ libraryDir, cfg, node: summary, state, ctx: c, summaries });
       const sourceTopic = topicOf(config, state.source);
       const related = relatedEntries(index, mat.item, { topic: sourceTopic });
       const r = await runSummary({ libraryDir, cfg, node: summary, state, item: mat.item, body: mat.body, materials: mat.materials, related, topics: libraryTopics(config), sourceTopic, connector: usage.wrap(spaced, 'summary'), round: round.id, now: c.now });
-      calls += r.calls;
+      count(r, 'summary');
       if (r.status === 'connection') {
         unscored.push({ url: state.url, node: summary.id, reason: `connection:${r.code}` });
         connectionStop(r, summary.id, state.url);
@@ -269,9 +287,10 @@ export async function runRound(libraryDir, { connector, scoreless = false, cap, 
   counts.gate2 = gates[gateIds[1]] ?? emptyGateCount();
   const finishedAt = c.now().toISOString();
   const record = {
-    id: round.id, startedAt: round.startedAt, finishedAt, counts, gates, calls,
+    id: round.id, startedAt: round.startedAt, finishedAt, counts, gates, calls, callsBy,
     ...(check.scoreless ? { scoreless: true } : {}),
     ...(stoppedAt ? { stoppedAt } : {}),
+    ...(stoppedAt && stoppedNode ? { stoppedNode } : {}),
     problems, warnings,
     fetch: fetch.perSource.map((p) => ({ name: p.name, status: p.status, count: p.count, newCount: p.newCount })),
     unscored,
@@ -279,7 +298,7 @@ export async function runRound(libraryDir, { connector, scoreless = false, cap, 
   appendRoundRecord(libraryDir, record);
   appendRoundLogMd(libraryDir, record, { day: localIsoDate(c.now()) });
   cleanCache(libraryDir, { days: cfg.cacheDays, now: c.now });
-  return { ok: true, started: true, round: { id: round.id, startedAt: round.startedAt, finishedAt }, counts, gates, calls, ...(check.scoreless ? { scoreless: true } : {}), ...(stoppedAt ? { stoppedAt } : {}), problems, warnings };
+  return { ok: true, started: true, round: { id: round.id, startedAt: round.startedAt, finishedAt }, counts, gates, calls, callsBy, ...(stoppedAt && stoppedNode ? { stoppedNode } : {}), ...(check.scoreless ? { scoreless: true } : {}), ...(stoppedAt ? { stoppedAt } : {}), problems, warnings };
 }
 
 // `draft` (optional): the node as the user is editing it, not saved yet (product spec C3: change the requirement,

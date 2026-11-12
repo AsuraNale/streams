@@ -21,6 +21,31 @@ const MUTANTS = [
     edits: [['src/proposals/proposals.mjs', 'hashOf(snapshot(libraryDir, HASH_FIELDS[kind]))', "hashOf(snapshot(libraryDir, ['brief', 'sources', 'topics', 'thresholds', 'schedule', 'cap']))"]],
     test: ['test/proposals.test.mjs', '--test-name-pattern=UC3: an add_source'],
   },
+  // redesign R2 (docs/checks/2026-11-11-r2/contract.md 「测」)
+  {
+    id: 'r2-dismiss-placeholder',
+    what: 'a dismissal without a reason gets a made-up placeholder reason in the ledger',
+    edits: [['src/pipeline/decide.mjs', "  if (words !== '') ev.reason = words;", "  ev.reason = words !== '' ? words : '未说明';"]],
+    test: ['test/r2-inbox.test.mjs', '--test-name-pattern=R2-2 dismiss with no reason'],
+  },
+  {
+    id: 'r2-move-writes-notes',
+    what: '移入待看 also keeps the item (a note file is written) instead of only putting it in the inbox',
+    edits: [['src/pipeline/decide.mjs', "  appendEvent(libraryDir, { ts, ev: 'inbox', url, moved: 'rejected', from: below.gate });\n  return { url };", "  appendEvent(libraryDir, { ts, ev: 'inbox', url, moved: 'rejected', from: below.gate });\n  keep(libraryDir, url, { now });\n  return { url };"]],
+    test: ['test/r2-inbox.test.mjs', '--test-name-pattern=R2-4 moveToInbox'],
+  },
+  {
+    id: 'r2-calls-part-off',
+    what: 'one part of the run\'s calls is off by one (核验 counts one call too many)',
+    edits: [['src/pipeline/round.mjs', '    callsBy.verify += judged;', '    callsBy.verify += judged + 1;']],
+    test: ['test/r2-inbox.test.mjs', '--test-name-pattern=R2-6 callsBy'],
+  },
+  {
+    id: 'r2-later-kept',
+    what: 'releaseLater leaves the 稍后 file in place (the items never come back to 待看)',
+    edits: [['src/pipeline/later.mjs', '  unlinkSync(path);\n  return { released };', '  return { released };']],
+    test: ['test/r2-inbox.test.mjs', '--test-name-pattern=R2-3 later'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

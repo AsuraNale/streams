@@ -177,8 +177,11 @@ test('the inbox and the decisions: only a url in the inbox can be kept or dismis
   assert.equal(await h.openItemUrl(a), null)
   assert.equal(await h.openItemUrl(b), null)
   assert.deepEqual(w.opened, [a, b])
-  // dismiss
-  assert.deepEqual(h.dismissItem(b, '  not relevant  '), { url: b })
+  // dismiss — redesign R2 (N03): held first (off the list, nothing written), written when the bar closes with its reason
+  const ledgerBefore = readFileSync(join(dir, '_pipeline', 'ledger.jsonl'), 'utf8')
+  assert.deepEqual(h.dismissItem(b), { url: b, held: true })
+  assert.equal(readFileSync(join(dir, '_pipeline', 'ledger.jsonl'), 'utf8'), ledgerBefore, 'held: nothing written yet')
+  assert.deepEqual(h.settleDismiss('  not relevant  ', null), { settled: true, url: b })
   assert.equal(h.getInbox().items.length, 0)
   assert.deepEqual(h.getInbox().recentDismissReasons.map(r => r.reason), ['not relevant'])
   assert.deepEqual(w.events.at(-1), { topic: 'inbox-changed', payload: { libraryId: w.libraryId, count: 0 } })
@@ -203,7 +206,9 @@ test('withFirstProbe: the first probe is the given result, later ones reach the 
   assert.equal(r.started, false)
   assert.deepEqual([r.problems[0].code, r.problems[0].connectionCode], ['connection', 'login-expired'])
   const home = pipeline.handlers.getHome()
-  assert.deepEqual(home.problem, { code: 'connection', connectionCode: 'login-expired', kind: 'claude-code', caughtKept: 0 })
+  // redesign R2: the problem says when the run did not start (the funnel's 「上次运行 · 时间 · 未完成」)
+  assert.ok(!Number.isNaN(Date.parse(home.problem.at)), String(home.problem.at))
+  assert.deepEqual(home.problem, { code: 'connection', connectionCode: 'login-expired', kind: 'claude-code', caughtKept: 0, at: home.problem.at })
   assert.equal(pipeline.handlers.getRoundState().lastProblems[0].connectionCode, 'login-expired')
 })
 
@@ -255,7 +260,9 @@ test('S4: getPipeline (config, last round, recent reasons, verdict failures per 
   connections.handlers.setActiveConnection('claude-code')
   const started = await h.startRound()
   await until(() => w.eventsOf('round-progress').some(e => e.payload.roundId === started.roundId && e.payload.done === true))
-  h.dismissItem(h.getInbox().items[0].url, '不相关')
+  // redesign R2 (N03): held, then written with its reason when the bar closes
+  h.dismissItem(h.getInbox().items[0].url)
+  h.settleDismiss('不相关', 'irrelevant')
   const p = h.getPipeline()
   assert.equal(p.lastRound.id, h.getRoundState().last.round.id)
   assert.deepEqual(p.dismissReasons.map(r => r.reason), ['不相关'])

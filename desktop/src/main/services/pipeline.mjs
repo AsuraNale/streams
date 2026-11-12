@@ -23,6 +23,20 @@
  * sources and topics of a starter pack (applyStarterPack) are the user's own: one line by 'you' in the library's
  * changes.jsonl for each of those fields that changed (services/changes.mjs byYou).
  *
+ * Redesign R2 (docs/checks/2026-11-11-r2/contract.md; docs/desktop.md §4.14): 待看 and the run.
+ *   - 放弃 is held, not written (N03): `dismissItem(url)` takes the card off the list at once and keeps it here; the ledger gets
+ *     its `dismissed` event only when the bar under the list closes — `settleDismiss(reason, quick)` (a reason chosen, the bar
+ *     closed), the next decision on another item (keep · dismiss · later · 移入待看), the library left (another library current),
+ *     and the app quitting (`settlePending('quit')`, main.mjs before-quit). `undoDismiss()` drops it: nothing is written. One at
+ *     a time: a second 放弃 writes the first one. kept / dismissed stay terminal (the core's ledger).
+ *   - 稍后处理 (F27): the core's later (_pipeline/later.json); a run of THIS library that ended (started) gives them back
+ *     (releaseLater) — another library's run does not.
+ *   - getInbox gives the cards (not the held one, not the later ones), the later ones, 未通过筛选 (the core's listRejected, at most
+ *     50, newest first), 待评分 (listManualWaiting), the held one; moveToInbox (N02) is the core's — the note folder untouched.
+ *   - getHome gives the last run as a funnel (core runFunnel; a self-check that failed: failedStart, kept in memory only — the
+ *     core writes nothing then), what became of its items (roundOutcome), the five most recently kept.
+ *   - the first self-check's probe answers the run's own (withFirstProbe) with its real calls, so the run record's 运行前自检 is
+ *     the probe the usage file has.
  * Pure Node apart from what is injected (`shell`), so the rules run in plain Node (test/services-pipeline.test.mjs).
  * @module desktop/main/services/pipeline
  */
@@ -33,6 +47,7 @@ import {
   STARTER_PACK_IDS, applyStarterPackToLibrary, createUsageCounter, dismiss, estimateRound, fetchSource, gateNodes,
   homeNumbers, keep, later, listInbox, listRounds, listStarterPacks, makeContext, pipelineConfig, previewNode, readIndex, recentDismissReasons,
   recentVerdictFailures, replayLedger, runRound, savePipelineConfig, selfCheck, DEFAULT_PIPELINE, NO_OUTPUT_ROUNDS, pipelineFrom,
+  DISMISS_QUICK, buildQueue, failedStart, listManualWaiting, listRejected, moveToInbox, releaseLater, roundOutcome, runFunnel,
 } from '../core.mjs'
 import { byYou } from './changes.mjs'
 
@@ -79,8 +94,15 @@ export function createPipelineService({ library, connections, emit, log, hidden 
   let lastProgress = null
   // v2 package L: a round being started (its self-check), before it runs in the background
   let starting = null
+  // redesign R2: the 放弃 held until the bar closes — { dir, libraryId, url, title } — and the last self-check that failed
+  // ({ libraryId, dir, at, problems }: the funnel's 「停 · 自检未通过」; memory only, the core writes nothing then)
+  let held = null
+  let failedAt = null
 
-  const inboxCount = dir => { try { return listInbox(dir).length } catch { return 0 } }
+  // 「n 条待看」: the cards the page lists — not the ones put aside (稍后处理), not the one held by 放弃
+  const inboxCount = dir => {
+    try { return listInbox(dir).filter(c => !c.later && !(held && held.dir === dir && held.url === c.url)).length } catch { return 0 }
+  }
   const indexOf = dir => { try { return readIndex(dir) } catch (err) { log(`pipeline: index unreadable: ${String(err?.message ?? err)}`); return [] } }
   const inboxUrls = dir => new Set(listInbox(dir, { now }).map(i => i.url))
 
@@ -104,6 +126,30 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     emit('round-progress', payload)
   }
 
+  /**
+   * Redesign R2: write the held 放弃 into the ledger (the bar closed: a reason chosen, or none). `why` goes to the log only.
+   * → { url } or null when nothing was held (or the item is not in the inbox any more).
+   */
+  const settlePending = (why, choice = null) => {
+    const h = held
+    if (!h) return null
+    held = null
+    const reason = typeof choice?.reason === 'string' && choice.reason.trim() !== '' ? choice.reason.trim() : undefined
+    const quick = DISMISS_QUICK.includes(choice?.quick) ? choice.quick : undefined
+    try {
+      dismiss(h.dir, h.url, reason, { quick, now })
+    } catch (err) {
+      log(`pipeline: the held dismissal of ${h.url} was not written (${why}): ${String(err?.message ?? err)}`)
+      emit('inbox-changed', { libraryId: h.libraryId, count: inboxCount(h.dir) })
+      return null
+    }
+    log(`pipeline: dismissed ${h.url} (${why}${reason ? ', with a reason' : ', no reason'}${quick ? ` · ${quick}` : ''})`)
+    emit('inbox-changed', { libraryId: h.libraryId, count: inboxCount(h.dir) })
+    return { url: h.url }
+  }
+  /** A decision on the library `dir` (keep · dismiss · later · 移入待看), or another library opened: the held one goes in first. */
+  const settleBefore = (dir, url, why) => { if (held && (held.dir !== dir || held.url !== url)) settlePending(why) }
+
   /** The round in the background: the core's runRound, then the two events. `cap` and the connector were fixed at start. */
   const runInBackground = async ({ dir, libraryId, roundId, connector, cap, controller, scoreless = false }) => {
     const base = { roundId, libraryId, cap }
@@ -116,6 +162,10 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       })
       last = { roundId, libraryId, result }
       if (!result.started) lastProblems = result.problems
+      // redesign R2 (F27): a run of this library that ended gives 稍后处理 back to 待看 (another library's run does not)
+      if (result.started) {
+        try { const r = releaseLater(dir); if (r.released) log(`pipeline: round ${roundId}: ${r.released} item(s) back from later`) } catch (err) { log(`pipeline: round ${roundId}: the later items not given back: ${String(err?.message ?? err)}`) }
+      }
       log(`pipeline: round ${roundId} ${result.started ? `done: calls ${result.calls}${result.scoreless ? ' (scoreless)' : ''}${result.stoppedAt ? ` stopped at ${result.stoppedAt}` : ''}` : 'did not start'} (core ${result.round?.id ?? '-'})`)
       running = null
       progress({ ...base, phase: 'done', counts: result.counts ?? null, calls: result.calls ?? 0, done: true, result, ...(result.started ? {} : { problems: result.problems }) })
@@ -152,15 +202,18 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     try { check = await selfCheck(dir, scoreless ? { connector: null, scoreless: true } : { connector: probed }) } finally { starting = null }
     if (!check.ok) {
       lastProblems = check.problems
+      failedAt = { libraryId, dir, at: now().toISOString(), problems: check.problems }
       log(`pipeline: self-check failed${libraryId ? ` (${libraryId})` : ''}: ${JSON.stringify(check.problems)}`)
       progress({ roundId, libraryId, cap, phase: 'done', counts: null, calls: 0, done: true, result: null, problems: check.problems })
       return { started: false, problems: check.problems }
     }
     lastProblems = null
+    if (failedAt?.dir === dir) failedAt = null
     const controller = new AbortController()
     running = { roundId, libraryId, controller, cap, startedAt: now().toISOString() }
-    // runRound runs the self-check again: its probe is the one just made, not a second call
-    const connector = scoreless ? null : withFirstProbe(a.connector, { ok: true, latencyMs: check.probe?.latencyMs ?? 0, model: check.probe?.model, usage: { calls: 0 } })
+    // runRound runs the self-check again: its probe is the one just made, not a second call. Redesign R2: it answers with that
+    // probe's calls, so the run record's 运行前自检 is the call the usage file has (the probe through `probed` above)
+    const connector = scoreless ? null : withFirstProbe(a.connector, { ok: true, latencyMs: check.probe?.latencyMs ?? 0, model: check.probe?.model, usage: { calls: check.probe?.calls ?? 1 } })
     void runInBackground({ dir, libraryId, roundId, connector, cap, controller, scoreless })
     return { started: true, roundId }
   }
@@ -179,11 +232,15 @@ export function createPipelineService({ library, connections, emit, log, hidden 
         // plan C8: the page shows 「连续 N 轮没有产出」 from this many (numbers.noOutputStreak); the threshold is the core's
         noOutputRounds: NO_OUTPUT_ROUNDS,
         lastRound: listRounds(dir, 1)[0] ?? null,
+        // redesign R2 (N10): the last run as one funnel, and what became of its items
+        lastRun: lastRunOf(dir),
+        // redesign R2 (P08): the items fetched and not scored yet (waiting at a step of the pipeline) — 「有 n 条内容已抓取、尚未评分」
+        toScore: toScoreOf(dir),
         roundState: roundState(),
-        recentKept: kept.slice(0, 3).map(e => ({ id: e.id, title: e.title, source_name: e.source_name ?? null, date: e.date, kept: e.kept ?? null })),
+        recentKept: kept.slice(0, 5).map(e => ({ id: e.id, title: e.title, source: e.source ?? null, source_name: e.source_name ?? null, date: e.date, kept: e.kept ?? null })),
         connection: connectionView(),
         nextRun: schedule()?.nextRunAt ?? null,
-        problem: p ? { code: p.code, connectionCode: p.connectionCode ?? null, kind: a?.kind ?? null, caughtKept: numbers.caught } : null,
+        problem: p ? { code: p.code, connectionCode: p.connectionCode ?? null, kind: a?.kind ?? null, caughtKept: numbers.caught, at: failedAt?.at ?? null } : null,
       }
     },
     estimateRound() {
@@ -215,28 +272,82 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       library.require()
       return roundState()
     },
+    /**
+     * Redesign R2: { items, later, rejected: { total, items }, manual, held, recentDismissReasons } — `items` the cards to
+     * decide (not put aside, not held), `later` the ones put aside, `rejected` 未通过筛选 (at most 50, newest first), `manual`
+     * the links added by hand still 待评分, `held` the 放弃 waiting for its bar ({ url, title } or null).
+     */
     getInbox() {
       const dir = library.require()
-      return { items: listInbox(dir, { now }), recentDismissReasons: recentDismissReasons(dir) }
+      if (held && held.dir !== dir) settlePending('another library is open')
+      const all = listInbox(dir, { now })
+      const h = held && held.dir === dir ? held : null
+      return {
+        items: all.filter(i => !i.later && i.url !== h?.url),
+        later: all.filter(i => i.later && i.url !== h?.url),
+        rejected: listRejected(dir, { limit: 50 }),
+        manual: listManualWaiting(dir),
+        held: h ? { url: h.url, title: h.title } : null,
+        recentDismissReasons: recentDismissReasons(dir),
+      }
     },
     keepItem(url) {
       const dir = library.require()
       if (!inboxUrls(dir).has(url)) throw new BridgeError('bad_arguments', 'not in the inbox')
+      settleBefore(dir, url, 'the next decision')
+      if (held?.url === url) held = null
       const r = keep(dir, url, { now })
       emit('inbox-changed', { libraryId: library.current()?.libraryId ?? null, count: inboxCount(dir) })
       emit('library-changed', library.current())
       return { id: r.id, file: r.file }
     },
-    dismissItem(url, reason) {
+    /** Redesign R2 (N03): 放弃 — the card off the list now, held until its bar closes (one at a time: the one before is written). */
+    dismissItem(url) {
       const dir = library.require()
       if (!inboxUrls(dir).has(url)) throw new BridgeError('bad_arguments', 'not in the inbox')
-      const r = dismiss(dir, url, reason, { now })
-      emit('inbox-changed', { libraryId: library.current()?.libraryId ?? null, count: inboxCount(dir) })
-      return { url: r.url }
+      if (held?.dir === dir && held.url === url) return { url, held: true }
+      settleBefore(dir, url, 'the next decision')
+      const item = listInbox(dir, { now }).find(i => i.url === url)
+      held = { dir, libraryId: library.current()?.libraryId ?? null, url, title: item?.title ?? '' }
+      log(`pipeline: dismissal of ${url} held until its bar closes`)
+      emit('inbox-changed', { libraryId: held.libraryId, count: inboxCount(dir) })
+      return { url, held: true }
+    },
+    /** The bar closed: the held 放弃 into the ledger, with the reason chosen (words, a quick id) or none. */
+    settleDismiss(reason, quick) {
+      library.require()
+      const r = settlePending('the bar closed', { reason, quick })
+      return r ? { settled: true, url: r.url } : { settled: false }
+    },
+    /** 撤销: the held 放弃 dropped — nothing is written, the card is back where it was. */
+    undoDismiss() {
+      library.require()
+      const h = held
+      if (!h) return { undone: false }
+      held = null
+      log(`pipeline: dismissal of ${h.url} undone, nothing written`)
+      emit('inbox-changed', { libraryId: h.libraryId, count: inboxCount(h.dir) })
+      return { undone: true, url: h.url }
     },
     laterItem(url) {
       const dir = library.require()
-      return { url: later(dir, url).url }
+      settleBefore(dir, url, 'the next decision')
+      if (held?.url === url) held = null
+      const r = later(dir, url, { now })
+      if (r.stage === 'inbox') emit('inbox-changed', { libraryId: library.current()?.libraryId ?? null, count: inboxCount(dir) })
+      return { url: r.url }
+    },
+    /** Redesign R2 (N02): 移入待看 — an item below a gate into 待看 as it is (the core's moveToInbox: never the note folder). */
+    moveToInbox(url) {
+      const dir = library.require()
+      settleBefore(dir, url, 'the next decision')
+      try { moveToInbox(dir, url, { now }) } catch (err) {
+        if (err?.code === 'not-rejected') throw new BridgeError('bad_arguments', 'not an item that did not pass')
+        throw err
+      }
+      log(`pipeline: ${url} moved into the inbox from the filtered-out list`)
+      emit('inbox-changed', { libraryId: library.current()?.libraryId ?? null, count: inboxCount(dir) })
+      return { url }
     },
     async openItemUrl(url) {
       const dir = library.require()
@@ -327,5 +438,26 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     return { roundId: r.roundId, libraryId: r.libraryId ?? null, phase: running ? (p?.phase ?? 'fetch') : 'self-check', calls: p?.calls ?? 0, cap: r.cap ?? p?.cap ?? null, startedAt: r.startedAt }
   }
 
-  return { handlers, roundState, startRoundIn, current, isRunning: () => Boolean(running), runningLibrary: () => running?.libraryId ?? starting?.libraryId ?? null }
+  /** Redesign R2: how many items wait at a step of the pipeline (the core's queue, rebuilt from the ledger). */
+  function toScoreOf(dir) {
+    try { const q = buildQueue(dir, pipelineConfig(dir)); return Object.values(q.byNode).reduce((n, l) => n + l.length, 0) + q.summary.length } catch { return 0 }
+  }
+
+  /** Redesign R2: getHome's lastRun — the funnel of the newest run record (or of a failed self-check newer than it), its outcome. */
+  function lastRunOf(dir) {
+    const rec = listRounds(dir, 1)[0] ?? null
+    const failed = failedAt && failedAt.dir === dir && (!rec || String(failedAt.at) > String(rec.startedAt ?? '')) ? failedAt : null
+    if (failed) {
+      const gates = gateNodes(pipelineConfig(dir)).map(g => g.id)
+      return { funnel: failedStart({ at: failed.at, problems: failed.problems, gates }), outcome: null }
+    }
+    if (!rec) return null
+    return { funnel: runFunnel(rec), outcome: roundOutcome(dir, rec.id) }
+  }
+
+  return {
+    handlers, roundState, startRoundIn, current, isRunning: () => Boolean(running), runningLibrary: () => running?.libraryId ?? starting?.libraryId ?? null,
+    // redesign R2: the held 放弃 written now (main.mjs: before-quit, another library opened); what it is, for 「n 条待看」
+    settlePending, held: () => (held ? { dir: held.dir, url: held.url } : null),
+  }
 }

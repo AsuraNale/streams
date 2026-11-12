@@ -9,6 +9,8 @@
    4. A library's page: the head, the tabs (streams.css st-libtabs), the banner of a run that could not start, the screen.
    5. Small parts the template has no class for: the library's mark in the sidebar line, the run button's error line, the
       screen's own line under the library's tabs, the theme chips' radio, the cards of 待确认, the 文件 tab's rows.
+   6. Redesign R2 — 待看 on the template's parts (screens/inbox.js, run-funnel.js, run-steps.js, problem-card.js): the list head,
+      the current card, the marks, the bar after 放弃, the funnel's labels, the banner's rows.
    Colours: only the template's variables. */
 
 /* 1 */
@@ -62,4 +64,45 @@
 .st-rp-tree__leaf { display: flex; align-items: center; gap: 4px; }
 .st-rp-tree__leaf .file-row { flex: 1; min-width: 0; }
 .st-rp-reveal .btn, .st-rp-tree__records .btn { width: 100%; margin-top: 14px; }
-.st-last-run .today-numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* 6 */
+.inbox-body .thread { padding-bottom: 28px; }
+.st-inbox-head { gap: 12px; }
+.st-inbox-head > span:first-child { min-width: 0; }
+.st-inbox-head b { font-weight: 650; }
+.st-inbox-head__end { display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+.st-inbox-head__end small { font-size: 10px; }
+.st-card { outline: none; }
+/* the current card: the template turns every card's outline off with a theme-scoped rule, so this one is stated more specifically */
+.st-card.st-card.st-current.st-current.st-current { outline: 2px solid var(--accent11); outline-offset: -1px; }
+.st-card .confirm-title { min-width: 0; }
+.st-card .confirm-title h2 { margin: 0; line-height: 1.45; }
+.st-card__title { color: inherit; text-decoration: none; }
+.st-card__title:hover { text-decoration: underline; }
+.st-card__marks { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 46%; }
+.st-mark { white-space: nowrap; }
+.st-mark .dot { margin-right: 5px; }
+.st-card .confirm-footer .row { display: flex; gap: 8px; }
+.st-bar { display: grid; gap: 8px; }
+.st-bar .filters { margin: 0; }
+.st-bar .filter { cursor: pointer; font-size: 11px; }
+.st-bar__other { display: flex; gap: 8px; align-items: center; }
+.st-bar__input { flex: 1; min-width: 0; font: inherit; padding: 5px 8px; border: 1px solid var(--rule11); border-radius: 6px; background: var(--paper); color: var(--ink11); }
+.st-bar__end { display: flex; justify-content: flex-end; gap: 6px; }
+.st-manual .file-row { align-items: center; }
+.st-manual .file-text { min-width: 0; overflow-wrap: anywhere; }
+.inbox-body .phase-row { margin-top: 14px; }
+.inbox-body .file-row .btn { flex: none; }
+.st-funnel { margin-top: 18px; }
+.st-funnel .chart-row > span { width: 104px; }
+.st-funnel .chart-row > b { min-width: 18px; }
+.st-funnel__stop > b { font-weight: 650; }
+.st-funnel__why { padding-bottom: 0; }
+.st-run-steps { margin-top: 18px; }
+.st-run-steps .section-label button { display: inline-flex; align-items: center; gap: 4px; }
+.today-problem { display: grid; gap: 8px; }
+.today-problem__text { font-weight: 650; }
+.today-problem__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.today-problem__note { font-size: 11px; }
+.st-rp-pane .st-funnel { margin-top: 4px; }
+.st-rp-pane [data-action="panel-stop"] .btn { margin-top: 10px; }

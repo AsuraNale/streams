@@ -67,7 +67,8 @@ test('立即运行: the run starts at once — no dialog; the button is the stat
   await runState('idle')
   assert.equal(await s.page.evaluate(() => window.__dialogs), 0, 'no dialog at any point')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="problem"]')), null, 'no 「not started」 card after a run that started')
-  await s.page.waitForFunction(id => document.querySelector('[data-part="last-run"] [data-part="round"]')?.dataset.round === id, rounds()[0].id, POLL)
+  // redesign R2: the panel's last run is the funnel, its round id on [data-part="last-run"] itself (was the R1 part's [data-part="round"])
+  await s.page.waitForFunction(id => document.querySelector('[data-part="right-panel"] [data-part="last-run"]')?.dataset.round === id, rounds()[0].id, POLL)
 })
 
 test('运行中 · 停止: a run caught while it runs (a held feed); the click stops it and the button is 「立即运行」 again', async () => {

@@ -11,12 +11,9 @@
 @import url('./screens/placeholder.css');
 @import url('./screens/settings.css');
 @import url('./screens/first-run.css');
-@import url('./screens/last-run.css');
-@import url('./screens/inbox.css');
 @import url('./screens/library.css');
 @import url('./screens/sources.css');
 @import url('./screens/pipeline.css');
-@import url('./screens/status.css');
 @import url('./screens/ask.css');
 @import url('./screens/graph.css');
 @import url('./screens/shell.css');
