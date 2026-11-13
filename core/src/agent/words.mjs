@@ -2,6 +2,8 @@
 // docs/design/redesign/source/05-措辞规范.md 统一用词 「这样写」, 规则 2 / 6 / 8 / 9 / 10).
 //
 // UI_TERMS            the 统一用词 table's 「这样写」 column, [concept, Chinese, English] — the system prompt lists it
+// NOT_IN_LIBRARY      redesign R6a (V9): 问库's answer when the library has nothing on the question, { zh, en } — the page's
+//                     sentence word for word (desktop texts/ask.js, texts-en/ask.js; tests/acceptance v09 compares), in UI_TERMS too
 // BUTTONS             the words on a proposal's buttons, { id: { zh, en } } (strictness: with the level, {level})
 // STATE_WORDS         the five fetch states (and paused / never fetched) as the page says them now — the desktop's
 //                     dictionaries' FETCH_STATES (R6 changes those words; until then these are the same: desktop test)
@@ -24,6 +26,9 @@
 // Nothing here is a raw error or an internal code: what the model gets is a state and what to do about it.
 import { HINTS } from '../fetch/states.mjs';
 
+/** Redesign R6a (V9): 问库's answer to a question the library has nothing on, as the page says it (zh · en). */
+export const NOT_IN_LIBRARY = Object.freeze({ zh: '库内暂无相关内容。', en: 'Nothing in this library on that.' });
+
 export const UI_TERMS = Object.freeze([
   ['one whole fetch → score → summary of a library', '运行（立即运行、运行中、上次运行、本次运行、单次运行上限）', 'run (Run now, running, last run, this run, per-run cap)'],
   ['the model giving an item a score', '评分（待评分、重新评分）', 'scoring (awaiting scoring, re-score)'],
@@ -45,6 +50,9 @@ export const UI_TERMS = Object.freeze([
   ['what passed and waits for the user', '待看', 'inbox (to review)'],
   ['the list of everything to agree to', '待确认', 'to confirm'],
   ['a library\'s sources and brief page', '来源与要求', 'sources and brief'],
+  // redesign R6a (维护者 11-11 第 1 条, V9): what 问库 answers when the library has nothing on the question — the sentence on
+  // the page (desktop texts/ask.js answer.notInLibrary, texts-en the English one), so the main agent says the same
+  ['what 问库 says when the library has nothing on the question', NOT_IN_LIBRARY.zh, NOT_IN_LIBRARY.en],
 ]);
 
 export const BUTTONS = Object.freeze({

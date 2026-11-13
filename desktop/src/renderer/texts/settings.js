@@ -131,6 +131,8 @@ export const SETTINGS = Object.freeze({
     title: '许可证与致谢',
     own: '流息本身 · {license}',
     font: '界面字体 · {name}（{license}）',
+    // redesign R6a (P19): the heading font of 研究对话, shipped with the app
+    displayFont: '标题字体 · {name}（{license}）',
     fontText: '查看字体许可证全文',
     components: '随附的第三方组件',
     name: '名称',

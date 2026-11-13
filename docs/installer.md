@@ -116,12 +116,13 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 
 ## 五、怎么测（`installer/test/`）
 
-`node --test --test-concurrency=1 "installer/test/*.test.mjs"`，构建之后跑。八个测试文件、六个共用模块（v2 包 N 加了 `uninstall-ui.test.mjs` 与 `dialogs.mjs`）：
+`node --test --test-concurrency=1 "installer/test/*.test.mjs"`，构建之后跑。九个测试文件、六个共用模块（v2 包 N 加了 `uninstall-ui.test.mjs` 与 `dialogs.mjs`；重设计 R6a 加了不用构建的 `fonts.test.mjs`。R6a 没有重打安装包、没有跑会安装的测试，`packaged.test.mjs` 里 Noto Serif SC 的断言是 R6b 重打后第一次跑）：
 
 | 文件 | 核什么 | 会安装吗 |
 |---|---|---|
 | `packaged.test.mjs` | 真安装包：装、用例 A、退出、卸载（下表） | 是（流息的身份） |
 | `upgrade.test.mjs` | 真更新：装 0.9.0（v1.0 的应用）、应用里检查 → 下载 → 更新到 1.0.0（当前构建）；v1.0 的数据被 v2 迁移（§七） | 是（流息的身份） |
+| `fonts.test.mjs` | 重设计 R6a：随包字体的规则与通知的第 6 节，**不用先构建**（`node --test installer/test/fonts.test.mjs` 可单独跑）：`installer/fonts.mjs` 列的两款字体（界面字体 Noto Sans SC、研究对话主题的标题字体 Noto Serif SC）各带许可证文件；构建对应用文件的要求（工作区四个文件缺一不可，字体缺许可证 / 许可证缺字体 / 清单外的字体文件都停；旧提交的应用可以只有界面字体或没有字体）；`THIRD-PARTY-NOTICES.txt` 里每个字体文件一行带 sha256、每款字的 OFL 全文；反向：缺许可证、清单外字体、只有界面字体、没有字体 | 否 |
 | `stage-check.test.mjs` | 构建的 stage 核对函数与扫描在 stage 的副本上：原样通过；删掉核心的一个文件、删掉整个核心、放进测试文件 / fixtures / 开发脚本、放一个链接、放本机用户路径 / key / 提交邮箱，各自被报出 | 否 |
 | `install-delete.test.mjs` | 更新时的清理 `[InstallDelete]`：真的 `streams.iss` 与真的清单生成器，对着六个文件的小 stage 编译，用**测试自己的身份**真装三次（第一次装不删；装在自己的旧版上删旧版文件、留用户的文件；装进别人的文件夹不删） | 是（测试身份） |
 | `uninstall-entry.test.mjs` | 更新后卸载项的版本号：9.0.0 → 9.0.1 → 9.1.0（其中一个故意不写卸载项）依次覆盖，卸载项总是最后那一版；另一个文件夹的不碰 | 是（测试身份） |

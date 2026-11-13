@@ -4,14 +4,15 @@
 // (scripts/lib/mirror.mjs). The originals are never edited — the files the mutants edit are hashed before and after.
 //   npm run mutants                       all of them
 //   npm run mutants -- no-node d2-unc      some, by id
-// An edit is [file, text or RegExp (must match exactly once), replacement]; a RegExp edit is read from the file as
+// An edit is [file, text or RegExp (must match exactly once), replacement] — the file relative to desktop/ ('../tests/acceptance/…'
+// is the mirror's copy of the acceptance tests, redesign R6a; never a path into a linked folder: core, installer, wording); a RegExp edit is read from the file as
 // it is now (e.g. the METHODS line), its replacement may use $1.
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { makeMirror } from './lib/mirror.mjs'
-import { DESKTOP_DIR } from './lib/paths.mjs'
+import { DESKTOP_DIR, REPO_DIR } from './lib/paths.mjs'
 import { removeTree } from './lib/remove-tree.mjs'
 import { tempDir } from './lib/temp.mjs'
 
@@ -544,6 +545,136 @@ const MUTANTS = [
     edits: [['assets/icon/icon-16.svg', 'fill="#000000"', 'fill="#000001"']],
     test: ['test/icon.test.mjs', '--test-name-pattern=byte for byte'],
   },
+  // redesign R6a (docs/checks/2026-11-13-r6a/contract.md 「测」): the serif font, the four standards' sentences and the words that
+  // follow them, the shelf's selected card — each test runs on its own (test/r6a.test.mjs, test/ui-r6a.test.mjs: every test sets
+  // what it needs; the acceptance tests V6 / V8 / V9 / V10 run from the mirror's copy of tests/acceptance on the mirror's desktop/)
+  {
+    id: 'r6a-font-family',
+    what: 'the face is declared under a name the template does not ask for (Noto Serif SCx): 研究对话\'s headings fall to whatever the machine has',
+    edits: [['src/renderer/styles/base.css', "@font-face { font-family: 'Noto Serif SC';", "@font-face { font-family: 'Noto Serif SCx';"]],
+    test: ['test/ui-r6a.test.mjs', '--test-name-pattern=R6a-1 研究对话'],
+  },
+  {
+    id: 'r6a-font-file',
+    what: 'the face points at a file that is not there (the font moved away)',
+    edits: [['src/renderer/styles/base.css', "src: url('../fonts/NotoSerifSC-VF.ttf')", "src: url('../fonts/NotoSerifSC-VF-moved.ttf')"]],
+    test: ['test/ui-r6a.test.mjs', '--test-name-pattern=R6a-1 研究对话'],
+  },
+  {
+    id: 'r6a-font-face-plain',
+    what: 'the face in base.css names another file of the folder (the interface font under the serif\'s name)',
+    edits: [['src/renderer/styles/base.css', "src: url('../fonts/NotoSerifSC-VF.ttf')", "src: url('../fonts/NotoSansSC-VF.ttf')"]],
+    test: ['test/r6a.test.mjs', '--test-name-pattern=R6a-1 styles/base.css'],
+  },
+  {
+    id: 'r6a-licenses-no-row',
+    what: 'the license page\'s data has no row for Noto Serif SC',
+    edits: [['src/main/licenses.mjs', '    { name: DISPLAY_FONT.name, version: fontVersion(readFileSync(join(desktopDir, ...DISPLAY_FONT.file))), license: DISPLAY_FONT.license },\n', '']],
+    test: ['test/r6a.test.mjs', '--test-name-pattern=R6a-1 the license page'],
+  },
+  {
+    id: 'r6a-licenses-other-text',
+    what: 'the heading font\'s license text on the license page is the interface font\'s file',
+    edits: [['src/main/licenses.mjs', "text: readFileSync(join(desktopDir, ...DISPLAY_FONT.licenseFile), 'utf8') },", "text: readFileSync(join(desktopDir, ...FONT.licenseFile), 'utf8') },"]],
+    test: ['test/r6a.test.mjs', '--test-name-pattern=R6a-1 the license page'],
+  },
+  {
+    id: 'r6a-licenses-no-line',
+    what: '许可证与致谢 has no 「标题字体 · Noto Serif SC」 line',
+    edits: [['src/renderer/screens/settings.js', '${d.displayFont ? html`<section class="readable" data-part="display-font"', '${d.displayFont === 0 ? html`<section class="readable" data-part="display-font"']],
+    // the whole file: the dialog is opened by its first test
+    test: ['test/ui-licenses.test.mjs'],
+  },
+  {
+    id: 'r6a-standard-v6-old',
+    what: 'standards.mjs: V6 is the sentence before the maintainer\'s 11-11 change again',
+    edits: [['../tests/acceptance/standards.mjs', '登录过期时，本次运行不开始，库页顶上的横幅说明，已抓取的条目完整保留', '登录过期时，当轮不开始，首页横幅说明，抓到的条目完整保留']],
+    test: ['test/r6a.test.mjs', '--test-name-pattern=R6a-2 standards'],
+  },
+  {
+    id: 'r6a-standard-v9-char',
+    what: 'standards.mjs: V9\'s sentence one character off (no 。 inside the quotes)',
+    edits: [['../tests/acceptance/standards.mjs', '库里没有的问题得到「库内暂无相关内容。」', '库里没有的问题得到「库内暂无相关内容」']],
+    test: ['test/r6a.test.mjs', '--test-name-pattern=R6a-2 standards'],
+  },
+  {
+    id: 'r6a-standard-v3-touched',
+    what: 'standards.mjs: V3\'s standard, which the maintainer left as it was, changed',
+    edits: [['../tests/acceptance/standards.mjs', '五种抓取状态各能触发，且界面文案和「怎么办」对应正确', '五种抓取状态各能触发，界面文案和「怎么办」对应正确']],
+    test: ['test/r6a.test.mjs', '--test-name-pattern=R6a-2 standards'],
+  },
+  {
+    id: 'r6a-standard-how-touched',
+    what: 'standards.mjs: a `how` changed (V10\'s)',
+    edits: [['../tests/acceptance/standards.mjs', "    how: '假连接器计数' },", "    how: '假连接器计数，界面核对' },"]],
+    test: ['test/r6a.test.mjs', '--test-name-pattern=R6a-2 standards'],
+  },
+  {
+    id: 'r6a-v6-old-banner',
+    what: 'the banner\'s sentence before R6a is back (登录过期，这一轮没有打分。抓到的 n 条都在，没丢。)',
+    edits: [['src/renderer/texts/today.js', "      'login-expired': '{name} 登录已过期，本次运行未开始。已抓取的 {n} 条内容已保留。',", "      'login-expired': '{name} 登录过期，这一轮没有打分。抓到的 {n} 条都在，没丢。',"]],
+    test: ['../tests/acceptance/v06-login-expired.test.mjs', '--test-name-pattern=the banner on top of the library'],
+  },
+  {
+    id: 'r6a-v6-banner-below',
+    what: 'the banner is under the tab\'s screen, not on top of the library\'s page',
+    edits: [
+      ['src/renderer/screens/library-frame.js', "      ${problem ? html`<div class=\"st-banner\"><${ProblemCard} problem=${problem} busy=${busy} onRetry=${retry} onChange=${() => navigate('settings')} onRedetect=${redetect} /></div>` : null}\n", ''],
+      ['src/renderer/screens/library-frame.js', '        <${Main} inner screen=${screen} state=${state} label=${label} labelledby=${labelledby}>${children}<//>\n      </div>\n', "        <${Main} inner screen=${screen} state=${state} label=${label} labelledby=${labelledby}>${children}<//>\n      </div>\n      ${problem ? html`<div class=\"st-banner\"><${ProblemCard} problem=${problem} busy=${busy} onRetry=${retry} onChange=${() => navigate('settings')} onRedetect=${redetect} /></div>` : null}\n"],
+    ],
+    test: ['../tests/acceptance/v06-login-expired.test.mjs', '--test-name-pattern=the banner on top of the library'],
+  },
+  {
+    id: 'r6a-v8-old-word',
+    what: '缺少文件头 is 待规范 again on 资料库\'s line and on the page it opens',
+    edits: [
+      ['src/renderer/texts/library.js', "    hint: '{n} 个文件缺少文件头，尚未入库。',", "    hint: '{n} 个文件待规范，尚未入库。',"],
+      ['src/renderer/texts/library.js', "    heading: '{n} 个文件缺少文件头',", "    heading: '待规范 · {n} 个文件',"],
+    ],
+    test: ['../tests/acceptance/v08-bad-note-quarantined.test.mjs', '--test-name-pattern=the page it opens say 缺少文件头'],
+  },
+  {
+    id: 'r6a-v9-old-sentence',
+    what: '问库 answers 「库里没有。」 again',
+    edits: [['src/renderer/texts/ask.js', "    notInLibrary: '库内暂无相关内容。',", "    notInLibrary: '库里没有。',"]],
+    test: ['../tests/acceptance/v09-ask-citations.test.mjs', '--test-name-pattern=the sentence'],
+  },
+  {
+    id: 'r6a-v9-english',
+    what: 'the English dictionary keeps its old answer (not the core\'s English of the sentence)',
+    edits: [['src/renderer/texts-en/ask.js', "    notInLibrary: 'Nothing in this library on that.',", "    notInLibrary: 'Not in the library.',"]],
+    test: ['../tests/acceptance/v09-ask-citations.test.mjs', '--test-name-pattern=V9 the sentence'],
+  },
+  {
+    id: 'r6a-v10-per-round',
+    what: 'the cap\'s words are 每轮 / 下一轮 again where a run that stopped at it says why',
+    edits: [['src/renderer/texts/run.js', "    cap: '达到单次运行上限，剩余内容留待下次运行',", "    cap: '达到每轮上限，剩余条目下一轮接着跑',"]],
+    test: ['../tests/acceptance/v10-round-cap.test.mjs', '--test-name-pattern=V10 the words|the cap typed as 5'],
+  },
+  {
+    id: 'r6a-v10-agent-per-round',
+    what: 'the main agent\'s card says 每轮上限 again (another text table)',
+    edits: [['src/renderer/texts/agent.js', "      cap: '改单次运行上限',", "      cap: '改每轮上限',"]],
+    test: ['../tests/acceptance/v10-round-cap.test.mjs', '--test-name-pattern=V10 the words'],
+  },
+  {
+    id: 'r6a-shelf-hover',
+    what: 'the app\'s rule for the shelf\'s card under the pointer is gone (round 9\'s light surface under round 11\'s dark ink)',
+    edits: [['src/renderer/styles/template-app.css', '.r11.r11.r11.r11 .project-tile:hover { color: var(--ink11); background: var(--pick); box-shadow: var(--float11); transform: none; }\n.r12-line.r11.r11.r11.r11 .project-tile:hover { background: var(--well); box-shadow: inset 4px 0 var(--ink11); }\n', '']],
+    test: ['test/ui-r6a.test.mjs', '--test-name-pattern=R6a-3'],
+  },
+  {
+    id: 'r6a-shelf-monoline-pick',
+    what: '单线黑白\'s card under the pointer takes --pick like the other themes (there --pick is the ink: text on its own colour)',
+    edits: [['src/renderer/styles/template-app.css', '.r12-line.r11.r11.r11.r11 .project-tile:hover { background: var(--well); box-shadow: inset 4px 0 var(--ink11); }\n', '']],
+    test: ['test/ui-r6a.test.mjs', '--test-name-pattern=R6a-3 monoline'],
+  },
+  {
+    id: 'r6a-shelf-monoline-bar',
+    what: '单线黑白\'s card under the pointer has only --well, no bar of ink at its edge (in the dark set --well is close to the resting card: the selected one is hard to tell from its neighbours)',
+    edits: [['src/renderer/styles/template-app.css', '.r12-line.r11.r11.r11.r11 .project-tile:hover { background: var(--well); box-shadow: inset 4px 0 var(--ink11); }\n', '.r12-line.r11.r11.r11.r11 .project-tile:hover { background: var(--well); }\n']],
+    test: ['test/ui-r6a.test.mjs', '--test-name-pattern=R6a-3 monoline'],
+  },
   // redesign R5a (docs/checks/2026-11-12-r5a/contract.md 「测」: each 反向 named there, and a few more)
   {
     id: 'r5a-no-event',
@@ -689,7 +820,9 @@ const MUTANTS = [
 function runTest(desktop, test) {
   // node's own options (the name pattern) before the file: after it they would be arguments of the test file
   const r = spawnSync(process.execPath, ['--test', '--test-concurrency=1', '--test-reporter=tap', ...test.slice(1), test[0]], {
-    cwd: desktop, encoding: 'utf8', maxBuffer: 64 << 20, env: process.env,
+    // redesign R6a: a mirror is not a git repository — STREAMS_MIRROR_OF names the one it mirrors (test/r6a.test.mjs reads
+    // standards.mjs as it was before R6a from there)
+    cwd: desktop, encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, STREAMS_MIRROR_OF: REPO_DIR },
   })
   const failed = [...r.stdout.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map(m => m[1])
   const passed = [...r.stdout.matchAll(/^\s*ok \d+ - (.+)$/gm)].map(m => m[1])

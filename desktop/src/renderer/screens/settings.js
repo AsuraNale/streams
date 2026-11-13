@@ -326,7 +326,9 @@ function AppearancePart({ appearance, failed, onChange }) {
 
 /**
  * 许可证与致谢 (P19, V11): the template's dialog — 流息本身 · MIT (its license in full), 界面字体 · Noto Sans SC（SIL Open Font License 1.1）
- * (its license, folded), 随附的第三方组件 (name, version, license), 查看完整第三方声明, 关闭. (P19's 标题字体 line comes with R6's font.)
+ * (its license, folded), 标题字体 · Noto Serif SC（SIL Open Font License 1.1） (redesign R6a: the heading font of 研究对话, its license folded
+ * the same way; it also has its row in the table, with the version of the font file), 随附的第三方组件 (name, version, license),
+ * 查看完整第三方声明, 关闭.
  */
 function LicensesDialog({ onClose }) {
   const lic = useLoad(() => call('getLicenses'), [])
@@ -337,7 +339,10 @@ function LicensesDialog({ onClose }) {
     setFailed(false)
     try { await call('openNotices') } catch { setFailed(true) }
   }
+  // the interface font is its own line (R4b), not a row; redesign R6a: the heading font has its line too and keeps its row
+  // 「Noto Serif SC · <version> · OFL-1.1」, the version read from the font file that ships
   const components = d ? d.components.filter(c => !d.font || c.name !== d.font.name) : []
+  const oflName = license => (license === 'OFL-1.1' ? 'SIL Open Font License 1.1' : license)
   const footer = d ? html`<span data-part="notices" data-available=${String(d.notices.available === true)} class="st-tdialog__notices">
       <${Btn} name="open-notices" disabled=${d.notices.available !== true} onClick=${open}>${L.notices}<//>
       ${d.notices.available !== true ? html`<small data-notices-why>${L.noticesNone}</small>` : null}
@@ -353,8 +358,12 @@ function LicensesDialog({ onClose }) {
         <p data-part="licenses-made-by"><button type="button" class="st-link" onClick=${() => call('openMakerPage').catch(() => {})}>${T.madeBy}</button></p>
       </section>
       ${d.font ? html`<section class="readable" data-part="font" data-license=${d.font.license}>
-        <p><b>${fmt(L.font, { name: d.font.name, license: d.font.license === 'OFL-1.1' ? 'SIL Open Font License 1.1' : d.font.license })}</b></p>
+        <p><b>${fmt(L.font, { name: d.font.name, license: oflName(d.font.license) })}</b></p>
         <details><summary>${L.fontText}</summary><pre class="st-license-text" data-part="font-license-text" tabindex="0">${d.font.text}</pre></details>
+      </section>` : null}
+      ${d.displayFont ? html`<section class="readable" data-part="display-font" data-license=${d.displayFont.license} data-version=${d.components.find(c => c.name === d.displayFont.name)?.version ?? ''}>
+        <p><b>${fmt(L.displayFont, { name: d.displayFont.name, license: oflName(d.displayFont.license) })}</b></p>
+        <details><summary>${L.fontText}</summary><pre class="st-license-text" data-part="display-font-license-text" tabindex="0">${d.displayFont.text}</pre></details>
       </section>` : null}
       <div class="section-label"><span id="settings-components">${L.components}</span></div>
       <table class="st-log st-components" data-part="components" aria-labelledby="settings-components">

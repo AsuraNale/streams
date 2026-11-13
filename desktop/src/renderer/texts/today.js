@@ -3,23 +3,25 @@
 // did not pass: what happened, that the fetched items are kept, what to do, at most three buttons. (Was 今日's words, mockup
 // S13; the other parts of 今日 — the four numbers, the source and 「连续 N 轮」 banners, the last round — are gone: the funnel is
 // texts/run.js, the source and no-output findings are cards in the right panel's 待确认.)
-// The sentences keep the words V6's check reads (登录过期 · 这一轮没有打分 · 抓到的 n 条都在，没丢 · 去登录 · 重试打分): the
-// design's new sentence for V6 waits for 维护者 (05-措辞规范 last line; R6). The buttons are the design's.
+// Redesign R6a (维护者 11-11 第 1 条, V6: 「登录过期时，本次运行不开始，库页顶上的横幅说明，已抓取的条目完整保留」): every sentence says the
+// three things in the interface's words — what happened (登录已过期 …), 本次运行未开始 (the run did not start: the self-check stopped
+// it before anything was fetched or scored), 已抓取的 n 条内容已保留 — and the line under it is the design's (前往登录 · 已登录，重试).
+// The words v1.0's check read (这一轮没有打分 · 抓到的 n 条都在，没丢 · 去登录 · 重试打分) are gone. The buttons are the design's.
 
 export const TODAY = Object.freeze({
   problem: Object.freeze({
     connection: Object.freeze({
-      'login-expired': '{name} 登录过期，这一轮没有打分。抓到的 {n} 条都在，没丢。',
-      'not-logged-in': '{name} 还没登录，这一轮没有打分。抓到的 {n} 条都在，没丢。',
-      'not-installed': '{name}：没有找到它，这一轮没有打分。抓到的 {n} 条都在，没丢。',
-      'bad-key': 'API key 不对，这一轮没有打分。抓到的 {n} 条都在，没丢。',
-      network: '{name} 连不上，这一轮没有打分。抓到的 {n} 条都在，没丢。',
-      timeout: '{name} 等太久没回应，这一轮没有打分。抓到的 {n} 条都在，没丢。',
-      other: '{name} 出错了（{code}），这一轮没有打分。抓到的 {n} 条都在，没丢。',
-      none: '还没选连接方式，这一轮没有打分。抓到的 {n} 条都在，没丢。',
+      'login-expired': '{name} 登录已过期，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      'not-logged-in': '{name} 还没登录，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      'not-installed': '{name}：没有找到它，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      'bad-key': 'API key 不对，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      network: '{name} 连不上，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      timeout: '{name} 等太久没回应，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      other: '{name} 出错了，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      none: '还没选连接方式，本次运行未开始。已抓取的 {n} 条内容已保留。',
     }),
     fix: Object.freeze({
-      login: '请点击「前往登录」去登录，在打开的窗口中完成登录后，点击「已登录，重试」重试打分。',
+      login: '请点击「前往登录」，在打开的窗口中完成登录后，点击「已登录，重试」。',
       'not-installed': '装好它后点击「重试」，或更换连接方式。',
       'bad-key': '到设置中重新输入 API key，再点击「重试」。',
       network: '网络恢复后点击「重试」。',

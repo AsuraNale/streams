@@ -115,7 +115,7 @@ frame-ancestors 'none'
 | `setPanel(patch)` | **v2 包 L**：`{ open?: boolean, tab?: 'progress' \| 'decide' \| 'detail' \| 'files' }`，至少一个字段（别的 → `bad_arguments`） | `{ open, tab }`：写进 `settings.json` 的 `panel`（只改给的字段），下次启动右栏照旧；不发事件（页面自己用这个回答） | 右栏的收起 / 展开按钮、四个标签（§4.12） |
 | `copyDiagnostics()` | 无 | `{ ok: true }`；主进程把诊断信息写进剪贴板（不带 key；测试时写到 `logs\clipboard.txt`）；**重设计 R5a（O9）**：多一段「最近的原始报错」（`raw-errors.mjs`，最近 `RAW_ERRORS_MAX` = 50 条，§4.19），页面上不给的原文都在这里，仍不含 key | 设置页「复制诊断信息」 |
 | `openMakerPage()` | 无 | `null`；在用户的浏览器里打开 `https://starrydigital.ca`（地址写死在主进程 `app-services.mjs MAKER_URL`，页面不给地址；测试时只记日志） | 设置页「关于」的「由 Starry Digital 开发」（V11，维护者 11-02 定「链 starrydigital.ca」） |
-| `getLicenses()` | 无 | `{ own: { license: 'MIT', text }, components: [{ name, version, license }], notices: { available } }`：`text` 是流息 `LICENSE` 全文（装好的应用读 `resources\app\LICENSE`，构建把仓库根的 `LICENSE` 放在那里；开发时读仓库根那份）；`components` 依次是 Electron · Chromium · Node.js（版本取运行时 `process.versions`）、Preact · htm · @mozilla/readability（版本与许可证取应用里 `node_modules/<名>/package.json`；Readability 是阅读模式抽正文用的，v2 包 J1 加进表里）；`notices.available`：装好的应用安装目录里有 `THIRD-PARTY-NOTICES.txt` 时为真，开发时总为假（`app-services.mjs licensesView`） | 设置页「许可证与致谢」对话框 |
+| `getLicenses()` | 无 | `{ own: { license: 'MIT', text }, components: [{ name, version, license }], notices: { available } }`（另有 `font` 与，重设计 R6a 起，`displayFont`：各 `{ name, license, text }`，界面字体 Noto Sans SC 与标题字体 Noto Serif SC 的 OFL 全文；`components` 末尾有这两款字各一行，§4.21）：`text` 是流息 `LICENSE` 全文（装好的应用读 `resources\app\LICENSE`，构建把仓库根的 `LICENSE` 放在那里；开发时读仓库根那份）；`components` 依次是 Electron · Chromium · Node.js（版本取运行时 `process.versions`）、Preact · htm · @mozilla/readability（版本与许可证取应用里 `node_modules/<名>/package.json`；Readability 是阅读模式抽正文用的，v2 包 J1 加进表里）；`notices.available`：装好的应用安装目录里有 `THIRD-PARTY-NOTICES.txt` 时为真，开发时总为假（`app-services.mjs licensesView`） | 设置页「许可证与致谢」对话框 |
 | `openNotices()` | 无 | `null`；用系统的查看程序打开安装目录里的 `THIRD-PARTY-NOTICES.txt`（文件名写死在主进程，页面不给路径；测试时只记日志）；没有这个文件（开发时）→ `open_failed` | 许可证与致谢「打开完整的第三方声明」 |
 | `getUpdateState()` | 无 | 更新的数据：`{ state, current, dev, canUpdate, checkedAt, release, progress, reason, turnRunning }`（`state` 十二态之一：`idle` · `checking` · `up_to_date` · `available` · `manual` · `check_failed` · `downloading` · `download_failed` · `verify_failed` · `ready` · `launching` · `launch_failed`） | 设置页「关于」（`lib/use-update.js`） |
 | `checkForUpdate()` | 无 | 同上；向 GitHub 问一次最新版（`AsuraNale/streams` 的 releases/latest） | 设置页「检查更新」 |
@@ -748,7 +748,7 @@ frame-ancestors 'none'
 
 **输入 API key**（P18）：模板对话框 `api-key`：厂商（「选择预设…」+ 预设 + 自定义接口地址；没存过 key 时停在「选择预设…」，保存不可点）、接口地址（预设时只读）、key（`password`）、一句「API key 仅保存在本机的系统凭据保护中，不会写入任何库文件夹。费用按量计入对应账户。」、**删除 API key**（有 key 时）· 取消 · 保存。key 照旧只经 `setApiKey` 进主进程的 safeStorage（`secrets/key-<厂商>.bin`），页面只回末四位，不进日志、不进任何库文件夹（`test/security.test.mjs`、`ui-settings.test.mjs` 照旧）。
 
-**许可证与致谢**（P19，V11）：模板对话框 `licenses`：「流息本身 · MIT」+ 全文、「由 Starry Digital 开发」、「界面字体 · Noto Sans SC（SIL Open Font License 1.1）」（许可证全文收在「查看字体许可证全文」下）、「随附的第三方组件」表（名称 · 版本 · 许可证；字体不再重复列在表里）、**查看完整第三方声明**（开发版不可点并说明）· **关闭**。P19 的「标题字体 · Noto Serif SC」一条是 R6 随包字体时加，本包没有加。
+**许可证与致谢**（P19，V11）：模板对话框 `licenses`：「流息本身 · MIT」+ 全文、「由 Starry Digital 开发」、「界面字体 · Noto Sans SC（SIL Open Font License 1.1）」（许可证全文收在「查看字体许可证全文」下）、「随附的第三方组件」表（名称 · 版本 · 许可证；字体不再重复列在表里）、**查看完整第三方声明**（开发版不可点并说明）· **关闭**。P19 的「标题字体 · Noto Serif SC」一条 R6a 随字体加上了（§4.21）。
 
 **右栏「文件」**（`screens/right-panel.js FilesPane`；P14 右栏、P16）：`panel-summary`「文件 · 库的文件结构」、库名、路径；「在资源管理器中显示」；然后四个 `section-label` 头：**▾ 笔记（n）· 按主题**（展开是按主题分组的笔记，点一篇在资料库读，右键 /「更多」在 Obsidian 中打开 · 在资源管理器中显示）· **▸ 待看（n）· 尚未生成文件**（→ 待看）· **▸ 该库的来源与要求**（→ 来源与要求，从不打开 `streams.json`）· **▸ 程序记录（无需修改）**（默认收起，展开只有一句与「在资源管理器中显示」）。程序文件的名字一个都不显示（`ui-panel` 核）。
 
@@ -767,6 +767,59 @@ frame-ancestors 'none'
 - **为什么单色、跟主题**：定稿只有白底上的黑标与红蓝 3D 两种，**没有深色底版本**（`设计说明.md` 第六节「没做的」）。把黑标直接放进深色主题会看不见；红蓝 3D 在深底上也没设计过。单色记号用主题自己的墨色，四套主题 × 浅 / 深色都和正文一样清楚，而且不用写任何新颜色（覆盖层只用模板变量，`kit.test` 核）。红蓝 3D 只留在应用图标上——那里永远是白色圆角底，正是定稿画的样子。
 - 品牌词规矩（V7）不变：品牌那里只出现「流息 / Streams」。
 - **测试**：`test/ui-brand.test.mjs`（新）；`test/icon.test.mjs`（加：五个来源逐字节等于定稿；设了 `STREAMS_SHARP_DIR` 时重建不跳过）；`test/ui-first-run.test.mjs`（加：首次打开的左栏记号）；`test/ui-ask-r3.test.mjs`（加：问库头像是记号、单线黑白深色下也画出来）；`scripts/lib/mirror.mjs` 的镜像多链一个 `docs/design/logo/source`。变异（`npm run mutants -- "logo-*"`）：`logo-mark-black`（记号写死 #000 → 深色四条红）· `logo-weave-back`（左栏换回 weave）· `logo-path-changed`（路径一个数不同）· `logo-overlay-gone`（覆盖层那条规则没了 → 八条红）· `logo-avatar-weave`（头像换回 weave）· `logo-icon-source`（icon-16.svg 改一个字节）。截图：`node scripts/shots-logo.mjs` → `docs/shots/2026-11-12-logo/`。
+
+### 4.21 §四补：重设计 R6a——衬线字体随包、验收标准改字、库架被选中的卡（11-13）
+
+> 契约 `docs/checks/2026-11-13-r6a/contract.md`。维护者 11-13 把 R6 拆成两半，R6a 与 R5b 并行，在独立工作区（分支 `redesign-r6a`）做。这一节排在 4.19 前面只是为了不和 R5b 在同一处插入的那一节撞行，编号按先后是 4.21。
+
+**R6a-1 · Noto Serif SC 随包**（维护者 11-11「过目的」第 3 条）
+
+- **来源**：GitHub `notofonts/noto-cjk` 官方发布 **`Serif2.003`** 的附件 `03_NotoSerifCJK-TTF-VF.zip`（<https://github.com/notofonts/noto-cjk/releases/download/Serif2.003/03_NotoSerifCJK-TTF-VF.zip>，245,858,727 字节）里的 `Variable/TTF/Subset/NotoSerifSC-VF.ttf` 与随附的 `LICENSE`。只取了这两个条目（HTTP 分段请求读 zip 目录再读条目，约 15.5 MB；zip 目录的长度与 CRC-32 都核过），2026-11-13T17:39:37Z 取的。没有用 `C:\Windows\Fonts` 的那份，也没有用镜像。
+- **文件**：`desktop/src/renderer/fonts/NotoSerifSC-VF.ttf`（25,125,232 字节，sha256 `5326cfb097e3ab26fcb39329752b5c0a439bf8d5c4649520e4b492939c352a09`，文件头 `00 01 00 00`，名表 family `Noto Serif SC`、version 2.003，字重轴 200–900）与 `OFL-NotoSerifSC.txt`（4,301 字节，sha256 `6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2`，发布里的 `LICENSE` 原样，只换了文件名）。
+- **清单**（照 logo 的做法）：`docs/design/fonts/noto-serif-sc/`——`来源.md`、`source.json`（tag、地址、大小、取的时间、每个文件的条目名 / 字节 / CRC-32 / sha256 / family / version）、`source-sha256.txt`、`check-source.mjs`。`node docs/design/fonts/noto-serif-sc/check-source.mjs` 拿仓库里的两个文件对清单；加 `--release` 再联网把清单对回发布本身（重新分段读那两个条目，只进内存）。
+- **加载**：模板 `round9/research.css` 只写了族名（`--display-chinese: 'Noto Serif SC', 'SimSun'`），没有声明字体面，所以以前只有装了这款字的机器才是它，别的机器退到宋体。现在 `styles/base.css` 开头有一条 `@font-face { font-family: 'Noto Serif SC'; src: url('../fonts/NotoSerifSC-VF.ttf') format('truetype'); font-weight: 200 900; font-display: swap }`——族名就是模板写的那个，文件经 `app://ui/fonts/NotoSerifSC-VF.ttf` 读（`protocol.mjs` 本来就把 `.ttf` 发成 `font/ttf`，没有加别名）。`index.html` 没动，CSP 一个字没改（`font-src 'self'`）；模板文件没动。只有研究对话主题提到这个族名，别的主题不会去读这 25 MB。页面元素实际用的是这份随包字体（不是系统里装的同名字体），测试用 Chromium 的 `CSS.getPlatformFontsForNode` 核 `isCustomFont`。
+- **许可证页**：`licenses.mjs` 多一个 `DISPLAY_FONT`；`getLicenses()` 的 `components` 末尾多一行 `Noto Serif SC · 2.003 · OFL-1.1`（版本读字体文件自己的名表），多一个 `displayFont: { name, license, text }`（`OFL-NotoSerifSC.txt` 全文）。对话框里在「界面字体」那一行下面多一行「标题字体 · Noto Serif SC（SIL Open Font License 1.1）」（P19 的写法），许可证全文同样收在「查看字体许可证全文」下；部件表里它有自己的一行带版本（界面字体仍照 R4b 不在表里）。中英字典各加 `licenses.displayFont`。
+- **安装包**（本包没有重打安装包、没有跑安装测试，那是 R6b）：新文件 `installer/fonts.mjs`——随包的两款字体、各自的许可证文件名与在通知里的说法，以及构建对应用文件的要求 `fontFilesToShip`：工作区的应用四个文件（两个字体、两份许可证）缺一不可，字体没有许可证、许可证没有字体、文件夹里有清单外的字体文件都停；旧提交的应用（更新测试的 0.9.0）只核它自己有的那几对。`build-installer.mjs` 原来靠「`styles/fonts.css` 在不在」判断应用带不带字体，那个文件 R1 已经删了（模板自己声明字体面），照旧逻辑工作区的构建会直接停在这里；现在改成问字体文件本身。`notices.mjs` 第 6 节每个字体文件一行（哪款字、做什么用、许可证、装在哪、sha256），每款字的 OFL 全文各自一段；界面字体那一行与以前逐字相同。`installer/test/fonts.test.mjs`（新，不用构建）核这些，含反向（缺许可证、清单外的字体、只有界面字体的旧应用、一个字体都没有）；`installer/test/packaged.test.mjs` 的部件表与通知断言跟着加了 Noto Serif SC（没跑）。发布说明里「含界面字体 … 字节」那一句还只算界面字体，R6b 重打时一起改。
+
+**R6a-2 · 验收标准改字**（维护者 11-11「过目的」第 1 条）
+
+- `tests/acceptance/standards.mjs`：V6、V8、V9、V10 的 `standard` 换成 维护者 过目的四句，文件头加一行「V6 / V8 / V9 / V10 维护者 11-11 改字」；V3 与其余各条、各条的 `how` 没动（`desktop/test/r6a.test.mjs` 拿 git 里改前的文本逐行比）。
+- 界面与核心跟着改的说法：
+  - **V6 横幅**（`texts/today.js` 八句连接问题）：「…，这一轮没有打分。抓到的 n 条都在，没丢。」→「…，本次运行未开始。已抓取的 n 条内容已保留。」，登录过期那句开头是「登录已过期」；下面那一行照设计「请点击「前往登录」，在打开的窗口中完成登录后，点击「已登录，重试」。」。英文字典 `…, so this run did not start. All n fetched items are kept.`。05-措辞规范那一行写的是「本次运行未完成评分」，这里用「未开始」：核心在自检没过时一条都不抓、不评（`started:false`），标准原话也是「本次运行不开始」，同一张字典里文件夹写不进、索引读不了那几句本来就说「本次运行未开始」。八句里 `other`（认不出的连接问题）那一句原来在名字后面带「（{code}）/ ({code})」，现在去掉了，后半句与其余七句一样：「{name} 出错了，本次运行未开始。已抓取的 {n} 条内容已保留。」/ `{name} went wrong, so this run did not start. All {n} fetched items are kept.`（只改了这两张字典的这一行；`screens/problem-card.js` 没有动）。
+  - **V9**：问库答不出时的那句「库里没有。」→「库内暂无相关内容。」（`texts/ask.js`；英文 `Nothing in this library on that.`）。核心 `agent/words.mjs` 多一个 `NOT_IN_LIBRARY { zh, en }` 并进了 `UI_TERMS`（主 Agent 的系统提示里的界面用词表），主 Agent 转述时用同一句。问库给模型的提示词（`ask/prompts.mjs`「库里没有就明说」）是写给模型的，不是界面上的话，没有动。
+  - **V10**：界面上讲上限的地方 R1–R4 已经是「单次运行上限 / 留待下次运行」；剩下主 Agent 提议卡字典 `texts/agent.js` 里三处「每轮上限 / 每轮最多」与英文两处 `per round` 改成「单次运行上限 / 单次运行最多」「per-run cap / per run」。
+  - V8：界面 R3 起就叫「缺少文件头」，没有要改的字。
+- 四条验收测试改了什么（标准原话见上；每条文件头都写了）：
+  - `v06`：横幅的断言换成新句子的三件事（登录已过期 · 本次运行未开始 · 已抓取的 n 条内容已保留，整句等于字典那句带连接名与条数），旧词不在；「库页顶上」——横幅只有一个、在库页里、在库的标签后面与该页内容前面、屏幕上在内容上方，换到资料库标签它还在；「前往登录 / 已登录，重试」两个按钮与那一行；英文字典同三件事。没开始、没进度、文件逐字节不变照旧。
+  - `v08`：核心部分不变（提示语里的「待规范」改叫「缺少文件头」）；新加真窗口一段——同一个写坏的文件放进播种库，资料库那一行「n 个文件缺少文件头，尚未入库。」（n = 核心的数，比没有它多 1）、去处理后的页头「n 个文件缺少文件头」与那张卡（文件名、问题、尚未入库），页面上没有「待规范」；它不是资料库的一行、不是图谱的节点、问库（拿它的标题问）不引它；文件 sha256 不变。
+  - `v09`：十个问题与引用编号的核对不变；新加「那句话」——标准、核心 `NOT_IN_LIBRARY`、中英字典、主 Agent 的用词表是同一句；真窗口上库里没有候选的问题（0 次模型调用）与有候选但答不出的问题，答案都是「库内暂无相关内容。」，没有编出来的句子与引用。
+  - `v10`：核心的计数不变；新加「上限的说法」（`RUN.stopWhy.cap`、来源与要求的那一行与规则句、变更记录的字段名、主 Agent 用词表；任何一张中文字典里都没有「每轮」「下一轮接着」，英文字典里上限不再说 per round）；真窗口——在来源与要求把上限填成 5 保存，对八条新条目点立即运行：记录里 5 次模型调用、`stoppedAt: 'cap'`、至少三条没送模型留在原处，右栏「该库上次运行」写「停 · 达到单次运行上限，剩余内容留待下次运行」；再点一次接着处理剩下的，没有哪条在同一环节评两次。
+- R2 记下的「V6 横幅句子仍是旧的」到此了结。v2 草案 `standards-draft.mjs` 没动（N1–N6 跟改是 R6b）。
+- **合并说明**（与 R5b）：变异 `r6a-v10-agent-per-round` 的锚点在 `texts/agent.js`（`cap: '改单次运行上限',` 那一行）；R5b 把讲上限的字挪到 `texts/proposals.js`，合并后这个变异的锚点由 PM 改到新位置。本包没有为了躲冲突去改 R5b 的文件。
+
+**R6a-3 · 库架上被选中的卡在深色下看不清**
+
+- **原因**：库架的卡是模板的 `.project-tile`。模板第 11 轮（`round11/workbench.css`）给每套主题配了深色，并且点名了哪些部件在鼠标移上去时跟着换（`.source-card`、`.project-item`、`.document-link`、`.navitem`、`.tab`、`.btn` … 用主题的 `--pick` 与 `--ink11`）——**`.project-tile` 不在那张名单里**。于是鼠标移上去（也就是「被选中」的那张）时，卡还在吃第 9 轮各主题自己的 `:hover` 规则：研究对话 `#edf2f7`、澄明玻璃 `#edf3ff`、精密国际主义与单线黑白 `#e8e8e8`（第 7 轮还有一条 `#fff`），都是写死的浅色底；字却是第 11 轮深色的墨色（`#e5e5df` 一类）。浅色外观下没事，深色外观下就是浅底浅字，对比度约 1.1–1.3 : 1。
+- **修法**（只在覆盖层 `styles/template-app.css`，不写颜色，模板不改）：`.r11.r11.r11.r11 .project-tile:hover { color: var(--ink11); background: var(--pick); box-shadow: var(--float11); transform: none }`——卡的 hover 与第 11 轮给别的部件的一样，用主题自己的 `--pick` 垫主题的墨色，阴影保持卡平时的那一个、不位移。单线黑白的 `--pick` 就是墨色本身（那套主题里「选中」是实心块配反色字），所以它单独一条用 `--well`（第 12 轮自己给左栏行、标签的 hover 用的也是它）。body 类写四遍是为了压过各主题第 9 轮那条 `:hover`。
+- **浅色外观也跟着变了**：这条规则不分外观，所以同时换掉了浅色下卡的 hover——精密国际主义浅色原来是硬阴影加位移（第 7 轮 / 第 9 轮那条 `:hover` 的 `box-shadow` 与 `transform`），研究对话浅色原来是第 9 轮写死的底色 `#edf2f7`；现在浅色下也是主题的 `--pick` 垫 `--ink11`、阴影保持卡平时的 `--float11`、不位移，与第 11 轮给其它部件（`.source-card`、`.project-item`、`.document-link` …）的 hover 做法一致。
+- **单线黑白被选中的卡多一条墨色边条**：单线黑白深色下 `--well`（`rgb(36,40,44)`）与卡平时的 `--paper`（`rgb(22,24,27)`）只差 1.20 : 1，光靠底色，被选中的卡与旁边的卡几乎分不出。那一条规则现在是 `.r12-line.r11.r11.r11.r11 .project-tile:hover { background: var(--well); box-shadow: inset 4px 0 var(--ink11) }`——左边一条 4px 的墨色边条，就是第 12 轮给自己「被选中的卡」的写法（`line.css`：`.source-card.selected { background: var(--well); box-shadow: inset 4px 0 var(--ink11) }`，同样两个声明），只用模板已有的变量，没有写颜色，模板没改。边条对旁边卡的底：深色 `rgb(242,243,244)` 对 `rgb(22,24,27)` 16.01 : 1，浅色 `rgb(17,20,24)` 对 `rgb(255,255,255)` 18.47 : 1（与库名对平时底的数字相同，同一对颜色）；浅色下同样有这条边条。卡里文字的对比度不受影响，下表的数字没有变。`test/ui-r6a.test.mjs` 核被选中时有这条边条、颜色是 `--ink11`、平时没有；变异 `r6a-shelf-monoline-bar`（去掉边条）。
+- **真窗口量到的对比度**（当前库那张卡，文字对它身后实际的底色；`test/ui-r6a.test.mjs` 每次打印）：
+
+  | 主题 · 外观 | 鼠标移上时的底 | 库名 | 追踪范围 / 脚注数字 / 上次运行 / 进入待看 | 状态标签 | 平时（库名 · 其余） |
+  |---|---|---|---|---|---|
+  | 精密国际主义 · 浅 | `rgb(228,228,226)` | 12.19 | 5.86 | 11.76 | 15.11 · 7.26 |
+  | 精密国际主义 · 深 | `rgb(53,54,53)` | 9.60 | 5.25 | 10.18 | 12.89 · 7.05 |
+  | 澄明玻璃 · 浅 | `rgb(225,232,247)` | 10.28 | 5.09 | 6.07 | 12.32 · 6.09 |
+  | 澄明玻璃 · 深 | `rgb(48,58,80)` | 8.99 | 4.92 | 8.76 | 11.99 · 6.56 |
+  | 研究对话 · 浅 | `rgb(226,234,229)` | 9.46 | 5.07 | 7.02 | 11.30 · 6.05 |
+  | 研究对话 · 深 | `rgb(48,62,56)` | 8.87 | 4.85 | 9.16 | 11.97 · 6.54 |
+  | 单线黑白 · 浅 | `rgb(231,231,227)`，左边 4px 边条 `rgb(17,20,24)` | 14.90 | 5.45 | 18.47 | 18.47 · 6.76 |
+  | 单线黑白 · 深 | `rgb(36,40,44)`，左边 4px 边条 `rgb(242,243,244)` | 13.36 | 6.71 | 16.62 | 16.01 · 8.04 |
+
+  全部 ≥ 4.5（库名 22px / 600–800，除单线黑白的 800 外不算 WCAG 的大字，也按 4.5 要求）。修之前深色四种的 hover：库名对底约 1.1–1.3 : 1。
+- 研究对话的卡在鼠标移上时整张卡的字带下划线，是模板第 9 轮那条 `:hover` 里的 `text-decoration`，浅色下本来就这样，没有动。
+
+**测试与变异**：`test/r6a.test.mjs`（新，不开窗口：标准逐字、字体文件与清单、字体面与 `app://`、`index.html` 未变、许可证数据）；`test/ui-r6a.test.mjs`（新，真窗口：研究对话的标题用随包字体、别的主题不用；库架那张卡八种外观的对比度，hover 与平时）；`test/licenses.test.mjs`、`test/ui-licenses.test.mjs`（因多了一行与一段而改，注明 redesign R6a）；`installer/test/fonts.test.mjs`（新）；核心 `core/test/r6a.test.mjs`（新：`NOT_IN_LIBRARY` 与主 Agent 的用词表、系统提示；核心变异 `node core/scripts/mutation-check.mjs "r6a-*"`：`r6a-core-sentence`）；`test/ui-agent.test.mjs` 一处读那句话的断言换成新句子；`tests/acceptance/v06 · v08 · v09 · v10`（见上）。`scripts/lib/mirror.mjs` 的镜像多带 `tests/acceptance`（副本）、`docs/design/fonts`（链接）、`施工计划.md`（副本）；`mutation-check.mjs` 给测试一个 `STREAMS_MIRROR_OF`（镜像不是 git 仓库，读改前的 `standards.mjs` 要回原仓库）。变异 `node scripts/mutation-check.mjs "r6a-*"`：`r6a-font-family`（族名写错）· `r6a-font-file`（字体面指向不存在的文件）· `r6a-font-face-plain`（字体面指到界面字体）· `r6a-licenses-no-row` · `r6a-licenses-other-text` · `r6a-licenses-no-line` · `r6a-standard-v6-old` · `r6a-standard-v9-char` · `r6a-standard-v3-touched` · `r6a-standard-how-touched` · `r6a-v6-old-banner`（放回旧横幅句子）· `r6a-v6-banner-below`（横幅挪到内容下面）· `r6a-v8-old-word`（改回待规范）· `r6a-v9-old-sentence`（改回库里没有。）· `r6a-v9-english` · `r6a-v10-per-round`（上限口径放回每轮）· `r6a-v10-agent-per-round` · `r6a-shelf-hover`（撤掉覆盖层那条 → 深色四条红）· `r6a-shelf-monoline-pick` · `r6a-shelf-monoline-bar`。`ui-r6a` 的 R6a-1 先看页面声明了哪些字体面：没有一个在族名 `Noto Serif SC` 下就立刻失败并列出现有的族名，不等到超时（`r6a-font-family` 就红在这里）。截图 `node scripts/shots-r6a.mjs` → `docs/shots/2026-11-13-r6a/`（库架带被选中的卡八张；`research-light-serif` 一张：研究对话浅色的库架、鼠标不在卡上——页头「库架」、那句「每天看新来的，存下值得的。」、三张卡的库名、右栏标题与左栏品牌名都是随包的衬线字；待看页的卡片标题是界面字体 Noto Sans SC，不是衬线，衬线在那一页只出现在页头与右栏标题，所以没有用它；许可证与致谢一张）。
 
 ### 4.19 §四补：重设计 R5a——一种提议的后台、规则动作、追踪要求进评分与重新评分（11-13）
 
@@ -865,6 +918,7 @@ src/renderer/
 - **跟随系统实时变**：`main.mjs` 听 `nativeTheme` 的 `updated`：生效的浅 / 深变了 → 每个窗口的底色、阅读窗口的页重画，发 `settings-changed`（页面重读应用状态，`scheme` 变了，`<html data-appearance>` 跟着换）。外观固定为浅色 / 深色时这个信号不改任何东西。测试（`test/ui-theme.test.mjs`）不碰 Windows 的设置，在主进程里给 `shouldUseDarkColors` 一个值再发 `updated`，和 Electron 通知应用的方式一样。
 - **样式**：`tokens.css` 由 `scripts/gen-tokens.mjs` 从 K1 的 `tools/tokens-data.mjs` **生成**（别手改；`--check` 核一致），七块：`:root` 是六组共用的值，然后每套主题的浅色 `[data-theme="<id>"]`（精密国际主义的也是 `:root`）与深色 `[data-theme="<id>"][data-appearance="dark"]`，每块写全、写 `color-scheme`。组件只有一套（`styles/kit.css` 与各屏的样式），照 K1 设计稿的 `css/app.css` 改：主区直接铺在 `--st-page` 上（不再有带边框的白框，左栏右边没有 12px 间距），卡片 = `--st-surface` + `--st-shadow-card`、不描边，按钮 = `--st-surface-2` 不描边、主按钮强调色，当前的东西 = `--st-selected`；三套的差别全在 token（颜色、圆角、阴影、字重、图标线头）上，只有各套自己的选中记号（精密国际主义左边 3px 定位条与虚线焦点框、澄明玻璃的渐变光与胶囊次要按钮、研究对话右上角的书签与下划线安静按钮）写在 `kit.css` 最后一节，颜色也只用 token。
 - **字体**（维护者 11-10：Noto Sans SC，取代 11-02 的 Microsoft YaHei UI）：`src/renderer/fonts/NotoSansSC-VF.ttf`（可变字体 17.8 MB，从 K1 的原样副本复制、逐字节相同）+ `OFL-NotoSansSC.txt`；`styles/fonts.css` 的 `@font-face` 经 app://（`protocol.mjs` 发 `font/ttf`，CSP 的 `font-src 'self'`）加载，族名照 K1 叫 `'Streams Noto Sans SC'`；数字走本机等宽字（`'Streams Numerals'`，只 `local()`），`--st-font` 依次是这两个、`sans-serif`。许可证页多一行「Noto Sans SC · <版本，读字体文件自己的 name 表> · OFL-1.1」并在表下贴 OFL 全文（`licenses.mjs`）；安装包带字体与 OFL（`installer/build-installer.mjs` 核两个文件都在、`installer/notices.mjs` 的第 6 节写进 `THIRD-PARTY-NOTICES.txt`）。阅读窗口的页是不加载任何东西的 data: 页，字体退到系统的无衬线字。
+- **标题字体 Noto Serif SC**（重设计 R6a，维护者 11-11：研究对话主题的 `--display-chinese`）：`src/renderer/fonts/NotoSerifSC-VF.ttf`（可变字体 25,125,232 字节，字重 200–900，version 2.003，sha256 `5326cfb0…352a09`）+ `OFL-NotoSerifSC.txt`，取自 GitHub `notofonts/noto-cjk` 官方发布 `Serif2.003` 的 `03_NotoSerifCJK-TTF-VF.zip`（2026-11-13 取，来源、清单与复核脚本在 `docs/design/fonts/noto-serif-sc/`）。`styles/base.css` 的 `@font-face` 用模板写的族名 `'Noto Serif SC'`，经 `app://ui/fonts/NotoSerifSC-VF.ttf` 加载（`font/ttf`，CSP 没改）；只有研究对话主题用到它。许可证页一行「标题字体 · Noto Serif SC」与部件表一行 `Noto Serif SC · 2.003 · OFL-1.1`、OFL 全文；安装包与通知见 `installer/fonts.mjs`。细节在 §4.21。（上一条里 K2 的 `styles/fonts.css` 与族名 `'Streams Noto Sans SC'` 在 R1 已换成模板自己的 `'Yunzhi Noto'`，见 §4.13。）
 - 左下角余量（包 M）照 K1 画成小卡：标题与「截至 …」、每个窗口一行（多长 · 一条进度 · 百分比，下面「… 重置」），余额一行大数字；读不到 / 没有接口都**整块不画**（维护者 11-10「K1 设计稿的四件事」4，包 M 本来就这样）。
 - 截图：`node scripts/shots-k2.mjs`（真窗口，主题与外观先写进 settings.json 再起，拍库架、和主 Agent 聊（带提议卡）、待看、资料库、问库、设置六个画面与阅读窗口，每张都核字体已加载）→ `docs/shots/2026-11-10-k2/<画面>-<主题>-<外观>.png`（36 张）与 `reader-<主题>-<外观>.png`（6 张）。v1.0 的 `npm run shots:themes`（`docs/shots/themes/`）是旧三套的记录，不再更新。
 

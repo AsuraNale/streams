@@ -5,12 +5,15 @@
  * The packages under the MPL-2.0 or the LGPL get a first section that says where their source code is.
  * v2 package K2: and the bundled UI font, Noto Sans SC (resources/app/src/renderer/fonts), with its SIL Open Font License in
  * full — read from the license file shipped beside the font, so the notices say what ships.
+ * Redesign R6a: and Noto Serif SC, the heading font of the Research theme, the same way — its own line and its own OFL text
+ * (the LICENSE of the release it came from); the fonts and their words are installer/fonts.mjs.
  * @module installer/notices
  */
 
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { BUNDLED_FONTS, fontOfFile } from './fonts.mjs'
 
 const LICENSE_FILE = /^(licen[cs]e|copying|notice|copyright|authors)([._-].*)?$/i
 const sha = text => createHash('sha256').update(text).digest('hex')
@@ -77,7 +80,9 @@ function resolvedUrls(lockFile) {
  * @param {string} o.stage - the folder that goes into the installer (its layout: docs/installer.md §三)
  * @param {string} o.lockFile - desktop/package-lock.json (where each npm package was downloaded from)
  * @param {{appName: string, version: string, electron: string}} o.facts
- * @returns {{text: string, npm: number, copyleft: object[]}}
+ * @returns {{text: string, npm: number, fonts: number, fontLicenses: string[], fontProblems: string[], copyleft: object[]}}
+ *   fonts: the font files listed; fontLicenses: the fonts whose license text is printed in full; fontProblems: a font file
+ *   nobody listed, or one without its license text (redesign R6a)
  */
 export function buildNotices({ stage, lockFile, facts }) {
   const resources = join(stage, 'resources')
@@ -202,21 +207,32 @@ export function buildNotices({ stage, lockFile, facts }) {
   line(rule('='))
   line('6. Fonts / 字体')
   line(rule('='))
+  // redesign R6a: every font file of the folder has its line — which font it is and what the app uses it for come from
+  // installer/fonts.mjs (Noto Sans SC, the interface font; Noto Serif SC, the heading font of the Research theme) — and each
+  // font's own license text follows in full, read from the file shipped beside it. A font file fonts.mjs does not list, or a
+  // font whose license text is not in the stage, is reported (fontProblems): the build stops on it.
   const fontDir = join(resources, 'app', 'src', 'renderer', 'fonts')
   const fonts = existsSync(fontDir) ? readdirSync(fontDir).filter(n => /\.(ttf|otf|woff2?)$/i.test(n)).sort() : []
-  const fontLicense = join(fontDir, 'OFL-NotoSansSC.txt')
+  const fontProblems = []
+  const fontLicenses = []
   if (fonts.length === 0) line('(none in this build)')
   for (const f of fonts) {
-    line(`* ${f} — Noto Sans SC, the interface font (界面字体), unmodified — SIL Open Font License 1.1 — installed at ${relative(stage, join(fontDir, f))}`)
+    const font = fontOfFile(f)
+    if (!font) { fontProblems.push(`${f}: a font file installer/fonts.mjs does not list`); line(`* ${f} — installed at ${relative(stage, join(fontDir, f))}`) }
+    else line(`* ${f} — ${font.name}, ${font.role}, unmodified — ${font.license} — installed at ${relative(stage, join(fontDir, f))}`)
     line(`    sha256: ${createHash('sha256').update(readFileSync(join(fontDir, f))).digest('hex')}`)
+    if (font && !existsSync(join(fontDir, font.licenseFile))) fontProblems.push(`${f}: its license text ${font.licenseFile} is not in the stage`)
   }
-  if (existsSync(fontLicense)) {
+  for (const font of BUNDLED_FONTS) {
+    const fontLicense = join(fontDir, font.licenseFile)
+    if (!fonts.includes(font.file) || !existsSync(fontLicense)) continue
     line()
     line(rule('-'))
-    line(`Noto Sans SC: ${relative(stage, fontLicense)}`)
+    line(`${font.name}: ${relative(stage, fontLicense)}`)
     line(rule('-'))
     line(readFileSync(fontLicense, 'utf8').replace(/\r\n/g, '\n').trim())
+    fontLicenses.push(font.name)
   }
   line()
-  return { text: `${L.join('\n')}\n`, npm: third.length, fonts: fonts.length, copyleft: copyleft.map(p => ({ id: p.id, license: licenseOf(p.pkg), source: urls.get(p.id) ?? null, repository: repoOf(p.pkg) })) }
+  return { text: `${L.join('\n')}\n`, npm: third.length, fonts: fonts.length, fontLicenses, fontProblems, copyleft: copyleft.map(p => ({ id: p.id, license: licenseOf(p.pkg), source: urls.get(p.id) ?? null, repository: repoOf(p.pkg) })) }
 }

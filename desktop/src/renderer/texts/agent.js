@@ -97,7 +97,7 @@ export const AGENT = Object.freeze({
       edit_brief: '改「{lib}」：改要求',
       edit_thresholds: '改「{lib}」：改过关线',
       edit_schedule: '改「{lib}」：改定时',
-      edit_cap: '改「{lib}」：改每轮上限',
+      edit_cap: '改「{lib}」：改单次运行上限', // redesign R6a (the words of V10: 单次运行上限; was 每轮上限)
       run_round: '改「{lib}」：跑一轮',
       other: '改「{lib}」',
     }),
@@ -122,7 +122,7 @@ export const AGENT = Object.freeze({
     thresholdNone: '没设',
     scheduleOn: '每天 {time}',
     scheduleOff: '定时没开',
-    capLine: '每轮最多 {n} 次模型调用',
+    capLine: '单次运行最多 {n} 次模型调用', // redesign R6a (was 每轮最多 …)
     runBefore: '上一轮：{when}',
     runNever: '还没跑过',
     runAfter: '排进队列，跑一轮 · 最多 {n} 次模型调用',
@@ -174,7 +174,7 @@ export const AGENT = Object.freeze({
       add_source: '加来源',
       remove_source: '删来源',
       pause_source: '暂停来源',
-      cap: '改每轮上限',
+      cap: '改单次运行上限', // redesign R6a (was 改每轮上限)
       op: '第 {n} 处主题改动',
       other: '某一步',
     }),

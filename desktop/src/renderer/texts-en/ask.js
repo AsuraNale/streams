@@ -36,7 +36,7 @@ export const ASK = Object.freeze({
     original: 'View original',
     removedCites: '{n} citation{n?|s} not in the library {n?was|were} removed.',
     removedSentences: '{n} sentence{n?|s} without a citation {n?was|were} removed.',
-    notInLibrary: 'Not in the library.',
+    notInLibrary: 'Nothing in this library on that.',
     notInLibraryText: 'The notes in this library cannot answer this, so no answer was written.',
     missing: 'Not in the library: {missing}',
   }),

@@ -11,6 +11,9 @@
  *               license SIL OFL 1.1)
  *   font        v2 package K2: { name, license, text } — the font's license in full (src/renderer/fonts/OFL-NotoSansSC.txt,
  *               shipped beside the font), shown in the dialog under the table
+ *   displayFont redesign R6a: { name, license, text } — the heading font of 研究对话, Noto Serif SC (src/renderer/fonts/
+ *               NotoSerifSC-VF.ttf, from the official release notofonts/noto-cjk Serif2.003; docs/design/fonts/noto-serif-sc/),
+ *               and the OFL text that came with it (OFL-NotoSerifSC.txt); it has its row in components too
  *   notices     { available }: THIRD-PARTY-NOTICES.txt beside Streams.exe (installer/notices.mjs writes it at build time);
  *               only an install has it, so a development run says false whatever its folders hold
  * @module desktop/main/licenses
@@ -41,6 +44,15 @@ export const FONT = Object.freeze({
   license: 'OFL-1.1',
   file: Object.freeze(['src', 'renderer', 'fonts', 'NotoSansSC-VF.ttf']),
   licenseFile: Object.freeze(['src', 'renderer', 'fonts', 'OFL-NotoSansSC.txt']),
+})
+
+// redesign R6a: the heading font of the 研究对话 theme (the template's --display-chinese: 'Noto Serif SC'; styles/base.css
+// declares the face, app:// serves the file) and the license text that came with it in the release
+export const DISPLAY_FONT = Object.freeze({
+  name: 'Noto Serif SC',
+  license: 'OFL-1.1',
+  file: Object.freeze(['src', 'renderer', 'fonts', 'NotoSerifSC-VF.ttf']),
+  licenseFile: Object.freeze(['src', 'renderer', 'fonts', 'OFL-NotoSerifSC.txt']),
 })
 
 /**
@@ -87,12 +99,15 @@ export function licensesView({ packaged, desktopDir, installDir, versions = proc
     ...PACKAGES.map(p => { const pkg = pkgOf(p.pkg); return { name: p.name, version: String(pkg.version ?? ''), license: String(pkg.license ?? '') } }),
     // v2 package K2: the bundled font, read from the file that ships
     { name: FONT.name, version: fontVersion(readFileSync(join(desktopDir, ...FONT.file))), license: FONT.license },
+    // redesign R6a: and the heading font of 研究对话, read the same way
+    { name: DISPLAY_FONT.name, version: fontVersion(readFileSync(join(desktopDir, ...DISPLAY_FONT.file))), license: DISPLAY_FONT.license },
   ]
   const notices = noticesFileOf({ packaged, installDir })
   return {
     own: { license: /^MIT License\b/.test(text) ? 'MIT' : 'unknown', text },
     components,
     font: { name: FONT.name, license: FONT.license, text: readFileSync(join(desktopDir, ...FONT.licenseFile), 'utf8') },
+    displayFont: { name: DISPLAY_FONT.name, license: DISPLAY_FONT.license, text: readFileSync(join(desktopDir, ...DISPLAY_FONT.licenseFile), 'utf8') },
     notices: { available: notices !== null && existsSync(notices) },
   }
 }

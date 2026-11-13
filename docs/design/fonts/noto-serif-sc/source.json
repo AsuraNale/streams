@@ -1,0 +1,39 @@
+{
+  "font": "Noto Serif SC",
+  "license": "OFL-1.1",
+  "repository": "https://github.com/notofonts/noto-cjk",
+  "release": {
+    "tag": "Serif2.003",
+    "name": "Noto Serif CJK Version 2.003 (OTF, OTC, Super OTC, Subset OTF, Variable OTF/TTF)",
+    "page": "https://github.com/notofonts/noto-cjk/releases/tag/Serif2.003",
+    "published": "2024-07-30T20:57:45Z"
+  },
+  "asset": {
+    "name": "03_NotoSerifCJK-TTF-VF.zip",
+    "url": "https://github.com/notofonts/noto-cjk/releases/download/Serif2.003/03_NotoSerifCJK-TTF-VF.zip",
+    "bytes": 245858727
+  },
+  "fetched": "2026-11-13T17:39:37Z",
+  "files": [
+    {
+      "path": "desktop/src/renderer/fonts/NotoSerifSC-VF.ttf",
+      "entry": "Variable/TTF/Subset/NotoSerifSC-VF.ttf",
+      "bytes": 25125232,
+      "compressed": 15464282,
+      "crc32": "20486cff",
+      "sha256": "5326cfb097e3ab26fcb39329752b5c0a439bf8d5c4649520e4b492939c352a09",
+      "head": "00010000",
+      "family": "Noto Serif SC",
+      "version": "2.003",
+      "weights": [200, 900]
+    },
+    {
+      "path": "desktop/src/renderer/fonts/OFL-NotoSerifSC.txt",
+      "entry": "LICENSE",
+      "bytes": 4301,
+      "compressed": 1896,
+      "crc32": "898314c0",
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2"
+    }
+  ]
+}

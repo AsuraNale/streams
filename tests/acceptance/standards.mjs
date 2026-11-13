@@ -1,4 +1,5 @@
 // 发版前的验收标准 V1–V12（产品方案 5.4，维护者 2026-11-02 定稿，V1 维护者 11-04 改字；只有 维护者 能改这张表）。
+// V6 / V8 / V9 / V10 维护者 11-11 改字。
 // 每条一个测试文件 vNN-*.test.mjs；占位阶段一律 FAIL（不是 skip）——红的才看得见。
 export const STANDARDS = [
   { id: 'V1', file: 'v01-clean-install.test.mjs',
@@ -17,19 +18,19 @@ export const STANDARDS = [
     standard: '模型输出坏格式时重试一次，再坏就标未评分，条目不丢',
     how: '假连接器' },
   { id: 'V6', file: 'v06-login-expired.test.mjs',
-    standard: '登录过期时，当轮不开始，首页横幅说明，抓到的条目完整保留',
+    standard: '登录过期时，本次运行不开始，库页顶上的横幅说明，已抓取的条目完整保留',
     how: '假连接器返回登录过期文案' },
   { id: 'V7', file: 'v07-banned-words.test.mjs',
     standard: '界面禁词零命中：Bronze、Silver、Gold、judge、keeper、gate、Medallion、pending、ledger；品牌词 Claude、Anthropic、OpenAI、ChatGPT 只出现在「连接你电脑上的 …」、型号表和许可证页',
     how: '扫描器跑全部界面文件（中英两套）' },
   { id: 'V8', file: 'v08-bad-note-quarantined.test.mjs',
-    standard: '一个故意写坏的 .md 被列入待规范，不进索引、图谱、问库，且文件内容未被改动',
+    standard: '一个故意写坏的 .md 被列为「缺少文件头」的文件，不进索引、图谱、问库，且文件内容未被改动',
     how: '比对文件哈希' },
   { id: 'V9', file: 'v09-ask-citations.test.mjs',
-    standard: '问库答案的每个引用编号都在候选集内；库里没有的问题得到「库里没有」',
+    standard: '问库答案的每个引用编号都在候选集内；库里没有的问题得到「库内暂无相关内容。」',
     how: '用一个只有 5 条的库问 10 个问题，逐条核' },
   { id: 'V10', file: 'v10-round-cap.test.mjs',
-    standard: '每轮上限生效：上限设 5，第 6 条不调模型，剩余条目下一轮接着跑',
+    standard: '单次运行上限生效：上限设 5，第 6 条不调模型，剩余条目下次运行接着处理',
     how: '假连接器计数' },
   { id: 'V11', file: 'v11-signing-and-credit.test.mjs',
     standard: '安装包签名状态如实写在下载页（第一版未签名会有 SmartScreen 提示）；README 和关于页写「由 Starry Digital 开发」',

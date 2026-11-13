@@ -115,6 +115,7 @@ export const SETTINGS = Object.freeze({
     title: 'Licenses and credits',
     own: 'Streams itself · {license}',
     font: 'Interface font · {name} ({license})',
+    displayFont: 'Heading font · {name} ({license})',
     fontText: 'Show the font license in full',
     components: 'Bundled third-party components',
     name: 'Name',

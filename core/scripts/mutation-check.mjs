@@ -21,6 +21,13 @@ const MUTANTS = [
     edits: [['src/proposals/proposals.mjs', 'hashOf(snapshot(libraryDir, HASH_FIELDS[kind]))', "hashOf(snapshot(libraryDir, ['brief', 'sources', 'topics', 'thresholds', 'schedule', 'cap']))"]],
     test: ['test/proposals.test.mjs', '--test-name-pattern=UC3: an add_source'],
   },
+  // redesign R6a (docs/checks/2026-11-13-r6a/contract.md 「测」): V9's sentence in the core
+  {
+    id: 'r6a-core-sentence',
+    what: 'the core\'s copy of 问库\'s 「库内暂无相关内容。」 is the sentence before R6a again (the main agent would say 库里没有。)',
+    edits: [['src/agent/words.mjs', "export const NOT_IN_LIBRARY = Object.freeze({ zh: '库内暂无相关内容。',", "export const NOT_IN_LIBRARY = Object.freeze({ zh: '库里没有。',"]],
+    test: ['test/r6a.test.mjs', '--test-name-pattern=R6a NOT_IN_LIBRARY'],
+  },
   // redesign R2 (docs/checks/2026-11-11-r2/contract.md 「测」)
   {
     id: 'r2-dismiss-placeholder',

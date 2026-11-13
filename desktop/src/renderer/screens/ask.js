@@ -5,8 +5,8 @@
 //   The box sends sendLibraryMessage; the main process routes the sentence (docs/desktop.md §4.7):
 //     question → the answer: its sentences, each with its cite numbers (`cite`; a click marks that note in the list); the notes
 //                cited (file-row: number, title, date · 打开 → that note in 资料库, 查看原文 → Streams' reading window for a web
-//                source); what the check took out; 「库里没有。」 is a real answer (V9's sentence — 维护者 11-11 第 16 题 changes it in
-//                R6 with the standard); 「库内缺少：…」 + 「记到想补的主题」 (addDemand) — once pressed 「已加入待补充主题」, and so when
+//                source); what the check took out; 「库内暂无相关内容。」 is a real answer (V9's sentence — 维护者 11-11 第 16 题 changed it in
+//                R6a with the standard); 「库内缺少：…」 + 「记到想补的主题」 (addDemand) — once pressed 「已加入待补充主题」, and so when
 //                the page is opened again: the state is read from getDemands (`added`: the questions it was pressed for, the
 //                core's record), not kept by the page; 「反馈回答问题」 (answerFeedback).
 //     change   → 「已转交主 Agent」: the main Agent's words and its proposal cards (screens/proposal-card.js: 确认 · 提出修改 ·

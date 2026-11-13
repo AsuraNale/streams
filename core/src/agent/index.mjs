@@ -21,4 +21,4 @@ export {
 } from './turn.mjs';
 export { scriptedAgentConnector, OUT_OF_SCRIPT } from './fake.mjs';
 // redesign R5a (N11): the interface's words for what the main agent is told
-export { UI_TERMS, BUTTONS, STATE_WORDS, ADVICE_WORDS, LEVEL_WORDS, QUICK_WORDS, PROPOSAL_STATUS_WORDS, PROPOSAL_KIND_WORDS, wordsOf, stateWord, adviceOf, CONNECTION_WORDS, DROP_WORDS, DROP_CATEGORIES, dropCategory, connectionSentence } from './words.mjs';
+export { UI_TERMS, NOT_IN_LIBRARY, BUTTONS, STATE_WORDS, ADVICE_WORDS, LEVEL_WORDS, QUICK_WORDS, PROPOSAL_STATUS_WORDS, PROPOSAL_KIND_WORDS, wordsOf, stateWord, adviceOf, CONNECTION_WORDS, DROP_WORDS, DROP_CATEGORIES, dropCategory, connectionSentence } from './words.mjs';

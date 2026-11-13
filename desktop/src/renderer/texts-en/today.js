@@ -3,14 +3,14 @@
 export const TODAY = Object.freeze({
   problem: Object.freeze({
     connection: Object.freeze({
-      'login-expired': '{name}: the sign-in has expired, so this run was not scored. All {n} fetched items are kept.',
-      'not-logged-in': '{name}: not signed in yet, so this run was not scored. All {n} fetched items are kept.',
-      'not-installed': '{name}: it was not found, so this run was not scored. All {n} fetched items are kept.',
-      'bad-key': 'The API key is not valid, so this run was not scored. All {n} fetched items are kept.',
-      network: '{name} cannot be reached, so this run was not scored. All {n} fetched items are kept.',
-      timeout: '{name} took too long to answer, so this run was not scored. All {n} fetched items are kept.',
-      other: '{name} went wrong ({code}), so this run was not scored. All {n} fetched items are kept.',
-      none: 'No connection is chosen yet, so this run was not scored. All {n} fetched items are kept.',
+      'login-expired': '{name}: the sign-in has expired, so this run did not start. All {n} fetched items are kept.',
+      'not-logged-in': '{name}: not signed in yet, so this run did not start. All {n} fetched items are kept.',
+      'not-installed': '{name}: it was not found, so this run did not start. All {n} fetched items are kept.',
+      'bad-key': 'The API key is not valid, so this run did not start. All {n} fetched items are kept.',
+      network: '{name} cannot be reached, so this run did not start. All {n} fetched items are kept.',
+      timeout: '{name} took too long to answer, so this run did not start. All {n} fetched items are kept.',
+      other: '{name} went wrong, so this run did not start. All {n} fetched items are kept.',
+      none: 'No connection is chosen yet, so this run did not start. All {n} fetched items are kept.',
     }),
     fix: Object.freeze({
       login: 'Press “Sign in”, finish signing in in the window that opens, then press “I have signed in, retry”.',
