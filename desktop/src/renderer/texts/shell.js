@@ -107,11 +107,8 @@ export const SHELL = Object.freeze({
   }),
 
 
-  // redesign R4b: 「谁定的」 beside each part of 来源与要求 is gone (高级设置's 变更记录 says it, texts/sources.js ADVANCED.log);
-  // only the confirmed proposal card's chip still uses this line (proposal-card.js, until R5)
-  who: Object.freeze({
-    agent: '主 Agent 提的 · 你确认的 · {date}',
-  }),
+  // redesign R5b: the confirmed proposal card's chip 「主 Agent 提的 · 你确认的」 is gone with that card (a decided 提议 is one line,
+  // texts/proposals.js PROPOSALS.states); who changed a setting is 高级设置's 变更记录 (texts/sources.js ADVANCED.log)
 
   // redesign R1: what 概览 had — the last run, its numbers, the sources' state — sits in the right panel's 进度 under this (until
   // R2 gives each its place)

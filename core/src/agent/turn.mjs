@@ -55,6 +55,18 @@ export const NOTES_IN_SITUATION = 5;
 export const NOT_UNDERSTOOD = Object.freeze({ zh: '这次没有听懂模型的回答', en: "This time the model's answer could not be understood." });
 export const NOTICE_CODES = Object.freeze(['not-understood', 'proposals-dropped', 'connection', 'session-rebuilt']);
 
+/**
+ * Redesign R5b (precheck fix 3; 05 规则 8): the model calls one message takes, as the page says them (desktop screens/proposal.js
+ * AGENT_CALLS holds the same numbers; core/test/r5b.test.mjs drives agentTurn to each one).
+ *   lo   1 — an answer straight away
+ *   hi   1 + MAX_LOOKUP_ROUNDS — an answer after every round of lookups (the usual most)
+ *   max  everything that can be added to that: each of those 1 + MAX_LOOKUP_ROUNDS answers not usable and asked once more (×2),
+ *        each of those calls on a session that will not resume and sent again on a new one (×2), then the summary of the
+ *        conversation (compressIfNeeded: completeJson, one more try on a bad format: 2) — (1 + 3) × 2 × 2 + 2 = 18
+ */
+export const SUMMARY_CALLS_MAX = 2;
+export const TURN_CALLS = Object.freeze({ lo: 1, hi: 1 + MAX_LOOKUP_ROUNDS, max: (1 + MAX_LOOKUP_ROUNDS) * 2 * 2 + SUMMARY_CALLS_MAX });
+
 const nonEmpty = (v) => typeof v === 'string' && v.trim() !== '';
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const charsOf = (s) => [...String(s ?? '')].length;

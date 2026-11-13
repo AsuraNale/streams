@@ -33,13 +33,16 @@ export function stopWhat(stop) {
   if (code && Object.hasOwn(T.what, code)) return T.what[code]
   if (stop?.code && stop.code !== 'connection' && Object.hasOwn(T.what, stop.code)) return T.what[stop.code]
   if (stop?.code === 'connection' && !code) return T.what.none
-  return fmt(T.what.other, { code: code ?? stop?.code ?? '' })
+  // redesign R5b (O9): never the code itself
+  return T.what.other
 }
 
 function stopLine(stop) {
   if (!stop) return ''
   const why = stop.why
-  const words = why === 'self-check' || why === 'connection' ? fmt(T.stopWhy[why], { what: stopWhat(stop) }) : Object.hasOwn(T.stopWhy, why) ? T.stopWhy[why] : why
+  // precheck fix 5: a `why` the page has no words for is said in the page's words (never the word itself)
+  const words = why === 'self-check' || why === 'connection' ? fmt(T.stopWhy[why], { what: stopWhat(stop) })
+    : Object.hasOwn(T.stopWhy, why ?? '') && why !== 'other' ? T.stopWhy[why] : fmt(T.stopWhy.other, { what: stopWhat(stop) })
   return `${T.stopCell} · ${words}`
 }
 

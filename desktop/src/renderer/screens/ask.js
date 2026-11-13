@@ -9,9 +9,9 @@
 //                R6 with the standard); 「库内缺少：…」 + 「记到想补的主题」 (addDemand) — once pressed 「已加入待补充主题」, and so when
 //                the page is opened again: the state is read from getDemands (`added`: the questions it was pressed for, the
 //                core's record), not kept by the page; 「反馈回答问题」 (answerFeedback).
-//     change   → 「已转交主 Agent」: the main Agent's words and its proposal cards (screens/proposal-card.js: 确认 · 提出修改 ·
-//                拒绝) in the conversation; the same cards are in the right panel's 待确认 (useWaitingItems, the same bridge
-//                calls), so a card decided in one place is decided in the other (proposals-changed reads both again).
+//     change   → 「已转交主 Agent」: the main Agent's words and its proposals (redesign R5b: the one card, screens/proposal.js —
+//                拒绝 · 提出修改 · 确认) in the conversation; the same proposals are in the right panel's 待确认 (app.js useToConfirm,
+//                the same bridge calls), so one decided in one place is decided in the other (proposals-changed reads both again).
 //     unsure   → 「这句话是要修改该库吗？」 with 是 / 否 → resolveLibraryMessage(text, 'change' | 'question').
 //   The conversation stays while you go to another tab and come back (the app's memory, per library; gone when the app quits).
 //   Under the box: 「每次提问约 2–5 次模型调用 · 如需调整来源、主题或要求，可直接描述」 (ASK_CALLS: the routing — none when its rules
@@ -37,7 +37,7 @@ import { TIcon } from '../lib/template-icons.js'
 import { BrandMark } from '../lib/brand-mark.js'
 import { LibraryFrame } from './library-frame.js'
 import { Notice } from './chat.js'
-import { ProposalCard } from './proposal-card.js'
+import { Proposal, agentItem, libraryNameOf } from './proposal.js'
 import { CONNECTIONS, NO_CONNECTION, SEP } from '../texts/common.js'
 import { ASK as T } from '../texts/ask.js'
 import { PANEL } from '../texts/panel.js'
@@ -170,7 +170,7 @@ function AgentReply({ result, askOpen, busy, cards, onQuick, onSend, onChanged, 
       <p class="intro-copy">${ask.question}</p>
       ${askOpen ? html`<div class="filters">${(Array.isArray(ask.options) ? ask.options : []).map(o => html`<span key=${o} class="st-act" data-action="quick" data-option=${o}><button type="button" class="filter" disabled=${busy} onClick=${() => onQuick(o)}>${o}</button></span>`)}</div>` : null}
     </div>` : null}
-    ${cards.length ? html`<div class="st-stack">${cards.map(c => html`<${ProposalCard} key=${c.id} card=${c} onSend=${onSend} onChanged=${onChanged} />`)}</div>` : null}
+    ${cards.length ? html`<div class="st-stack">${cards.map(c => html`<${Proposal} key=${c.id} item=${c} size="full" onSend=${onSend} onChanged=${onChanged} />`)}</div>` : null}
     ${(Array.isArray(r.notice) ? r.notice : []).map(n => html`<${Notice} key=${n.code} notice=${n} onSettings=${onSettings} />`)}
   </div>`
 }
@@ -207,7 +207,7 @@ function AnswerDetail({ result, demands, onOpen }) {
 }
 
 export function AskScreen() {
-  const { navigate, appState, memory } = useApp()
+  const { navigate, appState, memory, libraries } = useApp()
   const libraryId = appState?.data?.library?.libraryId ?? null
   const files = useLoad(() => call('getLibrary', 'all', { topics: [], days: null }), [])
   const demands = useLoad(() => call('getDemands'), [])
@@ -272,7 +272,7 @@ export function AskScreen() {
   const sourceOf = id => (files.data?.items ?? []).find(e => e.id === id)?.source ?? null
   const open = id => navigate('library', { id })
   const original = url => { call('openReader', url, 'reader').catch(() => setNote(T.failedOther)) }
-  const cardsOf = r => (Array.isArray(r?.proposalIds) ? r.proposalIds.map(id => proposals.byId.get(id)).filter(Boolean) : [])
+  const cardsOf = r => (Array.isArray(r?.proposalIds) ? r.proposalIds.map(id => proposals.byId.get(id)).filter(Boolean).map(c => agentItem(c, libraryNameOf(libraries?.data, c.libraryId))) : [])
   const detail = html`<${AnswerDetail} result=${latest} demands=${demands.data} onOpen=${open} />`
   const reply = (t, i) => {
     if (t.status === 'unsure') return html`<div class="assistant-message"><${RouteChoice} busy=${running} onChoose=${route => choose(t.id, route)} /></div>`

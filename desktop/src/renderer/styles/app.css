@@ -10,7 +10,6 @@
 @import url('./menu.css');
 @import url('./screens/placeholder.css');
 @import url('./screens/shell.css');
-@import url('./screens/agent.css');
 /* v2 package L: the right panel's 详情 parts */
 @import url('./screens/panel.css');
 /* redesign R1: the app's layer over the template */

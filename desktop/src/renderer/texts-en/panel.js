@@ -39,24 +39,6 @@ export const PANEL = Object.freeze({
     keepRunning: 'Keep Streams running (window or tray). A missed run is caught up once at the next start.',
   }),
 
-  decide: Object.freeze({
-    eyebrow: 'To confirm / All libraries',
-    title: '{n} item{n?|s}',
-    none: 'Nothing to confirm.',
-    lead: 'Nothing below is applied until you confirm it.',
-    proposal: 'Proposed by the main agent',
-    suggestion: 'Detected by Streams',
-    newLibrary: 'New library',
-    whereChat: 'Handle in “Main agent”',
-    whereLibrary: 'Handle in “{name}”',
-    thisLibrary: 'This library · Detected by Streams',
-    confirm: 'Confirm',
-    create: 'Create',
-    revise: 'Request changes',
-    decline: 'Decline',
-    failed: 'That did not work. Try again.',
-  }),
-
   detail: Object.freeze({
     eyebrow: 'Details · {where}',
     where: Object.freeze({
@@ -96,14 +78,14 @@ export const PANEL = Object.freeze({
       hint: 'Click one to open it in the Library tab.',
     }),
     chat: Object.freeze({
-      title: 'What it looked up and the cards it made',
+      title: 'Looked up and proposed in this message',
       looked: 'Looked up ({n})',
-      lookedNone: 'Nothing looked up in this turn.',
-      cards: 'Cards ({n})',
-      cardsNone: 'No card in this turn.',
+      lookedNone: 'Nothing was looked up for this message.',
+      cards: 'Proposals ({n})',
+      cardsNone: 'No proposal for this message.',
       none: 'No conversation yet.',
-      cardState: Object.freeze({ pending: 'Waiting for you', confirmed: 'Confirmed', declined: 'Turned down', revise: 'To be changed', stale: 'Out of date', failed: 'Not done' }),
-      see: 'See the card',
+      cardState: Object.freeze({ pending: 'To confirm', confirmed: 'In effect', declined: 'Declined', revise: 'Changes requested', stale: 'No longer applies', failed: 'Could not be carried out' }),
+      see: 'Show the proposal',
     }),
   }),
 

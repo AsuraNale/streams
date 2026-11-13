@@ -1,27 +1,21 @@
-/* Interim (redesign R1 → removed when R2–R4 have rebuilt the screens on the template's parts): the screens not rebuilt yet
-   (资料库, 问库, 来源与要求, 主 Agent's chat, 设置's other parts, 首次打开, 新建库, the dialogs and menus) still name v2's
-   variables (--st-*). Redesign R2: 待看 is rebuilt on the template's parts — its old rules (styles/screens/inbox.css, the
-   R1 interim last-run.css and status.css that drew 概览's four numbers and 运行状态 in the right panel) are deleted and it names
-   none of these variables; every variable below is still named by a screen not rebuilt yet. Redesign R3: 资料库, 图谱, 问库, 编辑笔记,
-   缺少文件头 and the reading window are rebuilt on the template's parts too — styles/screens/library.css, graph.css and ask.css are
-   deleted, the reading window's styles/reader.css names none of these — and the names only they used are gone from here (chart-2…4,
-   col-panel, col-sidebar, danger-bg, gutter, lib-*, on-lib, weight-body). What is left is named by 来源与要求 (screens/sources.js,
-   pipeline.js), 主 Agent's conversation and the proposal and suggestion cards (chat.js, proposal-card.js, suggestion-card.js:
-   agent.css), 设置 (settings.css), the kit's dialogs, menus and buttons (kit.css, menu.css), the placeholder screen and the
-   right panel's R1 parts (panel.css, shell.css) — R4b–R6 rebuild those. Redesign R4a: 首次打开 and 新建库 are rebuilt on the
-   template's parts (template-app.css 8); styles/screens/first-run.css and kit.css's wizard steps are deleted, and the one name
-   only they used (sidebar-selected-sub) is gone from here. Redesign R4b: 来源与要求, 高级设置 and 设置 are rebuilt on the template's
-   parts (template-app.css 9); styles/screens/sources.css, pipeline.css and settings.css are deleted (with shell.css's lines for
-   them), and the names only they used (accent-alt, accent-alt-soft, danger, focus, fs-title, lh, radius-key, sidebar, table-head)
-   are gone from here. This file cannot go yet: what is left is named by 主 Agent's conversation and its proposal and suggestion
-   cards (screens/agent.css: chat.js, proposal-card.js, suggestion-card.js — R5), the kit's dialog, buttons, tags and the five
-   fetch states (kit.css; the dev-only gallery screens/kit.css), the kit's menu (menu.css: the right panel's note menu), the
-   placeholder screen (placeholder.css) and the right panel's and the sidebar's R1 leftovers (panel.css, shell.css). Their old values (styles/tokens.css, the three K2 sets) are gone with that file; so that
-   these screens stay readable and usable in every theme until they are rebuilt, each name points at the template's own
-   variable of the theme in force (round 11's roles, set on <body>: --bench --panel --paper --well --ink11 --sub11 --accent11
-   --pick --inverse11 --rule11 --float11). No colour is defined here: only var() of the template's, and sizes. */
+/* Interim (redesign R1; what is left of it decided by R6 with the kit): v2's variable names (--st-*) for the style files that
+   still name them, each pointed at the template's own variable of the theme in force (round 11's roles, set on <body>: --bench
+   --panel --paper --well --ink11 --sub11 --accent11 --pick --inverse11 --rule11 --float11). No colour is defined here: only
+   var() of the template's (one color-mix of them) and sizes. Their old values (styles/tokens.css, the three K2 sets) went with
+   that file.
+   Who still names them (redesign R5b, precheck fix 12 — counted again): the kit (kit.css: its Button, the dialog, the tags, the
+   five fetch states' pairs that test/kit.test.mjs requires), the kit's menu (menu.css: the right panel's note menu), the
+   placeholder screen (screens/placeholder.css), the right panel's and the sidebar's R1 leftovers (screens/panel.css,
+   screens/shell.css) and the dev-only gallery (screens/kit.css). No screen's own page is drawn with them any more.
+   What is here: 54 names, 59 lines of values — every name once in .r11 (54 lines), and 5 of them again for 单线黑白
+   (.r12-line.r11, 5 lines); each of the 54 is named by one of the files above.
+   How it shrank (each package deleted the style files of the screens it rebuilt on the template's parts, and the names only
+   they used): R2 待看 (inbox.css, last-run.css, status.css); R3 资料库, 图谱, 问库, 编辑笔记, 缺少文件头, the reading window
+   (library.css, graph.css, ask.css; chart-2…4, col-panel, col-sidebar, danger-bg, gutter, lib-*, on-lib, weight-body); R4a
+   首次打开 and 新建库 (first-run.css, kit.css's wizard steps; sidebar-selected-sub); R4b 来源与要求, 高级设置, 设置 (sources.css,
+   pipeline.css, settings.css; accent-alt, accent-alt-soft, danger, focus, fs-title, lh, radius-key, sidebar, table-head); R5b
+   主 Agent's page and the one 提议 (agent.css; fs-body, font-mono, page, divider-soft, done-border). */
 .r11 {
-  --st-fs-body: 13px;
   --st-fs-small: 12px;
   --st-fs-tiny: 11px;
   --st-fs-heading: 26px;
@@ -34,12 +28,10 @@
   --st-weight-label: 600;
   --st-weight-display: 650;
   --st-tracking-display: 0;
-  --st-font-mono: 'Consolas', monospace;
   --st-icon-weight: 1.8;
   --st-icon-cap: round;
   --st-icon-join: round;
 
-  --st-page: var(--bench);
   --st-surface: var(--paper);
   --st-surface-2: var(--well);
   --st-card-head: var(--well);
@@ -48,7 +40,6 @@
   --st-border: var(--rule11);
   --st-control-border: var(--rule11);
   --st-divider: var(--rule11);
-  --st-divider-soft: var(--rule11);
   --st-sidebar-text: var(--ink11);
   --st-sidebar-text-2: var(--sub11);
   --st-sidebar-divider: var(--rule11);
@@ -65,7 +56,6 @@
   --st-wait-border: var(--rule11);
   --st-done: var(--accent11);
   --st-done-bg: var(--well);
-  --st-done-border: var(--accent11);
   --st-step-todo: var(--rule11);
   --st-step-done-past: var(--accent11);
   --st-shadow-card: var(--float11);

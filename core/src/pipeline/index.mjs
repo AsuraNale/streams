@@ -5,7 +5,7 @@ export { fetchBody, readCachedBody, cleanCache, cachePath, CACHE_DIR } from './c
 export { writeInboxItem, readInboxItem, removeInboxItem, listInbox, inboxPath, INBOX_DIR } from './inbox.mjs';
 export { buildQueue, nextStep, gateResult, verdictThreshold, oldVerdictPassed, laterSteps } from './queue.mjs';
 // redesign R5a: 重新评分 (N07)
-export { rescoreInfo, rescoreRejected, standardChangedAt, STANDARD_FIELDS } from './rescore.mjs';
+export { rescoreInfo, rescoreRejected, standardChange, standardChangedAt, STANDARD_FIELDS } from './rescore.mjs';
 export { allowedActions, assertAllowed, DECISIONS } from './invariants.mjs';
 export { runGate, countingConnector, gapConnector, GATE_ATTEMPTS } from './score.mjs';
 export { runSummary, verificationOf } from './summarize.mjs';

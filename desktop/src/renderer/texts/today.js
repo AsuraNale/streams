@@ -15,7 +15,10 @@ export const TODAY = Object.freeze({
       'bad-key': 'API key 不对，这一轮没有打分。抓到的 {n} 条都在，没丢。',
       network: '{name} 连不上，这一轮没有打分。抓到的 {n} 条都在，没丢。',
       timeout: '{name} 等太久没回应，这一轮没有打分。抓到的 {n} 条都在，没丢。',
-      other: '{name} 出错了（{code}），这一轮没有打分。抓到的 {n} 条都在，没丢。',
+      // redesign R5b (O9): no code in the sentence — the kind of failure in words; the raw text is in 「复制诊断信息」. Precheck
+      // fix 10: this sentence is new in R5b, so it is in 05's words (本次运行 · 评分 · 已保留, 05 第 31 行 and 规则 5); the others
+      // keep the words V6's check reads until R6
+      other: '{name} 连接出现问题，本次运行未完成评分。已抓取的 {n} 条内容已保留。',
       none: '还没选连接方式，这一轮没有打分。抓到的 {n} 条都在，没丢。',
     }),
     fix: Object.freeze({

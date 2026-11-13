@@ -73,12 +73,14 @@ const scoreKeys = scores => {
   return [...SCORE_ORDER.filter(k => keys.includes(k)), ...keys.filter(k => !SCORE_ORDER.includes(k))]
 }
 
-function pendingWords(code) {
+/** A file's rule not met, in words (exported for test/ui-r5b.test.mjs: never the code itself). */
+export function pendingWords(code) {
   const c = String(code ?? '')
   if (Object.hasOwn(T.pending.codes, c)) return T.pending.codes[c]
   if (c.startsWith('missing:')) return fmt(T.pending.missing, { field: c.slice(8) })
   if (c.startsWith('bad-date:')) return fmt(T.pending.badDate, { field: c.slice(9) })
-  return fmt(T.pending.other, { code: c })
+  // redesign R5b (O9): never the code itself
+  return T.pending.other
 }
 
 const statusWords = s => (Object.hasOwn(T.reader.status, s ?? '') ? T.reader.status[s] : s ?? '')
@@ -179,8 +181,9 @@ function proposedText(item) {
   return headerText(item.proposedHeader, { comments: dated ? { date: T.pending.dateComment } : {} })
 }
 
-/** One file without a header (the template's confirmation card): its path, the suggested header, 写入 · 跳过. */
-function HeaderCard({ item, busy, onApply, onSkip }) {
+/** One file without a header (the template's confirmation card): its path, the suggested header, 写入 · 跳过. Exported for
+ * test/ui-r5b.test.mjs (precheck fix 5: drawn, its words have no code). */
+export function HeaderCard({ item, busy, onApply, onSkip }) {
   const P = T.pending
   const initial = useMemo(() => (item.proposedHeader ? proposedText(item) : ''), [item.file, item.bodyHash, JSON.stringify(item.proposedHeader ?? null)])
   const [text, setText] = useState(initial)

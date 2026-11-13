@@ -17,7 +17,7 @@ export {
 export { runLookup, SOURCE_LOG_LINES, NOTES_SEARCH_MAX } from './lookups.mjs';
 export {
   agentTurn, compressIfNeeded, charsSinceSummary, historyBlock, languageOf, droppedSentence, publicRow, COMPRESS_THRESHOLD, AGENT_SUMMARY_MAX, RECENT_TURNS,
-  NOT_UNDERSTOOD, NOTICE_CODES, TEXT_IN_MAX,
+  NOT_UNDERSTOOD, NOTICE_CODES, TEXT_IN_MAX, TURN_CALLS, SUMMARY_CALLS_MAX,
 } from './turn.mjs';
 export { scriptedAgentConnector, OUT_OF_SCRIPT } from './fake.mjs';
 // redesign R5a (N11): the interface's words for what the main agent is told

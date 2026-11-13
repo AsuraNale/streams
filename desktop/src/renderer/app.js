@@ -22,7 +22,9 @@ import { AppContext } from './lib/app-context.js'
 import { call } from './lib/bridge.js'
 import { useEvent } from './lib/use-events.js'
 import { useLoad } from './lib/use-load.js'
-import { useLibraries, useWaitingItems } from './lib/libraries.js'
+import { useLibraries } from './lib/libraries.js'
+// redesign R5b: what waits for you to confirm — every library's, one list (the right panel's 待确认, the 主 Agent page's head)
+import { useToConfirm } from './lib/agent.js'
 // v2 package L: the one queue of the rounds (the right panel, the sidebar, 库架, the library's head)
 import { useQueue } from './lib/queue.js'
 import { ALIASES, FIRST_SCREEN, LIBRARY_FIRST_SCREEN, SCREENS } from './screens/index.js'
@@ -86,9 +88,8 @@ function App() {
   useEvent('connections-changed', () => appState.reload())
   const shell = setup === false
   const libraries = useLibraries(shell)
-  // v2 package L: the things waiting for you (the right panel's 等你决定 lists them; the badge is their count) and the queue
-  const waitingItems = useWaitingItems(shell)
-  const waiting = waitingItems.count
+  // redesign R5b (P16, O5): the things waiting for you to confirm (listToConfirm; its count is the tab's number) and the queue
+  const toConfirm = useToConfirm(shell)
   const queue = useQueue(shell)
   const libraryId = appState.data?.library?.libraryId ?? null
   // the route of a library's page is that library's to remember
@@ -135,9 +136,9 @@ function App() {
   useEvent('open-screen', p => { if (typeof p?.screen === 'string') navigate(p.screen) })
   const has = id => routeOf(id) !== null
   const value = {
-    route, navigate, has, appState, libraries, waiting, openLibrary, memory: memory.current,
+    route, navigate, has, appState, libraries, openLibrary, memory: memory.current,
     // v2 package L: the right panel's lists, the queue; setPanel folds / unfolds the panel or picks a tab (settings.json)
-    waitingItems, queue, setPanel,
+    toConfirm, queue, setPanel,
     // 新建库, the manual way (v2 package I): its own route; 「取消」 comes back to the screen it was opened from
     newLibrary: () => setRoute(r => (r.screen === 'new-library' ? r : { screen: 'new-library', params: { back: r.screen } })),
   }

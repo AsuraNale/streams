@@ -90,9 +90,8 @@ export const SHELL = Object.freeze({
   }),
 
 
-  who: Object.freeze({
-    agent: 'Suggested by the main Agent · confirmed by you · {date}',
-  }),
+  // redesign R5b: the confirmed proposal card's chip 「主 Agent 提的 · 你确认的」 is gone with that card (a decided 提议 is one line,
+  // texts/proposals.js PROPOSALS.states); who changed a setting is 高级设置's 变更记录 (texts/sources.js ADVANCED.log)
 
   lastRun: Object.freeze({
     title: 'This library · Last run',

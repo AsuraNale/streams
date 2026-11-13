@@ -27,12 +27,13 @@ export function problemWords(problem) {
   if (problem.code === 'connection' && !kind) return { text: fmt(P.connection.none, { n }), fix: P.fix.none, login: false }
   if (problem.code === 'connection') {
     const known = code && Object.hasOwn(P.connection, code)
-    const text = fmt(known ? P.connection[code] : P.connection.other, { name, n, code })
+    const text = fmt(known ? P.connection[code] : P.connection.other, { name, n })
     const login = ['claude-code', 'codex'].includes(kind) && LOGIN.includes(code)
     const fix = LOGIN.includes(code) ? P.fix.login : Object.hasOwn(P.fix, code) ? P.fix[code] : P.fix.other
     return { text, fix, login }
   }
-  const text = Object.hasOwn(P, problem.code) && typeof P[problem.code] === 'string' ? P[problem.code] : fmt(P.connection.other, { name, n, code: problem.code })
+  // redesign R5b (O9): a problem the page has no words for is said as a connection problem, never by its code
+  const text = Object.hasOwn(P, problem.code) && typeof P[problem.code] === 'string' ? P[problem.code] : fmt(P.connection.other, { name, n })
   return { text, fix: null, login: false }
 }
 

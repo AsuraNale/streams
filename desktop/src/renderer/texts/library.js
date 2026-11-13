@@ -55,7 +55,8 @@ export const LIBRARY = Object.freeze({
     }),
     missing: '缺少 {field}',
     badDate: '{field} 不是日期',
-    other: '不符合文件规范（{code}）',
+    // redesign R5b (O9): no code — a rule of the file not met, in words
+    other: '不符合文件规范',
     applyAll: '全部写入',
     applyingAll: '正在写入…',
     allWritten: '已写入 {n} 个文件。',

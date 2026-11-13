@@ -3,11 +3,13 @@
 // next run does not score them again (queue.mjs). The 未通过筛选 ones judged under the old standard are listed here, and only
 // the user's 重新评分 scores them under the new one.
 //
-// rescoreInfo(libraryDir, { limit = 50 }) -> { total, items, changedAt, expectedCalls: [lo, hi], cap }
+// rescoreInfo(libraryDir, { limit = 50 }) -> { total, items, changedAt, changedField, expectedCalls: [lo, hi], cap }
 //   total / items   the 未通过筛选 items whose verdict was made under another standard (decide.mjs listRejected onlyOld:
 //                   newest first, at most `limit`)
 //   changedAt       when the 评分标准 last changed (the newest changes.jsonl line of brief · thresholds · prompts), or null
 //                   (not recorded: a library of before v2 package B, or the upgrade to R5a, when the 追踪要求 joined the cfg)
+//   changedField    redesign R5b: which of them that newest line changed — 'brief' (追踪要求) · 'thresholds' (严格程度) ·
+//                   'prompts' (评分环节) — or null with changedAt (the page says which one changed, P05)
 //   expectedCalls   the estimate of estimate.mjs (estimateFirstRound: the self-check's call + each item 1–4 calls, each side
 //                   at most the 单次运行上限); [0, 0] when there is nothing to score again
 // rescoreRejected(libraryDir, { connector, cap?, ctx?, signal?, onProgress?, now? })
@@ -44,19 +46,26 @@ import { selfCheck, materialFor, libraryTopics, topicOf } from './round.mjs';
 // the changes.jsonl fields that are the 评分标准 (the cfg of a scoring step: config.mjs cfgOf)
 export const STANDARD_FIELDS = Object.freeze(['brief', 'thresholds', 'prompts']);
 
-export function standardChangedAt(libraryDir) {
+/** Redesign R5b: the newest change of the 评分标准 — { at, field } (field one of STANDARD_FIELDS), or { at: null, field: null }. */
+export function standardChange(libraryDir) {
   let at = null;
+  let field = null;
   for (const e of readChanges(libraryDir).entries) {
-    if (STANDARD_FIELDS.includes(e.field) && typeof e.at === 'string' && (at === null || e.at > at)) at = e.at;
+    if (STANDARD_FIELDS.includes(e.field) && typeof e.at === 'string' && (at === null || e.at >= at)) { at = e.at; field = e.field; }
   }
-  return at;
+  return { at, field };
+}
+
+export function standardChangedAt(libraryDir) {
+  return standardChange(libraryDir).at;
 }
 
 export function rescoreInfo(libraryDir, { limit = 50 } = {}) {
   const old = listRejected(libraryDir, { limit, onlyOld: true });
   const cfg = pipelineFrom(readConfig(libraryDir).config ?? {});
   const expectedCalls = old.total === 0 ? [0, 0] : estimateFirstRound({ items: old.total, cap: cfg.cap }).expectedCalls;
-  return { total: old.total, items: old.items, changedAt: standardChangedAt(libraryDir), expectedCalls, cap: cfg.cap };
+  const change = standardChange(libraryDir);
+  return { total: old.total, items: old.items, changedAt: change.at, changedField: change.field, expectedCalls, cap: cfg.cap };
 }
 
 export async function rescoreRejected(libraryDir, { connector, cap, ctx, signal, onProgress, now } = {}) {

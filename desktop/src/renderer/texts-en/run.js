@@ -22,6 +22,7 @@ export const RUN = Object.freeze({
     connection: 'Connection error: {what}',
     cap: 'Reached the per-run limit; the rest waits for the next run',
     aborted: 'Stopped by hand; the rest waits for the next run',
+    other: 'The run did not finish: {what}',
   }),
   what: Object.freeze({
     'login-expired': 'sign-in expired',
@@ -34,7 +35,7 @@ export const RUN = Object.freeze({
     'not-writable': 'the library folder cannot be written',
     index: 'the index cannot be read',
     config: 'the library settings file cannot be read',
-    other: 'an error ({code})',
+    other: 'an error (the details are in “Copy diagnostics”)',
   }),
   outcome: 'Handled: kept {kept} · discarded {dismissed} · later {later}',
   calls: '{n} model call{n?|s} = {parts}',

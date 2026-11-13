@@ -52,7 +52,6 @@ export const SOURCES = Object.freeze({
     address: '{kind} · {address}',
     minPoints: '{kind} · {address} · ≥ {n} 分',
     count: '{state} · {n} 条',
-    streak: '{state} · HTTP {http} · 连续 {n} 次运行',
     streakNoHttp: '{state} · 连续 {n} 次运行',
     lastOk: '上次成功抓取：{when}',
     noTopic: '未标注',
@@ -70,7 +69,6 @@ export const SOURCES = Object.freeze({
     latest: '最新：「{title}」（{date}）',
     latestNoDate: '最新：「{title}」',
     message: '测试抓取：{state} · {message}',
-    http: 'HTTP {http}',
     failed: '测试抓取未完成，请重试。',
   }),
   editDialog: Object.freeze({

@@ -191,7 +191,7 @@ frame-ancestors 'none'
 | `acceptSuggestion(libraryId, key)` | 登记 id；建议卡的 key | 「要」**只做两件事**：记一行 `accepted`，再把这张建议卡以 `note` 的形式交给主 Agent 跑一轮（由它决定出不出提议卡）：`{ accepted: 那一行, turn: agentSend 的同一形状 }`；不改库的任何配置。卡没打开 → `bad_arguments`；没选连接 → `no_connection`（什么都不记）。**重设计 R5a**：「要」= 「交由主 Agent 分析」（⑤ = 「生成修改提议」）：记一行 `accepted`（带 `action`），交给主 Agent 的是核心 `handoffText` 的界面词（不再是 kind · subject 与证据 JSON）；卡已过时 → 记一行失效、`bad_arguments` | 同上 |
 | `listToConfirm()` | 无 | **重设计 R5a**：一种提议的统一视图（§4.19）：`{ items, handled, count }`——`items` = 全部库待确认的：主 Agent 提议（`from: 'agent'`，`proposalId`、`card` 去掉原始报错的提议本身）与系统检测（`from: 'system'`，`key`、`subject`、`otherLibraryId?` / `otherLibraryName?`、`evidence` 界面化的证据：状态与处理建议的键，没有抓取器原话与 HTTP 码），每条都有 `id`、`libraryId`、`libraryName`、`kind`、`status`、`createdAt`、`actions: [{ id, label（`texts/proposals.js PROPOSALS` 的键）, values?, level?, primary, callsModel }]`（照 维护者 过目的动作表，主动作在前）；`handled` = 最近处理过的 ≤ 50 张（主 Agent 提议的状态、系统检测的 `dismissed` · `accepted` · `acted` · `expired` 与动作 / 失效原因），新的在前；`count` = `items` 条数。列之前先查一遍过时：不再适用的系统检测记一行失效、不列；系统检测另带 `summary`（一句界面词，当前界面语言，核心 `suggestionText`）与 `words: { title, evidence }`（`PROPOSALS.kinds.*` / `PROPOSALS.evidence.*` 的键；地址无效用 `source-failing-gap`） | R5b 的右栏待确认、主 Agent 页 |
 | `actOnSuggestion(libraryId, key, action)` | 登记 id（**不限当前库**）；系统检测的 key；`action` ∈ `pause-source` · `edit-address` · `set-strictness` · `forward` · `draft-proposal` · `dismiss` | **重设计 R5a**：由核心 `runSuggestionAction` 执行：暂停该来源 / 将严格程度调整为目标档 = 写那个库的 `streams.json`、变更记录记「手动修改」（`by: 'you'`）、0 次模型调用 → `{ done: true, status: 'acted', action, level?, changed }`；忽略 → `{ done: true, status: 'dismissed' }`；修改地址 → `{ done: false, navigate: { screen: 'sources', libraryId, source, dialog: 'edit-address' } }`（不写盘；改地址本身走 `updateSource`）；交由主 Agent 分析 / 生成修改提议 → 记「已转交主 Agent」，把这张提议写成界面词的一段话交主 Agent 跑一回：`{ done: true, status: 'accepted', action, line, turn }`（没选连接 → `no_connection`，什么都不记）。卡不是打开着的、动作不在这张卡的动作表里、卡已过时（记一行失效、不执行）→ `bad_arguments`。发 `suggestions-changed` | 同上 |
-| `getRescore(libraryId)` | 登记 id | **重设计 R5a**（N07）：那个库按旧标准评过的「未通过筛选」：`{ total, items, changedAt, expectedCalls: [lo, hi], cap }`（核心 `rescoreInfo`）；只读 | R5b 的未通过筛选 |
+| `getRescore(libraryId)` | 登记 id | **重设计 R5a**（N07）：那个库按旧标准评过的「未通过筛选」：`{ total, items, changedAt, changedField, expectedCalls: [lo, hi], cap }`（核心 `rescoreInfo`；`changedField` 是 R5b 加的：`brief` · `thresholds` · `prompts` 哪一样改了，或 null）；只读 | R5b 的未通过筛选 |
 | `startRescore(libraryId)` | 登记 id | **重设计 R5a**：重新评分进全应用那一条队列（同一时间只运行一个库）：空闲 → 马上开始 `{ started: true, roundId, rescore: true }`；忙 → 排到队尾 `{ started: false, queued: true, position, rescore: true }`，或 `{ started: false, already }`；没有旧标准的条目 → `{ started: false, nothing: true }`；没选连接 → `no_connection`。进度经 `round-progress { rescore: true }`，结束发 `inbox-changed` | 同上 |
 | `getLibrary(view, filter)` | `view` ∈ `kept` · `authored` · `caught` · `pending` · `all`（**重设计 R3**：资料库「全部」= 索引里的每个文件；`caught` 只剩来源与要求的单条测试在用）；`filter = { topics: string[], days: number \| null }` | `{ counts: 核心 libraryCounts（R3 起多 `all`）, view, items, total }`（核心 `listLibrary`）；**R3**：`pending` 的每条多 `path`（在库文件夹里的相对路径，如 `notes\x.md`） | S6 · 资料库 · 缺少文件头 |
 | `searchLibrary(q, filter)` | 字符串（≤ 200 字）；`filter = { view: 'kept' \| 'authored' \| 'all', topics, days }` | 核心 `search` 的结果数组 | S6 搜索框 |
@@ -405,6 +405,8 @@ frame-ancestors 'none'
 
 ### 4.5 §四补：提议卡、「谁定的」（v2 包 B，11-05）
 
+> **重设计 R5b（11-13）**：提议的界面是 §4.20 的一种提议（`screens/proposal.js`）；下面的卡面写法已被取代。
+
 契约 `docs/checks/2026-11-05-wp-b/contract.md`；核心 `docs/core-api.md` 5.13；`services/proposals.mjs`。本包只有后台，卡片组件在包 G。
 
 **谁出卡、谁让它生效**：主 Agent（包 C）以后经主进程的 `createProposal(kind, params, why, { by })` 出卡——这个函数**不上桥**，页面不能出卡；今天只有开发钩子出卡。卡只经 `confirmProposal` 生效，「不要」「改一下」只记一笔。只有 `pending` 的卡能被确认 / 不要 / 改一下，别的状态 → `bad_arguments`、什么都不做（守卫在核心 `assertPending`，一处）。
@@ -427,6 +429,8 @@ frame-ancestors 'none'
 测试：`test/services-proposals.test.mjs`（十种卡经主进程生效、N1、stale、建库与回滚、记录、「谁定的」、开发钩子）、`test/proposals-app.test.mjs`（真应用：开发钩子出的卡经桥列出、确认、不要）。
 
 ### 4.6 §四补：主 Agent、建议卡接线（v2 包 C，11-05）
+
+> **重设计 R5b（11-13）**：建议卡与「等你定的事」已去掉，系统检测在右栏待确认（§4.20）。
 
 契约 `docs/checks/2026-11-05-wp-c/contract.md`；核心 `docs/core-api.md` 5.15；`services/agent.mjs`。本包只有后台，对话页在包 G。
 
@@ -467,6 +471,8 @@ frame-ancestors 'none'
 测试：`test/services-route.test.mjs`（桥参数、三种去向用假连接与包 C 的脚本化假主 Agent 核、`resolveLibraryMessage` 照选的走、`routes.jsonl` 只追加、一次一句、`main.mjs` 接线）；核心 `core/test/route.test.mjs`。
 
 ### 4.8 §四补：和主 Agent 聊、提议卡与建议卡组件、问库的分流显示（v2 包 G，11-09）
+
+> **重设计 R5b（11-13）**：主 Agent 页、提议卡与建议卡见 §4.20（模板对话部件、一种提议、去掉「等你定的事」）；下面是 v2 包 G 的原写法。
 
 契约 `docs/checks/2026-11-09-wp-g/contract.md`；设计稿 P2、P6、P8、UC1、UC2 第 4 步、UC3。本包只有界面（renderer + 字典），**没有新的桥方法、没有改主进程**；用的是包 B（§4.5）、C（§4.6）、E（§4.7）已有的方法与事件。字：`texts/agent.js AGENT`（中）/ `texts-en/agent.js`（英），问库新加的几句在 `texts/ask.js ASK`（`inputHint`、`route.*`）。
 
@@ -574,7 +580,7 @@ frame-ancestors 'none'
 **右栏**（`screens/right-panel.js RightPanel`，样式 `styles/screens/panel.css`）：
 - 主窗口三栏：左栏 232 · 主区 · 右栏 380（窗口窄于 1360 时 352）；右上角按钮收起成 52px 的一条（四个图标，「等你决定」带数，点哪个就展开到哪个标签）。窗口最小 1280×800 时三栏都放得下。**收起 / 展开与当前标签记在 `settings.json` 的 `panel`**（`setPanel`，`getAppState().panel`；默认展开、「详情」），下次打开照旧。首次打开、新建库的向导没有右栏。
 - **进度**：全部库——在跑的那个（库名、为什么、开始时间、到了哪一步、调用数 / 上限）、排队的先后（1 = 在跑的，「这个库」标出当前库）、各库下一次定时。读 `getQueue`（`app.js useQueue`：`queue-changed` 与一轮结束时重读；跑的过程中阶段与调用数跟 `round-progress` 走，不每步重读）。
-- **等你决定**：全部库待确认的提议卡与没处理的建议卡，每条写库名与一句话；**和左栏「和主 Agent 聊」旁的数同一个来源**（`lib/libraries.js useWaitingItems`：`listProposals({ status: 'pending' })` + `listSuggestions(null)` 里没处理的；左栏的数就是它的 `count`）。点提议卡 → 和主 Agent 聊并滚到那张卡（路由参数 `card`）；点建议卡 → 那个库的概览、滚到「主 Agent 给这个库的建议」（`openLibrary(id, route)`）。
+- **等你决定**（**已取代**：重设计 R5b 起叫「待确认」，见 §4.20「右栏待确认」）：全部库的主 Agent 提议与系统检测一张清单，紧凑卡就地可点（`screens/proposal.js` 一种提议的紧凑卡；只有「修改地址」去那个库的来源与要求并打开该行的修改地址对话框、「提出修改」去主 Agent 页）；数字 = 清单实际条数，来源是 `lib/agent.js useToConfirm`（桥 `listToConfirm`；`proposals-changed`、`suggestions-changed` 时不刷新页面就地重读）。包 L 的 `lib/libraries.js useWaitingItems` 与「点卡去处理处」已去掉；左栏「主 Agent」后不带数字（F10）。
 - **详情**（随主区变；屏把内容经 `LibraryFrame` / `AppFrame` 的 `detail` 交给右栏）：待看 → 当前那张卡每道关的分数（数字带条）与理由、核验通过与否、「写给 AI 的话」标记、来源、「这一条的记录」，下面照旧是「最近的放弃理由」；资料库 → 原第三栏（`NotePanel`：主题、来源、分数理由、文件、链到这里的、同一来源的、「这一条的核验记录」，钩子照旧 `[data-part=note-panel|backlinks|same-source]`）；问库 → 最近一问的答案引用的笔记（编号、标题、引它的那句，点了在资料库打开），下面照旧是「这次用了什么」「想补的主题」；和主 Agent 聊 → 最近一轮它查过的东西与提的卡（点卡滚到它）；其他页面 → 一句说明。
 - **文件**（当前库；库架、和主 Agent 聊、设置 →「先选一个库」）：`getLibraryOutline` 画「讲给人听的结构」——库名 +「在资源管理器中显示」（`revealLibrary`）；**笔记（n）按笔记头的主题分组**（第一组展开），点一篇 = 在资料库标签里打开它，右键或「更多」：用 Obsidian 打开（`openInObsidian`）· 在资源管理器中显示（`showNoteInFolder`）；**待看（n）** 点了去待看；**这个库的要求与来源** 点了去「来源与要求」（**不提供直接打开那个配置文件**）；**程序记录（不用动）默认折叠**，展开只有一句说明与「在资源管理器中显示」（`revealProgramRecords`）。界面上不出现任何程序文件名（V7）。
 
@@ -601,7 +607,7 @@ frame-ancestors 'none'
 
 **外壳**（照设计目录 `streams/app.js` 的搭法，部件对应见 `07-模板版/说明.md`「用了模板的哪些部件」）：
 - **左栏**（`kit/sidebar.js`）：`brand`（流息的标、流息、个人资料库）→「新建库」（`navitem.new`，`[data-action="add-library"]`）→「库架」（后面是库的个数）→「主 Agent」（**不带数字**：待确认的数只在右栏，F10）→「我的库」→ 每个库一行 `project-item`：图标、名字、待看数（或琥珀点 `[data-problem]`）、一行小字——运行中 · <当前环节> / 排队中 · 第 n 位 / 来源异常（等问题）/ n 条待看 / 暂无待看（`[data-library-line]`，排队时 `[data-library-queue][data-position]`）→ 底部 `side-footer`：套餐用量（`st-quota` + `mini-chart`，读不到整块不显示）、设置。`st-sidebar` 等旧 class 只作测试钩子留在元素上，没有样式。
-- **右栏外框**（`screens/right-panel.js`）：模板的 `context-panel`、`panel-tabs`：**进度 · 待确认 · 详情 · 文件**（「等你决定」改名「待确认」，维护者 定第 13 题）；待确认的数用 `st-count`，与清单同源（`useWaitingItems`）；标签行末一个收起按钮，收起成 52px 的竖条（四个图标）；收起与当前标签照旧记在 `settings.json panel`。进度：`panel-summary`（1 个运行中 · 1 个排队中 / 当前无运行任务）、每个库一张 `phase-row`（在跑的展开：为什么、当前步骤、开始时间，下面 `mini-chart` 是模型调用 / 上限；排队的：手动触发 · 何时加入队列、前一任务完成后自动开始）、`activity-row` 的下次运行时间；在库页上，下面是该库的「上次运行」（原概览的数字、上一轮、最近收藏、运行状态、来源横幅、连续无产出：`screens/last-run.js`，R2 搬到新家）。待确认：小确认卡（主 Agent 提议 / 系统检测 + 库名 + 一句话，点了去处理处）；在库页上，下面是该库的系统检测卡，就地可点（R5 并成一种卡）。文件：`panel-summary` + 按主题分组的 `file-row`、待看、来源与要求、程序记录（无需修改，默认收起）。详情：照旧由各屏给（R2、R5 再改）。
+- **右栏外框**（`screens/right-panel.js`）：模板的 `context-panel`、`panel-tabs`：**进度 · 待确认 · 详情 · 文件**（「等你决定」改名「待确认」，维护者 定第 13 题）；待确认的数用 `st-count`，与清单同源（重设计 R5b：`lib/agent.js useToConfirm`；原 `useWaitingItems` 已去掉）；标签行末一个收起按钮，收起成 52px 的竖条（四个图标）；收起与当前标签照旧记在 `settings.json panel`。进度：`panel-summary`（1 个运行中 · 1 个排队中 / 当前无运行任务）、每个库一张 `phase-row`（在跑的展开：为什么、当前步骤、开始时间，下面 `mini-chart` 是模型调用 / 上限；排队的：手动触发 · 何时加入队列、前一任务完成后自动开始）、`activity-row` 的下次运行时间；在库页上，下面是该库的「上次运行」（原概览的数字、上一轮、最近收藏、运行状态、来源横幅、连续无产出：`screens/last-run.js`，R2 搬到新家）。待确认：重设计 R5b 起是一种提议的紧凑卡（来处 · 库名、标题、一行说明、按钮就地处理），全部库一张清单；库页上不再另列该库的系统检测（同一张提议只出现一次，§4.20）。文件：`panel-summary` + 按主题分组的 `file-row`、待看、来源与要求、程序记录（无需修改，默认收起）。详情：照旧由各屏给（R2、R5 再改）。
 - **库页**（`screens/library-frame.js`）：`work-header`——库名 `h1#lib-head-name`、一行概况（追踪范围：… · n 个来源）、屏自己的按钮、`status-chip`「下次运行 明天 08:00 · 预计 2–8 次模型调用」（`getHome().nextRun`、`estimateRound().expectedCalls`）、**运行按钮**；然后四个标签 **待看 · 资料库 · 问库 ｜ 来源与要求**（`nav.panel-tabs.st-libtabs`，待看的数 `st-count`）；然后「本次运行未开始」的卡（`[data-part="problem"]`，原概览的 S13 卡，四个标签都看得见，V6；措辞与新家在 R2）；然后屏本身。**概览去掉了**（路由、屏、样式都删），进库落在待看；v1.0 的 `today` / `status` 也到待看。
 - **库架**（`screens/shelf.js`，维护者 定第 2 题 B：留着，左栏第一项）：`home-content`（eyebrow、大标题、说明、搜索库、新建库）+ 每个库一张 `project-tile`（上次运行 · n 个来源、状态 chip「运行中 · 抓取」/「排队中 · 第 n 位」/ 问题、库名、追踪范围、底部「n 条待看 · 来源正常 / 来源异常」与「进入待看」）+ 一行「新建库 · 由主 Agent 生成」。
 
@@ -814,6 +820,52 @@ frame-ancestors 'none'
 
 **测试**：核心 `core/test/r5a.test.mjs`；桌面 `test/services-r5a.test.mjs`（真库、真的 proposals / agent / pipeline / schedule 服务，核心的脚本连接，本机假服务器）；`r5a-*` 变异体在两个 `scripts/mutation-check.mjs`。因本包改的旧测试都注明「redesign R5a」与原因。
 
+### 4.20 §四补：重设计 R5b——一种提议的界面、主 Agent 页、右栏待确认、重新评分那一行、原始报错的去处（11-13）
+
+契约 `docs/checks/2026-11-12-r5b/contract.md`；设计 `07-模板版/`（`confirmation` · `decision-points` · `thread` · `composer` · `progress-alert` · `st-count`）、`03-页面稿/` P03 · P16 · P08 · P05、`05-措辞规范.md`；**按钮与动作以 维护者 11-11 过目的动作表与 11-12 三问为准**（施工计划末尾）。后台是 R5a 的（§4.19），本包只补了一处核心：`rescoreInfo` 多给 `changedField`（core-api 4.6 表）。本节取代 §4.5 的「提议卡」、§4.6 / §4.8 的建议卡与「等你定的事」、§4.12 / §4.13 里右栏「待确认 / 等你决定」的写法。
+
+**一种提议的卡**（`screens/proposal.js Proposal`，字在 `texts/proposals.js PROPOSALS`，中英两张字典同键）。一个组件、两种尺寸，都是模板的 `confirmation`：
+
+| | 完整卡（对话里：主 Agent 页、问库） | 紧凑卡（右栏「待确认」） |
+|---|---|---|
+| 谁 | 主 Agent 提议（`agentItem(card)`：`listProposals` 的卡，形状同 `listToConfirm` 的条目） | 主 Agent 提议与系统检测（`listToConfirm().items`，全部库） |
+| 头 | 标题 = 动作 + 对象（`PROPOSALS.card.titles`：创建库：<库名> · 添加来源：<名> · 移除来源 · 暂停 / 恢复来源 · 修改主题 · 修改追踪要求 · 修改严格程度 · 修改定时运行 · 修改单次运行上限 · 立即运行）；小字「主 Agent 提议 · 确认后生效」；`confirm-number` = 库名（新库是它的名字） | 来处行「主 Agent 提议 · <库名>」或「系统检测 · <库名>」；标题（系统检测的五种 + ① 的「地址有问题」由 `PROPOSALS.kinds` 按证据说：次数、来源名、对方库名、重合比例、放弃原因的快选字）；一行说明（主 Agent 提议：「修改后：…」，建库「n 个来源 · n 个主题 · 每天 08:00 自动运行」；系统检测：证据的界面说法 `PROPOSALS.evidence`，③ 带命中的原句） |
+| 正文 | `decision-points`：建库 = 01 追踪要求 · 02 严格程度（档名 + 一句意思，`PROPOSALS.card.levels`，**不写阈值数字**；档由 `lib/strictness.js levelOf` 判，表与核心 `STRICTNESS` 相同、测试核。两道阈值都对不上三档时「自定义 · <它相对三档的位置>」——预检第 1 条：主 Agent 的提议没人手动改过，不再说「已在「高级设置」中手动修改」（那句留在来源与要求里真改过的库上）；位置由 `placeOf` 按两道阈值一起判，见下表；修改前后读出来一样时，修改后再接一句哪一道变严 / 变宽） · 03 主题与来源（主题带关键词；每个来源一行试抓：名字、状态 · 条数，没勾的写「不添加」） · 04 定时与上限；修改类 = 01 修改前 · 02 修改后（来源与主题里新出现的标出，`[data-changed]`），加来源再一点「测试抓取」 | — |
+| 底 | 左「存储位置：<路径> · 确认后记入变更记录」，右按钮 | 按钮（预检第 8 条：每张都靠右、主按钮在最右，① 的四个折成两行也靠右；来处行不变大写，库名与「主 Agent」照写，预检第 7 条）；会调主 Agent 的动作上面一行「「交由主 Agent 分析」由主 Agent 处理，通常 1–4 次模型调用，需要重试或整理对话记录时最多 18 次模型调用」（`PROPOSALS.callsModelOf`，次数 = 主 Agent 一条消息，与主 Agent 页同一口径，见下）；系统检测的一行说明里时间写在冒号后（「最近一次：今天 09:33」「首次出现：…」，预检第 8 条，原「自 今天 09:33 起」） |
+| 按钮（次要在左、主按钮在最右） | 拒绝（quiet）· 提出修改 · 确认（建库叫「创建」，primary） | 主 Agent 提议同左；系统检测 = `listToConfirm` 给的动作表（主动作在前）**倒过来画**：忽略（quiet）在最左，主动作在最右（① 暂时失败 / 访问被拒：忽略 · 交由主 Agent 分析 · 修改地址 · 暂停该来源；① 地址有问题：忽略 · 交由主 Agent 分析 · 暂停该来源 · 修改地址；②：忽略 · 交由主 Agent 分析 · 将严格程度调整为「<档>」；③：忽略 · 交由主 Agent 分析 · 暂停该来源；④：忽略 · 交由主 Agent 分析；⑤：忽略 · 生成修改提议） |
+
+自定义的说法（`PROPOSALS.card.customLevel` / `customWhere` / `delta`，中英两张；`lo` = 两道阈值都不低于的最严一档，`hi` = 两道都不高于的最宽一档）：
+
+| 位置 | 说法 | 例 |
+|---|---|---|
+| 介于两档之间（lo、hi 都有） | 自定义 · 介于<lo>与<hi>之间 | 0.7 / 0.6、0.55 / 0.65 → 介于标准与严格之间 |
+| 只有 lo | 自定义 · 比<lo>更严 | 0.8 / 0.75 → 比严格更严 |
+| 只有 hi | 自定义 · 比<hi>更宽 | 0.3 / 0.45 → 比宽松更宽 |
+| 都没有（一道严于三档、一道宽于三档） | 自定义 · 相关度与实质一项严于三档、一项宽于三档 | 0.3 / 0.8 |
+| 修改前后读出来一样 | 修改后再接「；与修改前相比，相关度要求更严（，实质要求更宽）」 | 0.55 / 0.65 → 0.65 / 0.65 |
+
+- **按下**：同一时间只按得动一个（`useActing`：桥回答前所有按钮 disabled，再按无效）。确认 / 拒绝 / 提出修改 = `confirmProposal` / `declineProposal` / `reviseProposal`；系统检测的动作 = `actOnSuggestion(libraryId, key, action)`，**库 id 是卡自己的**，所以非当前库的「暂停该来源」就地生效、不跳页、不换当前库。
+- **状态**：对话里决定过的卡变成**一行**（模板 `after-card`）：标题 · 已生效 · <时间> / 已拒绝 / 已提出修改 / 设置已变更，该提议已失效（库已移除、存储位置已有文件各有一句）/ 未能执行 · <处理建议>（`failure.category` + `advice` 的界面说法；没全撤回的另有一句，不说「已撤回」；**不给原始报错**）；没有按钮。右栏里处理过的卡直接移走（`useToConfirm.drop`，接着事件重读）；在右栏按下后变成失效或未能执行的，清单顶上一行说它怎样了（`[data-part="decide-said"]`）。`stateText` 另有已忽略、已转交主 Agent 的说法。
+- **提出修改**：卡上就地展开一行输入（`[data-part="revise"]`，空的不发）；发出 = `reviseProposal` + 这句话进主 Agent 的对话（对话页自己的发送；问库里经问库转交；右栏里 `agentSend`，不在主 Agent 页时随后去主 Agent 页看回答）。
+- **修改地址**：`actOnSuggestion(…, 'edit-address')` 回 `navigate` → `openLibrary(那个库, { screen: 'sources', params: { editAddress: <来源名> } })`；来源与要求读到来源后打开那一行的修改地址对话框（R4b 的模板对话框 `EditSourceDialog`，`updateSource`），打开后就把 `editAddress` 从路由里拿掉（预检第 2 条：`app.js` 记住的该库路由里没有它，之后从左栏或库架再进这个库不会再弹）；保存后地址变了，R5a 的过时判断把这张提议记失效、`suggestions-changed`，右栏里它就没了。
+- **创建**（建库）确认后：`openLibrary(result.libraryId, 待看)`——落到新库的待看（02 第 39 行）；首次运行照旧由核心排进队列（`result.queued`）。
+- 卡上没有阈值小数、kind 名、JSON、原始报错、HTTP 码、05「不再用」的词（测试逐张扫）。旧的 `screens/proposal-card.js`（「提议卡 · 你确认后才生效」、确认在左）、`screens/suggestion-card.js`（「交给主 Agent」「不要」、卡头「主 Agent 的建议」）、右栏只跳转的 `DecideCard` 都删了。
+
+**主 Agent 页**（`screens/chat.js`，P03）：模板的对话部件，和问库（R3）一样。页头 h1「主 Agent」+ P03 那句说明 + 右侧 `status-chip` 按钮「n 项待确认」（`[data-part="to-confirm-chip"][data-count]`，n = 右栏待确认清单的条数，点了打开右栏待确认）；对话 `thread`：每天顶上一行 `date-line`「主 Agent · 今天」，你的话 `user-message`（从问库转来的带一行小字），主 Agent 的 `assistant-message`（`speaker`「主 Agent · 管理全部库」，头像是流息的标），问题的快答是 `filters`，这一回出的提议是完整卡；查询、备注、摘要、交由主 Agent 分析是居中一行淡字（`[data-faint]`，「已查询：<库名> 的概况」…，从不显示原文）；这一回的提示是 `progress-alert`（未能读取模型的回答 · n 项提议未能生成 · 会话已中断，已从对话记录恢复 · 本条消息未获回答：<连接的界面说法> + 前往设置），**不显示连接自己的报错**；在跑时对话末尾「主 Agent 在想…」。输入区 `composer`：占位「向主 Agent 描述需求：创建库、调整设置、查询各库情况」、「主 Agent」「Shift + Enter 换行」、发送；下面一行「每条消息通常 1–4 次模型调用；回答需要重试或整理对话记录时会更多，最多 18 次模型调用」——**这是实际口径**（预检第 3 条，照 05 规则 8 写真话）：核心 `agentTurn` 一条消息先调一次出回答，主 Agent 每要查一次各库情况（lookups）多调一次，最多查 `MAX_LOOKUP_ROUNDS` = 3 次 → 通常 1–4 次；上限是核心 `TURN_CALLS.max` = 18：这 4 次回答每次不能用都重试一次（×2）、每次调用碰上会话接不上都开新会话再发一次（×2）、最后整理对话记录的摘要坏格式再试一次（+2）——(1 + 3) × 2 × 2 + 2（`core/test/r5b.test.mjs` 用脚本连接把 `agentTurn` 分别走到 1、4、18 次）。设计稿写的「1–2 次」不对，没有照抄。`AGENT_CALLS = { lo: 1, hi: 4, max: 18 }` 在 `screens/proposal.js`，测试核它 = 核心的 `TURN_CALLS`；「交由主 Agent 分析」「生成修改提议」旁的那句同一口径。
+- **去掉**对话顶上的「等你定的事」（F15）；系统检测不进对话（只在右栏）。左栏「主 Agent」后不带数字（F10）。
+- 进这一页时右栏切到「待确认」（P03；`setPanel({ tab: 'decide' })`，写进 settings.json）。
+- 首次打开的引导（还没有库时）、连接不通、记录分页、`params.send` / `params.card` 照旧，只换成模板部件。
+
+**右栏待确认**（`screens/right-panel.js DecidePane`，P16）：一张清单列**全部库**：`panel-summary`「全部库 · 待确认 / n 项 / 以下事项均需确认后才会执行。」（没有时只有一句「暂无待确认事项。」，不出「以下事项…」那句：预检第 9 条），下面 `st-stack` 里每条一张紧凑卡。清单是 `lib/agent.js useToConfirm`（`app.js` 的 `toConfirm`，替掉 v2 包 L 的 `useWaitingItems`）：桥的 `listToConfirm`，在 `proposals-changed`、`suggestions-changed`、`agent-changed` done、`libraries-changed` 时重读，**不重新载入页面**；标签上的 `st-count`、主 Agent 页头的小标签都是这张清单的长度。同一张主 Agent 提议在对话里与右栏里是同一个对象：任一处按下，桥发 `proposals-changed`，两处都重读（对话里那张变成一行状态，右栏里那张移走）。库页下方原来那份「当前库 · 系统检测」列表去掉了，一张提议在窗口里只出现一次（预检第 4 条：测试数每张提议的标题文字在整个窗口里出现几次，不认某个选择器）。进度、详情、文件三栏没动。
+
+**未通过筛选里的重新评分**（`screens/inbox.js RescoreAlert`，N07，P05）：待看页底部「未通过筛选」折叠区里，`getInbox().rescore.total` > 0 时第一行是 `progress-alert`：「<追踪要求 / 严格程度 / 评分环节>已于 <时间> 更新，以下 n 条按旧标准评分。」（哪样改了 = 核心 `rescoreInfo.changedField`，本包补的：`changes.jsonl` 里评分标准最新一行的字段；没有记录的——升级到 R5a 那次——说「评分标准已更新，…」）+ 按钮「重新评分（预计 a–b 次模型调用）」（a–b = 核心 `expectedCalls`，与 `rescoreInfo` 一致、测试核）；按旧标准评的行带「按旧标准评分」`[data-old="true"]`。按下 = `startRescore`（按排队规矩：空闲马上开始，忙就排队，按钮即状态「重新评分中…」/「已加入队列 · 第 n 位」）；结束后 `inbox-changed` / `round-progress done` 重读，旧条目没了提示就没了，通过的出现在待看。没有旧条目时不出现。
+
+**原始报错的去处**（O9，界面这一半）：问题卡（`problem-card.js`）、运行漏斗（`run-funnel.js stopWhat`）、资料库的文件规范（`library.js pendingWords`）三处的 `({code})` 去掉——认得的码有自己的说法，认不得的说「连接出现问题」「出现错误（详细信息见「复制诊断信息」）」「不符合文件规范」，不再把码放进括号；运行漏斗认不得的停止原因（`stop.why`）也不原样输出，说「运行未完成：<what>」（`RUN.stopWhy.other`，预检第 5 条）；测试除了函数层，还把三处组件真画出来读页面文字（英文报错、404、认不得的码）。问题卡里本包新写的那句（认不得的连接问题）照 05 写：「<连接> 连接出现问题，本次运行未完成评分。已抓取的 n 条内容已保留。」（预检第 10 条；其余旧句留给 R6）。来源与要求里「HTTP {http}」两处死代码删了（`row.streak`、`tried.http`，中英；预检第 11 条），页面不读 `.http`；提议、系统检测、试抓、主 Agent 页的提示都只用界面说法（数据层 R5a 已不给原文）。原文只在「复制诊断信息」（设置 → 关于 → 高级，`raw-errors.mjs`，§4.19）。
+
+**interim.css 的结局**：`styles/screens/agent.css` 删了（主 Agent 页与提议全用模板部件，覆盖层 `template-app.css` 第 11 段只写位置与换行，不写颜色，`kit.test` 核）；`interim.css` 里只有它用的五个名字（`--st-fs-body`、`--st-font-mono`、`--st-page`、`--st-divider-soft`、`--st-done-border`）一起删了。**interim.css 还不能删**：kit（`kit.css`：Button、对话框、标签、五种抓取状态的颜色对，`kit.test` 要求五对都在）、菜单（`menu.css`：右栏文件里笔记的「更多」）、占位屏（`placeholder.css`）、右栏与左栏 R1 的残留（`panel.css`、`shell.css`）、开发时的组件一览（`screens/kit.css`）还在用其余的 `--st-*` 名字：**54 个名字**，**59 行取值**（`.r11` 里 54 行，每个名字一行；单线黑白 `.r12-line.r11` 里再给其中 5 个名字各一行覆盖：`--st-selected`、`--st-active-fill`、`--st-fetch-gap-bg`、`--st-fetch-failed-bg`、`--st-fetch-blocked-bg`），54 个都有样式文件在用（预检第 12 条重数过）；它们随 kit 一起由 R6 决定。
+
+**测试**：`test/ui-r5b.test.mjs`（四个世界：卡的十种主 Agent 提议与 ①–⑤、状态、三处界面说法与诊断信息；主 Agent 页；右栏待确认；重新评分），`core/test/r5b.test.mjs`（`changedField`、主 Agent 一条消息的调用次数：1、4、18）；预检修正（11-13）补的：自定义的位置与修改前后同句、修改地址回来不再弹、调用次数上限、标题在整个窗口只出现一次、三处真画出来没有码、重新评分里新标准也没通过的条目并存、紧凑卡来处不变大写与按钮靠右、待确认空时只一句、HTTP 死代码；`r5b-*` 变异体在 `scripts/mutation-check.mjs`。因本包改的旧测试都注明「redesign R5b」与原因；验收草案 n06 的 UC1 / UC2 / UC3 / UC5 只改了定位与按钮的说法（文件头列了每一步改了什么，供 R6 给 维护者 看），草案标准原文与 `standards.mjs` 没动。
+
 ## 五、界面写法
 
 **选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。
@@ -821,10 +873,10 @@ frame-ancestors 'none'
 ```
 src/renderer/
   index.html        CSP <meta>、import map（preact、preact/hooks、htm）、styles/app.css、app.js
-  app.js            App：当前路由、navigate()（v1.0 的 id 经 `ALIASES` 换成现在的地方）、应用状态、库的列表（`useLibraries`）与「等你定的事」（`useWaiting`）、每个库记住的页面与滚动（`memory`）、切库（`openLibrary`）、「新建库」对话框；显示当前屏幕；没打开库时显示首次设置（screens/first-run.js），做完才回到入口
-  lib/              html.js · bridge.js（call、onEvent）· use-load.js · use-update.js · format.js（fmt、日期）· app-context.js（useApp）· use-events.js（useEvent、isOfLibrary；`useInboxCount` 留着、v2 不再用）· agent.js（v2 包 G：useProposals、useSuggestions、useAgentBusy、suggestionsChanged）· libraries.js（v2 包 F：useLibraries、useWaiting、tracking「在追」、firstSentence）· action.js（Act：带 data-action 的按钮）· markdown.js（renderMarkdown：笔记的 Markdown 切成 Preact 元素，不经 HTML 字符串）
+  app.js            App：当前路由、navigate()（v1.0 的 id 经 `ALIASES` 换成现在的地方）、应用状态、库的列表（`useLibraries`）与待确认（重设计 R5b：`lib/agent.js useToConfirm`，原「等你定的事」`useWaiting`）、每个库记住的页面与滚动（`memory`）、切库（`openLibrary`）、「新建库」对话框；显示当前屏幕；没打开库时显示首次设置（screens/first-run.js），做完才回到入口
+  lib/              html.js · bridge.js（call、onEvent）· use-load.js · use-update.js · format.js（fmt、日期）· app-context.js（useApp）· use-events.js（useEvent、isOfLibrary；`useInboxCount` 留着、v2 不再用）· agent.js（v2 包 G：useProposals、useAgentBusy；重设计 R5b：useToConfirm，useSuggestions 与 suggestionsChanged 删了）· strictness.js（重设计 R5b：三档的表、levelOf、placeOf——自定义相对三档的位置）· libraries.js（v2 包 F：useLibraries、tracking「在追」、firstSentence、joinRows、withInboxCount；包 L 的 useWaitingItems / useWaiting 已由重设计 R5b 的 agent.js useToConfirm 取代）· action.js（Act：带 data-action 的按钮）· markdown.js（renderMarkdown：笔记的 Markdown 切成 Preact 元素，不经 HTML 字符串）
   kit/              组件（下表），从 kit/index.js 引
-  screens/          index.js（SCREENS：id → 组件；ALIASES；FIRST_SCREEN；LIBRARY_FIRST_SCREEN）· first-run.js（S1 四步）· shelf.js（P1 库架）· chat.js（P2 和主 Agent 聊，v2 包 G：等你定的事、对话流、输入框；AgentBubble、Notice、Compose）· proposal-card.js（P8 提议卡，包 G）· suggestion-card.js（建议卡、概览那一块，包 G）· new-library.js（「新建库」对话框）· library-frame.js（库页外壳：库头 + 五个标签 + 屏；ViewSwitch）· overview.js（P3 概览 = v1.0 今日 S2 + S13 出错卡片 + 运行状态）· status.js（概览里「运行状态」那一块 RunStatus）· run-dialog.js（S12，概览上的对话框）· inbox.js（S3 / P4）· library.js（S6 / P5）· graph.js（S9，资料库的图谱视图）· edit-dialog.js（S7）· verdict-dialog.js（S15）· ask.js（S10 / P6）· sources.js（S5 + 要求 + 本库定时与上限 + 谁定的 = P7 来源与要求）· pipeline.js（S4 的部件 = 来源与要求里的「关卡」GatesSection）· settings.js（S14 / P9；连接行的零件也从这里导出）· settings-update.js · placeholder.js（没人用的占位工厂）· kit.js（开发时）
+  screens/          index.js（SCREENS：id → 组件；ALIASES；FIRST_SCREEN；LIBRARY_FIRST_SCREEN）· first-run.js（S1 四步）· shelf.js（P1 库架）· chat.js（P03 主 Agent 页，重设计 R5b：模板对话部件 thread / user-message / assistant-message / composer、页头「n 项待确认」、对话里一种提议的完整卡；包 G 的「等你定的事」与 AgentBubble 已去掉；Notice、NoConnection、Compose、FirstGuide）· proposal.js（重设计 R5b：一种提议的卡，完整 / 紧凑两种尺寸；取代包 G 的 proposal-card.js 与 suggestion-card.js）· new-library.js（「新建库」对话框）· library-frame.js（库页外壳：库头 + 五个标签 + 屏；ViewSwitch）· overview.js（P3 概览 = v1.0 今日 S2 + S13 出错卡片 + 运行状态）· status.js（概览里「运行状态」那一块 RunStatus）· run-dialog.js（S12，概览上的对话框）· inbox.js（S3 / P4）· library.js（S6 / P5）· graph.js（S9，资料库的图谱视图）· edit-dialog.js（S7）· verdict-dialog.js（S15）· ask.js（S10 / P6）· sources.js（S5 + 要求 + 本库定时与上限 + 谁定的 = P7 来源与要求）· pipeline.js（S4 的部件 = 来源与要求里的「关卡」GatesSection）· settings.js（S14 / P9；连接行的零件也从这里导出）· settings-update.js · placeholder.js（没人用的占位工厂）· kit.js（开发时）
   texts/            页面自己写的所有字：common.js（品牌、侧栏的两个入口与「设置」、五种状态、日期、三种连接与登录回路的词、节点名、阶段名）· shell.js（v2 包 F：我的库、角标、五个标签、库头、库架、新建库、谁定的、要求、关卡、定时一览、用量合计）· first-run.js · today.js（概览）· inbox.js · run.js · settings.js · library.js（含编辑与核验记录两个对话框的字）· sources.js · pipeline.js · status.js · ask.js · graph.js · screens.js（占位页）· kit.js；common.js 末尾加了界面 B 共用的：五态的「怎么办」句 `FETCH_HINTS`、`SOURCE_STATES`（已暂停 / 还没抓过）、`SOURCE_KINDS`、`NOTE_STATUS`、`NO_CONNECTION`
   texts-en/         英文字典，与 texts/ 同名同键（§六）
   styles/           app.css（@import 列表）· interim.css（重设计 R1：旧 --st- 名指到模板变量，过渡）· base.css · kit.css · menu.css · screens/<屏幕>.css · template-app.css（应用对模板的一层覆盖）
@@ -835,7 +887,7 @@ src/renderer/
 
 **界面结构（v2 包 F，11-05：方案 B；设计稿 `docs/design/v2/streams-v2-design.html` 的导航、P1、P3–P7、P9）**
 
-- **左栏不随库变**（`kit/sidebar.js AppSidebar`）：品牌「流 · 流息 · STREAMS」→「库架」`a[data-nav="shelf"]` →「和主 Agent 聊」`a[data-nav="chat"]`（角标 `[data-badge="chat"]` = 待定的提议卡数 `listProposals({ status: 'pending' })` + 未处理的建议卡数——桥上有 `listSuggestions` 才数，包 C / G 接线前是 0；两者都 0 不画；`proposals-changed`、主 Agent 一轮结束（`agent-changed` done）与页面上处理了建议卡（`streams-suggestions-changed`，§4.8）时重读：`lib/libraries.js useWaiting`）→ 小标题「我的库」→ 每个登记的库一行 `a[data-library-row=<id>]`（库的图标方块 `LibraryMark`、名字、待看数 `[data-library-badge]`、有问题时一个琥珀小点 `[data-problem=missing|sources|no-output]`；`data-active` = 是不是当前库；在它的库页上时 `aria-current="page"`，画成白卡片）→「+ 新建库」`[data-action="add-library"]` →（v2 包 M）当前连接的套餐余量或 API 余额 `[data-part="quota"]`（§4.11；没有就整块不画）→ 底部「设置」。v1.0 的九个入口（今日、待看、资料库、图谱、问库、流水线、来源与主题、运行状态）没有了，全在库页里。
+- **左栏不随库变**（`kit/sidebar.js AppSidebar`）：品牌「流 · 流息 · STREAMS」→「库架」`a[data-nav="shelf"]` →「主 Agent」`a[data-nav="chat"]`（重设计 R1 改名；**不带数字**——重设计 R5b（F10）去掉了包 F 的角标 `[data-badge="chat"]` 与 `lib/libraries.js useWaiting`：待确认的条数只在右栏「待确认」的标签与主 Agent 页头的「n 项待确认」上，见 §4.20）→ 小标题「我的库」→ 每个登记的库一行 `a[data-library-row=<id>]`（库的图标方块 `LibraryMark`、名字、待看数 `[data-library-badge]`、有问题时一个琥珀小点 `[data-problem=missing|sources|no-output]`；`data-active` = 是不是当前库；在它的库页上时 `aria-current="page"`，画成白卡片）→「+ 新建库」`[data-action="add-library"]` →（v2 包 M）当前连接的套餐余量或 API 余额 `[data-part="quota"]`（§4.11；没有就整块不画）→ 底部「设置」。v1.0 的九个入口（今日、待看、资料库、图谱、问库、流水线、来源与主题、运行状态）没有了，全在库页里。
 - **库的列表**（`lib/libraries.js useLibraries`，`app.js` 放进 `useApp().libraries`）：`listLibraries` 与 `getLibrariesOverview` 按 id 合成一行；`libraries-changed`、`library-changed` 与一轮结束（`round-progress` 带 `done: true`，哪个库的都算；包 J1 补：否则库架卡片的「上次更新」与琥珀小点要等别的事件才变，`test/ui-shelf-after-round.test.mjs`）时整份重读；`inbox-changed { libraryId, count }` **只改那一行的 `inbox`**（别的库的事件不碰这一行；没带 libraryId 的事件 → 整份重读）。左栏、库架、库头都读它。
 - **点一个库**（`app.js openLibrary`）：不是当前库 → `setActiveLibrary(id)`（失败 = 文件夹不在：留在原处、列表重读）→ 回到这个库上次停的那一页；第一次开 → 它的「待看」（`LIBRARY_FIRST_SCREEN`，设计稿 UC2）。应用启动停在当前库的「概览」（`FIRST_SCREEN`；v1.0 启动在今日）。
 - **每个库各自记住**（内存，`app.js memory`）：`routes`：库 id → 最后停的路由（标签与参数，例如资料库的图谱视图）；`scroll`：「库 id:屏」→ 主体（`.st-main__body`）滚到哪。回到那一屏、它有了数据之后放回去；之后才长出来的部分（来源与要求的「要求」「关卡」各自读数据）每 100 ms 再放一次，直到放到、且主体里没有 `data-state="loading"` 的部分（最多 3 秒），这期间的滚动不算你的。换库时库页整个重新挂（`key` 带库 id），上一个库的东西不会留在页面上。
@@ -847,7 +899,7 @@ src/renderer/
   - 资料库 `library` 与它的图谱视图 `graph`：v1.0 两屏，小标题行右边「列表 / 图谱」切换（`ViewSwitch`，`[data-mode=list|graph][aria-pressed]`）；图谱的 `Main` 仍是 `data-screen="graph"`，标签算资料库。
   - 来源与要求 `sources`（`screens/sources.js`，P7）：左列「要求」`[data-part="brief"]`（`getBrief`；「改要求」→ 文本框 → 「保存」`setBrief`：streams.json 的 `brief`、`changes.jsonl` 记 `by: 'you'`；空的或过 2000 字在页面就拒）、主题、本库的「定时与每轮上限」`[data-part="run"]`（`getLibrarySchedule` / `setLibrarySchedule` 用当前库的 id，开关与时刻改了就存；上限 `getPipelineSettings` / `setRoundCap`）；右列来源（v1.0 来源与主题的行与对话框）；下面「关卡」`[data-part="gates"]`（`screens/pipeline.js GatesSection`：v1.0 流水线的节点条、关卡的要求、过关线、材料、核对单、试一条、保存 / 恢复默认，右边是上一轮各节点、最近的放弃理由、没通过核验的原因）。每块旁边「谁定的」`[data-who=brief|topics|sources|schedule|cap|thresholds][data-by=you|agent-confirmed|setup]`（`getWhoDecided`：你改的 · 日期 / 主 Agent 提的 · 你确认的 · 日期 / 没有记录 =「首次设置」）。
 - **库架** `shelf`（`screens/shelf.js`，P1）：每个库一张卡 `[data-shelf-card=<id>]`（图标、名字、「在追」、上次更新 `lastRoundAt` · 来源数、待看数大字、问题一行：文件夹不在 / 来源出问题 / 连续 N 轮没有产出，或「来源都正常」）；最后一张「+ 新建库 · 和主 Agent 聊着建」`[data-action="new-card"]` → 和主 Agent 聊；点卡片 = 点左栏那一行。一个库都没有：一句引导 + 「和主 Agent 聊」「手动新建」两个按钮 `[data-part="shelf-empty"]`。
-- **和主 Agent 聊** `chat`（`screens/chat.js`）：v2 包 G，见 §4.8（等你定的事、对话流、提议卡与建议卡、输入框）。
+- **和主 Agent 聊** `chat`（`screens/chat.js`）：v2 包 G，见 §4.8（等你定的事、对话流、提议卡与建议卡、输入框）。**重设计 R5b**：「主 Agent」页，模板对话部件，见 §4.20。
 - **新建库**（**v2 包 I 起**是 `screens/new-library.js NewLibraryScreen`，路由 `new-library`，见 §4.10；包 F 时是对话框 `NewLibraryDialog`：库名 + 「选一个空文件夹新建」/「打开已有文件夹」）：左栏「+ 新建库」、库架「新建库」「手动新建」、首次打开引导的「也可以手动新建」。
 - **设置**（P9 的最小改动，包 I 再改）：定时与每轮上限不在设置里改了；「定时一览」`[data-part="schedules"]`（每个库一行 `[data-schedule-row=<id>][data-schedule=on|off]`：名字、每天几点或「关」、下次运行；只读；点名字 `[data-action="go-library"]` → 切到那个库的来源与要求、滚到「定时与每轮上限」）与「全部库本月用量合计」`[data-part="usage"]`（`getUsageTotal`：调用次数、输入 / 输出 token、每个库各几次）。其余设置项不动。**v2 包 I 起**分五组（连接 · 主 Agent · 库 · 外观与语言 · 软件），加主 Agent 状态与「新建库默认放在」，当前库的项搬到来源与要求的「这个库」，见 §4.10。
 - v1.0 的 id 仍然能用（`screens/index.js ALIASES`：`today` → 概览、`status` → 概览并滚到「运行状态」、`pipeline` → 来源与要求并滚到「关卡」），所以开发钩子 `--screen today`、通知的 `open-screen`、首次设置的「去今日」都有去处。
@@ -917,6 +969,7 @@ src/renderer/
 | `ui-today.test.mjs` | （加）rounds.jsonl 末尾两轮没有产出不出横幅、三轮出琥珀横幅带「看运行状态」、中间有产出就从头数 | 是（**重设计 R2 删了这个文件**：今日的四个数、来源横幅、连续无产出横幅都不存在了；漏斗与横幅的测试见 §4.14） |
 | `ui-shell.test.mjs`（v2 包 F） | 三个登记的库（`seedShelf`）+ 一张待定的提议卡：左栏方案 B 的结构、每行的图标 / 名字 / 待看数（核心 `homeNumbers` 重算）/ 问题小点 / 当前库高亮、和主 Agent 聊的角标；`inbox-changed` 带 libraryId 只改那一行（另两行不动）；点库 → `libraries.json` 的当前库变、进它的待看、库头「在追」是要求的第一句；五个标签都在当前库上、资料库的图谱视图；切库再切回标签与滚动各自记住、第一次开的库停在待看；库架的卡片（与 `getLibrariesOverview` 对照）、问题一行、点卡片进库、新建卡进和主 Agent 聊、一个库都没有时的空状态（登记移除、文件不动）；来源与要求：确认提议卡后「谁定的」= 主 Agent 提的 · 你确认的，自己保存要求 → `streams.json` 与 `changes.jsonl`（`you`）、空的要求在页面就拒；本库定时与上限在这里改（`streams.json`、谁定的 = 你）、关卡在这一页；设置没有定时与上限的编辑、定时一览三行、用量合计等于核心 `usageTotal`、点名字进那个库的来源与要求 | 是 |
 | `ui-agent.test.mjs`（v2 包 G） | 三个库 + 五张开发钩子出的卡 + 两张建议卡 + 113 行的旧对话 + 脚本化的主 Agent：等你定的事的数与左栏角标一致、可折叠；正本一页 100 行、加载更早的，lookup / note / summary 只一行淡字不露原文；UC1 一个问题带快捷回答（发出的是选项原文）→ 建库卡（试抓、没勾）→ 建库后左栏多一个库；四种 notice 各一句、连接问题带去设置；一轮进行中不可再发（主进程那一个方法加延迟）；建议卡交给主 Agent / 不要；提议卡不要 = declineProposal、确认连点只调一次、stale、failed、改一下；卡上没有任何开关；问库 unsure 两个按钮带对的 route、change 的「这句转给主 Agent」+ 卡 → 确认后「谁定的」、question 的回答；在页面里画出每种状态与四种建议卡 | 是 |
+| `ui-r5b.test.mjs`（重设计 R5b） | 一种提议的卡：十种主 Agent 提议（完整 / 紧凑）与 ①–⑤（真 `listToConfirm`）的标题、来处、按钮次序与文字、状态的一行，扫 05「不再用」、阈值小数、kind 名、JSON、原始报错；三处界面说法与诊断信息里的原文；主 Agent 页的模板部件、无「等你定的事」、小标签 = 清单、右栏默认待确认、创建后落到新库待看；右栏待确认一张清单各一次、后台新出（放弃 ×3 → ⑤）不重载即时更新、对话与右栏同步、非当前库就地暂停、修改地址打开对话框；重新评分的提示与预计次数、点了只评旧的、没有旧条目不出 | 是（四个世界） |
 | `ui-licenses.test.mjs` | 许可证与致谢：全文与仓库 LICENSE 逐字一致、「由 Starry Digital 开发」、五个组件的版本、开发时「打开完整的第三方声明」不可点并写原因、桥回 `open_failed` | 是 |
 | `wording.test.mjs` · `texts-en.test.mjs` | 字典过扫描器 0 命中、全角标点、别处无汉字、LF；英文表与中文表对齐、无禁词 | 否 |
 | `app-id.test.mjs` · `icon.test.mjs` · `deps.test.mjs` · `start.test.mjs` | 身份值；streams.ico 的五个尺寸；五个 SVG 来源与 `docs/design/logo/source/流息/` 逐字节相同（新 logo）；重建对比要 sharp：没有就跳过并说明，**设了 `STREAMS_SHARP_DIR` 却找不到 sharp 就是失败、不跳过**；依赖钉死；`npm start` 的文件夹规矩 | 否 |

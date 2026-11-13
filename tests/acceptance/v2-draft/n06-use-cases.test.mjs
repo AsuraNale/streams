@@ -26,6 +26,21 @@
 // item without a file is read now — 待看: the card's 详情 (source, date, the two steps' scores and reasons), its title opening
 // Streams' reading window in 阅读模式 (原网页 in the same window), 收藏 → notes/ on the disk, and only then, in 资料库, 「更多」 with
 // 在 Obsidian 中打开 and 在资源管理器中显示 (a card in 待看 has neither). The pictures are still uc4-<step>.png.
+// Redesign R5b (docs/checks/2026-11-12-r5b/contract.md 「测」: 「验收草案 n06 的 UC1 / UC2 / UC5 跟着改」): the one 提议 and the right
+// panel's one list of 待确认. Only how this file finds things and the buttons' words and order changed — the draft standard
+// (standards-draft.mjs) is not touched, and each change is said beside it; for R6's list for the maintainer:
+//   UC1 step 2  the main Agent's question is [data-part="question"] (was .chat-text, the old bubble's class)
+//   UC1 step 3  the card's buttons are 拒绝 · 提出修改 · 创建, the main one on the right (were 建库 · 改一下 · 不要, confirm first)
+//   UC1 step 4  创建 opens the new library's 待看 (02 第 39 行), so the card's 已生效 is read from the bridge (was the card in the
+//               conversation, which is no longer on the page then)
+//   UC2 step 4  the 系统检测 are the small cards of the one list [data-pane="decide"] [data-suggestion][data-library] (was the
+//               library's own list [data-part="suggestions"]); their buttons the 动作表's (维护者 11-11): 忽略 · 交由主 Agent 分析 · …
+//               (were 交给主 Agent · 不要 — accept · dismiss)
+//   UC3 step 3  the trial's chip is [data-part="trial-chip"] (was .pc-chip): the class went with the old card
+//   UC5 step 4  the same list and 动作表 (忽略 · 交由主 Agent 分析 · 暂停该来源); 忽略 takes the card off the list (was: it stayed,
+//               saying 没要) — dismissed is read from the library's suggestions.jsonl, as it was
+//   test names  (precheck fix 13) UC1 step 3 / 4, UC2 step 4 and UC5 step 4 name the buttons as they are now (拒绝 · 提出修改 · 创建,
+//               忽略 · 交由主 Agent 分析) and the place (待确认, was 概览); only the names changed, every assertion is as above
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -178,12 +193,12 @@ test('UC1 step 1 · 和主 Agent 聊: the sentence → one question with two qui
   const n = transcriptLen()
   await p().click('main[data-screen="chat"] [data-action="send"] button')
   await settledAfter(n)
-  const ask = await p().evaluate(() => { const a = document.querySelector('[data-part="ask"][data-open="true"]'); return a ? { q: a.querySelector('.chat-text').textContent, options: [...a.querySelectorAll('[data-action="quick"]')].map(b => b.dataset.option) } : null })
+  const ask = await p().evaluate(() => { const a = document.querySelector('[data-part="ask"][data-open="true"]'); return a ? { q: a.querySelector('[data-part="question"]').textContent, options: [...a.querySelectorAll('[data-action="quick"]')].map(b => b.dataset.option) } : null })
   assert.deepEqual(ask, { q: '港股、美股上市的中国车企要算进来吗？', options: ['要', '不要'] })
   await shot('uc1-2')
 })
 
-test('UC1 step 3 · 要 → the create card: name, brief, three topics, eight sources tried (seven ok and ticked, the refused one not), thresholds, 08:30; 建库 / 改一下 / 不要', async () => {
+test('UC1 step 3 · 要 → the create card: name, brief, three topics, eight sources tried (seven ok and ticked, the refused one not), thresholds, 08:30; 拒绝 / 提出修改 / 创建 (redesign R5b)', async () => {
   const n = transcriptLen()
   await p().click('[data-part="ask"][data-open="true"] [data-action="quick"][data-option="要"] button')
   await settledAfter(n)
@@ -207,7 +222,8 @@ test('UC1 step 3 · 要 → the create card: name, brief, three topics, eight so
   assert.deepEqual(shown.trials.filter(t => t[2] === 'true').length, 7)
   assert.deepEqual(shown.trials.find(t => t[0] === 'ev-forum'), ['ev-forum', 'blocked', 'false'])
   assert.ok(shown.schedule.includes('08:30'))
-  assert.deepEqual(shown.actions, ['confirm', 'revise', 'decline'])
+  // redesign R5b: 拒绝 · 提出修改 · 创建, the main one on the right (was confirm · revise · decline)
+  assert.deepEqual(shown.actions, ['decline', 'revise', 'confirm'])
   assert.equal(AUTO.test(shown.text), false)
   assert.equal(existsSync(join(libraryRoot, EV)), false, 'control: no folder yet')
   W.createCard = card
@@ -215,11 +231,15 @@ test('UC1 step 3 · 要 → the create card: name, brief, three topics, eight so
   await shot('uc1-3')
 })
 
-test('UC1 step 4 · 建库: the code makes the folder, the sidebar has 中国电动车行业, the first round starts', async () => {
+test('UC1 step 4 · 创建 (redesign R5b): the code makes the folder, the sidebar has 中国电动车行业, the first round starts', async () => {
   const rowsBefore = await p().evaluate(() => document.querySelectorAll('[data-library-row]').length)
   assert.equal(rowsBefore, 2, 'control: two libraries before')
   await p().click(`[data-part="conversation"] [data-proposal="${W.createCard.id}"] [data-action="confirm"] button`)
-  await until(id => document.querySelector(`[data-part="conversation"] [data-proposal="${id}"]`)?.dataset.status === 'confirmed', W.createCard.id)
+  // redesign R5b: 创建 opens the new library's 待看 — the card's state is read from the bridge (the conversation is not on the page now)
+  for (let end = Date.now() + 60_000; ; await sleep(200)) {
+    if ((await bridge('listProposals', null)).data.find(c => c.id === W.createCard.id)?.status === 'confirmed') break
+    if (Date.now() > end) throw new Error('the card was not confirmed')
+  }
   await until(() => document.querySelectorAll('[data-library-row]').length === 3)
   const e = evEntry()
   assert.ok(e && existsSync(join(e.path, 'streams.json')), 'registered, a library on disk')
@@ -313,22 +333,26 @@ test('UC2 step 3 · 中国时尚上市公司 from the sidebar: straight to its �
   await shot('uc2-3')
 })
 
-test('UC2 step 4 · AI Agent 工具 → 概览: 「连续 3 轮没有产出」 and the main Agent\'s suggestion cards (交给主 Agent / 不要, nothing that acts by itself)', async () => {
+test('UC2 step 4 · AI Agent 工具 → 待确认: 「连续 3 轮没有产出」 and the 系统检测 (忽略 / 交由主 Agent 分析 / …, nothing that acts by itself) (redesign R5b)', async () => {
   await openRow(W.ids.tools)
   await onPage('inbox', W.ids.tools)
   await lastRun()
   // redesign R2: 「连续 3 轮没有产出」 is the 待确认 card now (no banner): its sentence carries the count
   await panelTab('decide')
-  await until(() => document.querySelector('[data-part="suggestions"] [data-suggestion="no-output:library"]') !== null)
-  assert.equal(await p().evaluate(() => document.querySelector('[data-part="suggestions"] [data-suggestion="no-output:library"] [data-part="sentence"]')?.textContent.match(/\d+/)?.[0]), '3')
-  await until(() => document.querySelector('[data-part="suggestions"] [data-suggestion="source-failing:mcp-news"]') !== null)
-  const s = await p().evaluate(() => [...document.querySelectorAll('[data-part="suggestions"] [data-suggestion]')].map(e => ({ key: e.dataset.suggestion, sentence: e.querySelector('[data-part="sentence"]').textContent, actions: [...e.querySelectorAll('[data-action]')].map(a => a.dataset.action), text: e.textContent })))
+  // redesign R5b: the one list of 待确认 — this library's cards are the ones with its id (was its own list [data-part="suggestions"])
+  const here = `[data-pane="decide"] [data-library="${W.ids.tools}"]`
+  await until(q => document.querySelector(`${q}[data-suggestion="no-output:library"]`) !== null, here)
+  assert.equal(await p().evaluate(q => document.querySelector(`${q}[data-suggestion="no-output:library"] [data-part="sentence"]`)?.textContent.match(/\d+/)?.[0], here), '3')
+  await until(q => document.querySelector(`${q}[data-suggestion="source-failing:mcp-news"]`) !== null, here)
+  const s = await p().evaluate(q => [...document.querySelectorAll(`${q}[data-suggestion]`)].map(e => ({ key: e.dataset.suggestion, sentence: e.querySelector('[data-part="sentence"]').textContent, actions: [...e.querySelectorAll('[data-action]')].map(a => a.dataset.action), text: e.textContent })), here)
   assert.deepEqual(s.map(x => x.key).sort(), ['no-output:library', 'source-failing:mcp-news'])
   const failing = s.find(x => x.key === 'source-failing:mcp-news')
   const rec = jsonl(join(W.tools, '_pipeline', 'suggestions.jsonl')).find(l => l.key === 'source-failing:mcp-news')
   assert.ok(failing.sentence.includes('mcp-news') && failing.sentence.includes(String(rec.evidence.rounds)), `${failing.sentence} (the record: ${rec.evidence.rounds} rounds)`)
   assert.ok(rec.evidence.rounds >= 3, 'control: refused at least three rounds in a row')
-  for (const x of s) { assert.deepEqual(x.actions, ['accept', 'dismiss']); assert.equal(AUTO.test(x.text), false, x.text) }
+  // redesign R5b (维护者 11-11 动作表): 忽略 on the left, the main action on the right; 交由主 Agent 分析 on both (were accept · dismiss)
+  const TABLE = { 'no-output:library': ['dismiss', 'forward', 'set-strictness'], 'source-failing:mcp-news': ['dismiss', 'forward', 'edit-address', 'pause-source'] }
+  for (const x of s) { assert.deepEqual(x.actions, TABLE[x.key], x.key); assert.equal(AUTO.test(x.text), false, x.text) }
   assert.equal(AUTO.test('以后这类直接换'), true, 'control: the pattern finds the design\'s button')
   await shot('uc2-4')
 })
@@ -357,7 +381,7 @@ test('UC3 step 3 · 「以后也追踪港股服装公司的公告。」: 「这�
   await p().fill('textarea[data-field="question"]', '以后也追踪港股服装公司的公告。')
   await p().click('main[data-screen="ask"] [data-action="send"] button')
   await until(() => document.querySelector('[data-turn="1"]')?.dataset.state === 'done' && document.querySelectorAll('[data-turn="1"] [data-proposal]').length === 2)
-  const t = await p().evaluate(() => { const e = document.querySelector('[data-turn="1"]'); return { route: e.dataset.route, tag: e.querySelector('[data-part="routed"]')?.textContent, cards: [...e.querySelectorAll('[data-proposal]')].map(c => [c.dataset.kind, c.dataset.status]), trial: e.querySelector('[data-proposal][data-kind="add_source"] [data-part="trial"] .pc-chip')?.textContent ?? null } })
+  const t = await p().evaluate(() => { const e = document.querySelector('[data-turn="1"]'); return { route: e.dataset.route, tag: e.querySelector('[data-part="routed"]')?.textContent, cards: [...e.querySelectorAll('[data-proposal]')].map(c => [c.dataset.kind, c.dataset.status]), trial: e.querySelector('[data-proposal][data-kind="add_source"] [data-part="trial"] [data-part="trial-chip"]')?.textContent ?? null } })
   assert.deepEqual([t.route, t.tag], ['change', ASK.route.routed])
   assert.deepEqual(t.cards, [['add_source', 'pending'], ['edit_topics', 'pending']])
   assert.match(t.trial, /^正常/)
@@ -530,16 +554,20 @@ test('UC5 step 3 · 待看: the card of that article carries 「这一条里有�
   await shot('uc5-3')
 })
 
-test('UC5 step 4 · 概览: the suggestion 「来源 hkex-filings 出现过写给 AI 的指令…」; 不要 → recorded, the source not paused, nothing else changed', async () => {
+test('UC5 step 4 · 待确认: the 系统检测 「来源 hkex-filings 出现过写给 AI 的指令…」; 忽略 → recorded, the source not paused, nothing else changed (redesign R5b)', async () => {
   await panelTab('decide')
   const key = 'ai-instruction:hkex-filings'
-  await until(k => document.querySelector(`[data-part="suggestions"] [data-suggestion="${k}"]`) !== null, key)
-  const c = await p().evaluate(k => { const e = document.querySelector(`[data-suggestion="${k}"]`); return { sentence: e.querySelector('[data-part="sentence"]').textContent, actions: [...e.querySelectorAll('[data-action]')].map(a => a.dataset.action) } }, key)
+  // redesign R5b: the one list of 待确认, this library's card (was its own list [data-part="suggestions"])
+  const sel = `[data-pane="decide"] [data-library="${W.ids.fashion}"][data-suggestion="${key}"]`
+  await until(q => document.querySelector(q) !== null, sel)
+  const c = await p().evaluate(q => { const e = document.querySelector(q); return { sentence: e.querySelector('[data-part="sentence"]').textContent, actions: [...e.querySelectorAll('[data-action]')].map(a => a.dataset.action) } }, sel)
   assert.ok(c.sentence.includes('hkex-filings'), c.sentence)
-  assert.deepEqual(c.actions, ['accept', 'dismiss'])
+  // redesign R5b (维护者 11-11 动作表): 忽略 · 交由主 Agent 分析 · 暂停该来源 (were accept · dismiss)
+  assert.deepEqual(c.actions, ['dismiss', 'forward', 'pause-source'])
   await shot('uc5-4')
-  await p().click(`[data-suggestion="${key}"] [data-action="dismiss"] button`)
-  await until(k => document.querySelector(`[data-suggestion="${k}"]`)?.dataset.state === 'dismissed', key)
+  await p().click(`${sel} [data-action="dismiss"] button`)
+  // redesign R5b: a card handled leaves the list (was: it stayed, data-state dismissed); what was recorded is read below, as it was
+  await until(q => document.querySelector(q) === null, sel)
   assert.deepEqual(jsonl(join(W.fashion, '_pipeline', 'suggestions.jsonl')).filter(l => l.key === key).map(l => l.ev), ['suggested', 'dismissed'])
   assert.equal(sha(join(W.fashion, 'streams.json')), W.fashionCfg, 'streams.json still as it was')
   await shot('uc5-4-decided')

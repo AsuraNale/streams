@@ -27,6 +27,8 @@ export const RUN = Object.freeze({
     connection: '连接出错：{what}',
     cap: '达到单次运行上限，剩余内容留待下次运行',
     aborted: '已手动停止，剩余内容留待下次运行',
+    // redesign R5b (precheck fix 5): a reason the page has no words for — never the reason's own word
+    other: '运行未完成：{what}',
   }),
   // what failed, in a few words (a connection's code, or the self-check's own problem)
   what: Object.freeze({
@@ -40,7 +42,8 @@ export const RUN = Object.freeze({
     'not-writable': '库文件夹无法写入',
     index: '索引无法读取',
     config: '库的设置文件无法读取',
-    other: '出错（{code}）',
+    // redesign R5b (O9): no code — the details are in 「复制诊断信息」
+    other: '出现错误（详细信息见「复制诊断信息」）',
   }),
   outcome: '处理情况：收藏 {kept} · 放弃 {dismissed} · 稍后处理 {later}',
   calls: '模型调用 {n} 次 = {parts}',

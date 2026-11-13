@@ -82,13 +82,14 @@ export function rowState(s) {
   return s.status
 }
 
-/** The state chip's words: 「正常 · 5 条」, 「地址有问题 · HTTP 404 · 连续 4 次运行」, 「已暂停」 … */
+/** The state chip's words: 「正常 · 5 条」, 「地址有问题 · 连续 4 次运行」, 「已暂停」 … (redesign R5b precheck fix 11: never an HTTP code —
+ * the page is not given one (O9), and the words that would say it are gone, so a code coming back is not shown either) */
 function stateLine(s) {
   const state = rowState(s)
   const word = stateWord(state)
   if (state === 'ok') return fmt(T.row.count, { state: word, n: s.count ?? 0 })
   if (['failed', 'gap', 'blocked'].includes(state)) {
-    return s.http ? fmt(T.row.streak, { state: word, http: s.http, n: s.consecutive ?? 1 }) : fmt(T.row.streakNoHttp, { state: word, n: s.consecutive ?? 1 })
+    return fmt(T.row.streakNoHttp, { state: word, n: s.consecutive ?? 1 })
   }
   return word
 }
@@ -172,9 +173,9 @@ function TriedLine({ name, tried }) {
   if (tried.status === 'error') return html`<small class="st-src-tried" data-tried=${name} data-state="error" role="alert">${T.tried.failed}</small>`
   const r = tried.result ?? {}
   const latest = Array.isArray(r.sample) && r.sample[0] ? r.sample[0] : null
-  const head = ['ok', 'empty'].includes(r.status) ? fmt(T.tried.ok, { state: stateWord(r.status), n: r.count ?? 0 }) : fmt(T.tried.message, { state: stateWord(r.status), message: r.http ? fmt(T.tried.http, { http: r.http }) : hintWords(r.hint) ?? '' })
+  const head = ['ok', 'empty'].includes(r.status) ? fmt(T.tried.ok, { state: stateWord(r.status), n: r.count ?? 0 }) : fmt(T.tried.message, { state: stateWord(r.status), message: hintWords(r.hint) ?? '' })
   const tail = latest ? (latest.date ? fmt(T.tried.latest, { title: latest.title, date: String(latest.date).slice(0, 10) }) : fmt(T.tried.latestNoDate, { title: latest.title })) : null
-  return html`<small class="st-src-tried" data-tried=${name} data-state=${r.status ?? ''} role="status">${head}${tail ? html`<br />${tail}` : null}${r.status !== 'ok' && hintWords(r.hint) && r.http ? html`<br />${hintWords(r.hint)}` : null}</small>`
+  return html`<small class="st-src-tried" data-tried=${name} data-state=${r.status ?? ''} role="status">${head}${tail ? html`<br />${tail}` : null}</small>`
 }
 
 /** One source of the table: 来源 · 状态与处理建议 · 主题, and its 「⋯」 with the four actions. */
@@ -555,6 +556,20 @@ export function SourcesScreen({ params = {} }) {
     try { await fn(); return true } catch (err) { if (onError) onError(err); else setError(T.failed); return false } finally { setBusy(false); view.reload() }
   }
   const close = () => setDialog(null)
+  // redesign R5b (R5b-1): a 系统检测's 修改地址 opens this page with params.editAddress (the source's name) — that row's 修改地址
+  // dialog opens once the sources are read (the change itself is updateSource's, as from the row's own menu). Precheck fix 2:
+  // opened, the parameter leaves the route (the same page, the dialog stays) — the route this library remembers (app.js) has no
+  // editAddress, so coming back to this library later does not open the dialog again
+  const asked = useRef(null)
+  useEffect(() => {
+    const name = typeof params.editAddress === 'string' ? params.editAddress : null
+    if (!name || asked.current === name || !d) return
+    asked.current = name
+    const source = (Array.isArray(d.sources) ? d.sources : []).find(s => s.name === name)
+    if (source) setDialog({ kind: 'edit-source', source })
+    const { editAddress: _done, ...rest } = params
+    navigate('sources', rest)
+  }, [d, params.editAddress])
   const state = advanced ? (library ? 'ready' : appState?.status ?? 'loading') : d ? 'ready' : view.status
   return html`<${LibraryFrame} tab="sources" state=${state} labelledby="sources-title" section=${params.section}>
       <div class="st-main__body thread-scroll st-src-body" data-view=${advanced ? 'advanced' : 'main'}>

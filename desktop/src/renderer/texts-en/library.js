@@ -48,7 +48,7 @@ export const LIBRARY = Object.freeze({
     }),
     missing: 'Missing {field}',
     badDate: '{field} is not a date',
-    other: 'Does not follow the file rules ({code})',
+    other: 'Does not follow the file rules',
     applyAll: 'Write all',
     applyingAll: 'Writing…',
     allWritten: '{n} file{n?|s} written.',

@@ -142,6 +142,39 @@ function Fold({ part, index, title, small, count, open, onToggle, children }) {
   </details>`
 }
 
+/**
+ * Redesign R5b (N07, P05; 维护者 11-12 第 5 条): the items of 未通过筛选 judged under the old 评分标准 (getInbox().rescore, core
+ * rescoreInfo) — which part changed and when, how many, and 重新评分 with the core's estimate of model calls. A press puts it in
+ * the app's one queue (startRescore: now when idle, else at the end); the button is its state. Nothing old: nothing drawn.
+ */
+export function RescoreAlert({ rescore, libraryId, onStarted }) {
+  const R = T.rejected
+  const [state, setState] = useState(null)
+  const [error, setError] = useState(null)
+  useEvent('round-progress', p => { if (p?.rescore && p.done && isOfLibrary(p, libraryId)) setState(null) }, [libraryId])
+  if (!rescore || !(rescore.total > 0)) return null
+  const what = Object.hasOwn(R.changed, rescore.changedField ?? '') ? R.changed[rescore.changedField] : R.changed.other
+  const when = rescore.changedAt ? whenText(rescore.changedAt, WHEN) : null
+  const [lo, hi] = Array.isArray(rescore.expectedCalls) ? rescore.expectedCalls : [0, 0]
+  const calls = lo === hi ? String(lo) : fmt(R.calls, { lo, hi })
+  const start = async () => {
+    if (state) return
+    setError(null)
+    setState({ kind: 'starting' })
+    try {
+      const r = await call('startRescore', libraryId)
+      if (r?.queued) setState({ kind: 'queued', position: r.position ?? null })
+      else if (r?.started) { setState({ kind: 'running' }); onStarted?.() } else setState(null)
+    } catch (err) { setState(null); setError(err?.code === 'no_connection' ? R.rescoreNoConnection : R.rescoreFailed) }
+  }
+  const label = state?.kind === 'queued' ? fmt(R.queued, { n: state.position ?? '' }) : state ? R.rescoring : fmt(R.rescore, { calls })
+  return html`<div class="progress-alert st-rescore" data-part="rescore" data-total=${rescore.total} data-changed=${rescore.changedField ?? ''} data-calls=${calls} role="status">
+    <span data-part="rescore-text">${fmt(when ? R.alert : R.alertNoTime, { what, when, n: rescore.total })}</span>
+    <span class="st-act" data-action="rescore"><button type="button" class="btn" disabled=${Boolean(state)} onClick=${start}>${label}</button></span>
+    ${error ? html`<span class="limit-note" role="alert">${error}</span>` : null}
+  </div>`
+}
+
 function AddLinkDialog({ onClose, onAdded }) {
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
@@ -295,9 +328,11 @@ export function InboxScreen() {
   const nextRun = h?.nextRun ? fmt(T.empty.next, { when: nextText(h.nextRun, NEXT_WHEN) ?? h.nextRun }) : T.empty.nextNone
 
   const rejectedFold = html`<${Fold} part="rejected" index=${laterItems.length ? 2 : 1} title=${T.rejected.title} small=${fmt(T.rejected.count, { n: rejected.total })} count=${rejected.total} open=${rejectedOpen} onToggle=${setRejectedOpen}>
-    ${rejected.items.length ? rejected.items.map(r => html`<div key=${r.url} class="file-row" data-rejected=${r.url} data-gate=${r.gate} data-score=${r.score ?? ''}>
+    <${RescoreAlert} rescore=${d?.rescore ?? null} libraryId=${libraryId} onStarted=${() => inbox.reload()} />
+    ${rejected.items.length ? rejected.items.map(r => html`<div key=${r.url} class="file-row" data-rejected=${r.url} data-gate=${r.gate} data-score=${r.score ?? ''} data-old=${String(r.old === true)}>
       <span class="file-icon"><${TIcon} name="file" /></span>
       <span class="file-text">${r.title || r.url}<small>${fmt(T.rejected.below, { name: nodeName(r.gate), score: num(r.score) })}${r.reason ? `${SEP}${r.reason}` : ''}</small></span>
+      ${r.old === true ? html`<span class="status-chip" data-part="old">${T.rejected.old}</span>` : null}
       <span class="st-act" data-action="move"><button type="button" class="btn" disabled=${busy} onClick=${() => move(r.url)}>${T.rejected.move}</button></span>
     </div>`) : html`<p class="limit-note">${T.rejected.none}</p>`}
     ${rejected.total > rejected.items.length ? html`<p class="limit-note">${fmt(T.rejected.shown, { n: rejected.items.length })}</p>` : null}

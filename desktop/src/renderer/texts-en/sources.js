@@ -45,7 +45,6 @@ export const SOURCES = Object.freeze({
     address: '{kind} · {address}',
     minPoints: '{kind} · {address} · ≥ {n} points',
     count: '{state} · {n} item{n?|s}',
-    streak: '{state} · HTTP {http} · {n} run{n?|s} in a row',
     streakNoHttp: '{state} · {n} run{n?|s} in a row',
     lastOk: 'Last fetched: {when}',
     noTopic: 'None',
@@ -62,7 +61,6 @@ export const SOURCES = Object.freeze({
     latest: 'Latest: “{title}” ({date})',
     latestNoDate: 'Latest: “{title}”',
     message: 'Test fetch: {state} · {message}',
-    http: 'HTTP {http}',
     failed: 'The test fetch did not finish. Please try again.',
   }),
   editDialog: Object.freeze({

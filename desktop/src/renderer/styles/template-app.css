@@ -23,6 +23,10 @@
       the theme's ink (--ink11, the colour of the text) in all four themes, light and dark; the template's tile behind the brand
       (the accent square, the gradient, the tilt, 单线黑白's picture of the 3D mark on white) is taken away, the avatar keeps its
       box but not 单线黑白's picture. Body classes four times over: above every theme's own rule for .brandmark / .avatar.
+   11. Redesign R5b — the one 提议 (screens/proposal.js: the template's confirmation, decision-points, after-card), 主 Agent's page
+      (screens/chat.js: thread, user-message, assistant-message, speaker, composer, date-line; styles/screens/agent.css is gone),
+      the right panel's 待确认 list, 未通过筛选's 重新评分 (progress-alert): here only the rows' wrapping, the test fetches' chips,
+      the page's two parts (the conversation and the box), the head's 「n 项待确认」 as a button.
    Colours: only the template's variables. */
 
 /* 1 */
@@ -68,7 +72,6 @@
 .settings__look .filter small { font-size: 10px; opacity: .75; }
 .st-empty-actions { justify-content: center; margin-top: 12px; }
 .shelf-body .document-link { margin-top: 4px; }
-.st-rp-decide { cursor: pointer; }
 .st-rp-decide .card-body { padding: 12px 16px; }
 .st-rp-decide h3 { margin: 4px 0 0; font-size: 13px; line-height: 1.6; }
 .st-rp-decide .confirm-footer { padding: 8px 16px; }
@@ -440,3 +443,52 @@
 .r11.r11.r11.r11 .speaker .avatar { background-image: none; }
 .r11.r11.r11.r11.r12-line .speaker .avatar { background-color: var(--paper); }
 .r11.r11.r11.r11 .speaker .avatar .st-brand-mark { display: block; width: 18px; height: 13px; transform: none; }
+
+/* 11 — Redesign R5b */
+.st-chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.st-chat .thread-scroll { flex: 1 1 auto; }
+.st-chat .user-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+.st-chat .intro-copy { white-space: pre-wrap; overflow-wrap: anywhere; }
+.st-chat .composer-tools .send-btn { cursor: pointer; }
+.st-chat .assistant-message .filters { margin: 8px 0 0; }
+.st-chat .assistant-message .filter { cursor: pointer; }
+.st-chat .st-stack { margin-top: 12px; }
+.st-from-library { display: block; margin-top: 4px; font-size: 11px; opacity: .75; }
+.st-faint { text-align: center; margin: 6px 0; }
+.st-more { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 12px; }
+.st-notice { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
+.st-guide { margin-bottom: 18px; }
+.st-guide .file-row { width: 100%; text-align: left; cursor: pointer; }
+.st-chip-button { cursor: pointer; font: inherit; }
+.st-proposal .confirm-title { min-width: 0; }
+.st-proposal .confirm-title h2 { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.st-proposal .confirm-number { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-proposal .confirm-footer .row, .st-rp-decide .confirm-footer .row { flex-wrap: wrap; justify-content: flex-end; }
+.st-proposal .decision-points dd { overflow-wrap: anywhere; }
+.st-trials { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.st-trial { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.st-trial .status-chip { font-size: 11px; }
+.st-changed { font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+.st-revise { padding: 0 20px 14px; }
+.st-revise .field { margin: 8px 0; }
+.st-revise .field textarea { width: 100%; font: inherit; min-height: 56px; }
+.st-revise .row { justify-content: flex-end; flex-wrap: wrap; }
+.st-proposal-done { flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.st-proposal-done .ico { width: 14px; height: 14px; }
+.st-rp-decide { cursor: default; }
+.st-rp-decide .card-body p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.st-rp-decide .card-body p[data-part="evidence"] { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.st-rp-decide .limit-note { margin: 0; padding: 0 16px 10px; }
+.st-rp-decide .card-body .limit-note { padding: 6px 0 0; }
+.st-rp-decide .st-revise { padding: 0 16px 12px; }
+.st-rescore { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.st-rescore .btn { flex: none; }
+.inbox-body [data-rejected] .status-chip { flex: none; font-size: 11px; }
+.st-proposal .confirm-footer > .muted { flex: 1 1 280px; min-width: 0; overflow-wrap: anywhere; }
+.st-proposal .confirm-footer .row { margin-left: auto; }
+/* redesign R5b precheck fix 7: the small card's top line says a library's name and 「主 Agent」 as they are written (the
+   template's eyebrow is set in capitals: 「AI Agent 记忆」 would read 「AI AGENT 记忆」) */
+.st-rp-decide [data-part="from"] { text-transform: none; }
+/* precheck fix 8: every small card's buttons on the right, the main one last — one row or two (①'s four wrap), the same as the
+   full card's footer */
+.st-rp-decide .confirm-footer .row { margin-left: auto; }

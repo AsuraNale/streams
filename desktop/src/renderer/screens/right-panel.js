@@ -11,10 +11,12 @@
 //             自动开始」; the rule 「需保持流息运行…」; nothing running: 「当前无运行任务」. On a library's page, last: that
 //             library's last run as the same funnel 待看 shows when empty (screens/run-funnel.js, getHome().lastRun) — not the
 //             four numbers, the banners or 运行状态 of R1 any more.
-//   待确认    every library's proposals waiting and system findings not handled — the same list the tab's number counts (app.js
-//             useWaitingItems): small confirmation cards, its library and one sentence each; a proposal → 主 Agent, scrolled to it;
-//             a finding → that library. On a library's page, its findings with their buttons below (screens/suggestion-card.js;
-//             the one kind of card is R5's).
+//   待确认    redesign R5b (P16, F59, O5): ONE list of every library's 主 Agent 提议 waiting and 系统检测 not handled (app.js
+//             useToConfirm: the bridge's listToConfirm, read again on its events — no reload of the page): the head 「全部库 · 待确认
+//             / n 项」 and 「以下事项均需确认后才会执行。」 (the template's panel-summary), then the small cards of the one kind
+//             (screens/proposal.js, compact): each done right where it is, whatever library it is of. Nothing waits: one
+//             sentence. The tab's number (st-count) is the list's length. (The list of the current library's findings that R1
+//             drew below it is gone: a card shows once.)
 //   详情      follows the main area: the screen gives it (`detail`); a screen with nothing chosen: one sentence
 //   文件      the current library told as a structure (getLibraryOutline; read only). Redesign R4b (P14 · P16): 「文件 · 库的文件
 //             结构」, its name and folder, 在资源管理器中显示 (revealLibrary), then four heads: ▾ 笔记（n）· 按主题 (its notes grouped by
@@ -28,7 +30,8 @@
 // [data-pane=progress|decide|detail|files]; 进度: [data-part=progress-summary|running|order|next|last-run|keep-running], [data-queue-row=<id>]
 // [data-position][data-here][data-why], [data-part="running-phase"], [data-calls][data-cap], [data-next-row=<id>][data-at],
 // [data-action="panel-stop"];
-// 待确认: [data-decide=<proposal id | libraryId:key>][data-kind=proposal|suggestion][data-library], [data-part="suggestions"];
+// 待确认: [data-pane="decide"][data-count] with [data-part="decide-summary"] [data-part="decide-title"][data-count] [data-part="decide-lead"] (only with something in the list: precheck fix 9), [data-part="decide-none"],
+// the cards [data-decide=<item id>][data-from][data-kind][data-library] (screens/proposal.js);
 // 详情: [data-part="detail-none"]; 文件: [data-part=files-head|no-library], [data-tree=notes|inbox|requirements|records][data-open],
 // [data-tree-topic=<topic | "">], [data-tree-note=<id>] (.st-rp-tree__row), [data-action=reveal-library|reveal-records|
 // note-more], the menu's [data-menu-item=obsidian|folder].
@@ -45,8 +48,8 @@ import { TIcon, hasTabIcons } from '../lib/template-icons.js'
 import { LIBRARY_ROUTES, Menu } from '../kit/index.js'
 import { NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
 import { PANEL as T, QUEUE } from '../texts/panel.js'
-import { cardTitle } from './proposal-card.js'
-import { LibrarySuggestions, suggestionSentence } from './suggestion-card.js'
+import { PROPOSALS } from '../texts/proposals.js'
+import { Proposal } from './proposal.js'
 import { RunFunnel } from './run-funnel.js'
 
 export { phaseWords }
@@ -162,76 +165,19 @@ function ProgressPane() {
 
 // ---- 待确认 -------------------------------------------------------------------------------------------------------------
 
-/** One thing waiting (a small confirmation card): where it is from, what it is, where it is handled; a click goes there. */
-function DecideCard({ id, kind, libraryId, eyebrow, title, where, onGo, actions = null }) {
-  return html`<article class="confirmation st-rp-decide" data-decide=${id} data-kind=${kind} data-library=${libraryId ?? ''} tabindex="0" role="button"
-    onClick=${onGo} onKeyDown=${e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onGo() } }}>
-    <div class="card-body"><span class="eyebrow">${eyebrow}</span><h3>${title}</h3></div>
-    <div class="confirm-footer"><span class="muted">${where}</span>${actions ?? html`<${TIcon} name="arrow" />`}</div>
-  </article>`
-}
-
-/**
- * Redesign R3 (P13 · P16: 「同一张卡也在右栏『待确认』；在哪边点都一样」): a proposal is decided here with the calls its card in the
- * conversation makes — 确认 (创建 for a new library) → confirmProposal, 拒绝 → declineProposal — and the bridge's
- * proposals-changed reads both places again; 提出修改 needs a sentence: it opens the same card's line where the card is drawn on
- * this page (问库's conversation), else 主 Agent scrolled to the card.
- */
-function ProposalActions({ card, onRevise }) {
-  const D = T.decide
-  const [busy, setBusy] = useState(false)
-  const [failed, setFailed] = useState(false)
-  const act = name => async e => {
-    e.stopPropagation()
-    if (busy) return
-    setBusy(true)
-    setFailed(false)
-    try { await call(name, card.id) } catch { setFailed(true) } finally { setBusy(false) }
-  }
-  return html`<div class="row" data-part="decide-actions">
-    ${failed ? html`<span class="muted" role="alert">${D.failed}</span>` : null}
-    <span class="st-act" data-action="decide-decline"><button type="button" class="btn quiet" disabled=${busy} onClick=${act('declineProposal')}>${D.decline}</button></span>
-    <span class="st-act" data-action="decide-revise"><button type="button" class="btn" disabled=${busy} onClick=${e => { e.stopPropagation(); onRevise() }}>${D.revise}</button></span>
-    <span class="st-act" data-action="decide-confirm"><button type="button" class="btn primary" disabled=${busy} onClick=${act('confirmProposal')}><${TIcon} name="approve" fallback="check" />${card.kind === 'create_library' ? D.create : D.confirm}</button></span>
-  </div>`
-}
-
-/** 提出修改 from 待确认: the card's own line where the card is on this page, else 主 Agent scrolled to the card. */
-function reviseCard(id, navigate) {
-  const here = document.querySelector(`.workspace [data-proposal="${id}"]`)
-  const button = here?.querySelector('[data-action="revise"] button')
-  if (here && button) {
-    here.scrollIntoView({ block: 'center' })
-    if (!here.querySelector('[data-part="revise"]')) button.click()
-    return
-  }
-  navigate('chat', { card: id })
-}
-
+/** 待确认: every library's, one list; the head says how many (the same number as the tab's). */
 function DecidePane() {
-  const { waitingItems, navigate, openLibrary, appState, route } = useApp()
-  const { rowOf } = useNames()
-  const D = T.decide
-  const cards = waitingItems?.cards ?? []
-  const suggestions = waitingItems?.suggestions ?? []
-  const n = cards.length + suggestions.length
-  const name = id => rowOf(id)?.name ?? null
-  const here = appState?.data?.library?.libraryId ?? null
-  const onLibrary = LIBRARY_ROUTES.includes(route?.screen) && here !== null
+  const { toConfirm } = useApp()
+  const L = PROPOSALS.list
+  const items = toConfirm?.items ?? []
+  const n = items.length
   return html`<div class="st-rp-pane" data-pane="decide" data-count=${n}>
-    <${PanelSummary} part="decide-summary" eyebrow=${D.eyebrow} title=${n ? fmt(D.title, { n }) : D.none}>
-      <p>${D.lead}</p>
+    <${PanelSummary} part="decide-summary" eyebrow=${L.eyebrow} title=${n ? html`<span data-part="decide-title" data-count=${n}>${fmt(L.title, { n })}</span>` : html`<span data-part="decide-none">${L.none}</span>`}>
+      ${n ? html`<p data-part="decide-lead">${L.lead}</p>` : null}
     <//>
-    <div class="st-stack">
-      ${cards.map(c => html`<${DecideCard} key=${c.id} id=${c.id} kind="proposal" libraryId=${c.libraryId}
-        eyebrow=${`${D.proposal} / ${c.libraryId ? name(c.libraryId) ?? '' : D.newLibrary}`} title=${cardTitle(c, name(c.libraryId))}
-        where=${D.whereChat} onGo=${() => navigate('chat', { card: c.id })}
-        actions=${html`<${ProposalActions} card=${c} onRevise=${() => reviseCard(c.id, navigate)} />`} />`)}
-      ${suggestions.map(s => html`<${DecideCard} key=${`${s.libraryId}:${s.key}`} id=${`${s.libraryId}:${s.key}`} kind="suggestion" libraryId=${s.libraryId}
-        eyebrow=${`${D.suggestion} / ${name(s.libraryId) ?? ''}`} title=${suggestionSentence(s, name)}
-        where=${fmt(D.whereLibrary, { name: name(s.libraryId) ?? '' })} onGo=${() => openLibrary(s.libraryId)} />`)}
-    </div>
-    ${onLibrary ? html`<div class="panel-section st-rp-findings"><div class="section-label"><span>${D.thisLibrary}</span></div><${LibrarySuggestions} libraryId=${here} /></div>` : null}
+    ${toConfirm?.status === 'error' && !n ? html`<p class="progress-alert" role="alert">${L.loadFailed}</p>` : null}
+    ${toConfirm?.said ? html`<p class="progress-alert" role="status" data-part="decide-said">${toConfirm.said}</p>` : null}
+    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}
   </div>`
 }
 
@@ -352,11 +298,12 @@ function FilesPane() {
 
 /** The panel itself. `detail`: what the screen shows in 详情 (null: one sentence). */
 export function RightPanel({ detail = null }) {
-  const { appState, setPanel, waitingItems } = useApp()
+  const { appState, setPanel, toConfirm } = useApp()
   const panel = appState?.data?.panel ?? null
   const open = panel?.open !== false
   const tab = TAB_IDS.includes(panel?.tab) ? panel.tab : 'detail'
-  const n = waitingItems?.count ?? 0
+  // redesign R5b (O5): the number is the list's length, the same list 待确认 shows
+  const n = toConfirm?.items?.length ?? 0
   const icons = hasTabIcons()
   const badge = id => (id === 'decide' && n > 0 ? html` <small class="st-count" data-panel-badge=${id} aria-label=${fmt(T.decideBadge, { n })}>${n}</small>` : null)
   if (!open) {

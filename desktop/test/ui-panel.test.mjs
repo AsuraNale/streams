@@ -209,7 +209,11 @@ test('four tabs switch; folded into the rail and unfolded; open / folded and the
 
 // ---- 等你决定 ---------------------------------------------------------------------------------------------------------------
 
-test('待确认: every library\'s cards, as many as the tab\'s number, each with its library; a proposal card → 主 Agent scrolled to it', async () => {
+// redesign R5b (R5b-1, R5b-3): a card of 待确认 is the one 提议's small card, done right where it is (P16: 「就地可点」) — a click on it
+// no longer goes to 主 Agent (the development hook's cards are in no conversation to scroll to); this test now checks that it
+// stays and carries its three buttons, the main one on the right. The count is checked against the bridge's listToConfirm (the
+// one list R5a gives) besides listProposals + listSuggestions.
+test('待确认: every library\'s cards, as many as the tab\'s number, each with its library; a 主 Agent 提议 is answered right there', async () => {
   await tabTo('decide')
   await until(() => document.querySelectorAll('[data-decide]').length >= 2 && document.querySelector('[data-panel-badge="decide"]') !== null)
   const both = await s.page.evaluate(() => ({ list: document.querySelectorAll('[data-decide]').length, pane: Number(document.querySelector('[data-pane="decide"]').dataset.count), badge: Number(document.querySelector('[data-panel-badge="decide"]').textContent), chat: document.querySelector('[data-nav="chat"] [data-nav-count], [data-badge="chat"]') }))
@@ -219,12 +223,16 @@ test('待确认: every library\'s cards, as many as the tab\'s number, each with
   const pending = (await bridge('listProposals', { status: 'pending' })).data
   const suggestions = (await bridge('listSuggestions', null)).data.filter(x => !x.status || x.status === 'open')
   assert.equal(both.badge, pending.length + suggestions.length, 'the same source: pending cards + open suggestions')
+  assert.equal(both.badge, (await bridge('listToConfirm')).data.count)
   const brief = pending.find(c => c.kind === 'edit_brief')
-  assert.equal(await s.page.evaluate(id => document.querySelector(`[data-decide="${id}"]`)?.dataset.library, brief.id), brief.libraryId, 'the card carries its library')
-  assert.ok((await s.page.evaluate(id => document.querySelector(`[data-decide="${id}"]`).textContent, brief.id)).includes(W.shelf.names[0]))
-  await s.page.click(`[data-decide="${brief.id}"]`)
-  await ready(s.page, 'chat')
-  await until(id => document.querySelector(`[data-proposal="${id}"]`) !== null, brief.id)
+  const sel = `[data-decide="agent:${brief.id}"]`
+  assert.equal(await s.page.evaluate(q => document.querySelector(q)?.dataset.library, sel), brief.libraryId, 'the card carries its library')
+  assert.ok((await s.page.evaluate(q => document.querySelector(q).textContent, sel)).includes(W.shelf.names[0]))
+  assert.deepEqual(await s.page.evaluate(q => [...document.querySelectorAll(`${q} [data-action]`)].map(a => a.dataset.action), sel), ['decline', 'revise', 'confirm'])
+  const screen = await s.page.evaluate(() => document.querySelector('main[data-screen]').dataset.screen)
+  await s.page.click(`${sel} [data-part="sentence"]`)
+  await new Promise(r => setTimeout(r, 500))
+  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen]').dataset.screen), screen, 'a click on the card goes nowhere')
 })
 
 // ---- 详情 ------------------------------------------------------------------------------------------------------------------

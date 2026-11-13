@@ -65,6 +65,18 @@ export const INBOX = Object.freeze({
     below: '未通过{name} {score}',
     move: '移入待看',
     none: '暂无未通过筛选的内容。',
+    // redesign R5b (N07, P05): the items judged under the old 评分标准 (getInbox().rescore, core rescoreInfo): which part changed
+    // and when, how many, and 重新评分 with the core's estimate (05 规则 8)
+    old: '按旧标准评分',
+    changed: Object.freeze({ brief: '追踪要求', thresholds: '严格程度', prompts: '评分环节', other: '评分标准' }),
+    alert: '{what}已于 {when} 更新，以下 {n} 条按旧标准评分。',
+    alertNoTime: '{what}已更新，以下 {n} 条按旧标准评分。',
+    rescore: '重新评分（预计 {calls} 次模型调用）',
+    calls: '{lo}–{hi}',
+    rescoring: '重新评分中…',
+    queued: '已加入队列 · 第 {n} 位',
+    rescoreFailed: '未能开始重新评分，请重试。',
+    rescoreNoConnection: '尚未选择连接方式，无法重新评分。',
   }),
 
   // N09 · F50

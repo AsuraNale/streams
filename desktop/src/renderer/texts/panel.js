@@ -45,26 +45,8 @@ export const PANEL = Object.freeze({
     keepRunning: '需保持流息运行（窗口或托盘）。错过的运行将在下次启动时补上一次。',
   }),
 
-  // 待确认 (维护者 11-11 第 13 题: was 「等你决定」): every library's proposals waiting and system findings not handled (the same
-  // list as the tab's number); the current library's findings can be handled right here
-  decide: Object.freeze({
-    eyebrow: '待确认 / 全部库',
-    title: '{n} 项',
-    none: '暂无待确认事项。',
-    lead: '以下事项均需确认后才会执行。',
-    proposal: '主 Agent 提议',
-    suggestion: '系统检测',
-    newLibrary: '新库',
-    whereChat: '在「主 Agent」中处理',
-    whereLibrary: '在「{name}」中处理',
-    thisLibrary: '当前库 · 系统检测',
-    // redesign R3 (P13 · P16): a proposal is decided here as in the conversation (the same card: confirmProposal · …)
-    confirm: '确认',
-    create: '创建',
-    revise: '提出修改',
-    decline: '拒绝',
-    failed: '操作未成功，请重试。',
-  }),
+  // 待确认 (维护者 11-11 第 13 题: was 「等你决定」): redesign R5b — its list, its head and its cards are the one card's words
+  // (texts/proposals.js PROPOSALS.list, .card)
 
   // 详情: follows the main area
   detail: Object.freeze({
@@ -109,14 +91,14 @@ export const PANEL = Object.freeze({
       hint: '点一篇，在资料库标签里打开。',
     }),
     chat: Object.freeze({
-      title: '它查过的东西与提的卡',
-      looked: '查过的（{n}）',
-      lookedNone: '这一轮没有查东西。',
-      cards: '提的卡（{n}）',
-      cardsNone: '这一轮没有提卡。',
-      none: '还没有对话。',
-      cardState: Object.freeze({ pending: '等你确认', confirmed: '已确认', declined: '不要了', revise: '要改一下', stale: '过时了', failed: '没做成' }),
-      see: '看这张卡',
+      title: '本次查询与提议',
+      looked: '已查询（{n}）',
+      lookedNone: '本条消息未查询各库情况。',
+      cards: '提议（{n}）',
+      cardsNone: '本条消息未生成提议。',
+      none: '暂无对话。',
+      cardState: Object.freeze({ pending: '待确认', confirmed: '已生效', declined: '已拒绝', revise: '已提出修改', stale: '已失效', failed: '未能执行' }),
+      see: '查看提议',
     }),
   }),
 

@@ -250,10 +250,10 @@ export function createPipelineService({ library, connections, emit, log, hidden 
   function rescoreView(dir, { items = false } = {}) {
     try {
       const r = rescoreInfo(dir)
-      return { total: r.total, changedAt: r.changedAt, expectedCalls: r.expectedCalls, cap: r.cap, ...(items ? { items: r.items } : {}) }
+      return { total: r.total, changedAt: r.changedAt, changedField: r.changedField ?? null, expectedCalls: r.expectedCalls, cap: r.cap, ...(items ? { items: r.items } : {}) }
     } catch (err) {
       log(`pipeline: the old verdicts not read: ${String(err?.message ?? err)}`)
-      return { total: 0, changedAt: null, expectedCalls: [0, 0], cap: null, ...(items ? { items: [] } : {}) }
+      return { total: 0, changedAt: null, changedField: null, expectedCalls: [0, 0], cap: null, ...(items ? { items: [] } : {}) }
     }
   }
 

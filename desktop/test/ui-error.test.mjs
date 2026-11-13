@@ -117,7 +117,8 @@ describe('a source that keeps failing, with a working connection: no banner, a c
       await ready(s.page, screen)
       assert.equal(await s.page.evaluate(() => document.querySelector('.lib-page [data-part="problem"], .lib-page .today-banner, .lib-page [data-part="no-output"]')), null, `no banner on ${tab}`)
     }
-    await s.page.waitForFunction(() => [...document.querySelectorAll('[data-decide][data-kind="suggestion"]')].some(e => e.textContent.includes('mcp-news')), null, POLL)
+    // redesign R5b: a 系统检测 in 待确认 is [data-decide][data-from="system"] (was [data-kind="suggestion"]: data-kind is the kind now)
+    await s.page.waitForFunction(() => [...document.querySelectorAll('[data-decide][data-from="system"]')].some(e => e.textContent.includes('mcp-news')), null, POLL)
   })
 
   test('no page errors', () => {

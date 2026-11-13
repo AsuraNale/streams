@@ -153,6 +153,9 @@ test('R3-5 记到想补的主题 → 已加入待补充主题, in demand.jsonl, 
   assert.ok(d.hint.includes('提问达 3 次的内容将建议添加为主题。'))
 })
 
+// redesign R5b (R5b-1, R5b-3): the card is the one 提议 — its buttons 拒绝 · 提出修改 · 确认, the main one on the right (were 确认 · 提出修改 ·
+// 拒绝 in the conversation); in 待确认 it is the small card [data-decide="agent:<id>"] with the same three (were decide-decline · decide-revise ·
+// decide-confirm in [data-part="decide-actions"]). Only how the buttons are found and their order changed; what is checked is as it was.
 test('R3-5 转交主 Agent: 「已转交主 Agent」 and the card in the conversation; the same card in 待确认 — decided in either place, decided in both', async () => {
   const i = await send('这个库单次运行最多调用 30 次就够了，帮我把上限改成 30。')
   await until(n => document.querySelector(`[data-turn="${n}"] [data-proposal]`) !== null, i)
@@ -160,15 +163,15 @@ test('R3-5 转交主 Agent: 「已转交主 Agent」 and the card in the convers
   assert.equal(first.route, 'change')
   assert.equal(first.routed, '已转交主 Agent')
   assert.equal(first.status, 'pending')
-  assert.deepEqual(first.actions, [['confirm', '确认'], ['revise', '提出修改'], ['decline', '拒绝']])
+  assert.deepEqual(first.actions, [['decline', '拒绝'], ['revise', '提出修改'], ['confirm', '确认']])
   await panel('decide')
-  await until(id => document.querySelector(`[data-pane="decide"] [data-decide="${id}"] [data-part="decide-actions"]`) !== null, first.card)
-  assert.deepEqual(await s.page.evaluate(id => [...document.querySelectorAll(`[data-decide="${id}"] [data-part="decide-actions"] [data-action]`)].map(a => [a.dataset.action, a.textContent.trim()]), first.card), [['decide-decline', '拒绝'], ['decide-revise', '提出修改'], ['decide-confirm', '确认']])
+  await until(id => document.querySelector(`[data-pane="decide"] [data-decide="agent:${id}"] [data-action]`) !== null, first.card)
+  assert.deepEqual(await s.page.evaluate(id => [...document.querySelectorAll(`[data-decide="agent:${id}"] [data-action]`)].map(a => [a.dataset.action, a.textContent.trim()]), first.card), [['decline', '拒绝'], ['revise', '提出修改'], ['confirm', '确认']])
   const capBefore = core.pipelineFrom(core.readConfig(dir()).config).cap
   // 确认 in 待确认 → the card in the conversation is confirmed too, and the library's cap is changed once
-  await s.page.click(`[data-decide="${first.card}"] [data-action="decide-confirm"] button`)
+  await s.page.click(`[data-decide="agent:${first.card}"] [data-action="confirm"] button`)
   await until(([n, id]) => document.querySelector(`[data-turn="${n}"] [data-proposal="${id}"]`)?.dataset.status === 'confirmed', [i, first.card])
-  await until(id => document.querySelector(`[data-decide="${id}"]`) === null, first.card)
+  await until(id => document.querySelector(`[data-decide="agent:${id}"]`) === null, first.card)
   const capAfter = core.pipelineFrom(core.readConfig(dir()).config).cap
   assert.notEqual(capAfter, capBefore, 'control: the confirm changed the library')
   assert.equal(capAfter, 30)
@@ -176,10 +179,10 @@ test('R3-5 转交主 Agent: 「已转交主 Agent」 and the card in the convers
   const j = await send('还是改成 40 吧，帮我把上限改成 40。')
   await until(n => document.querySelector(`[data-turn="${n}"] [data-proposal]`) !== null, j)
   const second = await s.page.evaluate(n => document.querySelector(`[data-turn="${n}"] [data-proposal]`).dataset.proposal, j)
-  await until(id => document.querySelector(`[data-decide="${id}"]`) !== null, second)
+  await until(id => document.querySelector(`[data-decide="agent:${id}"]`) !== null, second)
   await s.page.click(`[data-turn="${j}"] [data-proposal="${second}"] [data-action="confirm"] button`)
   await until(([n, id]) => document.querySelector(`[data-turn="${n}"] [data-proposal="${id}"]`)?.dataset.status === 'confirmed', [j, second])
-  await until(id => document.querySelector(`[data-decide="${id}"]`) === null, second)
+  await until(id => document.querySelector(`[data-decide="agent:${id}"]`) === null, second)
   assert.equal(core.pipelineFrom(core.readConfig(dir()).config).cap, 40)
 })
 

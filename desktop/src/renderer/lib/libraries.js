@@ -7,18 +7,13 @@
 //     the end of a round (`round-progress` with done: true: its last round, its problem — v2 package J1);
 //     on `inbox-changed { libraryId, count }` only that one row's `inbox` changes (another library's event is not this one's
 //     count; an event without a libraryId: the whole list read again).
-//   useWaiting(enabled)    → how many things wait for you in 和主 Agent 聊: the pending proposal cards (listProposals) plus the
-//     suggestion cards not handled — 0 until the bridge has a `listSuggestions` (package C / G); read again on
-//     `proposals-changed`, when a turn of the main Agent ends (`agent-changed` done: 「交给主 Agent」 ran one) and when a
-//     suggestion card was handled on the page (package G: lib/agent.js suggestionsChanged).
-//   useWaitingItems(enabled) → v2 package L: the same read, the things themselves — { count, cards: [card…], suggestions: [s…],
-//     reload }: the right panel's 「等你决定」 lists them and the sidebar's badge is their `count` (one source, one number)
+//   (redesign R5b: what waits for you — v2 package L's useWaitingItems / useWaiting — is lib/agent.js useToConfirm now: the
+//   bridge's listToConfirm, read again on the events that change it.)
 //   tracking(row)          → what the library follows, for 「在追：…」: the brief's first sentence, else its topics' names; null
 //   firstSentence(text)    → the text up to its first full stop (。！？.!? or a line end), trimmed
 import { call } from './bridge.js'
 import { useEvent } from './use-events.js'
 import { useLoad } from './use-load.js'
-import { SUGGESTIONS_EVENT, usePageEvent } from './agent.js'
 
 const SENTENCE_END = /[。！？!?\n]|\.(?=\s|$)/
 
@@ -68,37 +63,4 @@ export function useLibraries(enabled) {
     rows.mutate(list => withInboxCount(list, p))
   }, [enabled])
   return rows
-}
-
-/** The suggestion cards not handled yet, through the bridge's listSuggestions once it exists (package C / G); else none. */
-async function openSuggestions() {
-  const api = globalThis.streams
-  if (!api || typeof api.listSuggestions !== 'function') return []
-  try {
-    const list = await call('listSuggestions', null)
-    return Array.isArray(list) ? list.filter(s => s && (s.status === undefined || s.status === 'open')) : []
-  } catch { return [] }
-}
-
-/** v2 package L: the proposal cards waiting and the suggestion cards not handled, every library's — what the badge counts. */
-export function useWaitingItems(enabled) {
-  // (a reload keeps the last list on screen until the new one comes: lib/use-load.js)
-  const items = useLoad(async () => {
-    if (!enabled) return { cards: [], suggestions: [] }
-    const [cards, suggestions] = await Promise.all([call('listProposals', { status: 'pending' }).catch(() => []), openSuggestions()])
-    return { cards: Array.isArray(cards) ? cards : [], suggestions }
-  }, [enabled])
-  useEvent('proposals-changed', () => { if (enabled) items.reload() }, [enabled])
-  useEvent('agent-changed', p => { if (enabled && p?.phase === 'done') items.reload() }, [enabled])
-  // redesign R1: and the cards a round records (the tab's number follows at once)
-  useEvent('round-progress', p => { if (enabled && p?.done === true) items.reload() }, [enabled])
-  usePageEvent(SUGGESTIONS_EVENT, () => { if (enabled) items.reload() }, [enabled])
-  const cards = items.data?.cards ?? []
-  const suggestions = items.data?.suggestions ?? []
-  return { count: cards.length + suggestions.length, cards, suggestions, reload: items.reload }
-}
-
-/** How many things wait for you (the sidebar's badge): useWaitingItems' count. */
-export function useWaiting(enabled) {
-  return useWaitingItems(enabled).count
 }

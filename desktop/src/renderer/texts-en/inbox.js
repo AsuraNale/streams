@@ -56,6 +56,16 @@ export const INBOX = Object.freeze({
     below: 'Below the {name} threshold {score}',
     move: 'Move to Inbox',
     none: 'Nothing was filtered out.',
+    old: 'Scored under the old standard',
+    changed: Object.freeze({ brief: 'The brief', thresholds: 'The strictness', prompts: 'The scoring steps', other: 'The scoring standard' }),
+    alert: '{what} changed {when}; the {n} item{n?|s} below {n?was|were} scored under the old standard.',
+    alertNoTime: '{what} changed; the {n} item{n?|s} below {n?was|were} scored under the old standard.',
+    rescore: 'Re-score (est. {calls} model calls)',
+    calls: '{lo}–{hi}',
+    rescoring: 'Re-scoring…',
+    queued: 'Queued · position {n}',
+    rescoreFailed: 'Re-scoring could not start. Try again.',
+    rescoreNoConnection: 'No connection is chosen, so nothing can be re-scored.',
   }),
 
   manual: Object.freeze({

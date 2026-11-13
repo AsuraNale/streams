@@ -174,7 +174,7 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 | 函数 | 作用 | 返回 / 错误 |
 |---|---|---|
-| `rescoreInfo(libraryDir, {limit = 50})` | 按旧标准评过的「未通过筛选」：条数与条目（`listRejected` 的 `onlyOld`，最新的在前）、评分标准上一次改的时间（`standardChangedAt`：`changes.jsonl` 里 `brief` · `thresholds` · `prompts`（`STANDARD_FIELDS`）最新一行的 `at`，没有记录 → null）、重新评分的预计模型调用次数（`estimate.mjs` 的口径 `estimateFirstRound({ items: total, cap })`：一次自检 + 每条 1–4 次，两头都不超过单次运行上限；没有要评的 → `[0, 0]`） | `{total, items, changedAt, expectedCalls:[lo, hi], cap}` |
+| `rescoreInfo(libraryDir, {limit = 50})` | 按旧标准评过的「未通过筛选」：条数与条目（`listRejected` 的 `onlyOld`，最新的在前）、评分标准上一次改的时间（`standardChangedAt`：`changes.jsonl` 里 `brief` · `thresholds` · `prompts`（`STANDARD_FIELDS`）最新一行的 `at`，没有记录 → null）、重新评分的预计模型调用次数（`estimate.mjs` 的口径 `estimateFirstRound({ items: total, cap })`：一次自检 + 每条 1–4 次，两头都不超过单次运行上限；没有要评的 → `[0, 0]`）；**重设计 R5b** 加 `changedField`：那最新一行改的是哪一样（`standardChange(libraryDir)` → `{ at, field }`，`field` 为 `brief` 追踪要求 · `thresholds` 严格程度 · `prompts` 评分环节，没有记录 → null），界面的提示写清是哪样改了（P05） | `{total, items, changedAt, changedField, expectedCalls:[lo, hi], cap}` |
 | `rescoreRejected(libraryDir, {connector, cap?, ctx?, signal?, onProgress?, now?})` | 自检（同一轮运行的自检，一次试调）→ 开始那一刻的全部旧条目，一条一条：这条按旧标准做的每一步在新标准下重做（`nextStep(…, { rescore: true })`，关卡按顺序，全部通过的再摘要），通过的照常进待看（`runSummary`：inbox 文件 + 账本 `inbox` 事件，核验与运行相同），还低于某关的留在未通过筛选（不再算旧）。每次调用记进库的用量文件（`purpose`：`rescore:gate:<id>` · `rescore:summary`），算进**单次运行上限**（`cap`，默认库的）：到上限在下一步之前停（`stoppedAt: 'cap'`）；连接出错立刻停（`stoppedAt: 'connection'`，那一步记 `unscored connection:<code>`，下次再试）；`signal` 中止 → `aborted`。**不写 `notes/`**（V2），也**不写 `rounds.jsonl`**（重新评分不是一次运行：规则 ② 数的运行与「上次运行」不变） | `{ok, started, rescore: true, id, calls, callsBy, targets, counts:{rescored, inbox, below, unscored, partial}, remaining, stoppedAt?, problems, warnings}`（`partial`：停在半路的那条——某一道已按新标准重评、下一道还没评，precheck fix 9；它花的调用在 `calls` 里）；自检没过 → `{ok:false, started:false, rescore:true, problems}`，什么都不写 |
 
 **到上限之后剩下的怎么接**（施工方定）：没轮到的条目判定没动，仍是「按旧标准评分」，留在未通过筛选，等**下一次点「重新评分」**接着评（`remaining` = 还剩几条）；下一次运行**不**接着评它们（4.1：运行从不重评旧判定，这样运行的预计调用次数不会被一次没做完的重新评分悄悄抬高）。停在半路的那一条不在此列：它已经按新标准重评了某一道（例如相关度）、因为上限还没评下一道（实质 / 摘要），那一道已是新标准、不再算旧，所以**它的下一道由下一次运行接着评**（和任何停在某一道的条目一样），不等下一次重新评分；`counts.partial` 记它（1 或 0），它已花的调用算在 `calls` 里。
@@ -598,6 +598,8 @@ R5a 以前记的卡没有 `basis`：只查来源是否移除 / 暂停与 ④。�
 连接出错那行同样是界面词（`connectionSentence(code, lang)`：「连接出了问题：网络连不上，这条消息没有回答。」，用 `CONNECTION_WORDS` = 桌面 `CONNECTIONS.codes`），`data` 只有 `error`（连接的 code，页面按它说），连接自己的原话只进 `ctx.log` / `ctx.rawError`；会话接不上那行同理（「最近几条消息」，`data: { session: 'lost' }`）。`publicRow(row)`：正本的一行交给模型（`historyBlock`、摘要）与页面（桌面 `getAgentTranscript`）之前都过它——上面三种 note 行只留界面词与这几个键；修好以前写下的旧行（带 kind 名、内部码、原文）照同样的说法重写（precheck fix 2）。
 
 `languageOf(text)`（有汉字 → `zh`）· `droppedSentence(list, lang)` · `publicRow(row)` · `historyBlock(rows)` · `charsSinceSummary(rows)` · `NOTICE_CODES`。
+
+**一条消息的模型调用次数**（重设计 R5b 预检第 3 条；界面照 05 规则 8 写真话）：`TURN_CALLS` = `{ lo: 1, hi: 1 + MAX_LOOKUP_ROUNDS = 4, max: 18 }`——`lo` 直接回答；`hi` 每轮都查（3 轮查询 + 最后一次回答），通常最多这么多；`max` 是代码允许的上限：这 4 次回答每次都不能用、各重试一次（×2），每次调用都碰上会话接不上、开新会话再发一次（×2），最后整理对话记录（`compressIfNeeded` 的 `completeJson`，坏格式再试一次：`SUMMARY_CALLS_MAX` = 2）——(1 + 3) × 2 × 2 + 2 = 18。`core/test/r5b.test.mjs` 用 `scriptedAgentConnector` 把 `agentTurn` 分别走到 1、4、18 次；桌面 `screens/proposal.js AGENT_CALLS` 与它相等（`test/ui-r5b.test.mjs` 核）。
 
 ### 5.15.6 会话模式 `createSessionConnector(connection, deps, { cwd })`（`src/connect/session.mjs`）
 

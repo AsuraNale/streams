@@ -148,8 +148,9 @@ const MUTANTS = [
   // v2 package G (docs/checks/2026-11-09-wp-g/contract.md): the proposal card, 和主 Agent 聊, 问库's routing
   {
     id: 'g-decline-confirms',
-    what: 'the proposal card\'s 不要 calls confirmProposal',
-    edits: [['src/renderer/screens/proposal-card.js', "act('decline', () => call('declineProposal', card.id))", "act('decline', () => call('confirmProposal', card.id))"]],
+    // redesign R5b: the card is screens/proposal.js (was proposal-card.js); its 拒绝 (was 不要) is the same call
+    what: 'the proposal\'s 拒绝 calls confirmProposal',
+    edits: [['src/renderer/screens/proposal.js', "async () => done(await call('declineProposal', id)))", "async () => done(await call('confirmProposal', id)))"]],
     test: ['test/ui-agent.test.mjs', '--test-name-pattern=the proposal card'],
   },
   {
@@ -167,9 +168,10 @@ const MUTANTS = [
   {
     id: 'g-card-press-twice',
     what: 'a proposal card\'s button can be pressed again before the bridge answers (no guard, never disabled)',
+    // redesign R5b: the guard is screens/proposal.js useActing (was proposal-card.js)
     edits: [
-      ['src/renderer/screens/proposal-card.js', '    if (inFlight.current) return\n    inFlight.current = true\n', ''],
-      ['src/renderer/screens/proposal-card.js', 'const busy = acting !== null', 'const busy = false'],
+      ['src/renderer/screens/proposal.js', '    if (inFlight.current) return undefined\n    inFlight.current = true\n', ''],
+      ['src/renderer/screens/proposal.js', 'return { acting, busy: acting !== null, error, setError, run }', 'return { acting, busy: false, error, setError, run }'],
     ],
     test: ['test/ui-agent.test.mjs', '--test-name-pattern=the proposal card'],
   },
@@ -364,7 +366,8 @@ const MUTANTS = [
   {
     id: 'r3-card-not-shared',
     what: '待确认\'s 确认 / 拒绝 on a proposal call nothing (the card in 问库\'s conversation stays pending)',
-    edits: [['src/renderer/screens/right-panel.js', '    try { await call(name, card.id) } catch { setFailed(true) } finally { setBusy(false) }', '    try { await Promise.resolve(name) } catch { setFailed(true) } finally { setBusy(false) }']],
+    // redesign R5b: 待确认's card is the one 提议's small card (screens/proposal.js, compact); its 确认 calls nothing
+    edits: [['src/renderer/screens/proposal.js', "    const next = done(await call('confirmProposal', id))", "    const next = done(compact ? null : await call('confirmProposal', id))"]],
     test: ['test/ui-ask-r3.test.mjs', '--test-name-pattern=转交主 Agent'],
   },
   {
@@ -683,6 +686,245 @@ const MUTANTS = [
     what: 'the page\'s 处理建议 and the one the main agent is given say different things',
     edits: [['src/renderer/texts/common.js', "  'fix-address-or-remove': '这不是临时故障，重试没用：改地址，或删掉这个来源。',", "  'fix-address-or-remove': '重试无用，需修改地址或移除该来源。',"]],
     test: ['test/services-r5a.test.mjs', '--test-name-pattern=precheck fix 10'],
+  },
+  // redesign R5b (docs/checks/2026-11-12-r5b/contract.md 「测」): the one 提议, the 主 Agent page, 待确认, 重新评分, the page's words for
+  // what went wrong — each test runs on its own (test/ui-r5b.test.mjs: a world per part, each test makes its own data)
+  {
+    id: 'r5b-confirm-left',
+    what: 'the full card\'s buttons back to 确认 · 提出修改 · 拒绝 (the main one on the left)',
+    edits: [['src/renderer/screens/proposal.js', `        <\${Btn} name="decline" kind="quiet" disabled=\${act.busy} onClick=\${act.decline}>\${T.actions.decline}<//>
+        <\${Btn} name="revise" disabled=\${act.busy} onClick=\${() => setReviseOpen(o => !o)}>\${T.actions.revise}<//>
+        <\${Btn} name="confirm" kind="primary" disabled=\${act.busy} onClick=\${act.confirm}><\${TIcon} name="approve" fallback="check" />\${create ? T.actions.create : T.actions.confirm}<//>
+      </div>
+    </div>`, `        <\${Btn} name="confirm" kind="primary" disabled=\${act.busy} onClick=\${act.confirm}><\${TIcon} name="approve" fallback="check" />\${create ? T.actions.create : T.actions.confirm}<//>
+        <\${Btn} name="revise" disabled=\${act.busy} onClick=\${() => setReviseOpen(o => !o)}>\${T.actions.revise}<//>
+        <\${Btn} name="decline" kind="quiet" disabled=\${act.busy} onClick=\${act.decline}>\${T.actions.decline}<//>
+      </div>
+    </div>`]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 ten'],
+  },
+  {
+    id: 'r5b-system-main-left',
+    what: 'a 系统检测\'s buttons in the 动作表\'s order as given (the main one on the left, 忽略 on the right)',
+    edits: [['src/renderer/screens/proposal.js', 'const actions = list(item.actions).slice().reverse()', 'const actions = list(item.actions).slice()']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 ①'],
+  },
+  {
+    id: 'r5b-threshold-number',
+    what: '严格程度 on the card with the thresholds\' numbers again',
+    // redesign R5b precheck fix 1: the line it edits now says 自定义's place (customText)
+    edits: [['src/renderer/screens/proposal.js', "const levelText = t => (levelOf(t) === 'custom' ? customText(t) : C.levels[levelOf(t)])", "const levelText = t => `${levelOf(t) === 'custom' ? customText(t) : C.levels[levelOf(t)]} 相关度 ≥ ${t?.relevance} · 实质 ≥ ${t?.substance}`"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 ten'],
+  },
+  {
+    id: 'r5b-old-word',
+    what: '拒绝 is 不要 again (05 不再用)',
+    edits: [['src/renderer/texts/proposals.js', "    decline: '拒绝',\n    pauseSource", "    decline: '不要',\n    pauseSource"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 ten'],
+  },
+  {
+    id: 'r5b-raw-on-card',
+    what: 'a failed proposal\'s line says the raw error',
+    edits: [['src/renderer/screens/proposal.js', '>${failureText(card)}</span>', '>${card.failure?.message ?? failureText(card)}</span>']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 the states'],
+  },
+  {
+    id: 'r5b-waiting-back',
+    what: '「等你定的事」 is back above the conversation',
+    edits: [['src/renderer/screens/chat.js', '          <div class="thread" data-part="conversation">', '          <section data-part="waiting"><h2>等你定的事 · ${n}</h2></section><div class="thread" data-part="conversation">']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
+  },
+  {
+    id: 'r5b-panel-not-decide',
+    what: 'the 主 Agent page leaves the right panel on the tab it had (not 待确认)',
+    edits: [['src/renderer/screens/chat.js', "    if (panel && panel.tab !== 'decide') setPanel?.({ tab: 'decide' })", '']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
+  },
+  {
+    id: 'r5b-calls-design',
+    what: 'the line under the box says the design\'s 1–2 calls, not the core\'s 1–4',
+    edits: [['src/renderer/screens/proposal.js', 'export const AGENT_CALLS = Object.freeze({ lo: 1, hi: 4, max: 18 })', 'export const AGENT_CALLS = Object.freeze({ lo: 1, hi: 2, max: 18 })']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
+  },
+  {
+    id: 'r5b-create-stays',
+    what: '创建 leaves the page where it is (not the new library\'s 待看)',
+    edits: [['src/renderer/screens/proposal.js', "await app?.openLibrary?.(next.result.libraryId, { screen: 'inbox', params: {} })", 'void 0']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 创建'],
+  },
+  {
+    id: 'r5b-count-fixed',
+    what: '待确认\'s number on the tab is written in, not the list\'s length',
+    edits: [['src/renderer/screens/right-panel.js', '  const n = toConfirm?.items?.length ?? 0', '  const n = 4']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 O5'],
+  },
+  {
+    id: 'r5b-no-event',
+    what: '待确认 is not read again on suggestions-changed (a new 系统检测 shows only after something else reloads it)',
+    edits: [['src/renderer/lib/agent.js', "  useEvent('suggestions-changed', again, [enabled])\n", '']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 O5'],
+  },
+  {
+    id: 'r5b-list-twice',
+    what: 'on a library\'s page its 系统检测 are listed again below the list',
+    edits: [['src/renderer/screens/right-panel.js', '    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}',
+      '    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}\n    <div data-part="suggestions">${items.filter(i => i.from === \'system\' && i.libraryId === useApp().appState?.data?.library?.libraryId).map(i => html`<${Proposal} key=${`again:${i.id}`} item=${i} size="compact" />`)}</div>']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 one list'],
+  },
+  {
+    id: 'r5b-sync-off',
+    what: 'the conversation\'s cards are not read again on proposals-changed (one decided in 待确认 stays pending there)',
+    edits: [['src/renderer/lib/agent.js', "  useEvent('proposals-changed', () => list.reload())\n", '']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 the same proposal'],
+  },
+  {
+    id: 'r5b-act-current-only',
+    what: 'a 系统检测\'s action is sent for the current library, whatever library the card is of',
+    edits: [['src/renderer/screens/proposal.js', "    try { r = await call('actOnSuggestion', item.libraryId, item.key, a.id) }", "    try { r = await call('actOnSuggestion', app?.appState?.data?.library?.libraryId ?? item.libraryId, item.key, a.id) }"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 a 系统检测 of a library'],
+  },
+  {
+    id: 'r5b-edit-address-no-dialog',
+    what: '修改地址 opens 来源与要求 without the row\'s 修改地址 dialog',
+    edits: [['src/renderer/screens/sources.js', "    if (source) setDialog({ kind: 'edit-source', source })", '    void source']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 修改地址'],
+  },
+  {
+    id: 'r5b-rescore-always',
+    what: '重新评分\'s notice and button also when nothing was judged under the old standard',
+    edits: [['src/renderer/screens/inbox.js', '  if (!rescore || !(rescore.total > 0)) return null', '  if (!rescore) return null']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-4 a library whose'],
+  },
+  {
+    id: 'r5b-code-funnel',
+    what: '运行漏斗 says the code it does not know, in brackets ({code} back)',
+    edits: [['src/renderer/screens/run-funnel.js', '  return T.what.other', "  return `${T.what.other}（${code ?? stop?.code ?? ''}）`"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9'],
+  },
+  {
+    id: 'r5b-code-problem',
+    what: '问题卡 says the connection\'s code it does not know ({code} back)',
+    edits: [['src/renderer/screens/problem-card.js', '    const text = fmt(known ? P.connection[code] : P.connection.other, { name, n })', "    const text = `${fmt(known ? P.connection[code] : P.connection.other, { name, n })}（${code}）`"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9'],
+  },
+  {
+    id: 'r5b-code-library',
+    what: '资料库\'s file rules say the code they do not know ({code} back)',
+    edits: [['src/renderer/screens/library.js', '  return T.pending.other', "  return `${T.pending.other}（${c}）`"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9'],
+  },
+  // redesign R5b precheck fixes (11-13): each fix's reverse, on the test that holds it (test/ui-r5b.test.mjs)
+  {
+    id: 'r5b-custom-manual',
+    what: '自定义 on a proposal says 「通过阈值已在「高级设置」中手动修改」 again (no one edited it by hand)',
+    edits: [['src/renderer/screens/proposal.js', "const levelText = t => (levelOf(t) === 'custom' ? customText(t) : C.levels[levelOf(t)])", "const levelText = t => (levelOf(t) === 'custom' ? '自定义（通过阈值已在「高级设置」中手动修改）' : C.levels[levelOf(t)])"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 自定义'],
+  },
+  {
+    id: 'r5b-custom-no-delta',
+    what: '自定义 → 自定义 in the same place: 修改后 reads the same as 修改前, nothing says what changed',
+    edits: [['src/renderer/screens/proposal.js', '    return delta ? `${text}${C.delta.sep}${delta}` : text', '    return text']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 自定义'],
+  },
+  {
+    id: 'r5b-edit-address-remembered',
+    what: '修改地址\'s parameter stays in the route the library remembers (coming back to the library opens the dialog again)',
+    edits: [['src/renderer/screens/sources.js', "    const { editAddress: _done, ...rest } = params\n    navigate('sources', rest)\n", '']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 修改地址'],
+  },
+  {
+    id: 'r5b-calls-no-most',
+    what: 'the line under the box says the usual calls only (1–4), not the most (retries, the summary)',
+    edits: [['src/renderer/texts/agent.js', "    calls: '每条消息通常 {lo}–{hi} 次模型调用；回答需要重试或整理对话记录时会更多，最多 {max} 次模型调用',", "    calls: '每条消息预计 {lo}–{hi} 次模型调用（需要查询各库情况时次数较多）',"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
+  },
+  {
+    id: 'r5b-calls-most-wrong',
+    what: 'the most calls of one message is not the core\'s (4 instead of 18)',
+    edits: [['src/renderer/screens/proposal.js', 'export const AGENT_CALLS = Object.freeze({ lo: 1, hi: 4, max: 18 })', 'export const AGENT_CALLS = Object.freeze({ lo: 1, hi: 4, max: 4 })']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
+  },
+  {
+    id: 'r5b-titles-again',
+    what: 'the right panel lists the proposals\' titles a second time (a plain list, none of the old markup)',
+    edits: [
+      ['src/renderer/screens/right-panel.js', "import { Proposal } from './proposal.js'", "import { Proposal, proposalTitle } from './proposal.js'"],
+      ['src/renderer/screens/right-panel.js', '    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}',
+        '    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}\n    <ul>${items.map(i => html`<li key=${i.id}>${proposalTitle(i)}</li>`)}</ul>'],
+    ],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 one list'],
+  },
+  {
+    id: 'r5b-code-drawn-problem',
+    what: '问题卡 as drawn puts the code back in brackets after its sentence',
+    edits: [['src/renderer/screens/problem-card.js', '<div class="today-problem__text">${text}</div>', '<div class="today-problem__text">${text}（${problem.connectionCode ?? problem.code}）</div>']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9 drawn'],
+  },
+  {
+    id: 'r5b-code-drawn-funnel',
+    what: '运行漏斗 as drawn puts the stop\'s code back in brackets after its line',
+    edits: [['src/renderer/screens/run-funnel.js', "data-code=${f.stop.connectionCode ?? f.stop.code ?? ''}>${stopLine(f.stop)}</p>", "data-code=${f.stop.connectionCode ?? f.stop.code ?? ''}>${stopLine(f.stop)}（${f.stop.connectionCode ?? f.stop.code}）</p>"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9 drawn'],
+  },
+  {
+    id: 'r5b-code-drawn-library',
+    what: '资料库\'s file card as drawn says each rule with its code in brackets',
+    edits: [['src/renderer/screens/library.js', '<small data-part="card-codes">${[folder, codes.map(pendingWords).join(SEP)]', '<small data-part="card-codes">${[folder, codes.map(c => `${pendingWords(c)}（${c}）`).join(SEP)]']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9 drawn'],
+  },
+  {
+    id: 'r5b-why-raw',
+    what: '运行漏斗 says a stop\'s reason it has no words for as it is',
+    edits: [['src/renderer/screens/run-funnel.js', ': fmt(T.stopWhy.other, { what: stopWhat(stop) })', ': why']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9 drawn'],
+  },
+  {
+    id: 'r5b-today-old-words',
+    what: '问题卡\'s new sentence for a connection problem in the words 05 no longer uses (这一轮 · 打分 · 没丢)',
+    edits: [['src/renderer/texts/today.js', "      other: '{name} 连接出现问题，本次运行未完成评分。已抓取的 {n} 条内容已保留。',", "      other: '{name} 连接出现问题，这一轮没有打分。抓到的 {n} 条都在，没丢。',"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9 drawn'],
+  },
+  {
+    id: 'r5b-http-back',
+    what: '来源与要求\'s state chip says an HTTP code again when the row has one',
+    edits: [['src/renderer/screens/sources.js', '    return fmt(T.row.streakNoHttp, { state: word, n: s.consecutive ?? 1 })', '    return s.http ? `${word} · HTTP ${s.http}` : fmt(T.row.streakNoHttp, { state: word, n: s.consecutive ?? 1 })']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=precheck fix 11'],
+  },
+  {
+    id: 'r5b-rescore-mark-all',
+    what: 'every row of 未通过筛选 is marked 按旧标准评分, also the one judged under the standard of now',
+    edits: [['src/renderer/screens/inbox.js', '${r.old === true ? html`<span class="status-chip" data-part="old">', '${true ? html`<span class="status-chip" data-part="old">']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-4 严格程度 changed'],
+  },
+  {
+    id: 'r5b-rescore-count-all',
+    what: '重新评分\'s notice counts every row of 未通过筛选, not the old ones',
+    edits: [['src/renderer/screens/inbox.js', '<${RescoreAlert} rescore=${d?.rescore ?? null}', '<${RescoreAlert} rescore=${d?.rescore ? { ...d.rescore, total: rejected.total } : null}']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-4 严格程度 changed'],
+  },
+  {
+    id: 'r5b-eyebrow-caps',
+    what: 'the small card\'s top line in the template\'s capitals again (「主 AGENT 提议 · AI AGENT 记忆」)',
+    edits: [['src/renderer/styles/template-app.css', '.st-rp-decide [data-part="from"] { text-transform: none; }\n', '']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 the small cards'],
+  },
+  {
+    id: 'r5b-buttons-left',
+    what: 'a small card whose buttons fit one row has them on the left again (the main one not at the right edge)',
+    edits: [['src/renderer/styles/template-app.css', '.st-rp-decide .confirm-footer .row { margin-left: auto; }\n', '']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 the small cards'],
+  },
+  {
+    id: 'r5b-time-spliced',
+    what: 'a time spliced into the line with spaces round it again (「最近一次 今天 09:33」)',
+    edits: [['src/renderer/texts/proposals.js', "    'source-failing': '暂时失败 {failed} 次 · 被拒绝 {blocked} 次 · 最近一次：{when}',", "    'source-failing': '暂时失败 {failed} 次 · 被拒绝 {blocked} 次 · 最近一次 {when}',"]],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 the small cards'],
+  },
+  {
+    id: 'r5b-lead-when-empty',
+    what: '待确认 says 「以下事项均需确认后才会执行。」 with nothing below it',
+    edits: [['src/renderer/screens/right-panel.js', '      ${n ? html`<p data-part="decide-lead">${L.lead}</p>` : null}', '      <p>${L.lead}</p>']],
+    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=precheck fix 9'],
   },
 ]
 

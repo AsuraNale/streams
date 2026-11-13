@@ -48,7 +48,9 @@ test('every --st- variable a style file uses is defined in interim.css, there on
   assert.deepEqual(problems, [])
   // every value interim.css gives is a var() of the template's, a color-mix of them, or a size / weight / font name
   const values = [...INTERIM.matchAll(/^\s*--st-[a-z0-9-]+\s*:\s*([^;]+);/gm)].map(m => m[1].trim())
-  assert.ok(values.length > 60)
+  // redesign R5b: styles/screens/agent.css is deleted and the five names only it used went with it (64 → 59 values): the control
+  // that the read finds the file's values is now > 50 (was > 60)
+  assert.ok(values.length > 50)
   const ok = v => /^var\(--(bench|panel|paper|well|ink11|sub11|accent11|pick|inverse11|rule11|float11)\)$/.test(v) || /^color-mix\(/.test(v) || /^-?[\d.]+(px)?$/.test(v) || /^(round|0)$/.test(v) || /^'[^']+', monospace$/.test(v)
   assert.deepEqual(values.filter(v => !ok(v)), [])
   assert.equal(ok('#F6F6F3'), false, 'control: a colour is not taken')
