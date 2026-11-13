@@ -1,12 +1,15 @@
 // 许可证与致谢 (src/main/licenses.mjs), in plain Node: in development the repository's LICENSE, in a packaged layout the app's
 // own copy; the six parts with the runtime's versions and the shipped package.json's version and license; the notices only
 // in an install that has the file. Controls first: a folder laid out as an install with another LICENSE gives that one.
+// redesign R6a: Noto Serif SC (研究对话's heading font, shipped from this package on) has its row after Noto Sans SC, read the same
+// way, and its own license text (displayFont): the two component lists below and the install's layout got that row and those
+// two files — because licensesView now reads them. Nothing else these tests check changed.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DESKTOP_DIR, REPO_DIR } from '../scripts/lib/paths.mjs'
-import { FONT, NOTICES_FILE, fontVersion, licensesView, noticesFileOf } from '../src/main/licenses.mjs'
+import { DISPLAY_FONT, FONT, NOTICES_FILE, fontVersion, licensesView, noticesFileOf } from '../src/main/licenses.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { tempDir } from '../scripts/lib/temp.mjs'
 
@@ -45,6 +48,9 @@ function install({ license = 'MIT License\n\nCopyright (c) test\n', notices = tr
   mkdirSync(join(app, ...FONT.file.slice(0, -1)), { recursive: true })
   writeFileSync(join(app, ...FONT.file), fontWith('Version 9.87;test'))
   writeFileSync(join(app, ...FONT.licenseFile), 'SIL OPEN FONT LICENSE (test copy)\n')
+  // redesign R6a: and the heading font with its license text
+  writeFileSync(join(app, ...DISPLAY_FONT.file), fontWith('Version 6.54;test'))
+  writeFileSync(join(app, ...DISPLAY_FONT.licenseFile), 'SIL OPEN FONT LICENSE (serif test copy)\n')
   if (notices) writeFileSync(join(root, NOTICES_FILE), 'notices\n')
   return { root, app }
 }
@@ -62,6 +68,8 @@ test('development: the repository\'s LICENSE in full, the six parts, no notices 
     { name: '@mozilla/readability', version: pkg('@mozilla/readability').version, license: pkg('@mozilla/readability').license },
     // v2 package K2: the bundled UI font, its version from the font file that ships
     { name: 'Noto Sans SC', version: '2.04', license: 'OFL-1.1' },
+    // redesign R6a: the heading font of 研究对话, the same way
+    { name: 'Noto Serif SC', version: '2.003', license: 'OFL-1.1' },
   ])
   // v2 package K2: the font's license in full, the file shipped beside it (copied from the K1 draft's source unchanged)
   assert.equal(v.font.text, readFileSync(join(DESKTOP_DIR, 'src', 'renderer', 'fonts', 'OFL-NotoSansSC.txt'), 'utf8'))
@@ -89,7 +97,8 @@ test('installed: the app\'s own LICENSE and package.json files, the notices besi
   const { root, app } = install({ license: 'MIT License\n\nanother copy\n' })
   const v = licensesView({ packaged: true, desktopDir: app, installDir: root, versions: VERSIONS })
   assert.equal(v.own.text, 'MIT License\n\nanother copy\n', 'control: the install\'s copy, not the repository\'s')
-  assert.deepEqual(v.components.slice(3), [{ name: 'Preact', version: '9.9.9', license: 'MIT' }, { name: 'htm', version: '8.8.8', license: 'Apache-2.0' }, { name: '@mozilla/readability', version: '7.7.7', license: 'BSD-2-Clause' }, { name: 'Noto Sans SC', version: '9.87', license: 'OFL-1.1' }], 'the install\'s own package.json files and font, not the repository\'s')
+  assert.deepEqual(v.components.slice(3), [{ name: 'Preact', version: '9.9.9', license: 'MIT' }, { name: 'htm', version: '8.8.8', license: 'Apache-2.0' }, { name: '@mozilla/readability', version: '7.7.7', license: 'BSD-2-Clause' }, { name: 'Noto Sans SC', version: '9.87', license: 'OFL-1.1' }, { name: 'Noto Serif SC', version: '6.54', license: 'OFL-1.1' }], 'the install\'s own package.json files and fonts, not the repository\'s')
+  assert.equal(v.displayFont.text, 'SIL OPEN FONT LICENSE (serif test copy)\n', 'redesign R6a: the install\'s own copy of the heading font\'s license')
   assert.equal(v.font.text, 'SIL OPEN FONT LICENSE (test copy)\n', 'the install\'s own copy of the font license')
   assert.deepEqual(v.notices, { available: true })
   assert.equal(noticesFileOf({ packaged: true, installDir: root }), join(root, NOTICES_FILE))

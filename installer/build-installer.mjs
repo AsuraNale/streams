@@ -11,7 +11,9 @@
  *    (installed with npm ci when missing).
  * 4. The stage, installer/dist/stage/: exactly the install folder (docs/installer.md §三) — Electron renamed Streams.exe,
  *    resources/app (the desktop app with its npm dependencies — preact, htm and, v2 package J2, @mozilla/readability —, the icon file assets/icon/streams.ico, Streams' LICENSE; v2 package K2: the UI font
- *    src/renderer/fonts/NotoSansSC-VF.ttf with its OFL text, checked to be there and listed in the notices' section 6),
+ *    src/renderer/fonts/NotoSansSC-VF.ttf with its OFL text, checked to be there and listed in the notices' section 6;
+ *    redesign R6a: and the Research theme's heading font, src/renderer/fonts/NotoSerifSC-VF.ttf with its OFL text, the same
+ *    way — which fonts ship and what the build asks of them is installer/fonts.mjs),
  *    resources/core (core/src: desktop/src/main/core.mjs imports ../../../core/src/index.mjs, which from
  *    resources/app/src/main is resources/core/src), THIRD-PARTY-NOTICES.txt. Only files git knows (tracked, or new and
  *    not ignored) from desktop/src and core/src; tests, fixtures and the component gallery stay out. Then rcedit gives Streams.exe its icon (the .ico) and
@@ -53,6 +55,7 @@ import { ensureInnoSetup } from './innosetup/setup_innosetup.mjs'
 import { ensureRcedit } from './rcedit/setup_rcedit.mjs'
 import { compareSections, groupMatchesIco, iconGroups, innoCopyright, setupVersionInfo, versionInfo } from './exe-resources.mjs'
 import { buildNotices } from './notices.mjs'
+import { fontFilesToShip } from './fonts.mjs'
 import { machineMarkers, scanForLeaks } from './scan.mjs'
 import { installDeleteList } from './install-delete.mjs'
 import { developmentLeftovers, linksIn, relativeImportProblems, walk } from './stage-check.mjs'
@@ -240,14 +243,12 @@ function stage() {
   // v2 package K2: the bundled UI font and its license text go with desktop/src (git knows both); a build without either stops.
   // v2 package N: asked of an app whose styles load the font (styles/fonts.css, package K2 on) — v1.0's app, the update
   // test's older build (STREAMS_INSTALLER_APP_REF), has neither, and the build stopped there: upgrade.test.mjs could not run
-  const bundlesFont = srcFiles.includes('desktop/src/renderer/styles/fonts.css')
-  if (bundlesFont) {
-    for (const f of ['desktop/src/renderer/fonts/NotoSansSC-VF.ttf', 'desktop/src/renderer/fonts/OFL-NotoSansSC.txt']) {
-      if (!srcFiles.includes(f)) throw new Stop(`${f} is not a file git knows: the app's font must ship with its license`)
-    }
-  }
-  if (!bundlesFont && !APP_REF) throw new Stop('desktop/src/renderer/styles/fonts.css is not a file git knows: the working tree\'s app loads its font there (v2 package K2)')
-  counts.font = bundlesFont ? 2 : 0
+  // redesign R6a: the question is asked of the font files themselves (installer/fonts.mjs fontFilesToShip) — styles/fonts.css
+  // went away with redesign R1 (the template declares the face), and there are two fonts now: Noto Sans SC and the Research
+  // theme's Noto Serif SC, each with its license text. The working tree's app must have all four; an older app only its pairs.
+  const shippedFonts = fontFilesToShip(srcFiles, { appRef: APP_REF })
+  if (shippedFonts.problems.length) throw new Stop(shippedFonts.problems.join('\n'))
+  counts.font = shippedFonts.files.length
   // the icon: of desktop/assets/icon only the one file the app reads (desktop/src/main/icon.mjs); the SVG sources and the
   // PNG renders stay out
   const icoFile = `desktop/${ICON_FILE.join('/')}`
@@ -547,8 +548,11 @@ async function main() {
   })
   writeFileSync(join(STAGE, 'THIRD-PARTY-NOTICES.txt'), notices.text)
   // v2 package N: for an app that bundles the font (v1.0's, an older build's, has none: staged.counts.font 0)
-  if (staged.counts.font > 0 && notices.fonts < 1) throw new Stop('THIRD-PARTY-NOTICES.txt lists no font (v2 package K2: Noto Sans SC and its OFL)')
-  say(`  ok  ${notices.npm} npm packages, ${notices.fonts} font with its OFL; MPL / LGPL with their source: ${notices.copyleft.map(c => `${c.id} (${c.license})`).join(', ') || 'none'}`)
+  // redesign R6a: every font file staged has its line and its license text in full (counts.font = the font files and their
+  // license texts: two files a font), and none is a file the notices cannot name
+  if (notices.fontProblems.length) throw new Stop(`THIRD-PARTY-NOTICES.txt: ${notices.fontProblems.join('; ')}`)
+  if (notices.fonts * 2 !== staged.counts.font || notices.fontLicenses.length !== notices.fonts) throw new Stop(`THIRD-PARTY-NOTICES.txt lists ${notices.fonts} font file(s) with ${notices.fontLicenses.length} license text(s); the stage has ${staged.counts.font} font and license files (installer/fonts.mjs)`)
+  say(`  ok  ${notices.npm} npm packages, ${notices.fonts} font${notices.fonts === 1 ? '' : 's'} each with its OFL (${notices.fontLicenses.join(', ') || 'none'}); MPL / LGPL with their source:${notices.copyleft.map(c => `${c.id} (${c.license})`).join(', ') || 'none'}`)
 
   say('6. checks on the stage')
   const facts = checkStage({ ...staged, branded })

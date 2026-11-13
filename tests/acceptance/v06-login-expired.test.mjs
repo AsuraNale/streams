@@ -1,14 +1,16 @@
-// V6 · 登录过期时，当轮不开始，首页横幅说明，抓到的条目完整保留
+// V6 · 登录过期时，本次运行不开始，库页顶上的横幅说明，已抓取的条目完整保留
 // 怎么核：假连接器返回登录过期文案
+// (Redesign R6a: the standard's sentence is the one 维护者 saw on 11-11 — was 「登录过期时，当轮不开始，首页横幅说明，抓到的条目完整保留」.
+// What the desktop part asserts changed with it, see the last paragraph of this comment; the core part is as it was.)
 //
 // Core: a library with items already caught and in the inbox, and a new item waiting on the feed; a round with the core's
 // fake connector in mode login-expired returns started:false, asks the feed nothing, and leaves the ledger, the inbox,
 // fetch_log, the run records, notes/ and the index byte for byte as they were. Reverse: the same library with a working
 // connector starts, fetches the new item and changes the ledger.
 // Desktop: the real app (the pinned Electron, test/support/seed.mjs worldSession on the seeded world) with
-// STREAMS_DEV_CONNECTION=login-expired; 开始 on 今日 → the card on 今日 ([data-part="problem"]) says the sign-in expired,
-// that the fetched items are all there (the count is the core's homeNumbers().caught for the folder), and how to fix it
-// (去登录, then 重试打分); the library's content files are unchanged. Reverse: the same world with
+// STREAMS_DEV_CONNECTION=login-expired; 立即运行 → the banner on top of the library's page ([data-part="problem"]) says the sign-in
+// expired, that this run did not start, that the fetched items are kept (the count is the core's homeNumbers().caught for the
+// folder), and how to fix it (前往登录, then 已登录，重试); the library's content files are unchanged. Reverse: the same world with
 // STREAMS_DEV_CONNECTION=fake runs the round to the end and shows no card.
 // Redesign R1 (维护者 11-11 第 1、6 题): 概览 and the run dialog are gone — only how this file finds things changed: 「开始」 is the
 // library head's 立即运行 ([data-part="run-button"] button, which starts the round at once, no dialog), the screen waited for is
@@ -18,13 +20,25 @@
 // Redesign R2 (contract R2-8): the card is the banner on top of every tab of the library's page (screens/problem-card.js) — its
 // words still carry what this file reads (the design's new sentence waits for the maintainer, R6); the progress box looked for is now
 // 待看's run steps or the panel's running row. Only that locator changed.
+// Redesign R6a (contract R6a-2; 维护者 11-11 第 1 条): the assertions on the banner follow the new sentence —
+//   库页顶上的横幅: the one [data-part="problem"] is inside the library's page, between its tabs and the tab's screen, above the
+//     screen on the window, and it is there on another tab of the library too (资料库); there is no other page that carries it;
+//   the three things, in the banner's own sentence (texts/today.js): 登录已过期 · 本次运行未开始 · 已抓取的 n 条内容已保留 (n is the
+//     core's homeNumbers().caught), the sentence being exactly the dictionary's with the connection's name and n; the words of
+//     the sentence before R6a (这一轮没有打分 · 抓到的 n 条都在，没丢) are not on it;
+//   how to fix it: the design's line (前往登录 · 已登录，重试) and its buttons; was 去登录 · 重试打分;
+//   the English dictionary has the same three things (texts-en/today.js).
+// 本次运行不开始 and 已抓取的条目完整保留 themselves are checked as before: no run is running, no progress box, the files byte for
+// byte. Shown to fail with the sentence before R6a put back (desktop/scripts/mutation-check.mjs r6a-v6-old-banner).
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { core } from './support/paths.mjs'
 import { feedLibrary, feedRoute, serveItems, fetchCtx, hashes } from './support/library.mjs'
 import { worldSession } from '../../desktop/test/support/seed.mjs'
 import { TODAY } from '../../desktop/src/renderer/texts/today.js'
+import { TODAY as TODAY_EN } from '../../desktop/src/renderer/texts-en/today.js'
 import { CONNECTIONS } from '../../desktop/src/renderer/texts/common.js'
+import { fmt } from '../../desktop/src/renderer/lib/format.js'
 
 const KEPT = rel => rel === 'streams.json' || rel === 'index.jsonl' || rel.startsWith('notes/') || rel.startsWith('_pipeline/inbox/') ||
   ['_pipeline/ledger.jsonl', '_pipeline/fetch_log.jsonl', '_pipeline/rounds.jsonl', '_pipeline/verdicts.jsonl'].includes(rel)
@@ -74,7 +88,7 @@ describe('V6 desktop: login expired', () => {
     env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'login-expired' }),
   })
 
-  test('开始 → the card on 今日 says the sign-in expired, the fetched items are all there, and how to fix it; no byte of the library changed', async () => {
+  test('立即运行 → the banner on top of the library\'s page says the sign-in expired, this run did not start, the fetched items are kept, and how to fix it; no byte of the library changed', async () => {
     const dir = s.world.library
     const before = hashes(dir, CONTENT)
     assert.ok(Object.keys(before).length >= 6, 'control: the seeded library has its files')
@@ -83,19 +97,50 @@ describe('V6 desktop: login expired', () => {
     await s.page.waitForFunction(() => document.querySelector('.lib-page [data-part="problem"]') !== null, null, POLL)
     const card = await s.page.evaluate(() => {
       const c = document.querySelector('.lib-page [data-part="problem"]')
-      return { code: c.dataset.code, connectionCode: c.dataset.connectionCode, text: c.textContent, head: c.querySelector('.today-problem__text')?.textContent ?? '', actions: [...c.querySelectorAll('[data-action]')].map(e => e.dataset.action) }
+      return { code: c.dataset.code, connectionCode: c.dataset.connectionCode, text: c.textContent, head: c.querySelector('.today-problem__text')?.textContent ?? '', actions: [...c.querySelectorAll('[data-action]')].map(e => e.dataset.action), buttons: Object.fromEntries([...c.querySelectorAll('[data-action]')].map(e => [e.dataset.action, e.textContent.trim()])) }
     })
     assert.equal(card.code, 'connection')
     assert.equal(card.connectionCode, 'login-expired')
     const caught = core.homeNumbers(dir).caught
     assert.ok(caught >= 1, 'control: the seeded library has items at 「抓到的」')
-    assert.ok(card.head.includes('登录过期'), `says the sign-in expired: ${card.head}`)
-    assert.ok(card.head.includes('这一轮没有打分'), card.head)
-    assert.ok(card.head.includes(`抓到的 ${caught} 条都在`) && card.head.includes('没丢'), `says the fetched items are all there: ${card.head}`)
-    assert.ok(card.head.includes(CONNECTIONS.names['claude-code']), card.head)
+    // redesign R6a: the three things of the new sentence, in the banner's own words
+    assert.ok(card.head.includes('登录已过期'), `says the sign-in expired: ${card.head}`)
+    assert.ok(card.head.includes('本次运行未开始'), `says this run did not start: ${card.head}`)
+    assert.ok(card.head.includes(`已抓取的 ${caught} 条内容已保留`), `says the fetched items are kept: ${card.head}`)
+    assert.equal(card.head, fmt(TODAY.problem.connection['login-expired'], { name: CONNECTIONS.names['claude-code'], n: caught }), 'the sentence is the dictionary\'s, with the connection\'s name and the count')
+    for (const old of ['这一轮', '没有打分', '都在', '没丢', '当轮', '抓到的']) assert.equal(card.text.includes(old), false, `the words before R6a are gone: ${old}`)
     assert.ok(card.text.includes(TODAY.problem.fix.login), `says how to fix it: ${card.text}`)
-    assert.ok(card.text.includes('去登录') && card.text.includes('重试打分'), card.text)
+    assert.ok(TODAY.problem.fix.login.includes(`「${TODAY.problem.login}」`) && TODAY.problem.fix.login.includes(`「${TODAY.problem.loginAgain}」`), 'the line names the two buttons by their words')
+    assert.deepEqual([TODAY.problem.login, TODAY.problem.loginAgain], ['前往登录', '已登录，重试'])
     assert.ok(card.actions.includes('retry') && card.actions.includes('login'), JSON.stringify(card.actions))
+    assert.deepEqual(card.buttons, { login: TODAY.problem.login, retry: TODAY.problem.loginAgain, change: TODAY.problem.change })
+    // 库页顶上的横幅: one banner, inside the library's page, after its tabs and before the tab's screen, above the screen on the window
+    const place = await s.page.evaluate(() => {
+      const all = [...document.querySelectorAll('[data-part="problem"]')]
+      const c = all[0]
+      const pageEl = c.closest('.lib-page')
+      const tabs = pageEl?.querySelector('nav.st-libtabs')
+      const screen = pageEl?.querySelector('.lib-page__content main[data-screen]')
+      const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING
+      return {
+        count: all.length, inLibraryPage: Boolean(pageEl), screen: screen?.dataset.screen ?? null,
+        afterTabs: Boolean(tabs) && Boolean(tabs.compareDocumentPosition(c) & FOLLOWING),
+        beforeScreen: Boolean(screen) && Boolean(c.compareDocumentPosition(screen) & FOLLOWING),
+        above: Boolean(screen) && c.getBoundingClientRect().bottom <= screen.getBoundingClientRect().top + 1,
+        shown: c.getBoundingClientRect().height > 0 && c.getBoundingClientRect().top >= 0,
+      }
+    })
+    assert.deepEqual(place, { count: 1, inLibraryPage: true, screen: 'inbox', afterTabs: true, beforeScreen: true, above: true, shown: true }, 'the banner is on top of the library\'s page')
+    // … and it is the library page's, not one tab's: on 资料库 it is there too, with the same sentence
+    await s.page.click('nav.st-libtabs [data-tab="library"]')
+    await s.page.waitForFunction(() => document.querySelector('.lib-page main[data-screen="library"][data-state="ready"]') !== null && document.querySelector('.lib-page [data-part="problem"]') !== null, null, POLL)
+    assert.equal(await s.page.evaluate(() => document.querySelector('.lib-page [data-part="problem"] .today-problem__text').textContent), card.head, 'the same banner on another tab')
+    await s.page.click('nav.st-libtabs [data-tab="inbox"]')
+    await s.page.waitForFunction(() => document.querySelector('.lib-page main[data-screen="inbox"][data-state="ready"]') !== null, null, POLL)
+    // the English dictionary says the same three things (the page reads it while the app runs in English)
+    const en = fmt(TODAY_EN.problem.connection['login-expired'], { name: 'X', n: caught })
+    assert.ok(/sign-in has expired/.test(en) && /this run did not start/.test(en) && en.includes(`All ${caught} fetched items are kept`), en)
+    assert.deepEqual(Object.keys(TODAY_EN.problem.connection), Object.keys(TODAY.problem.connection), 'the two dictionaries have the same sentences')
     const state = await s.page.evaluate(() => window.streams.getRoundState())
     assert.equal(state.ok, true)
     assert.equal(state.data.running, false, 'no round is running')

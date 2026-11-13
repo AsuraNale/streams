@@ -2,7 +2,8 @@
 // (仅基于库内内容回答 · 范围 · 不联网), the conversation (each answer's sentences with their cite numbers, the notes cited, 库内缺少 +
 // 记到想补的主题 → 已加入待补充主题, 反馈回答问题), a sentence that asks to change the library 「已转交主 Agent」 with the main Agent's
 // proposal, the box with its line of calls, and the right panel's 详情 (引用了 n 篇笔记 · 本次回答依据 · 待补充主题).
-// 「库里没有。」 is V9's own sentence (维护者 11-11 第 16 题 changes it with the standard, in R6, not here).
+// 「库内暂无相关内容。」 is V9's own sentence (redesign R6a: 维护者 11-11 第 16 题 and 第 1 条 — it was 「库里没有。」; tests/acceptance/
+// v09-ask-citations.test.mjs reads it off the real window).
 // The connection's name: texts/common.js CONNECTIONS.names.
 
 export const ASK = Object.freeze({
@@ -44,7 +45,7 @@ export const ASK = Object.freeze({
     original: '查看原文',
     removedCites: '有 {n} 处引用不在库内，已删除。',
     removedSentences: '有 {n} 句没有引用，已删除。',
-    notInLibrary: '库里没有。',
+    notInLibrary: '库内暂无相关内容。',
     notInLibraryText: '库内的笔记无法回答这个问题，因此没有生成回答。',
     missing: '库内缺少：{missing}',
   }),

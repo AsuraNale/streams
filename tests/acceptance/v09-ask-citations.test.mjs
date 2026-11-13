@@ -1,5 +1,10 @@
-// V9 · 问库答案的每个引用编号都在候选集内；库里没有的问题得到「库里没有」
+// V9 · 问库答案的每个引用编号都在候选集内；库里没有的问题得到「库内暂无相关内容。」
 // 怎么核：用一个只有 5 条的库问 10 个问题，逐条核
+// (Redesign R6a: the standard's sentence is the one 维护者 saw on 11-11 — was 「…库里没有的问题得到「库里没有」」. The ten questions
+// and every check on the cites are as they were. New: the sentence itself — the core's NOT_IN_LIBRARY (what the main agent is
+// told the page says) is 「库内暂无相关内容。」 with its English, the two dictionaries carry exactly those, and the real window shows
+// that sentence, and no sentence made up, for a question the library has nothing on. Shown to fail with 「库里没有。」 put back in
+// the dictionary: desktop/scripts/mutation-check.mjs r6a-v9-old-sentence.)
 //
 // A library of exactly five entries (four kept, one written by the user). Ten questions go through the core's ask with a
 // scripted fake connector that answers each question its own way, reading the question and the candidate numbers off the
@@ -9,11 +14,17 @@
 // checked the same way: each cite number, and each listed source, is one of that question's candidates; every sentence
 // keeps a cite; a question with no candidate gets notInLibrary with no model call. Reverse: the same ten questions on a
 // copy of the core whose fallback keeps out-of-set cites make the same check report them.
-import { test } from 'node:test'
+import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { core } from './support/paths.mjs'
 import { makeLib, keepNote } from './support/library.mjs'
 import { mutantCore } from './support/mutant.mjs'
+import { worldSession } from '../../desktop/test/support/seed.mjs'
+import { ASK } from '../../desktop/src/renderer/texts/ask.js'
+import { ASK as ASK_EN } from '../../desktop/src/renderer/texts-en/ask.js'
+
+// redesign R6a: the sentence of the standard, as written there (tests/acceptance/standards.mjs V9)
+const SENTENCE = '库内暂无相关内容。'
 
 const NOW = () => new Date('2026-11-03T16:00:00.000Z')
 
@@ -78,7 +89,7 @@ function citationProblems(q, r) {
     else if (cand.id !== src.id) out.push(`${q}: source [${src.n}] is ${src.id}, the candidate is ${cand.id}`)
   }
   if (r.candidates.length === 0 && (r.notInLibrary !== true || r.calls !== 0 || r.answer.length !== 0)) out.push(`${q}: no candidate, yet notInLibrary ${r.notInLibrary}, ${r.calls} calls`)
-  if (r.notInLibrary === false && r.answer.length === 0) out.push(`${q}: an empty answer that does not say 库里没有`)
+  if (r.notInLibrary === false && r.answer.length === 0) out.push(`${q}: an empty answer that does not say notInLibrary`)
   return out
 }
 
@@ -93,7 +104,7 @@ async function askAll(c, dir) {
   return results
 }
 
-test('V9: a five-entry library, ten questions — every cite and source is in that question\'s candidate set; nothing in the library → 库里没有', async () => {
+test('V9: a five-entry library, ten questions — every cite and source is in that question\'s candidate set; nothing in the library → notInLibrary (the page then says 库内暂无相关内容。)', async () => {
   const dir = fiveEntryLibrary('v09-five', core)
   const indexed = core.readIndex(dir)
   assert.equal(indexed.length, 5, 'exactly five entries')
@@ -117,7 +128,7 @@ test('V9: a five-entry library, ten questions — every cite and source is in th
       assert.ok(r.candidates.length >= 1 && connectorCalls >= 2, `${spec.q}: answered from ${r.candidates.length} candidates`)
       assert.ok(r.candidates.length <= 5)
     }
-    if (e.notInLibrary) assert.deepEqual(r.answer, [], `${spec.q}: 库里没有 comes with no sentence`)
+    if (e.notInLibrary) assert.deepEqual(r.answer, [], `${spec.q}: notInLibrary comes with no sentence`)
   }
   // the cite one past this question's own set (still within 1..9) was taken out too
   const past = results.find(x => x.spec.expect.pastTheSet)
@@ -138,4 +149,59 @@ test('V9 reverse: on a core whose fallback keeps out-of-set cites, the same chec
   assert.ok(problems.some(p => p.includes('cite [12] is not a candidate')), problems.join('\n'))
   assert.ok(problems.some(p => p.includes('cite [40] is not a candidate')), problems.join('\n'))
   assert.ok(problems.some(p => p.includes('source [')), 'an out-of-set source is reported too')
+})
+
+// ---- Redesign R6a (contract R6a-2; 维护者 11-11 第 1 条): 库里没有的问题得到「库内暂无相关内容。」 ----
+test('V9 the sentence: the standard\'s, the core\'s (what the main agent is told the page says) and the two dictionaries\' are the same', async () => {
+  const { STANDARDS } = await import('./standards.mjs')
+  assert.ok(STANDARDS.find(s => s.id === 'V9').standard.endsWith(`得到「${SENTENCE}」`), 'control: the sentence checked here is the standard\'s')
+  assert.equal(core.NOT_IN_LIBRARY.zh, SENTENCE)
+  assert.equal(ASK.answer.notInLibrary, SENTENCE, 'the Chinese dictionary')
+  assert.equal(ASK_EN.answer.notInLibrary, core.NOT_IN_LIBRARY.en, 'the English dictionary is the core\'s English')
+  assert.ok(ASK_EN.answer.notInLibrary.length > 0 && !/[一-鿿]/.test(ASK_EN.answer.notInLibrary), 'an English sentence')
+  assert.ok(core.UI_TERMS.some(([, zh, en]) => zh === SENTENCE && en === core.NOT_IN_LIBRARY.en), 'the main agent\'s word list has it')
+  assert.ok(String(core.AGENT_SYSTEM).includes(SENTENCE), 'the main agent\'s system prompt lists it')
+  for (const old of ['库里没有。', '库里没有」']) assert.equal(JSON.stringify(ASK).includes(old), false, `the sentence before R6a is gone: ${old}`)
+})
+
+describe('V9 desktop: a question the library has nothing on is answered 「库内暂无相关内容。」', () => {
+  const s = worldSession({
+    kind: 'seeded', waitFor: 'ask', settings: { connections: { active: 'claude-code' } },
+    env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'ask' }),
+  })
+  const POLL = { polling: 100, timeout: 60_000 }
+  const ask = async q => {
+    const n = await s.page.evaluate(() => document.querySelectorAll('[data-turn]').length)
+    await s.page.fill('textarea[data-field="question"]', q)
+    await s.page.click('[data-action="send"] button')
+    await s.page.waitForFunction(i => { const t = document.querySelector(`[data-turn="${i}"]`); return t && t.dataset.state !== 'asking' }, n, POLL)
+    return s.page.evaluate(i => {
+      const t = document.querySelector(`[data-turn="${i}"]`)
+      const none = t.querySelector('[data-part="not-in-library"]')
+      return { state: t.dataset.state, said: none?.querySelector('b')?.textContent ?? null, whole: none?.textContent ?? null, sentences: t.querySelectorAll('[data-sentence]').length, cites: t.querySelectorAll('[data-cite]').length }
+    }, n)
+  }
+
+  test('nothing in the library on the question (no candidate, no model call) → the sentence, and no sentence made up', async () => {
+    const q = 'kubernetes autoscaling 怎么配置？'
+    assert.equal(core.askCandidates(s.world.library, q).length, 0, 'control: the library has no candidate for this question')
+    const got = await ask(q)
+    assert.equal(got.state, 'done', JSON.stringify(got))
+    assert.equal(got.said, SENTENCE, 'the answer is the standard\'s sentence')
+    assert.ok(got.whole.startsWith(SENTENCE), got.whole)
+    assert.deepEqual([got.sentences, got.cites], [0, 0], 'no sentence and no cite made up')
+  })
+
+  test('candidates but no answer in them (the fake connection) → the same sentence', async () => {
+    const q = 'agent 记忆有什么进展？'
+    assert.ok(core.askCandidates(s.world.library, q).length > 0, 'control: the library has candidates for this question')
+    const got = await ask(q)
+    assert.equal(got.state, 'done', JSON.stringify(got))
+    assert.equal(got.said, SENTENCE)
+    assert.deepEqual([got.sentences, got.cites], [0, 0])
+  })
+
+  test('no page errors', () => {
+    assert.deepEqual(s.errors, [])
+  })
 })

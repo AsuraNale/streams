@@ -2,7 +2,7 @@
 // (screens/library-frame.js), and only for a run whose self-check did not pass (getHome().problem: the sign-in expired, no
 // connection chosen, the connection not there, the folder not writable …). The source problems and 「连续 n 次运行无内容进入
 // 待看」 are no banner: they are cards in the right panel's 待确认 (R1). The template's progress-alert:
-//   one sentence of what happened, with 「抓到的 n 条都在，没丢」 (problem.caughtKept: the fetched items kept), one of what to
+//   one sentence of what happened, with 「本次运行未开始。已抓取的 n 条内容已保留。」 (redesign R6a, V6; problem.caughtKept: the fetched items kept), one of what to
 //   do, at most three buttons — the sign-in expired (or never done) on a command-line tool: 前往登录 (openLogin) · 已登录，重试
 //   (detect again, then the run again) · 更换连接方式 (设置); otherwise 重试 · 更换连接方式. Redesign R4b (P17, F69): 复制诊断信息 is
 //   only in 设置 → 关于 → ▾ 高级 now, not on this banner.

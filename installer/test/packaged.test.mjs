@@ -466,6 +466,9 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
     ['Preact', installedVersion('preact')], ['htm', installedVersion('htm')], ['@mozilla/readability', installedVersion('@mozilla/readability')],
     // v2 package K2: the bundled UI font, its version read from the installed font file
     ['Noto Sans SC', '2.04'],
+    // redesign R6a: the Research theme's heading font ships too, its version read the same way (this install test was not run
+    // in R6a — no installer was rebuilt; R6b runs it)
+    ['Noto Serif SC', '2.003'],
   ])
   assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes(`@mozilla/readability@${installedVersion('@mozilla/readability')}`), 'the notices list @mozilla/readability')
   // v2 package K2: the font and its license installed, and the license in full in the notices
@@ -477,6 +480,13 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes('* NotoSansSC-VF.ttf — Noto Sans SC, the interface font (界面字体), unmodified — SIL Open Font License 1.1 — installed at resources\\app\\src\\renderer\\fonts\\NotoSansSC-VF.ttf'), 'the notices name the font and its license')
   assert.equal(licenses.font.text.replace(/\r\n/g, '\n').trim(), ofl.replace(/\r\n/g, '\n').trim(), 'the license page shows the shipped OFL in full')
   assert.match(licenses.font.text, /SIL OPEN FONT LICENSE Version 1\.1/)
+  // redesign R6a: the same for Noto Serif SC — installed with its license text, its line and its OFL in full in the notices, the
+  // license page showing the shipped text (installer/test/fonts.test.mjs checks the notices' section without an install)
+  const serifOfl = readFileSync(join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts', 'OFL-NotoSerifSC.txt'), 'utf8')
+  assert.ok(existsSync(join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts', 'NotoSerifSC-VF.ttf')), 'the heading font is installed')
+  assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes('* NotoSerifSC-VF.ttf — Noto Serif SC, the heading font of the Research theme (研究对话主题的标题字体), unmodified — SIL Open Font License 1.1 — installed at resources\\app\\src\\renderer\\fonts\\NotoSerifSC-VF.ttf'), 'the notices name the heading font and its license')
+  assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes(serifOfl.replace(/\r\n/g, '\n').trim()), 'the notices carry the heading font\'s OFL in full')
+  assert.equal(licenses.displayFont.text.replace(/\r\n/g, '\n').trim(), serifOfl.replace(/\r\n/g, '\n').trim(), 'the license page shows the heading font\'s shipped OFL in full')
   S.result.licenses = { own: licenses.own.license, components: licenses.components, notices: licenses.notices }
 
   // v2 package N (package L's right panel, in the installed app): on 待看 the panel is open with its four tabs in order —

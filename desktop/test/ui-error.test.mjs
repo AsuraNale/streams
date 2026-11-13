@@ -1,6 +1,6 @@
 // The banner of a run that could not start (screens/problem-card.js) on the seeded world with STREAMS_DEV_CONNECTION=login-expired:
 // 立即运行 → the self-check fails → the banner on top of the library's page, and on every one of its four tabs; one sentence with
-// 没丢 and the number of items still at 「抓到的」, one of what to do, at most three buttons (前往登录 · 已登录，重试 · 更换连接方式);
+// 本次运行未开始 and the number of items kept (those still at 「抓到的」), one of what to do, at most three buttons (前往登录 · 已登录，重试 · 更换连接方式);
 // the files that hold the library's content are byte for byte what they were; 已登录，重试 asks again (the banner stays while the
 // sign-in is still expired); 更换连接方式 goes to 设置. And a library whose source keeps failing, with a working connection: no
 // banner on any tab — the finding is a card in the right panel's 待确认.
@@ -8,6 +8,9 @@
 // 复制诊断信息 · 去登录 · 我登录好了，再试一次); the design's banner has at most three buttons, so this file now asks for those three
 // (复制诊断信息 is the third button of a connection problem that is not a sign-in; no fake connection here gives one, so it is
 // not clicked here any more) and adds the four tabs and the source finding. V6 (tests/acceptance) keeps its own checks.
+// Redesign R6a (contract R6a-2; 维护者 11-11 第 1 条): the banner's sentence is V6's new one — 「… 登录已过期，本次运行未开始。已抓取的 n 条内容
+// 已保留。」 (was 「… 登录过期，这一轮没有打分。抓到的 n 条都在，没丢。」) — so the first test reads 本次运行未开始 and 已抓取的 n 条内容已保留 where
+// it read 没丢 and 「n 条」; what it checks (the count, the connection's name, the fix line, the three buttons) is the same.
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -44,7 +47,7 @@ describe('the sign-in expired', () => {
   const click = sel => s.page.click(`${sel} button`)
   let before = null
 
-  test('立即运行 → the banner: 没丢 with the count, what to do, three buttons (前往登录 · 已登录，重试 · 更换连接方式)', async () => {
+  test('立即运行 → the banner: 本次运行未开始 and the fetched items kept, with the count, what to do, three buttons (前往登录 · 已登录，重试 · 更换连接方式)', async () => {
     before = contentHashes(s.world.library)
     assert.ok(Object.keys(before).length >= 6, `control: ${Object.keys(before).length} content files hashed`)
     assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="problem"]')), null, 'control: no banner before the run')
@@ -59,7 +62,7 @@ describe('the sign-in expired', () => {
     assert.deepEqual([card.code, card.connectionCode, card.kind], ['connection', 'login-expired', 'claude-code'])
     const caught = core.homeNumbers(s.world.library).caught
     assert.ok(caught >= 1, 'control: items at 「抓到的」')
-    assert.ok(card.text.includes('没丢') && card.text.includes(`${caught} 条`), card.text)
+    assert.ok(card.text.includes('本次运行未开始') && card.text.includes(`已抓取的 ${caught} 条内容已保留`), card.text) // redesign R6a: V6's new sentence (was 没丢 · n 条)
     assert.ok(card.text.includes(CONNECTIONS.names[card.kind]), card.text)
     assert.equal(card.fix, TODAY.problem.fix.login)
     assert.deepEqual(card.actions, [['login', '前往登录'], ['retry', '已登录，重试'], ['change', '更换连接方式']])

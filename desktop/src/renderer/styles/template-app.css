@@ -61,6 +61,19 @@
 .st-subbar__text { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex-wrap: wrap; }
 .st-subbar__title { margin: 0; font-size: 13px; font-weight: 650; color: var(--ink11); }
 .st-subbar__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Redesign R6a — the shelf's card under the pointer (库架, the template's .project-tile). The template's round 11 gives every
+   theme its dark set and names the parts whose hover follows it (workbench.css: .source-card, .project-item, .document-link … get
+   the theme's --pick and --ink11) — .project-tile is not in that list, so on hover the card kept round 9's own rule for the theme,
+   a light surface written as a literal (and, in 精密国际主义 and 单线黑白, round 7's white and a dark text colour), under round 11's
+   ink: in the dark appearance light text on a light card. Here the card's hover is what round 11 gives the other parts: the
+   theme's --pick behind the theme's --ink11, the card's own resting shadow, no shift. 单线黑白's --pick is its ink (a picked
+   part there is a solid block with the inverse text), so its card takes --well, as round 12 does for the hover of its own
+   rows (line.css: .navitem, .project-item, .tab) — and, --well being close to the card's resting --paper in the dark set, the
+   bar of ink down its left edge that round 12 gives its own selected card (line.css: .source-card.selected — the same two
+   declarations), so the card under the pointer is told from the ones beside it. Body class four times over: above each theme's own :hover rule for the
+   card (round 9: five classes' worth; this sheet is read after the template's). */
+.r11.r11.r11.r11 .project-tile:hover { color: var(--ink11); background: var(--pick); box-shadow: var(--float11); transform: none; }
+.r12-line.r11.r11.r11.r11 .project-tile:hover { background: var(--well); box-shadow: inset 4px 0 var(--ink11); }
 .project-name { display: flex; align-items: center; min-width: 0; }
 .st-sidebar__lib-name { overflow: hidden; text-overflow: ellipsis; }
 .st-lib-mark { flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 7px; font-size: 10px; font-weight: 650; border: 1px solid currentColor; border-radius: 4px; opacity: .7; }

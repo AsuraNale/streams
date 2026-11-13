@@ -1,6 +1,13 @@
 /* Base styles of the app's own (redesign R1): the template's sheets (src/renderer/template/, loaded per theme before this
    file) give the page its font, colours and body; here only what the app's frame needs, and the text styles the screens
    not yet rebuilt on the template still use (docs/desktop.md §五). */
+/* Redesign R6a: the heading font of 研究对话. The template's round9/research.css names it (--display-chinese: 'Noto Serif SC',
+   'SimSun') and declares no face: without this one the name only resolves on a machine that has the font installed, and the
+   headings fall to SimSun elsewhere. The file ships with the app (fonts/NotoSerifSC-VF.ttf, the variable font of the official
+   release notofonts/noto-cjk Serif2.003, weights 200–900; docs/design/fonts/noto-serif-sc/来源.md) and is read through app://
+   (protocol.mjs: font/ttf; the CSP's font-src 'self'). Only a theme that names the family loads it. */
+@font-face { font-family: 'Noto Serif SC'; src: url('../fonts/NotoSerifSC-VF.ttf') format('truetype'); font-weight: 200 900; font-display: swap; }
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body { margin: 0; height: 100%; }

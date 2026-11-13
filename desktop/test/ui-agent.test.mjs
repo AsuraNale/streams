@@ -523,7 +523,7 @@ test('问库 · question, with a connection: the answer as v1.0 drew it', async 
   await s.page.fill('textarea[data-field="question"]', 'agent 记忆有什么进展？')
   await s.page.click('main[data-screen="ask"] [data-action="send"] button')
   await until(i => document.querySelector(`[data-turn="${i}"]`)?.dataset.state === 'done', n)
-  const got = await s.page.evaluate(i => { const t = document.querySelector(`[data-turn="${i}"]`); return [t.dataset.route, t.querySelector('[data-part="routed"]'), t.querySelector('[data-part="not-in-library"]')?.textContent.startsWith('库里没有')] }, n)
+  const got = await s.page.evaluate(i => { const t = document.querySelector(`[data-turn="${i}"]`); return [t.dataset.route, t.querySelector('[data-part="routed"]'), t.querySelector('[data-part="not-in-library"]')?.textContent.startsWith('库内暂无相关内容。')] }, n) // redesign R6a: the sentence is V9's new one (was 库里没有。); the check is the same
   assert.deepEqual(got, ['question', null, true])
   assert.equal(core.readRoutes(shelf.dirs[0]).at(-1).route, 'question')
 })

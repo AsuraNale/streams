@@ -14,6 +14,8 @@
  * Redesign R1: template/… is the design's template, copied byte for byte (src/renderer/template/manifest.json). Its
  * design.css asks for ../fonts/NotoSansSC-VF.ttf, i.e. template/shared/fonts/NotoSansSC-VF.ttf: that one path is answered
  * with fonts/NotoSansSC-VF.ttf (FILE_ALIASES; the same bytes), so the 17.8 MB font is not shipped twice.
+ * Redesign R6a: fonts/NotoSerifSC-VF.ttf (研究对话's heading font; styles/base.css declares the face 'Noto Serif SC', the name the
+ * template's round9/research.css asks for) is served the same way, as font/ttf.
  * GET only. The path rule is safe-path.mjs (docs/desktop.md §二): the path is judged as text first, so nothing
  * reaches the file system that could name another folder or another machine; then only a path inside the folder by
  * its text is looked up, links followed and still inside. Only the file types the page uses are served; the
