@@ -8,6 +8,8 @@
 //   1. source-failing  subject = source name. The source's newest fetch_log lines, counted back from the last one, are
 //                      `failed` (暂时失败) or `blocked` (被拒绝), mixed or not, at least SOURCE_FAILING_ROUNDS (3) in a row.
 //                      Any other status (ok / empty / gap / paused) ends the run. Paused or removed sources are skipped.
+//                      Redesign R5a (维护者 11-12 第 6 条): or the newest lines are `gap` (地址无效) at least SOURCE_GAP_ROUNDS
+//                      (2) in a row — evidence then { rounds, gap, state: 'gap', since, last }; any other status ends that run.
 //   2. no-output       subject = 'library'. noOutputStreak (v1.0, rounds.jsonl newest first) >= NO_OUTPUT_ROUNDS (3).
 //   3. ai-instruction  subject = source name. The source has at least one ai-instructions.jsonl line. Paused or
 //                      removed sources are skipped.
@@ -17,19 +19,40 @@
 //                      Jaccard J = |K(this) ∩ K(other)| / |K(this) ∪ K(other)|; fires when the union is not empty and
 //                      J >= TOPIC_OVERLAP_PERCENT (60%), computed in integers: 100·|∩| >= 60·|∪| (no float rounding).
 //
-//   After you handled a key (dismissed / accepted in suggestions.jsonl), its rule only counts evidence newer than that:
-//   1–3 count fetch_log lines / rounds / ai-instructions lines whose time is after the handling (so a dismissed
-//   source-failing needs three new failing rounds); 4 fires again only if the set of shared keywords changed.
+//   5. dismiss-reason  redesign R5a (N04): subject = a quick reason id (the core's DISMISS_QUICK). The library's newest
+//                      DISMISS_REASON_COUNT (3) dismissals that carry a quick reason (the ledger's `dismissed` events with
+//                      `quick`) all carry this one. A dismissal with words only (「其他原因…」) or with no reason is not
+//                      counted (and does not break the run); one undone never reached the ledger. Evidence { quick, count,
+//                      since, titles }.
+//
+//   overlapSuggestions(libraryDir, { now?, otherLibraries }) -> rule 4 alone, the same cards (precheck fix 3: the desktop records
+//                      the other library's card when this library's check finds the overlap, so each of the two has one).
+//   sourceFailingCase(rows) -> 'gap' | 'failing' | null   what rule 1 finds now in a source's fetch_log lines (oldest first),
+//                      counted back from the newest: 地址无效 SOURCE_GAP_ROUNDS times, or 暂时失败 / 访问被拒 SOURCE_FAILING_ROUNDS
+//                      times (precheck fix 7: act.mjs staleReason expires a card of the other case, 'state-changed').
+//
+//   After you handled a key (dismissed / accepted / acted / expired in suggestions.jsonl), its rule only counts evidence newer
+//   than that: 1–3 and 5 count fetch_log lines / rounds / ai-instructions lines / dismissals whose time is after the handling
+//   (so a dismissed source-failing needs three new failing rounds); 4 fires again only if the set of shared keywords changed.
+//   A card expired because its case changed ('state-changed', precheck fix 7) is not a handling: the count goes on from the
+//   handling before it (records.mjs), so the card that fits now comes at once.
 import { readConfig } from '../library/config.mjs';
 import { readFetchLog } from '../fetch/log.mjs';
 import { readRounds } from '../pipeline/rounds-log.mjs';
 import { noOutputStreak, NO_OUTPUT_ROUNDS } from '../pipeline/numbers.mjs';
 import { readAiInstructions } from '../verify/ai-instructions.mjs';
 import { replaySuggestions, suggestionKey, clockOf } from './records.mjs';
+import { existsSync, readFileSync } from 'node:fs';
+import { ledgerPath, replayLedger } from '../library/ledger.mjs';
+import { DISMISS_QUICK } from '../pipeline/decide.mjs';
 
 export const SOURCE_FAILING_ROUNDS = 3;
 export const SOURCE_FAILING_STATES = ['failed', 'blocked'];
+// redesign R5a (维护者 11-12 第 6 条): 地址无效 twice in a row is ① as well
+export const SOURCE_GAP_ROUNDS = 2;
 export const TOPIC_OVERLAP_PERCENT = 60;
+// redesign R5a (N04): the same quick reason on the last three dismissals that carry one
+export const DISMISS_REASON_COUNT = 3;
 export { NO_OUTPUT_ROUNDS };
 
 function timeOf(iso) {
@@ -90,6 +113,16 @@ export function overlaps({ inter, union }, percent = TOPIC_OVERLAP_PERCENT) {
   return union > 0 && inter * 100 >= percent * union;
 }
 
+export function sourceFailingCase(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  let gaps = 0;
+  for (let i = list.length - 1; i >= 0 && list[i]?.status === 'gap'; i -= 1) gaps += 1;
+  if (gaps >= SOURCE_GAP_ROUNDS) return 'gap';
+  let n = 0;
+  for (let i = list.length - 1; i >= 0 && SOURCE_FAILING_STATES.includes(list[i]?.status); i -= 1) n += 1;
+  return n >= SOURCE_FAILING_ROUNDS ? 'failing' : null;
+}
+
 function sourceFailing(libraryDir, sources, handled) {
   const bySource = new Map();
   for (const e of readFetchLog(libraryDir).entries) {
@@ -102,6 +135,21 @@ function sourceFailing(libraryDir, sources, handled) {
     const key = suggestionKey('source-failing', source);
     const since = handled.get(key)?.at ?? null;
     const recent = rows.filter((r) => after(r.ts, since));
+    const last = recent[recent.length - 1];
+    // redesign R5a: 地址无效 (gap) twice in a row, counted back from the newest line
+    let gaps = 0;
+    for (let i = recent.length - 1; i >= 0 && recent[i].status === 'gap'; i -= 1) gaps += 1;
+    if (gaps >= SOURCE_GAP_ROUNDS) {
+      out.push({
+        kind: 'source-failing',
+        subject: source,
+        evidence: {
+          rounds: gaps, gap: gaps, state: 'gap', since: recent[recent.length - gaps].ts ?? null,
+          last: { ts: last.ts ?? null, status: last.status, message: last.message ?? '', ...(last.http !== undefined && last.http !== null ? { http: last.http } : {}) },
+        },
+      });
+      continue;
+    }
     let n = 0;
     const counts = { failed: 0, blocked: 0 };
     for (let i = recent.length - 1; i >= 0 && SOURCE_FAILING_STATES.includes(recent[i].status); i -= 1) {
@@ -109,7 +157,6 @@ function sourceFailing(libraryDir, sources, handled) {
       counts[recent[i].status] += 1;
     }
     if (n < SOURCE_FAILING_ROUNDS) continue;
-    const last = recent[recent.length - 1];
     out.push({
       kind: 'source-failing',
       subject: source,
@@ -177,6 +224,50 @@ function topicOverlap(config, otherLibraries, handled) {
   return out;
 }
 
+// redesign R5a (N04): the ledger's dismissals with a quick reason, oldest first ({ ts, quick, url })
+function quickDismissals(libraryDir) {
+  const path = ledgerPath(libraryDir);
+  if (!existsSync(path)) return [];
+  const out = [];
+  for (const raw of readFileSync(path, 'utf8').split('\n')) {
+    if (raw.trim() === '') continue;
+    let ev;
+    try { ev = JSON.parse(raw); } catch { continue; }
+    if (!ev || ev.ev !== 'dismissed' || typeof ev.url !== 'string' || !DISMISS_QUICK.includes(ev.quick)) continue;
+    out.push({ ts: typeof ev.ts === 'string' ? ev.ts : null, quick: ev.quick, url: ev.url });
+  }
+  return out;
+}
+
+function dismissReason(libraryDir, handled) {
+  const all = quickDismissals(libraryDir);
+  if (all.length < DISMISS_REASON_COUNT) return [];
+  const newest = all.slice(-DISMISS_REASON_COUNT);
+  const quick = newest[0].quick;
+  if (!newest.every((d) => d.quick === quick)) return [];
+  const since = handled.get(suggestionKey('dismiss-reason', quick))?.at ?? null;
+  // after a handling (忽略, 生成修改提议, …) only the dismissals since then count
+  if (!newest.every((d) => after(d.ts, since))) return [];
+  let titles = [];
+  try { const states = replayLedger(libraryDir).states; titles = newest.map((d) => states.get(d.url)?.title ?? '').filter((t) => t !== ''); } catch { titles = []; }
+  return [{ kind: 'dismiss-reason', subject: quick, evidence: { quick, count: DISMISS_REASON_COUNT, since: newest[0].ts, titles } }];
+}
+
+const asCard = (createdAt) => (s) => ({
+  key: suggestionKey(s.kind, s.subject),
+  kind: s.kind,
+  ...(s.libraryId ? { libraryId: s.libraryId } : {}),
+  subject: s.subject,
+  evidence: s.evidence,
+  createdAt,
+});
+
+export function overlapSuggestions(libraryDir, { now, otherLibraries } = {}) {
+  const r = readConfig(libraryDir);
+  if (!r.ok) return [];
+  return topicOverlap(r.config, otherLibraries, handledTimes(libraryDir)).map(asCard(clockOf(now).toISOString()));
+}
+
 export function suggestFor(libraryDir, { now, otherLibraries } = {}) {
   const createdAt = clockOf(now).toISOString();
   const r = readConfig(libraryDir);
@@ -188,13 +279,7 @@ export function suggestFor(libraryDir, { now, otherLibraries } = {}) {
     ...noOutput(libraryDir, handled),
     ...aiInstruction(libraryDir, sources, handled),
     ...(r.ok ? topicOverlap(config, otherLibraries, handled) : []),
+    ...dismissReason(libraryDir, handled),
   ];
-  return found.map((s) => ({
-    key: suggestionKey(s.kind, s.subject),
-    kind: s.kind,
-    ...(s.libraryId ? { libraryId: s.libraryId } : {}),
-    subject: s.subject,
-    evidence: s.evidence,
-    createdAt,
-  }));
+  return found.map(asCard(createdAt));
 }

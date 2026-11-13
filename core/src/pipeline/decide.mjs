@@ -15,8 +15,9 @@
 //   below a gate's threshold under the current configuration — read from the ledger) goes into the inbox as it is: an inbox
 //   file without a summary or a check (moved:'rejected') and an `inbox` event with moved:'rejected'. Never the note folder. Throws
 //   not-rejected for anything else (an item still waiting, unscored, in the inbox, kept, dismissed, unknown).
-// listRejected(libraryDir, { limit = 50 })   -> { total, items:[{ url, title, source, date, gate, score, threshold, reason,
-//   at, firstSeen }] }   the items below a gate (未通过筛选), the newest verdict first, at most `limit`
+// listRejected(libraryDir, { limit = 50 })   -> { total, old, items:[{ url, title, source, date, gate, score, threshold, reason,
+//   old, at, firstSeen }] }   the items below a gate (未通过筛选), the newest verdict first, at most `limit`; redesign R5a: `old`
+//   = the verdict was made under another 评分标准 (they stay here until 重新评分, rescore.mjs); the top-level `old` counts them
 // listManualWaiting(libraryDir)              -> [{ url, title, date, firstSeen, maybeDuplicateOf? }]   links added by hand
 //   (source 'manual') not scored yet: 「待评分」 rows (N09), first added first
 // roundOutcome(libraryDir, roundId)          -> { inbox, kept, dismissed, later, waiting }   what became of the items that
@@ -32,7 +33,7 @@ import { localIsoDate } from '../fetch/dates.mjs';
 import { readInboxItem, removeInboxItem, writeInboxItem } from './inbox.mjs';
 import { assertAllowed } from './invariants.mjs';
 import { gateNodes, pipelineFrom } from './config.mjs';
-import { nextStep } from './queue.mjs';
+import { nextStep, verdictThreshold } from './queue.mjs';
 import { markLater, readLater } from './later.mjs';
 import { MANUAL_SOURCE } from '../fetch/manual.mjs';
 import { existsSync, readFileSync } from 'node:fs';
@@ -165,14 +166,20 @@ export function recentDismissReasons(libraryDir, n = 10) {
 
 // ---- redesign R2: 未通过筛选 (N02), 待评分 (N09), 处理情况 (N10) ---------------------------------------------------------
 
-/** The gate an item is below under the current configuration, with its score and threshold; null when it is not below one. */
+/**
+ * The gate an item is below under the current configuration, with its score and threshold; null when it is not below one.
+ * Redesign R5a: `old` — the verdict was made under another 评分标准 (the cfg of that gate changed since); `threshold` is then
+ * the one it was judged against (queue.mjs verdictThreshold).
+ */
 function belowGate(state, cfg) {
   const step = nextStep(state, cfg);
   if (step.kind !== 'done' || !step.why.startsWith('below:')) return null;
   const id = step.why.slice('below:'.length);
   const node = gateNodes(cfg).find((n) => n.id === id);
   const sc = state.scores?.[id];
-  return { gate: id, score: typeof sc?.score === 'number' ? sc.score : null, threshold: node?.threshold ?? null, reason: typeof sc?.reason === 'string' ? sc.reason : '' };
+  const old = step.old === true;
+  const threshold = node ? (old ? verdictThreshold(sc, state.cfg?.[id], node) : node.threshold) : null;
+  return { gate: id, score: typeof sc?.score === 'number' ? sc.score : null, threshold, reason: typeof sc?.reason === 'string' ? sc.reason : '', old };
 }
 
 export function moveToInbox(libraryDir, url, { now = () => new Date() } = {}) {
@@ -195,7 +202,7 @@ export function moveToInbox(libraryDir, url, { now = () => new Date() } = {}) {
   return { url };
 }
 
-export function listRejected(libraryDir, { limit = 50 } = {}) {
+export function listRejected(libraryDir, { limit = 50, onlyOld = false } = {}) {
   const cfg = pipelineFrom(loadConfig(libraryDir));
   const max = Number.isInteger(limit) && limit >= 0 ? limit : 50;
   const rows = [];
@@ -204,11 +211,11 @@ export function listRejected(libraryDir, { limit = 50 } = {}) {
     order += 1;
     if (s.stage !== 'seen') continue;
     const below = belowGate(s, cfg);
-    if (!below) continue;
+    if (!below || (onlyOld && !below.old)) continue;
     rows.push({ order, item: { url: s.url, title: s.title ?? '', source: s.source ?? '', date: s.date ?? '', ...below, at: s.lastTs ?? null, firstSeen: s.firstSeen ?? null } });
   }
   rows.sort((a, b) => String(b.item.at ?? '').localeCompare(String(a.item.at ?? '')) || b.order - a.order);
-  return { total: rows.length, items: rows.slice(0, max).map((r) => r.item) };
+  return { total: rows.length, old: rows.filter((r) => r.item.old).length, items: rows.slice(0, max).map((r) => r.item) };
 }
 
 export function listManualWaiting(libraryDir) {

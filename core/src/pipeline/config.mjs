@@ -8,8 +8,12 @@
 // savePipelineConfig(libraryDir, cfg) validates and writes `pipeline` back, other keys untouched
 //                                    throws locked-node (fixed node removed / changed, output changed, baseline item
 //                                    removed or taken over) or bad-config (threshold, kind, material, counts, numbers)
-// cfgOf(node)                        sha1 of requirement + threshold + material + output, first 8 hex chars; the
+// cfgOf(node)                        sha1 of requirement + threshold + material + output (+ brief), first 8 hex chars; the
 //                                    ledger's scored / unscored events carry it (same url, same gate, same cfg: never twice)
+//                                    redesign R5a (维护者 11-12 第 4 条): the 相关度 gate (BRIEF_GATE) carries the library's
+//                                    追踪要求 as node.brief (pipelineFrom puts it there from streams.json `brief`; never stored
+//                                    in `pipeline`); its prompt shows it and its cfg covers it. A library without a brief: no
+//                                    brief key, the cfg is the one it always had.
 // gateNodes(cfg) / summaryNode(cfg)  the model nodes in pipeline order
 import { createHash } from 'node:crypto';
 import { StreamsError } from '../errors.mjs';
@@ -49,8 +53,16 @@ export function defaultGateOutput(id) {
   return { [id]: 'score', reason: 'text', quote: 'text' };
 }
 
+// redesign R5a: the scoring step whose prompt carries the library's 追踪要求 (the 相关度 gate)
+export const BRIEF_GATE = 'relevance';
+
+export function briefOf(config) {
+  return typeof config?.brief === 'string' && config.brief.trim() !== '' ? config.brief.trim() : undefined;
+}
+
 export function cfgOf(node) {
-  const key = JSON.stringify({ requirement: node?.requirement, threshold: node?.threshold, material: node?.material, output: node?.output });
+  const brief = typeof node?.brief === 'string' && node.brief !== '' ? node.brief : undefined;
+  const key = JSON.stringify({ requirement: node?.requirement, threshold: node?.threshold, material: node?.material, output: node?.output, brief });
   return createHash('sha1').update(key).digest('hex').slice(0, 8);
 }
 
@@ -137,6 +149,9 @@ export function pipelineFrom(config) {
   const out = { ...DEFAULTS, language };
   for (const k of NUMBER_KEYS) if (Number.isInteger(p[k]) && p[k] >= 0) out[k] = p[k];
   out.nodes = withChecklists(resolveNodes(p.nodes, language));
+  // redesign R5a: the 追踪要求 rides on the 相关度 gate (its prompt and its cfg), not stored in `pipeline`
+  const brief = briefOf(config);
+  if (brief !== undefined) out.nodes = out.nodes.map((n) => (n.id === BRIEF_GATE && n.kind === 'gate' ? { ...n, brief } : n));
   return out;
 }
 

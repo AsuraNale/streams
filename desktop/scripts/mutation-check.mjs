@@ -544,6 +544,146 @@ const MUTANTS = [
     edits: [['assets/icon/icon-16.svg', 'fill="#000000"', 'fill="#000001"']],
     test: ['test/icon.test.mjs', '--test-name-pattern=byte for byte'],
   },
+  // redesign R5a (docs/checks/2026-11-12-r5a/contract.md 「测」: each 反向 named there, and a few more)
+  {
+    id: 'r5a-no-event',
+    what: 'a 系统检测 made or handled sends no suggestions-changed (the page would depend on the order things run in)',
+    edits: [['src/main/services/agent.mjs', "  const changed = (libraryId, key, status) => emit('suggestions-changed', { libraryId, key, status })", '  const changed = () => 0']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-1 listToConfirm'],
+  },
+  {
+    id: 'r5a-view-current-only',
+    what: 'the one view lists the current library\'s 系统检测 only',
+    edits: [['src/main/services/agent.mjs', '    const libs = libraryId ? [library.entryOf(libraryId)] : library.entries()', '    const libs = libraryId ? [library.entryOf(libraryId)] : library.entries().filter(l => l.id === library.current()?.libraryId)']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-1 listToConfirm'],
+  },
+  {
+    id: 'r5a-view-raw-evidence',
+    what: 'the one view hands the page a 系统检测\'s evidence as it is (the fetcher\'s message, the HTTP code)',
+    edits: [['src/main/services/agent.mjs', '    const evidence = suggestionFacts(s)\n', '    const evidence = s.evidence\n']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-1 listToConfirm'],
+  },
+  {
+    id: 'r5a-act-current-only',
+    what: 'actOnSuggestion acts on the current library whatever library id it is given',
+    edits: [['src/main/services/agent.mjs', '    async actOnSuggestion(libraryId, key, action) {\n      const e = library.entryOf(libraryId)', '    async actOnSuggestion(libraryId, key, action) {\n      const e = library.entryOf(library.current()?.libraryId ?? libraryId)']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-2 actOnSuggestion'],
+  },
+  {
+    id: 'r5a-confirm-no-collapse',
+    what: 'a confirmed 暂停该来源 leaves the same source\'s ① ③ open until something lists them',
+    edits: [['src/main/services/proposals.mjs', '    try { afterConfirmed(card) } catch', '    try { void afterConfirmed } catch']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=collapses that source'],
+  },
+  {
+    id: 'r5a-forward-raw',
+    what: '交由主 Agent 分析 hands the agent the card\'s evidence JSON (with the fetcher\'s message) beside the words',
+    edits: [['src/main/services/agent.mjs', "    const t = await turn(text, { libraryId: entry.id, as: 'note' })", "    const t = await turn(`${text} ${JSON.stringify(s.evidence)}`, { libraryId: entry.id, as: 'note' })"]],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=交由主 Agent 分析'],
+  },
+  {
+    id: 'r5a-dismiss-no-check',
+    what: 'rule ⑤ waits for the end of a run (nothing is checked when a 放弃 is written)',
+    edits: [['src/main/services/pipeline.mjs', '    try { afterDismiss({ dir: h.dir, libraryId: h.libraryId }) } catch', '    try { void afterDismiss } catch']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=right after a 放弃'],
+  },
+  {
+    id: 'r5a-rescore-no-cap',
+    what: '重新评分 from the page does not keep to the library\'s 单次运行上限',
+    edits: [['src/main/services/pipeline.mjs', "probe: counter.wrap(a.connector, 'probe').probe }, cap, ctx:", "probe: counter.wrap(a.connector, 'probe').probe }, cap: 100000, ctx:"]],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=重新评分 through the queue'],
+  },
+  {
+    id: 'r5a-rescore-no-queue',
+    what: '重新评分 starts at once, past the one queue of the runs',
+    edits: [['src/main/services/pipeline.mjs', '      if (rescoreGate) return rescoreGate({ id: e.id, path: e.path })', '      if (false) return rescoreGate({ id: e.id, path: e.path })']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=重新评分 through the queue'],
+  },
+  {
+    id: 'r5a-raw-try-message',
+    what: 'trySource hands the page the fetcher\'s message and the HTTP code again',
+    edits: [['src/main/services/sources.mjs', '        status: r.status, hint: r.hint ?? null, count: items.length,', "        status: r.status, hint: r.hint ?? null, http: r.http ?? null, message: r.message ?? '', count: items.length,"]],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6'],
+  },
+  {
+    id: 'r5a-diag-no-raw',
+    what: '复制诊断信息 leaves out the raw error texts the page was not given',
+    edits: [['src/main/diagnostics.mjs', "    ...(rawErrors.length ? rawErrors : ['(none)']),", "    '(none)',"]],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6'],
+  },
+  {
+    id: 'r5a-problem-detail',
+    what: 'a run\'s problems reach the page with their raw detail',
+    edits: [['src/main/public-data.mjs', '    return { code: p.code ?? null,', '    return { detail: p.detail, code: p.code ?? null,']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6'],
+  },
+  {
+    id: 'r5a-list-no-stale',
+    what: 'the one view lists a 系统检测 that no longer fits (no 过时 check before listing)',
+    edits: [['src/main/services/agent.mjs', '      if (!library.usable(l.path)) continue\n      checkLibrary(l.id)\n', '      if (!library.usable(l.path)) continue\n']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=no longer fits is not listed'],
+  },
+  {
+    id: 'r5a-source-row-raw',
+    what: 'getSources hands the page each row\'s fetcher message and HTTP code again',
+    edits: [['src/main/services/sources.mjs', "      return { ...v, sources: (v.sources ?? []).map(s => publicSourceRow(s, { raw: rawErrors, where: 'source row' })) }", '      return v']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6 the sources'],
+  },
+  {
+    id: 'r5a-home-raw-detail',
+    what: 'getHome hands the page the last run record with its problems\' raw details',
+    edits: [['src/main/services/pipeline.mjs', "        lastRound: publicResult(listRounds(dir, 1)[0] ?? null, { raw: rawErrors, where: 'last run' }),\n        // redesign R2 (N10)", '        lastRound: listRounds(dir, 1)[0] ?? null,\n        // redesign R2 (N10)']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6 the sources'],
+  },
+  {
+    id: 'r5a-list-raw-card',
+    what: 'listProposals hands the page a card\'s own try with the HTTP code and the fetcher\'s message',
+    edits: [['src/main/services/proposals.mjs', '(f.libraryId === undefined || c.libraryId === f.libraryId)).map(shown)', '(f.libraryId === undefined || c.libraryId === f.libraryId))']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6 trySource'],
+  },
+  // redesign R5a, the two pre-checkers' findings (precheck fixes 1, 2, 3, 6, 8, 10, 11)
+  {
+    id: 'r5a-self-check-raw',
+    what: 'startRound\'s own answer (and the queue\'s) hands the page a failed self-check\'s problems with their raw detail',
+    edits: [['src/main/services/pipeline.mjs', "      return { started: false, problems: publicProblems(check.problems, { raw: rawErrors, where: `self-check ${roundId} of ${libraryId ?? '?'}` }) }", '      return { started: false, problems: check.problems }']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=a self-check that fails'],
+  },
+  {
+    id: 'r5a-probe-detail',
+    what: '测试连接 hands the page the connection\'s own text (detail) again',
+    edits: [['src/main/services/connections.mjs', "      out.code = r.code ?? 'unknown'\n", "      out.code = r.code ?? 'unknown'\n      out.detail = r.detail ?? ''\n"]],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=测试连接'],
+  },
+  {
+    id: 'r5a-overlap-one-side',
+    what: 'rule ④ is recorded only in the library that was checked (the other one waits for a run of its own)',
+    edits: [['src/main/services/agent.mjs', '    recordOtherSide({ dir, libraryId }, why)\n', '']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=two-sided'],
+  },
+  {
+    id: 'r5a-unreadable-other-removed',
+    what: 'an other library that cannot be read now (a drive taken out) counts as removed: its overlap cards expire',
+    edits: [['src/main/services/agent.mjs', '  const othersOf = (libraryId, dir = null) => library.entries().filter(l => l.id !== libraryId && l.path !== dir).map(', '  const othersOf = (libraryId, dir = null) => library.entries().filter(l => l.id !== libraryId && l.path !== dir && library.usable(l.path)).map(']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=unreadable for now'],
+  },
+  {
+    id: 'r5a-forward-recorded-first',
+    what: '交由主 Agent 分析 is recorded as 已转交 although the turn had no answer (the connection failed)',
+    edits: [['src/main/services/agent.mjs', '    if (t.reply === null) {', '    if (false) {']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=with the connection failing'],
+  },
+  {
+    id: 'r5a-transcript-raw-rows',
+    what: 'getAgentTranscript hands the page the rows as they are on disk (an old row\'s code and raw text)',
+    edits: [['src/main/services/agent.mjs', '      const entries = upTo.slice(-limit).map(publicRow)', '      const entries = upTo.slice(-limit)']],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=getAgentTranscript'],
+  },
+  {
+    id: 'r5a-advice-not-the-page',
+    what: 'the page\'s 处理建议 and the one the main agent is given say different things',
+    edits: [['src/renderer/texts/common.js', "  'fix-address-or-remove': '这不是临时故障，重试没用：改地址，或删掉这个来源。',", "  'fix-address-or-remove': '重试无用，需修改地址或移除该来源。',"]],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=precheck fix 10'],
+  },
 ]
 
 function runTest(desktop, test) {

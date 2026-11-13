@@ -216,7 +216,9 @@ test('after every round the library\'s suggestion cards are recorded (the real p
   // other one (the service gives the rules the other registered libraries)
   assert.deepEqual(open.map(s => [s.libraryId, s.key]), [[ids.a, 'source-failing:feed-a'], [ids.a, `topic-overlap:${ids.b}`]])
   assert.equal(open[0].evidence.rounds, 3)
-  assert.deepEqual(agent.handlers.listSuggestions().map(s => s.libraryId), [ids.a, ids.a], 'every library: b has none yet (no round of b)')
+  // redesign R5a (precheck fix 3, the 动作表's 「两个库各一张」): a's round records b's overlap card too — b no longer waits for a
+  // round of its own (this used to assert that b had none yet)
+  assert.deepEqual(agent.handlers.listSuggestions().map(s => s.libraryId), [ids.a, ids.a, ids.b], 'every library: b has its overlap card already (no round of b)')
   agent.afterRound({ dir: dirs.b, libraryId: ids.b })
   assert.deepEqual(agent.handlers.listSuggestions({ libraryId: ids.b }).map(s => [s.key, s.otherLibraryId]), [[`topic-overlap:${ids.a}`, ids.a]])
   await assert.rejects(async () => agent.handlers.listSuggestions({ libraryId: 'zzzzzzzz' }), err => err.code === 'bad_arguments')
@@ -239,7 +241,10 @@ test('「不要」 records a dismissal and nothing else; 「要」 records the a
   assert.deepEqual(tree(dirs.a), before, 'every file of the library but the two records byte for byte')
   const turnRows = readTranscript(agent.agentDir).rows.filter(x => x.turn === r.turn.turn)
   assert.equal(turnRows[0].role, 'note', 'handed over as a note, not as the user\'s words')
-  assert.match(turnRows[0].text, /source-failing · feed-a/)
+  // redesign R5a (N11): the card is handed over in the interface's words (core handoffText), no longer as `kind · subject` and
+  // the evidence JSON — this line used to match /source-failing · feed-a/
+  assert.match(turnRows[0].text, /来源「feed-a」连续 3 次运行未能抓取/)
+  assert.doesNotMatch(turnRows[0].text, /source-failing|\{|403/)
   assert.match(c.sends()[0].prompt, /流息转来一件事/)
   assert.deepEqual(agent.handlers.listSuggestions({ libraryId: ids.a }).map(s => s.key), [`topic-overlap:${ids.b}`], 'no longer open')
   await assert.rejects(async () => agent.handlers.acceptSuggestion(ids.a, 'source-failing:feed-a'), err => err.code === 'bad_arguments', 'not open any more')

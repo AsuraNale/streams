@@ -37,6 +37,16 @@
  *     core writes nothing then), what became of its items (roundOutcome), the five most recently kept.
  *   - the first self-check's probe answers the run's own (withFirstProbe) with its real calls, so the run record's 运行前自检 is
  *     the probe the usage file has.
+ * Redesign R5a (docs/desktop.md §4.19; docs/core-api.md 4.6):
+ *   - 重新评分 (N07): the 评分标准 changed → the items already judged stay where they are (core queue.mjs: the next run does not
+ *     score them again). getInbox's `rejected` items carry `old`, and `rescore` says how many are old, since when the standard
+ *     changed and the estimate; `getRescore(libraryId)` the same for any library; `startRescore(libraryId)` puts 重新评分 of that
+ *     library into the app's one queue (`rescoreGate`: services/schedule.mjs startRescore — one at a time with the runs) and
+ *     `startRescoreIn` runs it in the background (core rescoreRejected: under the 单次运行上限; what passes goes into 待看; never
+ *     the note folder), with `round-progress { rescore: true }` events and, at the end, `inbox-changed` and onRoundDone.
+ *   - a 放弃 written (settlePending) is told to `afterDismiss` (services/agent.mjs: 系统检测 rule ⑤ is checked right then).
+ *   - O9: round-progress's and getRoundState's problems carry the code (and the connection's code), not the detail; the
+ *     starter pack's tries the state and the hint, not the fetcher's message — the raw texts go to raw-errors.mjs.
  * Pure Node apart from what is injected (`shell`), so the rules run in plain Node (test/services-pipeline.test.mjs).
  * @module desktop/main/services/pipeline
  */
@@ -48,8 +58,10 @@ import {
   homeNumbers, keep, later, listInbox, listRounds, listStarterPacks, makeContext, pipelineConfig, previewNode, readIndex, recentDismissReasons,
   recentVerdictFailures, replayLedger, runRound, savePipelineConfig, selfCheck, DEFAULT_PIPELINE, NO_OUTPUT_ROUNDS, pipelineFrom,
   DISMISS_QUICK, buildQueue, failedStart, listManualWaiting, listRejected, moveToInbox, releaseLater, roundOutcome, runFunnel,
+  rescoreInfo, rescoreRejected,
 } from '../core.mjs'
 import { byYou } from './changes.mjs'
+import { publicProblems, publicResult, publicTrial } from '../public-data.mjs'
 
 const HTTP_URL = /^https?:\/\/\S+$/i
 
@@ -85,8 +97,12 @@ export function withFirstProbe(connector, result) {
  *   (services/schedule.mjs startCurrent: v2 package L — queued at the end while the queue is busy)
  * @param {(r: {dir: string, libraryId: string|null, roundId: string}) => void} [o.afterRound] - after every round that ran in
  *   the background, before inbox-changed (v2 package C: services/agent.mjs records the library's rule-based suggestion cards)
+ * @param {(r: {dir: string, libraryId: string|null}) => void} [o.afterDismiss] - redesign R5a: right after a 放弃 is written
+ * @param {((entry: {id: string, path: string}) => Promise<object>)|null} [o.rescoreGate] - redesign R5a: startRescore goes through
+ *   this when given (services/schedule.mjs startRescore: the queue)
+ * @param {{note: Function}|null} [o.rawErrors] - redesign R5a (O9): raw-errors.mjs
  */
-export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {}, schedule = () => null, onRoundDone = () => {}, roundGate = null, afterRound = () => {} }) {
+export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {}, schedule = () => null, onRoundDone = () => {}, roundGate = null, afterRound = () => {}, afterDismiss = () => {}, rescoreGate = null, rawErrors = null }) {
   // the round in the background, if one runs; what the last one gave; the problems the last self-check found
   let running = null
   let last = null
@@ -112,8 +128,9 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     // the library of that round (v2: the one round of the app may be another library's than the current one)
     libraryId: running?.libraryId ?? last?.libraryId ?? null,
     progress: lastProgress,
-    last: last?.result ?? null,
-    lastProblems,
+    // redesign R5a (O9): the problems' codes, not their details
+    last: publicResult(last?.result ?? null),
+    lastProblems: publicProblems(lastProblems),
   })
 
   const connectionView = () => {
@@ -121,9 +138,16 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     return a ? { kind: a.kind, model: a.model } : null
   }
 
+  // redesign R5a (O9): what the page gets of a run's problems is their code; the details go to the log and the diagnostics
   const progress = (payload) => {
-    lastProgress = payload
-    emit('round-progress', payload)
+    const where = `${payload.rescore ? 'rescore' : 'run'} ${payload.roundId ?? ''} of ${payload.libraryId ?? '?'}`
+    const shown = {
+      ...payload,
+      ...(payload.problems ? { problems: publicProblems(payload.problems, { raw: rawErrors, where }) } : {}),
+      ...(payload.result ? { result: publicResult(payload.result, { raw: rawErrors, where }) } : {}),
+    }
+    lastProgress = shown
+    emit('round-progress', shown)
   }
 
   /**
@@ -145,6 +169,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     }
     log(`pipeline: dismissed ${h.url} (${why}${reason ? ', with a reason' : ', no reason'}${quick ? ` · ${quick}` : ''})`)
     emit('inbox-changed', { libraryId: h.libraryId, count: inboxCount(h.dir) })
+    // redesign R5a (N04): 系统检测 rule ⑤ is checked as soon as the 放弃 is in the ledger, not at the end of a run
+    try { afterDismiss({ dir: h.dir, libraryId: h.libraryId }) } catch (err) { log(`pipeline: after the dismissal of ${h.url}, the suggestion check failed: ${String(err?.stack ?? err)}`) }
     return { url: h.url }
   }
   /** A decision on the library `dir` (keep · dismiss · later · 移入待看), or another library opened: the held one goes in first. */
@@ -205,7 +231,9 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       failedAt = { libraryId, dir, at: now().toISOString(), problems: check.problems }
       log(`pipeline: self-check failed${libraryId ? ` (${libraryId})` : ''}: ${JSON.stringify(check.problems)}`)
       progress({ roundId, libraryId, cap, phase: 'done', counts: null, calls: 0, done: true, result: null, problems: check.problems })
-      return { started: false, problems: check.problems }
+      // redesign R5a (O9): startRound's own answer (and the queue's: schedule.mjs startCurrent / pump pass it on) carries the
+      // problems' codes, not their details — the details went to the log and the diagnostics with the progress event above
+      return { started: false, problems: publicProblems(check.problems, { raw: rawErrors, where: `self-check ${roundId} of ${libraryId ?? '?'}` }) }
     }
     lastProblems = null
     if (failedAt?.dir === dir) failedAt = null
@@ -218,7 +246,69 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     return { started: true, roundId }
   }
 
+  /** Redesign R5a (N07): what getInbox / getRescore say of 重新评分 (core rescoreInfo). */
+  function rescoreView(dir, { items = false } = {}) {
+    try {
+      const r = rescoreInfo(dir)
+      return { total: r.total, changedAt: r.changedAt, expectedCalls: r.expectedCalls, cap: r.cap, ...(items ? { items: r.items } : {}) }
+    } catch (err) {
+      log(`pipeline: the old verdicts not read: ${String(err?.message ?? err)}`)
+      return { total: 0, changedAt: null, expectedCalls: [0, 0], cap: null, ...(items ? { items: [] } : {}) }
+    }
+  }
+
+  /**
+   * Redesign R5a (N07): 重新评分 of the library `{ id, path }` in the background (core rescoreRejected): its calls in the
+   * library's usage file, under the 单次运行上限; one at a time with the runs (`running`). → { started: true, roundId } or, with
+   * a run going, bad_arguments (the queue — services/schedule.mjs — never starts one then).
+   */
+  async function startRescoreIn({ id: libraryId = null, path: dir }) {
+    if (running) throw new BridgeError('bad_arguments', 'a round is running')
+    const a = connections.active()
+    if (!a) throw new BridgeError('no_connection')
+    const roundId = `rs-${now().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}-${randomBytes(3).toString('hex')}`
+    const cap = pipelineConfig(dir).cap
+    const controller = new AbortController()
+    running = { roundId, libraryId, controller, cap, startedAt: now().toISOString(), rescore: true }
+    const base = { roundId, libraryId, cap, rescore: true }
+    progress({ ...base, phase: 'self-check', counts: null, calls: 0, done: false })
+    void (async () => {
+      let result = null
+      try {
+        const counter = createUsageCounter(dir, { now })
+        result = await rescoreRejected(dir, {
+          connector: { ...a.connector, probe: counter.wrap(a.connector, 'probe').probe }, cap, ctx: makeContext({ ...fetchContext, now }), signal: controller.signal,
+          onProgress: p => progress({ ...base, phase: `rescore:${p.node}`, counts: p.counts, calls: p.calls, done: false }),
+        })
+        log(`pipeline: rescore ${roundId} of ${libraryId ?? dir}: ${result.started ? `${result.counts.rescored} of ${result.targets} scored again, ${result.counts.inbox} into the inbox, calls ${result.calls}${result.stoppedAt ? `, stopped at ${result.stoppedAt}` : ''}, ${result.remaining} left` : 'did not start'}`)
+      } catch (err) {
+        log(`pipeline: rescore ${roundId} failed: ${String(err?.stack ?? err)}`)
+        result = { ok: false, started: false, rescore: true, problems: [{ code: 'internal', detail: String(err?.message ?? err).slice(0, 300) }] }
+      }
+      running = null
+      progress({ ...base, phase: 'done', counts: result?.counts ?? null, calls: result?.calls ?? 0, done: true, result, ...(result?.started ? {} : { problems: result?.problems ?? [] }) })
+      emit('inbox-changed', { libraryId, count: inboxCount(dir) })
+      try { onRoundDone({ roundId, libraryId, result: publicResult(result) }) } catch (err) { log(`pipeline: after rescore ${roundId}: ${String(err?.stack ?? err)}`) }
+    })()
+    return { started: true, roundId, rescore: true }
+  }
+
   const handlers = {
+    /** Redesign R5a (N07): the old verdicts of any library — { total, items, changedAt, expectedCalls, cap }. */
+    getRescore(libraryId) {
+      const e = library.entryOf(libraryId)
+      if (!library.usable(e.path)) throw new BridgeError('open_failed', `${e.path} is not a readable library`)
+      return rescoreView(e.path, { items: true })
+    },
+    /** Redesign R5a (N07): 重新评分 of any library, through the queue (started now, or queued at the end). */
+    async startRescore(libraryId) {
+      const e = library.entryOf(libraryId)
+      if (!library.usable(e.path)) throw new BridgeError('open_failed', `${e.path} is not a readable library`)
+      if (!connections.active()) throw new BridgeError('no_connection')
+      if (rescoreView(e.path).total === 0) return { started: false, nothing: true }
+      if (rescoreGate) return rescoreGate({ id: e.id, path: e.path })
+      return startRescoreIn({ id: e.id, path: e.path })
+    },
     getHome() {
       const dir = library.require()
       const index = indexOf(dir)
@@ -231,7 +321,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
         numbers,
         // plan C8: the page shows 「连续 N 轮没有产出」 from this many (numbers.noOutputStreak); the threshold is the core's
         noOutputRounds: NO_OUTPUT_ROUNDS,
-        lastRound: listRounds(dir, 1)[0] ?? null,
+        // redesign R5a (O9): the run record's problems without their details
+        lastRound: publicResult(listRounds(dir, 1)[0] ?? null, { raw: rawErrors, where: 'last run' }),
         // redesign R2 (N10): the last run as one funnel, and what became of its items
         lastRun: lastRunOf(dir),
         // redesign R2 (P08): the items fetched and not scored yet (waiting at a step of the pipeline) — 「有 n 条内容已抓取、尚未评分」
@@ -286,6 +377,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
         items: all.filter(i => !i.later && i.url !== h?.url),
         later: all.filter(i => i.later && i.url !== h?.url),
         rejected: listRejected(dir, { limit: 50 }),
+        // redesign R5a (N07): the ones judged under the old standard — how many, since when, the estimate of 重新评分
+        rescore: rescoreView(dir),
         manual: listManualWaiting(dir),
         held: h ? { url: h.url, title: h.title } : null,
         recentDismissReasons: recentDismissReasons(dir),
@@ -379,7 +472,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       const sources = []
       for (const s of config.sources) {
         const r = await fetchSource(s, ctx)
-        sources.push({ name: s.name, kind: s.kind, url: s.url ?? null, status: r.status, hint: r.hint, count: r.items.length, message: r.message })
+        // redesign R5a (O9): the state and the hint, not the fetcher's message
+        sources.push(publicTrial({ name: s.name, kind: s.kind, url: s.url ?? null, status: r.status, hint: r.hint, count: r.items.length, message: r.message, http: r.http }, { raw: rawErrors, where: `starter pack ${packId} ${s.name}` }))
       }
       log(`pipeline: starter pack ${packId}: ${sources.map(s => `${s.name} ${s.status}`).join(', ') || 'no sources'}`)
       return { topics: config.topics.map(t => t.name), sources }
@@ -396,7 +490,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
         config,
         // 「恢复默认」: the default pipeline in the library's language, resolved the same way (locked checklists included)
         defaults: pipelineFrom({ pipeline: DEFAULT_PIPELINE(config.language) }),
-        lastRound: listRounds(dir, 1)[0] ?? null,
+        lastRound: publicResult(listRounds(dir, 1)[0] ?? null, { raw: rawErrors, where: 'last run' }),
         dismissReasons: recentDismissReasons(dir, 10),
         verdictFailures: Object.fromEntries(checked.map(n => [n.id, recentVerdictFailures(dir, n.id, 5)])),
       }
@@ -456,7 +550,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
   }
 
   return {
-    handlers, roundState, startRoundIn, current, isRunning: () => Boolean(running), runningLibrary: () => running?.libraryId ?? starting?.libraryId ?? null,
+    handlers, roundState, startRoundIn, startRescoreIn, current, isRunning: () => Boolean(running), runningLibrary: () => running?.libraryId ?? starting?.libraryId ?? null,
     // redesign R2: the held 放弃 written now (main.mjs: before-quit, another library opened); what it is, for 「n 条待看」
     settlePending, held: () => (held ? { dir: held.dir, url: held.url } : null),
   }

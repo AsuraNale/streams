@@ -231,7 +231,9 @@ test('UC1: a sentence → one question with quick answers; a quick answer is sen
   assert.deepEqual(shown.keywords, ['装机量', '固态电池'])
   // the core's test fetches: the refused one is not ticked and says so
   assert.deepEqual(card.trial.map(t => [t.name, t.status, t.include, t.count]), [['battery-weekly', 'ok', true, 4], ['battery-forum', 'blocked', false, 0]], 'control: what the core found')
-  assert.deepEqual(shown.trials, [['battery-weekly', 'ok', 'true', '正常 · 4 条', null], ['battery-forum', 'blocked', 'false', '被拒绝 · HTTP 403', AGENT.card.unticked]])
+  // redesign R5a (O9): a card's trials reach the page without the HTTP code (public-data.mjs publicCard), so the refused one
+  // reads as its state and its count — this line used to expect 「被拒绝 · HTTP 403」
+  assert.deepEqual(shown.trials, [['battery-weekly', 'ok', 'true', '正常 · 4 条', null], ['battery-forum', 'blocked', 'false', '被拒绝 · 0 条', AGENT.card.unticked]])
   assert.equal(shown.thresholds, fmt(AGENT.card.thresholdsLine, { relevance: '0.7', substance: '0.6' }))
   assert.equal(shown.schedule, fmt(AGENT.card.scheduleOn, { time: '08:30' }))
   assert.equal(shown.folder, card.after.folder)
@@ -513,7 +515,9 @@ test('待确认 (was 概览): this library\'s suggestion card (交给主 Agent /
   })
   assert.equal(c.title, AGENT.suggestion.title)
   assert.equal(c.sentence, fmt(AGENT.suggestion.kinds['source-failing'], { subject: 'mcp-news', n: 3 }))
-  assert.ok(c.evidence.includes('2') && c.evidence.includes('HTTP 403'), c.evidence)
+  // redesign R5a (O9): a 系统检测's evidence reaches the page without the fetcher's message or the HTTP code (core
+  // suggestionFacts) — this line used to expect HTTP 403 in it
+  assert.ok(c.evidence.includes('2') && !c.evidence.includes('403'), c.evidence)
   assert.deepEqual(c.actions, ['accept', 'dismiss'])
   await s.page.click('[data-suggestion="source-failing:mcp-news"] [data-action="dismiss"] button')
   await until(() => document.querySelector('[data-suggestion="source-failing:mcp-news"]')?.dataset.state === 'dismissed')

@@ -88,17 +88,30 @@ test('invariant 2: keep reads the stage from the ledger it replays, not from wha
 });
 
 // 不变量③：同一动作同样参数不做第二次 —— 同一 url 同一关卡同一 cfg 不再调用；cfg 变了才会。
-test('invariant 3: a gate scored under the current cfg is not an allowed action again; a different cfg reopens it; unscored under the same cfg stays closed except connection failures', () => {
+// redesign R5a (N07, 维护者 11-12 第 5 条): a different cfg no longer reopens a gate that was SCORED — the old verdict stands
+// where it was (judged against the threshold it was given), and only 重新评分 ({ rescore: true }) reopens it. This test used
+// to assert that a different cfg reopens it; the unscored / connection half is unchanged.
+test('invariant 3: a gate scored under the current cfg is not an allowed action again; a different cfg keeps the old verdict (only 重新评分 reopens it); unscored under the same cfg stays closed except connection failures', () => {
   const done = state(scored(REL, 0.8));
   assert.equal(allowedActions(done, cfg).includes('gate:relevance'), false);
   assert.throws(() => assertAllowed(done, 'gate:relevance', cfg), (e) => e.code === 'not-allowed');
   assert.deepEqual(nextStep(done, cfg), { kind: 'gate', node: SUB });
   const stale = state(scored(REL, 0.8, { cfg: 'deadbeef' }));
-  assert.deepEqual(allowedActions(stale, cfg), ['gate:relevance'], 'an old cfg means the score was for a different requirement');
-  assert.deepEqual(nextStep(stale, cfg), { kind: 'gate', node: REL });
+  // redesign R5a (precheck fix 4): a stamp that gives no threshold is no longer judged against the threshold of now (that let a
+  // loosened 严格程度 move old 未通过筛选 items on, and the next run called the model for them): the ledger's record of where
+  // the item went decides — no later step recorded → it stopped here; a later step scored → it had passed
+  assert.deepEqual(allowedActions(stale, cfg), [], 'an old cfg whose threshold is unknown, nothing after it: it stays below, old');
+  assert.deepEqual(nextStep(stale, cfg), { kind: 'done', why: 'below:relevance', old: true });
+  const staleOn = state({ scores: { relevance: { score: 0.3, reason: 'r' }, substance: { score: 0.7, reason: 'r' } }, cfg: { relevance: 'deadbeef', substance: cfgOf(SUB) } });
+  assert.deepEqual(nextStep(staleOn, cfg), { kind: 'summary', node: SUM }, 'an old cfg whose threshold is unknown, a later step scored: it had passed (whatever 0.3 is against now)');
+  assert.deepEqual(nextStep(stale, cfg, { rescore: true }), { kind: 'gate', node: REL }, '重新评分 reopens it');
   const changed = { ...cfg, nodes: cfg.nodes.map((n) => (n.id === 'relevance' ? { ...n, threshold: 0.95 } : n)) };
   assert.notEqual(cfgOf(changed.nodes[2]), cfgOf(REL));
-  assert.deepEqual(allowedActions(done, changed), ['gate:relevance'], 'a threshold change is a new cfg');
+  assert.deepEqual(allowedActions(done, changed), ['body', 'gate:substance'], 'a threshold change is a new cfg, but the old verdict (0.8 ≥ the 0.7 it was judged against) stands');
+  const low = state(scored(REL, 0.6));
+  const looser = { ...cfg, nodes: cfg.nodes.map((n) => (n.id === 'relevance' ? { ...n, threshold: 0.5 } : n)) };
+  assert.deepEqual(nextStep(low, looser), { kind: 'done', why: 'below:relevance', old: true }, 'below the 0.7 it was judged against: still below under 0.5');
+  assert.deepEqual(nextStep(low, looser, { rescore: true }), { kind: 'gate', node: looser.nodes[2] });
   const stuck = state({ unscored: { relevance: 'bad-format' }, cfg: { relevance: cfgOf(REL) } });
   assert.deepEqual(allowedActions(stuck, cfg), []);
   assert.deepEqual(nextStep(stuck, cfg), { kind: 'done', why: 'stuck:relevance' });

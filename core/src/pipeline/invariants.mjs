@@ -12,7 +12,7 @@
 import { StreamsError } from '../errors.mjs';
 import { TERMINAL_STAGES } from '../library/ledger.mjs';
 import { DEFAULT_PIPELINE, gateNodes, summaryNode } from './config.mjs';
-import { gateResult, nextStep } from './queue.mjs';
+import { gateResult, laterSteps, nextStep } from './queue.mjs';
 
 export const DECISIONS = ['keep', 'dismiss', 'later'];
 
@@ -22,7 +22,7 @@ export function allowedActions(state, config = DEFAULT_PIPELINE()) {
   if (state.stage === 'inbox') return [...DECISIONS];
   const gates = gateNodes(config);
   for (let i = 0; i < gates.length; i++) {
-    const r = gateResult(state, gates[i]);
+    const r = gateResult(state, gates[i], { later: laterSteps(config, i) });
     if (r.status === 'todo') {
       const out = [];
       if (gates[i].material === 'body') out.push('body');

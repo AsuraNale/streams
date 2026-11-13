@@ -34,11 +34,12 @@ import { licensesView, noticesFileOf } from './licenses.mjs'
  * @param {() => string} [o.scheme] - v2 package K2: the appearance in force now, 'light' | 'dark' (main.mjs: the setting, or
  *   what Windows uses for 'system')
  * @param {{packaged: boolean, desktopDir: string, installDir: string}} o.licenses - where licensesView reads (main.mjs)
+ * @param {{lines: () => string[]}|null} [o.rawErrors] - redesign R5a (O9): raw-errors.mjs, the raw error texts for the diagnostics
  */
 /** The maker's site (README and the about part: 「由 Starry Digital 开发」, 维护者 11-02). */
 export const MAKER_URL = 'https://starrydigital.ca'
 
-export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets, applyTheme = () => {}, scheme = () => 'light', licenses }) {
+export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets, applyTheme = () => {}, scheme = () => 'light', licenses, rawErrors = null }) {
   const settings = () => readSettings(layout.settingsFile)
 
   const appState = () => {
@@ -145,6 +146,8 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
         versions: { app: `${version.version}${version.dev ? ' (development)' : ''}`, electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node, os: `${process.platform} ${process.getSystemVersion()}` },
         layout, settings: { ...settings(), libraryPath: library.current()?.path ?? null }, keysHeld: names, secrets: held, locale: locale.current(),
         connections: connections.diagnosticLines(),
+        // redesign R5a (O9): the raw error texts the page was not given
+        rawErrors: rawErrors?.lines() ?? [],
       })
       // a test run (hidden window) must not overwrite the clipboard of the person at the machine: the text goes to a file
       if (hidden) writeFileSync(join(layout.logsDir, 'clipboard.txt'), text)

@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { DEFAULT_PIPELINE, pipelineConfig, pipelineFrom, savePipelineConfig, cfgOf, lockedChecklist, MAX_GATES } from '../src/pipeline/config.mjs';
 import { DEFAULT_REQUIREMENTS } from '../src/pipeline/prompts.mjs';
 import { runRound } from '../src/pipeline/round.mjs';
+import { listRejected } from '../src/pipeline/decide.mjs';
+import { rescoreRejected } from '../src/pipeline/rescore.mjs';
 import { replayLedger } from '../src/library/ledger.mjs';
 import { readConfig } from '../src/library/config.mjs';
 import { scriptedConnector } from '../src/pipeline/fake.mjs';
@@ -130,7 +132,9 @@ test('cfgOf: changes with requirement / threshold / material / output, not with 
 });
 
 // 改过的过关线在下一轮生效：0.95 时 0.8 的条目停在关卡①；0.7 时过。
-test('threshold in effect: at 0.95 an item scored 0.8 stops at gate 1; at 0.7 it passes; a changed threshold re-scores the item next round', async (t) => {
+// redesign R5a (N07, 维护者 11-12 第 5 条): a changed threshold no longer re-scores an item already scored — it stays below with
+// its old verdict until 重新评分 (rescore.mjs; core/test/r5a.test.mjs); this test used to assert the automatic re-score.
+test('threshold in effect: at 0.95 an item scored 0.8 stops at gate 1; at 0.7 it passes; a changed threshold leaves the old verdict until 重新评分', async (t) => {
   const srv = await startFakeServer();
   t.after(() => srv.close());
   const items = serveItems(srv, 1);
@@ -146,11 +150,16 @@ test('threshold in effect: at 0.95 an item scored 0.8 stops at gate 1; at 0.7 it
   assert.deepEqual([s1.stage, s1.scores.relevance.score, s1.scores.substance], ['seen', 0.8, undefined]);
   // the same configuration again: nothing to do
   assert.equal((await runRound(dir, { connector: conn, ctx: ctx() })).calls, 0);
-  // the line moves down to 0.7: a new cfg, the item is scored again and now passes through to the inbox
+  // the line moves down to 0.7: a new cfg — redesign R5a: the next run does not score the item again (0 calls); it stays
+  // below, marked as scored under the old standard; 重新评分 scores it under the new one and it passes through to the inbox
   savePipelineConfig(dir, edit(pipelineConfig(dir), (c) => { node(c, 'relevance').threshold = 0.7; }));
   const r3 = await runRound(dir, { connector: conn, ctx: ctx() });
-  assert.deepEqual(r3.counts.gate1, { passed: 1, failed: 0, unscored: 0 });
-  assert.equal(r3.calls, 4);
+  assert.deepEqual(r3.counts.gate1, { passed: 0, failed: 0, unscored: 0 });
+  assert.equal(r3.calls, 0);
+  assert.equal(replayLedger(dir).states.get(items[0].url).stage, 'seen');
+  assert.deepEqual(listRejected(dir).items.map((i) => [i.url, i.gate, i.old]), [[items[0].url, 'relevance', true]]);
+  const r4 = await rescoreRejected(dir, { connector: conn, ctx: ctx() });
+  assert.equal(r4.calls, 4);
   assert.equal(replayLedger(dir).states.get(items[0].url).stage, 'inbox');
   const rel = ledgerLines(dir).filter((e) => e.ev === 'scored' && e.node === 'relevance');
   assert.equal(rel.length, 2);

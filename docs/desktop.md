@@ -113,7 +113,7 @@ frame-ancestors 'none'
 | `setAppearance(appearance)` | **v2 包 K2**：`'light'` · `'dark'` · `'system'`（别的 → `bad_arguments`） | `{ theme, appearance, scheme }`；写进 `settings.json` 的 `appearance`，主进程改 `nativeTheme.themeSource`（同名；`system` 时 Electron 跟着 Windows）、窗口底色与阅读窗口；发 `settings-changed`；`scheme` 是现在生效的浅 / 深 | 设置页「外观」 |
 | `setShowDeveloperInfo(on)` | 布尔 | `{ showDeveloperInfo }` | 设置页「显示开发者信息」 |
 | `setPanel(patch)` | **v2 包 L**：`{ open?: boolean, tab?: 'progress' \| 'decide' \| 'detail' \| 'files' }`，至少一个字段（别的 → `bad_arguments`） | `{ open, tab }`：写进 `settings.json` 的 `panel`（只改给的字段），下次启动右栏照旧；不发事件（页面自己用这个回答） | 右栏的收起 / 展开按钮、四个标签（§4.12） |
-| `copyDiagnostics()` | 无 | `{ ok: true }`；主进程把诊断信息写进剪贴板（不带 key；测试时写到 `logs\clipboard.txt`） | 设置页「复制诊断信息」 |
+| `copyDiagnostics()` | 无 | `{ ok: true }`；主进程把诊断信息写进剪贴板（不带 key；测试时写到 `logs\clipboard.txt`）；**重设计 R5a（O9）**：多一段「最近的原始报错」（`raw-errors.mjs`，最近 `RAW_ERRORS_MAX` = 50 条，§4.19），页面上不给的原文都在这里，仍不含 key | 设置页「复制诊断信息」 |
 | `openMakerPage()` | 无 | `null`；在用户的浏览器里打开 `https://starrydigital.ca`（地址写死在主进程 `app-services.mjs MAKER_URL`，页面不给地址；测试时只记日志） | 设置页「关于」的「由 Starry Digital 开发」（V11，维护者 11-02 定「链 starrydigital.ca」） |
 | `getLicenses()` | 无 | `{ own: { license: 'MIT', text }, components: [{ name, version, license }], notices: { available } }`：`text` 是流息 `LICENSE` 全文（装好的应用读 `resources\app\LICENSE`，构建把仓库根的 `LICENSE` 放在那里；开发时读仓库根那份）；`components` 依次是 Electron · Chromium · Node.js（版本取运行时 `process.versions`）、Preact · htm · @mozilla/readability（版本与许可证取应用里 `node_modules/<名>/package.json`；Readability 是阅读模式抽正文用的，v2 包 J1 加进表里）；`notices.available`：装好的应用安装目录里有 `THIRD-PARTY-NOTICES.txt` 时为真，开发时总为假（`app-services.mjs licensesView`） | 设置页「许可证与致谢」对话框 |
 | `openNotices()` | 无 | `null`；用系统的查看程序打开安装目录里的 `THIRD-PARTY-NOTICES.txt`（文件名写死在主进程，页面不给路径；测试时只记日志）；没有这个文件（开发时）→ `open_failed` | 许可证与致谢「打开完整的第三方声明」 |
@@ -132,21 +132,21 @@ frame-ancestors 'none'
 | `getSetup()` | 无 | 核心 `readSetup`：`{ <step>: { by, at, detail? } }`，这个库没有记录（导入的、或这次之前建的）→ `{}`；`no_library` | 来源与要求「这个库 · 首次设置」（v2 包 I；v1.0：设置） |
 | `getConnections()` | 无 | 见 §4.1「连接」；不含任何 key，API 只给 `keyHint` | S1 第 2 步、设置「连接方式」、S13 |
 | `detectConnections()` | 无 | 重新检测三种连接（只读：`--version` / `auth status` / `login status` / 有没有 key），返回同 `getConnections` | S1「重新检测」、「我登录好了，再试一次」 |
-| `probeConnection(kind)` | `'claude-code' \| 'codex' \| 'api'` | **一次真调用**；`{ ok, latencyMs, model, code?, detail? }`，同时记进 `getConnections().probes[kind]` | S1「试了一次：可用」、设置「现在试一次」 |
+| `probeConnection(kind)` | `'claude-code' \| 'codex' \| 'api'` | **一次真调用**；`{ ok, latencyMs, model, code? }`（**重设计 R5a（O9）**：不再带 `detail`，连接自己的原话进诊断信息，页面按 `code` 用 `CONNECTIONS.codes` 说），同时记进 `getConnections().probes[kind]` | S1「试了一次：可用」、设置「现在试一次」 |
 | `openLogin(kind)` | `'claude-code' \| 'codex'` | 起 CLI 自己的登录窗口（核心 `connector.openLogin`，窗口标题 = 品牌名，`src/main/texts/app.js`）；`{ ok: true, pid } \| { ok: false, code }`；`api` → `bad_arguments`；假连接或测试（窗口隐藏）下只记日志、回 `{ ok: true, pid: 0 }` | S1 / S13 / S14 的「去登录」 |
 | `setActiveConnection(kind)` | 三种之一或 `null` | `{ active }`；写设置；发 `connections-changed` | S1 第 2 步选定、设置 |
 | `setConnectionModels(kind, models)` | `models = { model: string \| null, verifyModel: string \| null }`（null = 该连接的默认；核验 null = 同主模型） | `{ kind, model, verifyModel }` | 设置「主模型 / 核验模型」 |
 | `setApiVendor(vendor, baseUrl)` | `vendor` 在核心 `VENDOR_IDS` 里；`baseUrl` 只有 `custom` 用，否则传 `null` | `{ vendor, baseUrl }` | 设置「输入 API key」对话框 |
 | `setApiKey(vendor, key)` | key 字符串；**只往主进程走一次**，存 `secrets/key-<vendor>.bin`（safeStorage），从不返回 | `{ vendor, keyHint }`；safeStorage 不可用 → `internal` | 同上 |
 | `removeApiKey(vendor)` | | `{ vendor, keyHint: null }` | 同上 |
-| `applyStarterPack(packId, edits)` | `packId` 在核心 `STARTER_PACKS` 里或 `'blank'`；`edits = { removeSources: [name…], addRss: [{ name, url }] }` | 写 `streams.json` 的 `topics` / `sources`，并对每个来源试抓一次（不写盘）：`{ topics: [name…], sources: [{ name, kind, url, status, hint, count, message }] }` | S1 第 3 步 |
+| `applyStarterPack(packId, edits)` | `packId` 在核心 `STARTER_PACKS` 里或 `'blank'`；`edits = { removeSources: [name…], addRss: [{ name, url }] }` | 写 `streams.json` 的 `topics` / `sources`，并对每个来源试抓一次（不写盘）：`{ topics: [name…], sources: [{ name, kind, url, status, hint, count, message }] }`；**重设计 R5a（O9）**：每个来源的试抓不再带 `message` / `http` | S1 第 3 步 |
 | `getStarterPacks()` | 无 | 核心 `STARTER_PACKS` 的 `[{ id, name, topics, sources: [{name, kind, url, query?, topic}] }]`（名字按界面语言；arXiv / HN 来源 `url` 为 null、带 `query`）；不需要打开库 | S1 第 3 步 |
 | `getHome()` | 无 | 见 §4.1「今日」 | S2 |
 | `estimateRound()` | 无 | 核心 `estimateRound` + `{ connection: { kind, model, verifyModel } }` | 库页头按钮旁的「预计 a–b 次模型调用」（重设计 R1；S12 的跑一轮对话框已删） |
 | `setRoundCap(cap)` | 正整数 | `{ cap }`；写 `streams.json` 的 `pipeline.cap` | S12「改上限」、设置「每轮上限」 |
 | `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；走全应用的队列（v2 包 A，§4.4）。**v2 包 L**：队列忙（别的库在跑或在排）时**不再回 `bad_arguments`**，而是把当前库排到队尾：`{ started: false, queued: true, position, runningLibraryId }`（`position` 1 = 在跑的那个，2 = 第一个在排的…）；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排（§4.12）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | 库页头的「立即运行」（重设计 R1：直接调，不弹对话框，忙时排到队尾，§4.13）、本次运行未开始卡的「重试」、新建库的首轮 |
 | `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 库页头的「运行中 · 停止」（重设计 R1；原概览进度条旁）、右栏进度里「当前库 · 上次运行」的停止 |
-| `getRoundState()` | 无 | `{ running, roundId, libraryId, progress, last: runRound 的返回 \| null, lastProblems }`（`libraryId`：那一轮是哪个库的，v2 包 A；全应用同一时间只有一轮） | S2 |
+| `getRoundState()` | 无 | `{ running, roundId, libraryId, progress, last: runRound 的返回 \| null, lastProblems }`（`libraryId`：那一轮是哪个库的，v2 包 A；全应用同一时间只有一轮）；**重设计 R5a（O9）**：`last` 与 `lastProblems` 的问题只有 `code` / `connectionCode` / `node`，没有 `detail` | S2 |
 | `getInbox()` | 无 | **重设计 R2**：`{ items, later, rejected: { total, items }, manual, held, recentDismissReasons }`——`items` 是待拍板的卡（核心 listInbox 里不在「稍后处理」、不是挂起的那条）；`later` 是稍后处理的；`rejected` 是未通过筛选（核心 listRejected，最新在前、最多 50 条，`total` 是全部条数）；`manual` 是手动添加还没评分的（核心 listManualWaiting）；`held` 是挂起等小条关闭的放弃 `{ url, title }` 或 null；`recentDismissReasons: [{ts, reason, quick?, title, url}]`（没写理由的放弃不在里面）（§4.14） | S3 / 待看 |
 | `keepItem(url)` | url 必须在 inbox 里 | `{ id, file }`（`file` = `notes/` 里的文件名）；发 `inbox-changed`、`library-changed`（索引重建了）；**重设计 R2**：先把挂起的另一条放弃写进账本 | S3「收藏」 |
 | `dismissItem(url)` | url 必须在 inbox 里 | **重设计 R2**：`{ url, held: true }`——这条立刻从列表消失，**不写账本**，挂在主进程里等小条关闭（已有挂起的另一条先写进去，一次只有一条）；发 `inbox-changed`（数不含挂起的这条）（§4.14） | 待看「放弃」 |
@@ -178,7 +178,7 @@ frame-ancestors 'none'
 | `getStrictness()` | 无 | **重设计 R4b**：当前库的严格程度 `{ level: 'loose' \| 'standard' \| 'strict' \| 'custom', thresholds: { relevance, substance }, levels }`（核心 `readStrictness`；两个阈值正好是某一档才是那一档，否则 `custom`；`levels` 是三档的数，核心 `STRICTNESS`）；只读；`no_library` | 来源与要求「严格程度」 |
 | `setStrictness(level)` | `'loose'` · `'standard'` · `'strict'`（别的 → `bad_arguments`） | **重设计 R4b**：写这一档的两个阈值（核心 `saveStrictness`，streams.json 别的键不动），`changes.jsonl` 记 `thresholds` by `you`；返回同 `getStrictness`；发 `library-changed` | 来源与要求「要求」的「保存」 |
 | `getChangeLog()` | 无 | **重设计 R4b**：当前库的变更记录（核心 `changeLog`）：`{ rows: [{ at, kind: 'change', field, by: 'you' \| 'agent-confirmed', proposalId, before, after } \| { at, kind: 'setup', step, by: 'setup', setupBy, detail }], skipped }`，新的在前；只读；`no_library` | 高级设置「变更记录」 |
-| `listProposals(filter)` | `null` 或 `{ status?, libraryId? }`：`status` ∈ `pending` · `confirmed` · `declined` · `revise` · `stale` · `failed`；`libraryId` 是登记 id，或 `null`（= 建库卡）；别的键 → `bad_arguments` | **v2 包 B**：提议卡，新的在前：`[card]`，卡的形状见 §4.5（核心 5.13）；不改任何东西 | 包 G 的卡片（「和主 Agent 聊」、库页） |
+| `listProposals(filter)` | `null` 或 `{ status?, libraryId? }`：`status` ∈ `pending` · `confirmed` · `declined` · `revise` · `stale` · `failed`；`libraryId` 是登记 id，或 `null`（= 建库卡）；别的键 → `bad_arguments` | **v2 包 B**：提议卡，新的在前：`[card]`，卡的形状见 §4.5（核心 5.13）；不改任何东西；**重设计 R5a（O9）**：每张卡的试抓（`trial`）去掉 `message` / `http`，失败（`failure`）只给 `{ step, done, rolledBack, left?, category: refused \| error, advice }`（`advice` 是 `texts/proposals.js PROPOSALS.advice` 的键），不给异常原文；`confirmProposal` / `declineProposal` / `reviseProposal` 回的卡同样 | 包 G 的卡片（「和主 Agent 聊」、库页） |
 | `confirmProposal(id)` | 卡的 id（不认识 → `bad_arguments`） | **唯一会改东西的方法**：卡生效后的样子 `card`，`status` 是 `confirmed`（已生效，`result` 写了做了什么）· `stale`（出卡后相关配置变了 / 库不在了 / 新库的文件夹不空了：什么都没改，`reason`）· `failed`（中途出错：已做的回滚，或 `failure` 写明到哪一步）；卡不是 `pending`（已确认、已不要、已改一下、过期、失败）→ `bad_arguments`，什么都不做，不会重复生效。发 `proposals-changed`；生效的是当前库 → `library-changed`；定时卡再发 `settings-changed { libraryId }`；建库卡经包 A 登记、设为当前库（`libraries-changed`、`library-changed`）、把第一轮放进队列 | 包 G「确认」 |
 | `declineProposal(id)` | 卡的 id | 「不要」：`status: 'declined'` 的卡；库一个字节都不变；不是 `pending` → `bad_arguments`；发 `proposals-changed` | 包 G「不要」 |
 | `reviseProposal(id, text)` | 卡的 id；你的一句话（1–2000 字） | 「改一下」：`status: 'revise'`、`reviseText` 是你的话的卡（包 C 据此重出一张）；库不变；不是 `pending` → `bad_arguments`；发 `proposals-changed` | 包 G「改一下」 |
@@ -186,9 +186,13 @@ frame-ancestors 'none'
 | `agentSend(text, options?)` | `text` 1–4000 字（去首尾空白后）；`options` 可省、`null` 或 `{ libraryId? }`（这句话是从哪个库的对话框转来的；登记 id，不认识 → `bad_arguments`） | **v2 包 C**：主 Agent 跑一轮（§4.6）：`{ turn, reply, ask, proposalIds, notice? }`——`reply` 回复（连接失败时 `null`）；`ask` 最多一个问题 `{ question, options: 2–4 个 }` 或 `null`；`proposalIds` 这一轮出的提议卡（`pending`，经包 B 的 `createProposal`，`by: 'agent'`）；`notice` 可选，`[{ code, … }]`，`code` ∈ `not-understood`（回答两次不合格：只显示能取到的回复、不出卡不执行）· `proposals-dropped`（`count` 张不合格没出）· `connection`（`connection` 是连接的错误码）· `session-rebuilt`（会话接不上、开了新会话）。同一时间只跑一轮：前一轮没完就排队等。没选连接 → `no_connection`。发 `agent-changed` | 包 G「和主 Agent 聊」、包 E 分流 |
 | `getAgentTranscript(query?)` | 可省、`null` 或 `{ limit?: 1–500（默认 100）, before?: 轮号 }` | 对话正本：`{ entries: [{ at, turn, role: 'you' \| 'agent' \| 'lookup' \| 'note' \| 'summary', text, data? }]（早的在前，`before` 给了就只要这轮之前的）, hasMore, total, skipped }`；不改任何东西 | 包 G 的对话流 |
 | `getAgentStatus()` | 无 | `{ connection: 'claude-code' \| 'codex' \| 'api' \| 'fake' \| null, sessionful, session: { live, startedAt, turns }, entries（正本条数）, turns, lastSummaryAt, summarizedThrough, busy, waiting }` | 包 G、设置 |
-| `listSuggestions(filter?)` | 可省、`null` 或 `{ libraryId? }` | **v2 包 C 接包 D 的建议卡**：打开着的建议卡 `[{ libraryId, key, kind, subject, otherLibraryId?, evidence, createdAt }]`（核心 `openSuggestions`，每个能读的库；给了 id 只要那个库的，不认识 → `bad_arguments`） | 包 G「等你定的事」、包 F 概览 |
+| `listSuggestions(filter?)` | 可省、`null` 或 `{ libraryId? }` | **v2 包 C 接包 D 的建议卡**：打开着的建议卡 `[{ libraryId, key, kind, subject, otherLibraryId?, evidence, createdAt }]`（核心 `openSuggestions`，每个能读的库；给了 id 只要那个库的，不认识 → `bad_arguments`）。**重设计 R5a**：`evidence` 是核心 `suggestionFacts`（没有抓取器原话与 HTTP 码）；列之前先查过时；新代码用 `listToConfirm` | 包 G「等你定的事」、包 F 概览 |
 | `dismissSuggestion(libraryId, key, reason?)` | 登记 id；建议卡的 key（≤ 300 字）；`reason` 可省或 ≤ 500 字 | 「不要」：库的 `_pipeline\suggestions.jsonl` 追加一行 `dismissed`（核心 `dismissSuggestion`），回那一行；卡没打开 → `bad_arguments`。别的什么都不改 | 同上 |
-| `acceptSuggestion(libraryId, key)` | 登记 id；建议卡的 key | 「要」**只做两件事**：记一行 `accepted`，再把这张建议卡以 `note` 的形式交给主 Agent 跑一轮（由它决定出不出提议卡）：`{ accepted: 那一行, turn: agentSend 的同一形状 }`；不改库的任何配置。卡没打开 → `bad_arguments`；没选连接 → `no_connection`（什么都不记） | 同上 |
+| `acceptSuggestion(libraryId, key)` | 登记 id；建议卡的 key | 「要」**只做两件事**：记一行 `accepted`，再把这张建议卡以 `note` 的形式交给主 Agent 跑一轮（由它决定出不出提议卡）：`{ accepted: 那一行, turn: agentSend 的同一形状 }`；不改库的任何配置。卡没打开 → `bad_arguments`；没选连接 → `no_connection`（什么都不记）。**重设计 R5a**：「要」= 「交由主 Agent 分析」（⑤ = 「生成修改提议」）：记一行 `accepted`（带 `action`），交给主 Agent 的是核心 `handoffText` 的界面词（不再是 kind · subject 与证据 JSON）；卡已过时 → 记一行失效、`bad_arguments` | 同上 |
+| `listToConfirm()` | 无 | **重设计 R5a**：一种提议的统一视图（§4.19）：`{ items, handled, count }`——`items` = 全部库待确认的：主 Agent 提议（`from: 'agent'`，`proposalId`、`card` 去掉原始报错的提议本身）与系统检测（`from: 'system'`，`key`、`subject`、`otherLibraryId?` / `otherLibraryName?`、`evidence` 界面化的证据：状态与处理建议的键，没有抓取器原话与 HTTP 码），每条都有 `id`、`libraryId`、`libraryName`、`kind`、`status`、`createdAt`、`actions: [{ id, label（`texts/proposals.js PROPOSALS` 的键）, values?, level?, primary, callsModel }]`（照 维护者 过目的动作表，主动作在前）；`handled` = 最近处理过的 ≤ 50 张（主 Agent 提议的状态、系统检测的 `dismissed` · `accepted` · `acted` · `expired` 与动作 / 失效原因），新的在前；`count` = `items` 条数。列之前先查一遍过时：不再适用的系统检测记一行失效、不列；系统检测另带 `summary`（一句界面词，当前界面语言，核心 `suggestionText`）与 `words: { title, evidence }`（`PROPOSALS.kinds.*` / `PROPOSALS.evidence.*` 的键；地址无效用 `source-failing-gap`） | R5b 的右栏待确认、主 Agent 页 |
+| `actOnSuggestion(libraryId, key, action)` | 登记 id（**不限当前库**）；系统检测的 key；`action` ∈ `pause-source` · `edit-address` · `set-strictness` · `forward` · `draft-proposal` · `dismiss` | **重设计 R5a**：由核心 `runSuggestionAction` 执行：暂停该来源 / 将严格程度调整为目标档 = 写那个库的 `streams.json`、变更记录记「手动修改」（`by: 'you'`）、0 次模型调用 → `{ done: true, status: 'acted', action, level?, changed }`；忽略 → `{ done: true, status: 'dismissed' }`；修改地址 → `{ done: false, navigate: { screen: 'sources', libraryId, source, dialog: 'edit-address' } }`（不写盘；改地址本身走 `updateSource`）；交由主 Agent 分析 / 生成修改提议 → 记「已转交主 Agent」，把这张提议写成界面词的一段话交主 Agent 跑一回：`{ done: true, status: 'accepted', action, line, turn }`（没选连接 → `no_connection`，什么都不记）。卡不是打开着的、动作不在这张卡的动作表里、卡已过时（记一行失效、不执行）→ `bad_arguments`。发 `suggestions-changed` | 同上 |
+| `getRescore(libraryId)` | 登记 id | **重设计 R5a**（N07）：那个库按旧标准评过的「未通过筛选」：`{ total, items, changedAt, expectedCalls: [lo, hi], cap }`（核心 `rescoreInfo`）；只读 | R5b 的未通过筛选 |
+| `startRescore(libraryId)` | 登记 id | **重设计 R5a**：重新评分进全应用那一条队列（同一时间只运行一个库）：空闲 → 马上开始 `{ started: true, roundId, rescore: true }`；忙 → 排到队尾 `{ started: false, queued: true, position, rescore: true }`，或 `{ started: false, already }`；没有旧标准的条目 → `{ started: false, nothing: true }`；没选连接 → `no_connection`。进度经 `round-progress { rescore: true }`，结束发 `inbox-changed` | 同上 |
 | `getLibrary(view, filter)` | `view` ∈ `kept` · `authored` · `caught` · `pending` · `all`（**重设计 R3**：资料库「全部」= 索引里的每个文件；`caught` 只剩来源与要求的单条测试在用）；`filter = { topics: string[], days: number \| null }` | `{ counts: 核心 libraryCounts（R3 起多 `all`）, view, items, total }`（核心 `listLibrary`）；**R3**：`pending` 的每条多 `path`（在库文件夹里的相对路径，如 `notes\x.md`） | S6 · 资料库 · 缺少文件头 |
 | `searchLibrary(q, filter)` | 字符串（≤ 200 字）；`filter = { view: 'kept' \| 'authored' \| 'all', topics, days }` | 核心 `search` 的结果数组 | S6 搜索框 |
 | `readNote(id)` | id 必须在索引里，否则 `bad_arguments` | 核心 `readNote`；**重设计 R3** 多 `path`：文件在库文件夹里的相对路径（右栏详情「文件」） | S6 正文与右栏 |
@@ -200,9 +204,9 @@ frame-ancestors 'none'
 | `openReader(url, how)` | `url` 是 http(s)，且是当前库记录里的条目（`replayLedger` 的 states 里，抓到的、待看的都算）或索引里某条的 `source`，否则 `bad_arguments`；`how` ∈ `reader` · `browser` | `reader`：在隔离的阅读窗口里打开（§4.9），等抽正文结束后回 `{ mode: 'reading' \| 'original', fallback }`；`browser`：`null`，系统浏览器打开（测试只记日志）。不写盘 | P5「打开原文」「更多」→「在浏览器里打开」（v2 包 H） |
 | `applyHeader(file, header)` | `file` 是核心 `listPending` 里的文件名（否则 `bad_arguments`）；`header` 是对象（页面上改过的文件头，与拟好的合并、用户给的键优先）或 `null`（用拟好的） | 核心 `applyProposedHeader` 的返回 `{ id, file, entry }`；`not-proposable` / `bad-file-name` / `already-conforming` / `bad-id` / `invalid-note` → `bad_arguments`；发 `library-changed` | S8「写入这一个」 |
 | `applyAllHeaders()` | 无 | `{ written: [file…], skipped: [{ file, code }] }`：对每个文件名能当 id、拟得出文件头的待规范文件按拟的写入；文件名不能当 id 的 `code: 'bad-file-name'`，拟不出的 `'not-proposable'`，核心拒绝的是核心的错误码；写了至少一个才发 `library-changed` | S8「全部按拟的写入」 |
-| `getSources()` | 无 | 核心 `sourcesView` | S5 |
+| `getSources()` | 无 | 核心 `sourcesView`；**重设计 R5a（O9）**：每个来源行去掉 `message` 与 `http`（状态 `status`、处理建议 `hint`、连续次数照旧），原文进诊断信息 | S5 |
 | `guessSource(input)` | 字符串 | 核心 `guessSource` | S5「加来源」第一步 |
-| `trySource(source)` | 来源对象（形状同 streams.json 的一项） | 核心 `fetchSource` 的结果，只回 `{ status, hint, http, message, count, sample: [前 3 条的 {title, date}] }`；不写盘 | S5「试抓」 |
+| `trySource(source)` | 来源对象（形状同 streams.json 的一项） | 核心 `fetchSource` 的结果，只回 `{ status, hint, http, message, count, sample: [前 3 条的 {title, date}] }`；不写盘。**重设计 R5a（O9）**：只回 `{ status, hint, count, sample }`——不再有 `http` 与 `message`，原文进日志与诊断信息 | S5「试抓」 |
 | `addSource(source)` | 见核心 5.6 | 核心的返回；错误码 → `bad_arguments`；发 `library-changed` | S5 |
 | `updateSource(name, patch)` | 见核心 5.6；`name` 必须在 streams.json 里 | 同上 | S5 |
 | `removeSource(name)` | 同上 | 同上 | S5 |
@@ -216,7 +220,7 @@ frame-ancestors 'none'
 | `getPipeline()` | 无 | `{ config: 核心 pipelineConfig, defaults: 同形状的默认配置（「恢复默认」用）, lastRound: 核心 roundLog 最近一行 \| null, dismissReasons: recentDismissReasons(10), verdictFailures: { [节点 id]: recentVerdictFailures(…, 5) } }` | S4 |
 | `savePipeline(cfg)` | 整份 pipeline 配置 | `{ config }`；核心 `locked-node` / `bad-config` → `bad_arguments` | S4「保存」「恢复默认」 |
 | `previewNode(nodeId, url, draft)` | `nodeId` 是配置里的关卡或摘要；url 必须在账本里；`draft` 是页面上正在改、还没保存的那个节点（`id` 必须等于 `nodeId`），或 `null` 用已保存的（方案 C3：改了要求先试一条再保存）；草稿不过核心的配置校验 → `bad_arguments` | 核心 `previewNode`（连接失败的 `{ ok: false, code }` 原样作 `data`）；不写账本 / inbox / verdicts；计入连接的用量（`purpose: preview:<节点 id>`）；没选连接 → `no_connection` | S4「试一条看结果」 |
-| `getStatus()` | 无 | `{ ...核心 statusView, nextRun: 定时开着时 getSchedule().nextRunAt，否则 null, connections: getConnections() }` | S11 |
+| `getStatus()` | 无 | `{ ...核心 statusView, nextRun: 定时开着时 getSchedule().nextRunAt，否则 null, connections: getConnections() }`；**重设计 R5a（O9）**：`sources` 每行去掉 `message` / `http`，`lastRound` 的问题去掉 `detail` | S11 |
 | `openLogsFolder()` | 无 | `null`；`shell.openPath(<库>/_pipeline/logs)`（测试只记日志） | S11「打开运行记录文件夹」 |
 | `getGraph(filter)` | **重设计 R3**：`{ days: number \| null }` 或 null——只剩时间范围一个筛选；`status` / `topics` / `links` 一律 `bad_arguments` | 核心 `graph`（主进程固定 `status: 'all'`、`links: true`：每个文件都画，[[链接]] 一直画） | 图谱 |
 | `askLibrary(question)` | 1–500 字（去掉首尾空白后） | 核心 `ask` 的返回（连接失败的 `{ ok: false, code }` 原样作 `data`）；一次只许一个问题在跑（第二个 → `bad_arguments`）；没选连接 → `no_connection`（新错误码） | S10 |
@@ -264,7 +268,7 @@ frame-ancestors 'none'
 **实做差别**（11-03 主进程建方，以代码为准；契约原文不改）：
 
 - `getConnections().kinds.*.code`：三种都带（没问题是 null）；`api` 没存 key 时是 `bad-key`（核心 `detect` 的码）。`claude-code` / `codex` 的检测在第一次 `getConnections` 时做一次并记住，之后只有 `detectConnections` 重做；`setApiVendor` / `setApiKey` / `removeApiKey` 会让 `api` 这一项重新判。`codex` 多一个 `source`（核心给的 `command | path | desktop-app`）。
-- `probes[kind]` 失败时带 `code` 与 `detail`（核心已把 key 抹掉）。页面发起的 `probeConnection` 在打开库时记进库的 `_pipeline/usage.jsonl`（`purpose: probe`）。
+- `probes[kind]` 失败时带 `code`（重设计 R5a 起不带 `detail`：原话进「复制诊断信息」，§4.19）。页面发起的 `probeConnection` 在打开库时记进库的 `_pipeline/usage.jsonl`（`purpose: probe`）。
 - `getHome().problem.caughtKept` = `numbers.caught`（还停在「抓到的」、没丢的条目数）；`kind` 是出错时选定的连接，没选连接时为 null。`getHome().connection.model` 是解析后的主模型（Claude Code / Codex 没填型号时为 null = 工具自己的默认）。
 - `round-progress`：`phase` 为 `self-check`（`startRound` 一进来）→ `fetch`（自检过了、后台开始）→ 每条打完 `gate:<id>` / `summary` → `done`。`counts` 在 `fetch` 阶段为 null；`cap` 是这一轮用的上限。后台抛了异常也发 `done`，`result: null`、`problems: [{ code: 'internal', detail }]`，并进 `getRoundState().lastProblems`。
 - `getRoundState().roundId`：在跑时是当前这轮的，否则是上一轮的（没跑过为 null）；`progress` 是最后一条 `round-progress` 的 payload。
@@ -342,6 +346,7 @@ frame-ancestors 'none'
 | `agent-changed` | `{ phase: 'started' \| 'done', turn, libraryId }` | **v2 包 C**：主 Agent 的一轮开始了 / 结束了（`agentSend`、`acceptSuggestion` 都会发） | 包 G 的对话流（重读 `getAgentTranscript` / `getAgentStatus`） |
 | `quota-changed` | `{ kind }`（哪种连接的；当前连接换了时是新的当前连接） | **v2 包 M**：某种连接的套餐余量 / API 余额读到了、随一次调用来了、读不到了，或当前连接换了（§4.11） | 左栏左下角（重读 `getQuota`） |
 | `queue-changed` | `{ running, waiting }`（库的 id；没有在跑的时 `running` 为 null） | **v2 包 L**：有库排进队列、队列里的一轮开始或结束（§4.12） | 应用（`lib/queue.js useQueue` 重读 `getQueue`：右栏「进度」、左栏第二行、库架、概览） |
+| `suggestions-changed` | `{ libraryId, key, status }`（`status` ∈ `open` · `dismissed` · `accepted` · `acted` · `expired`） | **重设计 R5a**：某个库的系统检测新出、被忽略、转交主 Agent、被执行、或失效（§4.19；运行结束后、放弃落账后、库的配置改了、确认了一张主 Agent 提议后都会查；规则 ④ 查一个库时两边都记，对方库那张也发一次，precheck fix 3） | R5b 的待确认（重读 `listToConfirm`） |
 <!-- events:end -->
 
 **加一个主题**：`src/main/events.mjs` 的 `EVENT_TOPICS` 加一项、`src/preload/preload.cjs` 的 `EVENT_TOPICS` 加同名、上表加一行；少一处 `npm test` 就红。
@@ -762,6 +767,52 @@ frame-ancestors 'none'
 - **为什么单色、跟主题**：定稿只有白底上的黑标与红蓝 3D 两种，**没有深色底版本**（`设计说明.md` 第六节「没做的」）。把黑标直接放进深色主题会看不见；红蓝 3D 在深底上也没设计过。单色记号用主题自己的墨色，四套主题 × 浅 / 深色都和正文一样清楚，而且不用写任何新颜色（覆盖层只用模板变量，`kit.test` 核）。红蓝 3D 只留在应用图标上——那里永远是白色圆角底，正是定稿画的样子。
 - 品牌词规矩（V7）不变：品牌那里只出现「流息 / Streams」。
 - **测试**：`test/ui-brand.test.mjs`（新）；`test/icon.test.mjs`（加：五个来源逐字节等于定稿；设了 `STREAMS_SHARP_DIR` 时重建不跳过）；`test/ui-first-run.test.mjs`（加：首次打开的左栏记号）；`test/ui-ask-r3.test.mjs`（加：问库头像是记号、单线黑白深色下也画出来）；`scripts/lib/mirror.mjs` 的镜像多链一个 `docs/design/logo/source`。变异（`npm run mutants -- "logo-*"`）：`logo-mark-black`（记号写死 #000 → 深色四条红）· `logo-weave-back`（左栏换回 weave）· `logo-path-changed`（路径一个数不同）· `logo-overlay-gone`（覆盖层那条规则没了 → 八条红）· `logo-avatar-weave`（头像换回 weave）· `logo-icon-source`（icon-16.svg 改一个字节）。截图：`node scripts/shots-logo.mjs` → `docs/shots/2026-11-12-logo/`。
+
+### 4.19 §四补：重设计 R5a——一种提议的后台、规则动作、追踪要求进评分与重新评分（11-13）
+
+契约 `docs/checks/2026-11-12-r5a/contract.md`；维护者 11-11 动作表、11-12 三问（施工计划末尾）。本包只给数据与桥，**界面是 R5b 的**：旧的提议卡 / 建议卡组件照旧显示（建议卡的「要」现在等于「交由主 Agent 分析」，⑤ 等于「生成修改提议」），不因本包坏。
+
+**一种提议、两个来处**（`services/agent.mjs`）：主 Agent 提议照旧在 `<appData>\proposals.jsonl`，系统检测照旧在每个库的 `_pipeline\suggestions.jsonl`，存储不合并；主进程给页面一个统一视图 `listToConfirm()`（§四表）：全部库（**不限当前库**）待确认的，每条带 `from: 'agent' | 'system'`、库 id 与库名、kind、按动作表算好的动作（`{ id, label, values?, level?, primary, callsModel }`，`label` 是 `texts/proposals.js PROPOSALS` 的键，中英两张字典都有；`callsModel` 为真的两种——交由主 Agent 分析、生成修改提议——R5b 要在按钮下写明「由主 Agent 处理，将消耗模型调用」`PROPOSALS.callsModel`），以及最近处理过的 ≤ 50 张的状态（主 Agent 提议：已确认 / 已拒绝 / 已提出修改 / 已失效 / 未能执行；系统检测：`dismissed` 已忽略 · `accepted` 已转交主 Agent（带 `action`）· `acted` 已执行（带 `action`、`level`）· `expired` 已失效（带 `reason`，`PROPOSALS.expired` 的键））。
+
+**过时**：列之前、每次运行结束后（`afterRound`）、每次放弃落账之后（`afterDismiss`：规则 ⑤ 这时就查，不等运行结束）、当前库发 `library-changed` 时（`main.mjs` → `checkLibrary`）、确认一张主 Agent 提议之后（`services/proposals.mjs` 的 `afterConfirmed` → `afterProposal`）都跑一遍核心 `checkSuggestions`（给它的「其他库」是**全部登记的**库，读得出读不出都算：对方库暂时读不出——移动盘拔了——它的 ④ 留着，只有从库列表里移除了才失效，precheck fix 8；① 的情况变了——暂时失败 ↔ 地址无效——旧卡失效、同一次检查出对的那张，precheck fix 7）：来源已暂停 / 移除 / 改了地址、严格程度已不是记卡时那档、对方库已移除或不再重合、追踪要求已改的系统检测记一行失效、从列表里消失、不能再执行。所以**确认一张「暂停该来源」的主 Agent 提议，同一来源的 ① ③ 立刻一并收起**（发 `suggestions-changed { status: 'expired' }`）。
+
+**新事件** `suggestions-changed { libraryId, key, status }`（§四事件表；`events.mjs`、`preload.cjs` 的 `EVENT_TOPICS` 同名）：系统检测新出（`open`）、忽略、转交、执行、失效时都发；连同 `proposals-changed`，页面重读 `listToConfirm` 即可，不靠执行的先后（O5）。
+
+**动作**（`actOnSuggestion(libraryId, key, action)`，库 id 不限当前库；由核心 `runSuggestionAction` 做，core-api 5.14.6）：
+
+| 动作 | 主进程做什么 | 变更记录 | 模型调用 |
+|---|---|---|---|
+| 暂停该来源 `pause-source` | 那个库的 `streams.json` 里该来源 `paused: true`；记「已执行」；同来源的 ③（或 ①）因此失效 | `sources` 一行 `by: 'you'`（手动修改） | 0 |
+| 将严格程度调整为「…」 `set-strictness` | R4a 的 `saveStrictness` 调到目标档（两道过关线都不高于当前、至少一道更低的最严一档；自定义也照此算）；不触发自动重评（下面「重新评分」） | `thresholds` 一行 `by: 'you'` | 0 |
+| 修改地址 `edit-address` | 不写盘：回 `{ navigate: { screen: 'sources', libraryId, source, dialog: 'edit-address' } }`，R5b 跳到那个库的「来源与要求」并打开那一行的修改地址对话框；改地址本身走 `updateSource`（照旧记手动修改），改完卡因地址已改失效 | 由 `updateSource` 记 | 0 |
+| 忽略 `dismiss` | 记一行「已忽略」，收起 | 无 | 0 |
+| 交由主 Agent 分析 `forward` | 先查过时（不适用 → 记失效、`bad_arguments`），再把这张提议写成**界面词**的一段话（核心 `handoffText`：不含 kind 名、JSON、原始报错）交主 Agent 跑一回（`as: 'note'`），回复与它出的主 Agent 提议出现在主 Agent 的对话里；**那一回有回答了才记「已转交主 Agent」**（precheck fix 6）。连接失败 → 回 `{ done: false, status: 'open', failure: { category: 'connection', code } }`（`code` 页面用 `CONNECTIONS.codes` 说），提议仍待确认、可以再点；没选连接 → `no_connection`，什么都不记 | 无 | 主 Agent 一回 |
+| 生成修改提议 `draft-proposal`（⑤） | 同上，那段话要主 Agent 出一张「修改追踪要求」的主 Agent 提议（修改前 / 修改后，附当前追踪要求）；用户确认前追踪要求不变 | 确认时由那张提议记 | 主 Agent 一回 |
+
+卡不是打开着的、动作不在这张卡的动作表里、卡已过时（记一行失效，不执行）→ `bad_arguments`。改的是当前库时另发一次 `library-changed`。没有任何动作写 `notes\`（`writeNoteFile` 仍是唯一入口）。
+
+**追踪要求进评分**：相关度关卡的提示词带「这个资料库的追踪要求（用户写的，原样照录）：…」，追踪要求算进相关度的 cfg（core-api 4.0）；改追踪要求 = 评分标准变了。
+
+**重新评分**（N07，core-api 4.1 / 4.6）：评分标准（追踪要求、严格程度 / 过关线、评分环节的提示词与材料）改了以后，下一次运行**不再**重评已评过的条目：待看的留在待看，未通过筛选的留在未通过筛选、标着按旧标准评分；新抓到的照常按新标准评。数据：`getInbox().rejected` 每条多 `old`、顶层多 `old`；`getInbox().rescore` 与 `getRescore(libraryId)` = `{ total, changedAt, expectedCalls: [lo, hi], cap }`（后者另带 `items`）。`startRescore(libraryId)` 进全应用那一条队列（`services/schedule.mjs startRescore`：空闲马上开始，忙就排到队尾，`getQueue().waiting` 那一项带 `job: 'rescore'`），后台跑核心 `rescoreRejected`：只评旧标准的条目，调用记进那个库的用量文件、算进单次运行上限；通过的进待看（标记照 R2），没通过的留在未通过筛选、不再标旧；不写 `notes\`、不写运行记录、不发「本次运行新增」的通知。进度经 `round-progress { rescore: true, phase: 'self-check' | 'rescore:<节点>' | 'done' }`，结束发 `inbox-changed`。到上限停下：还没评到的条目保留旧判定，等下一次点「重新评分」接着评（不进下次运行）；停在半路的那一条（某一道已按新标准重评、下一道还没评，结束时 `result.counts.partial` = 1，它花的调用在 `calls` 里）已不算旧，它的下一道由下一次运行接着评（precheck fix 9）。**已有库升级后**：写过追踪要求的库，旧判定全部变成按旧标准评分，留在原处，不自动重评（预期如此）。
+
+**原始报错只进诊断信息**（O9，后台这一半；`public-data.mjs`、`raw-errors.mjs`）：桥给页面的数据里不带原始报错文字与 HTTP 码——
+
+| 数据 | 页面拿到的 | 原文去哪 |
+|---|---|---|
+| 主 Agent 提议的失败（`listProposals`、`listToConfirm`、确认 / 拒绝 / 提出修改回的卡） | `failure: { step, done, rolledBack, left?, category: 'refused' \| 'error', advice }`；试抓 `trial` 只有状态、处理建议、条数 | `raw-errors` |
+| 试抓（`trySource`、`applyStarterPack`） | `status`（五种状态）、`hint`（处理建议的键）、条数、样例 | 同上 |
+| 来源行（`getSources`、`getStatus`） | 状态、处理建议、连续次数（没有 `message` / `http`） | 同上 |
+| 系统检测的证据（`listToConfirm`、旧的 `listSuggestions`） | 核心 `suggestionFacts`：状态与处理建议的键、次数、原句、比例 | 记卡时写进 `raw-errors` |
+| 运行的问题（`round-progress`、`getRoundState`、`getHome().lastRound`、`getPipeline().lastRound`、`getStatus().lastRound`；**`startRound` 的回答**——自检没过时 `{ started: false, problems }`，不论直接开始还是经队列 `schedule.mjs startCurrent`，以及队列自己开始的 `startRoundIn`（precheck fix 1）） | `{ code, connectionCode?, node? }` | 同上 |
+| 测试连接（`probeConnection`、`getConnections().probes`） | `{ ok, latencyMs, model, code? }`：失败只给 `code`（页面用 `CONNECTIONS.codes` 说），不带 `detail`（precheck fix 11） | 同上 |
+| 主 Agent 的对话记录（`getAgentTranscript`；`agentSend` 的回答） | 没能生成的提议、连接失败、会话接不上的那几行是界面词（核心 `publicRow`：动作名 · 失败类别，「连接出了问题：网络连不上…」）；`data` 只有页面要说的键（`dropped: [{ index, category }]`、`error` = 连接的 code、`session`），没有 kind 名与原文（precheck fix 2） | 同上（核心 `agentTurn` 的 `ctx.rawError`） |
+| 交由主 Agent 分析 / 生成修改提议（`actOnSuggestion`、`acceptSuggestion`） | 那一回有回答了才记「已转交」；连接失败 → `{ done: false, status: 'open', failure: { category: 'connection', code } }`，提议仍待确认、可再点（precheck fix 6） | 同上 |
+
+`raw-errors.mjs createRawErrors`：每条原文一行进应用日志（`raw error: <时间> <哪儿>: code … · HTTP … · 原文`），最近 `RAW_ERRORS_MAX` = 50 条留在内存里，「复制诊断信息」（设置 → 关于 → 高级）多一段「the last n raw errors」把它们列出（同一条不重复）；整段诊断信息照旧去掉 key（`diagnostics.mjs`），所以即使原文里混进了 key 也带不出去。页面上的 `({code})` 三处（问题卡、运行漏斗、资料库）属 R5b；本包保证数据层给得出界面化的说法。
+
+**主 Agent 只用界面词**（N11，core-api 5.15.3 / 5.15.9）：系统提示带统一用词表与按钮原文；局面摘要、只读查询、转交的那段话全是界面词，不再交原始报错。
+
+**测试**：核心 `core/test/r5a.test.mjs`；桌面 `test/services-r5a.test.mjs`（真库、真的 proposals / agent / pipeline / schedule 服务，核心的脚本连接，本机假服务器）；`r5a-*` 变异体在两个 `scripts/mutation-check.mjs`。因本包改的旧测试都注明「redesign R5a」与原因。
 
 ## 五、界面写法
 

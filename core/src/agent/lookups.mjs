@@ -10,6 +10,9 @@
 //   suggestions   { libraryId? }           the open suggestion cards of that library (or every library)
 //   notes_search  { libraryId, query }     kept items (index.jsonl, status kept) whose title holds every word of the query
 //                                          (case aside): at most NOTES_SEARCH_MAX, title and date only — never the text
+// Redesign R5a (N11 · O9): every result in the interface's words — a fetch's state as the page says it with what to do
+// about it (words.mjs stateWord / adviceOf), never its internal code, its HTTP code or the fetcher's message; a proposal's
+// kind and status as the page names them; a 系统检测 as one sentence (act.mjs suggestionText), never its kind or evidence.
 // Errors: unknown-what · missing-field · unknown-library · library-unreadable · unknown-source. A result longer than
 // RESULT_MAX characters once written out is cut (and says so).
 import { readConfig } from '../library/config.mjs';
@@ -20,7 +23,9 @@ import { scheduleOf } from '../pipeline/schedule.mjs';
 import { thresholdsOf } from '../proposals/changes.mjs';
 import { openSuggestions } from '../suggest/records.mjs';
 import { LOOKUP_KINDS } from './protocol.mjs';
-import { libraryFacts } from './situation.mjs';
+import { suggestionText } from '../suggest/act.mjs';
+import { PROPOSAL_KIND_WORDS, PROPOSAL_STATUS_WORDS, adviceOf, stateWord } from './words.mjs';
+import { PROBLEM_WORDS, libraryFacts } from './situation.mjs';
 
 export const SOURCE_LOG_LINES = 10;
 export const PROPOSALS_SHOWN = 20;
@@ -34,7 +39,11 @@ function entryOf(registry, id) {
   return (Array.isArray(registry?.libraries) ? registry.libraries : []).find((l) => l && l.id === id) ?? null;
 }
 
-const shortCard = (c) => ({ id: c.id, kind: c.kind, libraryId: c.libraryId ?? null, status: c.status, why: c.why, createdAt: c.createdAt, ...(c.reviseText ? { reviseText: c.reviseText } : {}), ...(c.reason ? { reason: c.reason } : {}) });
+const kindWord = (k) => PROPOSAL_KIND_WORDS.zh[k] ?? k;
+const shortCard = (c) => ({ id: c.id, kind: c.kind, what: kindWord(c.kind), libraryId: c.libraryId ?? null, status: PROPOSAL_STATUS_WORDS.zh[c.status] ?? '', why: c.why, createdAt: c.createdAt, ...(c.reviseText ? { reviseText: c.reviseText } : {}) });
+// a source's last fetch as the model may see it: the state in words and what to do (no code, no HTTP code, no message)
+const fetchFacts = (status) => ({ state: stateWord(status, 'zh'), advice: adviceOf(status, 'zh') });
+const namesOf = (registry) => Object.fromEntries((Array.isArray(registry?.libraries) ? registry.libraries : []).filter((l) => l && typeof l.id === 'string').map((l) => [l.id, l.name]));
 
 function cut(out) {
   const text = JSON.stringify(out.result ?? null);
@@ -56,7 +65,7 @@ export function runLookup(item, { registry, proposals = [], now = () => new Date
     case 'library': {
       const cfg = readConfig(entry.path);
       if (!cfg.ok) return err(what, 'library-unreadable', { libraryId: id });
-      const facts = libraryFacts(entry, { now, proposals: cards });
+      const facts = libraryFacts(entry, { now, proposals: cards, names: namesOf(registry) });
       const status = (() => { try { return lastRoundStatus(entry.path); } catch { return {}; } })();
       const c = cfg.config;
       const pipeline = pipelineFrom(c);
@@ -65,11 +74,13 @@ export function runLookup(item, { registry, proposals = [], now = () => new Date
         topics: (Array.isArray(c.topics) ? c.topics : []).filter((t) => t && typeof t.name === 'string').map((t) => ({ name: t.name, keywords: Array.isArray(t.keywords) ? t.keywords : [] })),
         sources: (Array.isArray(c.sources) ? c.sources : []).filter((s) => s && typeof s.name === 'string').map((s) => ({
           name: s.name, kind: s.kind, ...(s.url ? { url: s.url } : {}), ...(s.query ? { query: s.query } : {}), ...(s.topic ? { topic: s.topic } : {}),
-          paused: s.paused === true, last: status[s.name] ? { status: status[s.name].status, consecutive: status[s.name].consecutive, at: status[s.name].lastTs ?? null, message: status[s.name].message ?? '' } : null,
+          paused: s.paused === true, last: status[s.name] ? { ...fetchFacts(status[s.name].status), consecutive: status[s.name].consecutive, at: status[s.name].lastTs ?? null } : null,
         })),
         thresholds: thresholdsOf(pipeline), cap: pipeline.cap ?? null, schedule: scheduleOf(c.schedule),
-        inbox: facts.inbox, lastRound: facts.lastRound, problems: facts.problems, noOutputStreak: facts.noOutputStreak,
-        suggestions: facts.suggestions, pendingProposals: facts.pendingProposals,
+        inbox: facts.inbox, lastRound: facts.lastRound,
+        // redesign R5a (precheck fix 5): the problems in the interface's words, as the situation says them (not missing / sources / no-output)
+        problems: facts.problems.map((p) => PROBLEM_WORDS[p] ?? p), noOutputStreak: facts.noOutputStreak,
+        suggestions: facts.suggestions, pendingProposals: facts.pendingProposals.map((p) => ({ id: p.id, kind: p.kind, what: kindWord(p.kind) })),
       };
       return cut({ what, ok: true, result });
     }
@@ -81,7 +92,7 @@ export function runLookup(item, { registry, proposals = [], now = () => new Date
       const { entries } = readFetchLog(entry.path);
       const rows = entries.filter((e) => e.source === item.name);
       if (!known && rows.length === 0) return err(what, 'unknown-source', { libraryId: id, name: item.name });
-      const result = rows.slice(-SOURCE_LOG_LINES).reverse().map((e) => ({ ts: e.ts, status: e.status, http: e.http ?? null, count: e.count, new: e.new, message: e.message ?? '' }));
+      const result = rows.slice(-SOURCE_LOG_LINES).reverse().map((e) => ({ ts: e.ts, ...fetchFacts(e.status), count: e.count, new: e.new }));
       return cut({ what, ok: true, result: { libraryId: id, name: item.name, inConfig: known, lines: result } });
     }
     case 'proposals': {
@@ -94,7 +105,7 @@ export function runLookup(item, { registry, proposals = [], now = () => new Date
       for (const l of libs) {
         let open = [];
         try { open = openSuggestions(l.path); } catch { open = []; }
-        for (const s of open) out.push({ libraryId: l.id, key: s.key, kind: s.kind, subject: s.subject, evidence: s.evidence, createdAt: s.createdAt });
+        for (const s of open) out.push({ libraryId: l.id, library: l.name, text: suggestionText(s, { otherName: namesOf(registry)[s.libraryId ?? s.subject], lang: 'zh' }), createdAt: s.createdAt });
       }
       return cut({ what, ok: true, result: { libraryId: entry ? id : null, suggestions: out } });
     }

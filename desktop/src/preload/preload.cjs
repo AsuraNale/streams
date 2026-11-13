@@ -112,6 +112,11 @@ const METHODS = [
   'listSuggestions',
   'dismissSuggestion',
   'acceptSuggestion',
+  // one kind of 提议, the actions of a 系统检测, 重新评分 (redesign R5a)
+  'listToConfirm',
+  'actOnSuggestion',
+  'getRescore',
+  'startRescore',
   // interface B: the library and reading
   'getLibrary',
   'searchLibrary',
@@ -182,6 +187,8 @@ const EVENT_TOPICS = [
   'quota-changed',
   // the queue of the rounds changed (v2 package L)
   'queue-changed',
+  // a 系统检测 made, dismissed, handed over, acted on or expired (redesign R5a)
+  'suggestions-changed',
 ]
 const EVENT_CHANNEL = 'streams:event'
 

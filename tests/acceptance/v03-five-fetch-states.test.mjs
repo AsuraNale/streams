@@ -90,10 +90,14 @@ test('V3 server: 200 with items, 200 empty, 404, 503 (Retry-After), 429 (Retry-A
     const r = await tryUrl(url)
     assert.equal(r.status, status, `${path}: ${JSON.stringify(r)}`)
     assert.equal(r.hint, hint, path)
-    assert.equal(r.http, spec.status, path)
     assert.equal(srv.hits(path), 1, `${path} was really requested`)
-    if (retryAfter !== undefined) assert.match(r.message, new RegExp(`Retry-After: ${retryAfter}s`), path)
+    // redesign R5a (O9; docs/checks/2026-11-12-r5a/contract.md R5a-6): the 「试抓」 answer the page gets no longer carries the
+    // HTTP code or the fetcher's message (they go to 复制诊断信息), so the two checks below read them where they are made — the
+    // core's fetchSource of the same address, which the next line already calls. Only where they are read changed: the same
+    // HTTP code and the same Retry-After message are asserted (they used to be read as r.http / r.message).
     const direct = await core.fetchSource({ name: 'probe', kind: 'rss', url }, core.makeContext({ timeoutMs: 3000 }))
+    assert.equal(direct.http, spec.status, path)
+    if (retryAfter !== undefined) assert.match(direct.message, new RegExp(`Retry-After: ${retryAfter}s`), path)
     if (retryAfter !== undefined) assert.equal(direct.retryAfterSeconds, retryAfter, `${path}: retryAfterSeconds`)
     const zh = words(r, ZH)
     assert.equal(zh.word, PLAN_WORDS[status], path)

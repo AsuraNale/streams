@@ -23,6 +23,10 @@
  * default place) \ <the name as a folder name>. Development and tests only (a packaged app ignores it; main.mjs reads it):
  *   STREAMS_DEV_PROPOSALS   a JSON file: [{ kind, params, why }] (or { proposals: [...] }) made into pending cards by: 'dev'
  *                           at start (`loadDev`); a library kind without params.libraryId takes the current library's
+ * Redesign R5a (O9; docs/desktop.md §4.19): what the bridge hands the page of a card — listProposals, and the card each answer
+ * gives back — has its trials and its failure without the raw texts (public-data.mjs publicCard: a state or a kind of failure and
+ * the key of what to do); the texts go to the log and 「复制诊断信息」 (raw-errors.mjs). A confirmed card is told to
+ * `afterConfirmed` (main.mjs: services/agent.mjs afterProposal — a confirmed 暂停该来源 expires that source's 系统检测 ① ③).
  * Pure Node apart from what is injected, so the rules run in plain Node (test/services-proposals.test.mjs).
  * @module desktop/main/services/proposals
  */
@@ -30,6 +34,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BridgeError, bridgeErrorOf } from '../bridge-methods.mjs'
+import { publicCard } from '../public-data.mjs'
 import {
   LIBRARY_KINDS, PROPOSALS_FILE, StreamsError, appendProposal, confirmProposal, declineProposal, draftProposal, libraryProposalsPath,
   readProposals, reviseProposal, whoDecided,
@@ -49,8 +54,10 @@ import {
  * @param {() => {resolved: string}} [o.locale] - the language of a new library's default prompts
  * @param {string|null} [o.devProposals] - STREAMS_DEV_PROPOSALS
  * @param {string} [o.scratchRoot] - where the core tries a change on a copy (default the OS temp folder)
+ * @param {(card: object) => void} [o.afterConfirmed] - redesign R5a: after a card was confirmed (services/agent.mjs afterProposal)
+ * @param {{note: Function}|null} [o.rawErrors] - redesign R5a (O9): raw-errors.mjs
  */
-export function createProposalsService({ appDataDir, library, scheduler = () => null, emit, log, now = () => new Date(), fetchContext = {}, libraryRoot = () => null, fallbackSchedule = () => null, locale = () => ({ resolved: 'zh-CN' }), devProposals = null, scratchRoot }) {
+export function createProposalsService({ appDataDir, library, scheduler = () => null, emit, log, now = () => new Date(), fetchContext = {}, libraryRoot = () => null, fallbackSchedule = () => null, locale = () => ({ resolved: 'zh-CN' }), devProposals = null, scratchRoot, afterConfirmed = () => {}, rawErrors = null }) {
   const file = join(appDataDir, PROPOSALS_FILE)
   // id → the card as it is now; the order the cards came in
   const cards = new Map()
@@ -113,13 +120,16 @@ export function createProposalsService({ appDataDir, library, scheduler = () => 
       emit('settings-changed', { libraryId: card.libraryId })
     }
     if (card.kind !== 'run_round' && library.current()?.libraryId === card.libraryId) emit('library-changed', library.current())
+    try { afterConfirmed(card) } catch (err) { log(`proposals: after ${card.id}: ${String(err?.message ?? err)}`) }
   }
+  /** Redesign R5a (O9): the card as the page may see it. */
+  const shown = card => publicCard(card, { raw: rawErrors })
 
   const handlers = {
     /** The cards, newest first; `filter` null or { status?, libraryId? } (libraryId null: the create_library cards). */
     listProposals(filter) {
       const f = filter ?? {}
-      return [...cards.values()].reverse().filter(c => (f.status === undefined || c.status === f.status) && (f.libraryId === undefined || c.libraryId === f.libraryId))
+      return [...cards.values()].reverse().filter(c => (f.status === undefined || c.status === f.status) && (f.libraryId === undefined || c.libraryId === f.libraryId)).map(shown)
     },
     /** 「确认」: the only call that changes anything. A card not pending → bad_arguments, nothing done. */
     confirmProposal(id) {
@@ -147,23 +157,24 @@ export function createProposalsService({ appDataDir, library, scheduler = () => 
         throw bridgeErrorOf(err)
       }
       persist(next, { alsoIn: next.kind === 'create_library' ? next.result?.folder ?? null : null })
-      log(`proposals: ${id} ${next.kind}: ${next.status}${next.reason ? ` (${next.reason})` : ''}${next.failure ? ` at ${next.failure.step}: ${next.failure.message}` : ''}`)
+      log(`proposals: ${id} ${next.kind}: ${next.status}${next.reason ? ` (${next.reason})` : ''}${next.failure ? ` at ${next.failure.step}` : ''}`)
+      if (next.failure) rawErrors?.note(`proposal ${id} ${next.kind} failed at ${next.failure.step ?? '?'}`, { message: next.failure.message, code: next.failure.code })
       afterConfirm(next)
-      return next
+      return shown(next)
     },
     /** 「不要」: the card declined; nothing else changes. */
     declineProposal(id) {
       let next
       try { next = declineProposal(known(id), { now }) } catch (err) { throw bridgeErrorOf(err) }
       log(`proposals: ${id}: declined`)
-      return persist(next)
+      return shown(persist(next))
     },
     /** 「改一下」: the card goes back with the user's words (package C makes a new one from them); nothing else changes. */
     reviseProposal(id, text) {
       let next
       try { next = reviseProposal(known(id), text, { now }) } catch (err) { throw bridgeErrorOf(err) }
       log(`proposals: ${id}: sent back to be revised`)
-      return persist(next)
+      return shown(persist(next))
     },
     /** 「谁定的」 of the current library: each field's last change, by 'you' or 'agent-confirmed', or null. */
     getWhoDecided() {

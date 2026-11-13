@@ -116,7 +116,8 @@ export async function runGate({ libraryDir, cfg, node, item, body, materials, re
       const score = r.json[scoreKey];
       if (write) {
         const ts = now().toISOString();
-        appendEvent(libraryDir, { ts, ev: 'scored', url: item.url, node: node.id, score, reason: r.json.reason, quote: r.json.quote, materials: mats, cfg: nodeCfg, round });
+        // redesign R5a: the threshold the verdict was judged against goes with it (queue.mjs keeps an old verdict where it was)
+        appendEvent(libraryDir, { ts, ev: 'scored', url: item.url, node: node.id, score, reason: r.json.reason, quote: r.json.quote, materials: mats, cfg: nodeCfg, threshold: node.threshold, round });
         for (const k of enumKeysOf(node)) appendEvent(libraryDir, { ts, ev: 'scored', url: item.url, node: k, value: r.json[k], reason: r.json.reason, cfg: nodeCfg, round });
       }
       return withMark({ status: 'scored', score, passed: score >= node.threshold, output: r.json, verification: v, calls: counted.calls() });

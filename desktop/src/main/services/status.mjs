@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { BridgeError, coreCaller } from '../bridge-methods.mjs'
 import * as realCore from '../core.mjs'
+import { publicResult, publicSourceRow } from '../public-data.mjs'
 
 /**
  * @param {object} o
@@ -22,8 +23,10 @@ import * as realCore from '../core.mjs'
  * @param {{openPath: (path: string) => Promise<string>}} o.shell
  * @param {Record<string, unknown>} [o.core] - the core's exports (tests: a stand-in for what is not there yet)
  * @param {() => Date} [o.now]
+ * @param {{note: Function}|null} [o.rawErrors] - redesign R5a (O9): raw-errors.mjs — the sources' last fetch messages and the last
+ *   run's problem details go there, not to the page
  */
-export function createStatusService({ library, connections, log, hidden = false, shell, core = realCore, now = () => new Date(), schedule = () => null }) {
+export function createStatusService({ library, connections, log, hidden = false, shell, core = realCore, now = () => new Date(), schedule = () => null, rawErrors = null }) {
   const call = coreCaller(core)
 
   const handlers = {
@@ -31,7 +34,9 @@ export function createStatusService({ library, connections, log, hidden = false,
       const dir = library.require()
       // 下次运行 (plan C8): the schedule's next slot (services/schedule.mjs view), null while the schedule is off
       const s = schedule()
-      return { ...call('statusView', dir, { now }), nextRun: s?.enabled ? s.nextRunAt ?? null : null, connections: await connections.handlers.getConnections() }
+      // redesign R5a (O9): no fetcher message, no HTTP code, no problem detail to the page
+      const v = call('statusView', dir, { now })
+      return { ...v, lastRound: publicResult(v.lastRound ?? null, { raw: rawErrors, where: 'last run' }), sources: (v.sources ?? []).map(s => publicSourceRow(s, { raw: rawErrors, where: 'status row' })), nextRun: s?.enabled ? s.nextRunAt ?? null : null, connections: await connections.handlers.getConnections() }
     },
     async openLogsFolder() {
       const dir = library.require()

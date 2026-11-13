@@ -126,11 +126,11 @@ function itemOf(state, summaries) {
 }
 
 // streams.json topics[] names: the library's angle, told to every gate and the summary (prompts.mjs libraryBlock)
-function libraryTopics(config) {
+export function libraryTopics(config) {
   return (config.topics ?? []).map((t) => (typeof t === 'string' ? t : t?.name)).filter((t) => typeof t === 'string' && t.trim() !== '');
 }
 
-function topicOf(config, sourceName) {
+export function topicOf(config, sourceName) {
   const src = (config.sources ?? []).find((s) => s && s.name === sourceName);
   return src && typeof src.topic === 'string' && src.topic.trim() !== '' ? src.topic.trim() : undefined;
 }
@@ -139,7 +139,7 @@ function emptyGateCount() {
   return { passed: 0, failed: 0, unscored: 0 };
 }
 
-async function materialFor({ libraryDir, cfg, node, state, ctx, summaries }) {
+export async function materialFor({ libraryDir, cfg, node, state, ctx, summaries }) {
   const item = itemOf(state, summaries);
   if (node.kind === 'gate' && node.material === 'meta') return { item, body: undefined, materials: 'meta' };
   const b = await fetchBody(state.url, ctx, { libraryDir, bodyMaxChars: cfg.bodyMaxChars });

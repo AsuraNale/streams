@@ -94,7 +94,9 @@ test('R4b-1 来源: one row per source as sourcesView gives it — the state, th
   const view = core.sourcesView(dir())
   assert.deepEqual(await rowsShown(), view.sources.map(x => [x.name, x.paused ? 'paused' : x.status ?? 'never', String(Boolean(x.paused))]))
   const old = await s.page.evaluate(() => { const r = document.querySelector('[data-row="old-blog"]'); return { n: r.dataset.consecutive, hint: r.querySelector('[data-hint]')?.dataset.hint, words: r.querySelector('[data-hint]')?.textContent, state: r.querySelector('[data-fetch-word]').textContent.trim() } })
-  assert.deepEqual(old, { n: '4', hint: 'fix-address-or-remove', words: FETCH_HINTS['fix-address-or-remove'], state: fmt(SOURCES.row.streak, { state: FETCH_STATES.gap, http: 404, n: 4 }) })
+  // redesign R5a (O9): getSources no longer hands the page the HTTP code (it goes to 复制诊断信息), so the row says the state and
+  // the runs in a row without it — this line used to expect SOURCES.row.streak with HTTP 404
+  assert.deepEqual(old, { n: '4', hint: 'fix-address-or-remove', words: FETCH_HINTS['fix-address-or-remove'], state: fmt(SOURCES.row.streakNoHttp, { state: FETCH_STATES.gap, n: 4 }) })
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-row="mcp-news"] [data-hint]')?.dataset.hint), 'retry-next-round')
   const fine = view.sources.find(x => x.status === 'ok' && !x.paused)
   if (fine) assert.equal(await s.page.evaluate(n => document.querySelector(`[data-row="${n}"] [data-hint]`), fine.name), null)

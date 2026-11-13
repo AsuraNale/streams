@@ -124,6 +124,182 @@ const MUTANTS = [
     edits: [['src/pipeline/config.mjs', "    for (const k of ['threshold', 'material', 'requirement']) if (stored[k] !== undefined) out[k] = stored[k];", "    for (const k of ['threshold', 'material', 'requirement', 'tools']) if (stored[k] !== undefined) out[k] = stored[k];"]],
     test: ['test/r4b-sources.test.mjs', '--test-name-pattern=no tool'],
   },
+  // redesign R5a (docs/checks/2026-11-12-r5a/contract.md 「测」: each 反向 named there, and a few more)
+  {
+    id: 'r5a-gap-threshold-3',
+    what: 'rule ① needs 地址无效 three times in a row (not two)',
+    edits: [['src/suggest/rules.mjs', 'export const SOURCE_GAP_ROUNDS = 2;', 'export const SOURCE_GAP_ROUNDS = 3;']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ①'],
+  },
+  {
+    id: 'r5a-free-text-counts',
+    what: 'rule ⑤ counts a dismissal with words only (「其他原因…」) as a reason of its own',
+    edits: [
+      ['src/suggest/rules.mjs', "typeof ev.url !== 'string' || !DISMISS_QUICK.includes(ev.quick)) continue;", "typeof ev.url !== 'string' || (!DISMISS_QUICK.includes(ev.quick) && typeof ev.reason !== 'string')) continue;"],
+      ['src/suggest/rules.mjs', "    out.push({ ts: typeof ev.ts === 'string' ? ev.ts : null, quick: ev.quick, url: ev.url });", "    out.push({ ts: typeof ev.ts === 'string' ? ev.ts : null, quick: ev.quick ?? ev.reason, url: ev.url });"],
+    ],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ⑤'],
+  },
+  {
+    id: 'r5a-target-custom',
+    what: 'rule ②\'s target level needs both thresholds lower (a custom 0.7 / 0.6 gets 宽松, not 标准)',
+    edits: [['src/suggest/act.mjs', '(L.relevance < r || L.substance < s)', '(L.relevance < r && L.substance < s)']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ②'],
+  },
+  {
+    id: 'r5a-stale-acts',
+    what: 'a 系统检测 that no longer fits (its source paused by hand) is still acted on',
+    edits: [['src/suggest/act.mjs', '  if (reason) return { done: false, stale: reason,', '  if (false) return { done: false, stale: reason,']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=no longer fits is expired'],
+  },
+  {
+    id: 'r5a-handoff-kind',
+    what: 'the handing over to the main agent names the card\'s kind (an internal name)',
+    edits: [['src/suggest/act.mjs', '  const what = suggestionText(s, { otherName, lang: l, thresholds });', '  const what = `${s.kind}: ${suggestionText(s, { otherName, lang: l, thresholds })}`;']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=the handing over'],
+  },
+  {
+    id: 'r5a-no-brief-in-prompt',
+    what: 'the 相关度 prompt does not carry the library\'s 追踪要求',
+    edits: [['src/pipeline/prompts.mjs', "  if (typeof brief === 'string' && brief.trim() !== '') lines.push(`${L.brief}${brief.trim()}`);", '']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a 追踪要求'],
+  },
+  {
+    id: 'r5a-brief-not-in-cfg',
+    what: 'the 追踪要求 is not part of the cfg (changing it is not a change of the 评分标准)',
+    edits: [['src/pipeline/config.mjs', 'output: node?.output, brief });', 'output: node?.output });']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a 追踪要求'],
+  },
+  {
+    id: 'r5a-auto-rescore',
+    what: 'a verdict made under another 评分标准 is scored again by the next run (the old behaviour)',
+    edits: [['src/pipeline/queue.mjs', "typeof scored.score === 'number' && !rescore) return", "typeof scored.score === 'number' && rescore === 'never') return"]],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=after 严格程度 changed'],
+  },
+  {
+    id: 'r5a-rescore-no-cap',
+    what: '重新评分 does not stop at the 单次运行上限',
+    edits: [['src/pipeline/rescore.mjs', "    if (calls >= limit) { stoppedAt = 'cap'; return true; }", "    if (false) { stoppedAt = 'cap'; return true; }"]],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=only the old ones, under'],
+  },
+  {
+    id: 'r5a-situation-old-word',
+    what: 'the situation says 建议卡 again',
+    edits: [['src/agent/situation.mjs', '  out.push(`未处理的系统检测：', '  out.push(`未处理的建议卡：']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a N11'],
+  },
+  {
+    id: 'r5a-situation-state-code',
+    what: 'the situation gives a source\'s state as its internal code (failed)',
+    edits: [['src/agent/situation.mjs', ' · ${W.failed} ${st.failed} · ', ' · failed ${st.failed} · ']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a N11'],
+  },
+  {
+    id: 'r5a-lookup-raw-message',
+    what: 'a source_log lookup hands the model the fetcher\'s message and the HTTP code again',
+    edits: [['src/agent/lookups.mjs', '...fetchFacts(e.status), count: e.count, new: e.new }));', '...fetchFacts(e.status), count: e.count, new: e.new, http: e.http, message: e.message }));']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a N11'],
+  },
+  {
+    id: 'r5a-paused-checked',
+    what: 'rule ① (and ③) also look at a paused source',
+    edits: [['src/suggest/rules.mjs', "    if (s && typeof s.name === 'string' && s.name !== '' && s.paused !== true) out.add(s.name);", "    if (s && typeof s.name === 'string' && s.name !== '') out.add(s.name);"]],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ①'],
+  },
+  {
+    id: 'r5a-loose-adjusts',
+    what: 'rule ② offers 将严格程度调整为「宽松」 when the library is loose already',
+    edits: [['src/suggest/act.mjs', "    if (L.relevance <= r && L.substance <= s && (L.relevance < r || L.substance < s)) return level;\n  }\n  return null;", "    if (L.relevance <= r && L.substance <= s && (L.relevance < r || L.substance < s)) return level;\n  }\n  return 'loose';"]],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ②'],
+  },
+  {
+    id: 'r5a-reason-before-ignore',
+    what: 'rule ⑤ after 忽略 still counts the dismissals from before it',
+    edits: [['src/suggest/rules.mjs', '  if (!newest.every((d) => after(d.ts, since))) return [];\n', '']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ⑤'],
+  },
+  {
+    id: 'r5a-no-staleness',
+    what: 'no card is ever found to no longer fit (no 过时 check: a paused source\'s card can still be acted on)',
+    edits: [['src/suggest/act.mjs', '  if (!r.ok) return null; // an unreadable library', '  if (r.ok || !r.ok) return null; // an unreadable library']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=no longer fits is expired'],
+  },
+  {
+    id: 'r5a-rescore-every-rejected',
+    what: '重新评分 scores again every item of 未通过筛选, not only those judged under the old standard',
+    edits: [['src/pipeline/rescore.mjs', '  const targets = listRejected(libraryDir, { limit: Number.MAX_SAFE_INTEGER, onlyOld: true })', '  const targets = listRejected(libraryDir, { limit: Number.MAX_SAFE_INTEGER, onlyOld: false })']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=only the old ones, under'],
+  },
+  {
+    id: 'r5a-old-verdict-new-threshold',
+    what: 'an old verdict is judged against the threshold of now (a loosened 严格程度 would move it out of 未通过筛选 without 重新评分)',
+    // precheck fix 4: verdictThreshold no longer falls back to the threshold of now; the mutant puts it back the same way
+    edits: [['src/pipeline/queue.mjs', "  if (typeof scored?.threshold === 'number') return scored.threshold;\n  return thresholdOfStamp(stamp, node);", '  return node.threshold;']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=after 严格程度 changed'],
+  },
+  {
+    id: 'r5a-turn-old-heading',
+    what: 'the user\'s message reaches the model under the old heading 「## 这一轮」',
+    edits: [['src/agent/turn.mjs', '  return `## 这条消息\\n${from}用户：${text}`;', '  return `## 这一轮\\n${from}用户：${text}`;']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=what one turn sends'],
+  },
+  // redesign R5a, the two pre-checkers' findings (precheck fixes 2, 3, 4, 5, 7, 9)
+  {
+    id: 'r5a-legacy-now-threshold',
+    what: 'an old verdict whose threshold cannot be worked out is judged against the threshold of now again (a loosened 严格程度 moves it out of 未通过筛选 and the next run calls the model)',
+    edits: [['src/pipeline/queue.mjs', '  return later.some((id) => state?.scores?.[id] !== undefined || state?.unscored?.[id] !== undefined);', '  return scored.score >= node.threshold;']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 4'],
+  },
+  {
+    id: 'r5a-dropped-kind-in-note',
+    what: 'the row of the proposals not made names their kinds and keeps the refusals\' own texts (the next message hands them to the model)',
+    edits: [
+      ['src/agent/turn.mjs', "    write('note', droppedSentence(dropped, lang), { dropped: dropped.map((d) => ({ index: d.index, category: d.category })) });", "    write('note', `有 ${dropped.length} 张提议没出：${dropped.map((d) => d.kind).join('、')}`, { dropped });"],
+    ],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 2: a proposal not made'],
+  },
+  {
+    id: 'r5a-connection-code-note',
+    what: 'the row of a connection that failed says the internal code and keeps the connection\'s own text',
+    edits: [['src/agent/turn.mjs', "    write('note', connectionSentence(code, lang), { error: code });", "    write('note', `连接出了问题（${code}），这条消息没有回答`, { error: code, detail: clip(r?.detail, 300) });"]],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 2: a proposal not made'],
+  },
+  {
+    id: 'r5a-old-rows-as-they-are',
+    what: 'rows written before the fix reach the model (and the page) as they are: kind names, codes, raw texts',
+    edits: [['src/agent/turn.mjs', "  if (!r || r.role !== 'note' || !isObject(r.data)) return r;", '  return r;']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 2: rows written before'],
+  },
+  {
+    id: 'r5a-lookup-problem-codes',
+    what: 'the lookup library gives the problems as internal codes (missing · sources · no-output) again',
+    edits: [['src/agent/lookups.mjs', '        problems: facts.problems.map((p) => PROBLEM_WORDS[p] ?? p), noOutputStreak', '        problems: facts.problems, noOutputStreak']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 5'],
+  },
+  {
+    id: 'r5a-case-change-kept',
+    what: 'rule ①\'s card stays when the source turns to the other case (a 暂时失败 card left open while the address is invalid)',
+    edits: [['src/suggest/act.mjs', "        if (now !== null && now !== was) return 'state-changed';\n", '']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 7'],
+  },
+  {
+    id: 'r5a-replaced-counts-as-handling',
+    what: 'a card that gave way because its case changed counts as a handling (the card that fits now never comes)',
+    edits: [['src/suggest/records.mjs', "    const replaced = line.ev === 'expired' && REPLACED_REASONS.includes(line.reason);", '    const replaced = false;']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 7'],
+  },
+  {
+    id: 'r5a-partial-not-counted',
+    what: '重新评分 stopped in the middle of an item does not count it (counts all 0 while calls were spent)',
+    edits: [['src/pipeline/rescore.mjs', '      if (stopNow()) { if (touched) counts.partial += 1; break outer; }', '      if (stopNow()) break outer;']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 9'],
+  },
+  {
+    id: 'r5a-overlap-ignores-handling',
+    what: 'rule ④ for the other library ignores that library\'s own handlings (a card it dismissed comes back)',
+    edits: [['src/suggest/rules.mjs', '  return topicOverlap(r.config, otherLibraries, handledTimes(libraryDir)).map(asCard(clockOf(now).toISOString()));', '  return topicOverlap(r.config, otherLibraries, new Map()).map(asCard(clockOf(now).toISOString()));']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 3'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

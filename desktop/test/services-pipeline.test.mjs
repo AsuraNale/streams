@@ -75,7 +75,9 @@ test('applyStarterPack: topics and sources into streams.json, one try per source
   const r = await h.applyStarterPack('blank', { addRss: [{ name: 'local', url: feed }, { name: 'gone', url: dead }] })
   assert.deepEqual(r.topics, [])
   assert.deepEqual(r.sources.map(s => [s.name, s.kind, s.url, s.status, s.hint, s.count]), [['local', 'rss', feed, 'ok', 'none', 3], ['gone', 'rss', dead, 'gap', 'fix-address-or-remove', 0]])
-  assert.ok(r.sources.every(s => typeof s.message === 'string'))
+  // redesign R5a (O9): the tries carry the state and the hint, no longer the fetcher's message (it goes to the diagnostics);
+  // this line used to assert that every source had a message
+  assert.ok(r.sources.every(s => !Object.hasOwn(s, 'message') && !Object.hasOwn(s, 'http')))
   assert.deepEqual(readConfig(dir).config.sources.map(s => s.name), ['local', 'gone'])
   assert.equal(readConfig(dir).config.name, 'test lib', 'the library name stays')
   assert.equal(existsSync(join(dir, '_pipeline', 'fetch_log.jsonl')) && readFileSync(join(dir, '_pipeline', 'fetch_log.jsonl'), 'utf8'), '', 'a try writes no fetch log')

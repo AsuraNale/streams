@@ -77,7 +77,7 @@ const LABELS = {
   'zh-CN': {
     title: '标题：', source: '来源：', date: '日期：', summary: '摘要：', body: (n) => `正文（截取前 ${n} 字）：`,
     summaryOnly: '摘要（正文取不到，只看了摘要）：', related: '库里已有的相关条目：', none: '无',
-    library: '这个资料库关注的主题：', sourceTopic: '这条来源在库里标的主题：',
+    library: '这个资料库关注的主题：', sourceTopic: '这条来源在库里标的主题：', brief: '这个资料库的追踪要求（用户写的，原样照录）：',
     format: '只输出这个形状的 JSON，不要别的文字：', score: '0到1的小数', reason: '一句话，不超过 120 字',
     quote: '材料里逐字出现的一句原话', what: '一句话说清它是什么', point: (i) => `要点${'一二三四五六七八九'[i] ?? i + 1}`, text: '文字',
     claimed: '你做到的核对项 id', checklist: '写完后对照这些核对项，把你做到的项的 id 列在 claimed 里：',
@@ -86,7 +86,7 @@ const LABELS = {
   en: {
     title: 'Title: ', source: 'Source: ', date: 'Date: ', summary: 'Summary: ', body: (n) => `Body (first ${n} characters): `,
     summaryOnly: 'Summary (the body could not be fetched; summary only): ', related: 'Related entries already in the library: ', none: 'none',
-    library: 'The topics this library follows: ', sourceTopic: 'The topic this source is filed under: ',
+    library: 'The topics this library follows: ', sourceTopic: 'The topic this source is filed under: ', brief: 'This library\'s brief (what it tracks, in the user\'s own words): ',
     format: 'Output only JSON of exactly this shape, nothing else:', score: 'a number from 0 to 1', reason: 'one sentence, at most 120 characters',
     quote: 'one sentence that appears verbatim in the material', what: 'one sentence saying what it is', point: (i) => `point ${i + 1}`, text: 'text',
     claimed: 'ids of the checklist items you did', checklist: 'When done, check against these items and list the ids you did in claimed:',
@@ -138,10 +138,13 @@ export function materialText({ item, body, bodyMaxChars = 6000 }) {
 // The library's angle: its topic names (streams.json topics[]) and the topic its source is filed under.
 // Without this the model cannot judge "relevant to this library" (seen on 2026-11-03: two real models
 // scored 0.4 and said the library's topic was not stated).
-export function libraryBlock({ topics = [], sourceTopic, language } = {}) {
+// Redesign R5a (维护者 11-12 第 4 条): the 相关度 gate also gets the library's 追踪要求 (`brief`, node.brief: config.mjs
+// BRIEF_GATE), labelled as such, right after the topics; a library without one gets no such line.
+export function libraryBlock({ topics = [], sourceTopic, brief, language } = {}) {
   const L = labels(language);
   const names = (Array.isArray(topics) ? topics : []).map((t) => (typeof t === 'string' ? t : t?.name)).filter((t) => typeof t === 'string' && t.trim() !== '');
   const lines = [`${L.library}${names.length ? names.join(L.sep) : L.none}`];
+  if (typeof brief === 'string' && brief.trim() !== '') lines.push(`${L.brief}${brief.trim()}`);
   if (typeof sourceTopic === 'string' && sourceTopic.trim() !== '') lines.push(`${L.sourceTopic}${sourceTopic.trim()}`);
   return lines.join('\n');
 }
@@ -180,7 +183,7 @@ export function gatePrompt({ node, item, body, related = [], topics = [], source
   return [
     preambleFor(lang),
     node.requirement,
-    libraryBlock({ topics, sourceTopic, language: lang }),
+    libraryBlock({ topics, sourceTopic, brief: node.brief, language: lang }),
     materialBlock({ item, body, language: lang, bodyMaxChars }),
     relatedBlock(related, lang),
     outputFormat(node.output, lang),

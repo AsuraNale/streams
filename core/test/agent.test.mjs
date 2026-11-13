@@ -133,9 +133,11 @@ test('N5: session.json deleted after a summary → the next turn opens a new ses
   assert.equal(r.reply, '接着聊');
   const call = c.sends().at(-1);
   assert.equal(call.sessionId, null, 'no cached session: a new one');
-  assert.match(call.prompt, /## 之前对话的摘要（到第 2 轮）\n用户要追踪 agent 记忆；暗号 heron-42。/);
+  // redesign R5a (N11): the turn's heading and the summary's range say 条消息 (one message), no longer 轮 — the words of these
+  // lines changed, what they check is the same
+  assert.match(call.prompt, /## 之前对话的摘要（到第 2 条消息）\n用户要追踪 agent 记忆；暗号 heron-42。/);
   assert.match(call.prompt, /## 最近的对话\n用户：记住暗号 heron-42\n你（主 Agent）：好的，记下了\n用户：暗号是什么？\n你（主 Agent）：是 heron-42/);
-  assert.match(call.prompt, /## 这一轮\n用户：我们之前在聊什么？/);
+  assert.match(call.prompt, /## 这条消息\n用户：我们之前在聊什么？/);
   assert.equal(readSessions(w.agentDir).fake.sessionId, 'fake-session-2', 'the new session is cached');
   assert.equal(readSessions(w.agentDir).fake.summarizedThrough, 2);
 });
@@ -169,7 +171,8 @@ test('API (no session): every call carries the history; the transcript is replay
   for (const s of sends.slice(1)) {
     assert.equal(s.sessionId, null);
     assert.match(s.prompt, /## 最近的对话\n用户：第一句\n你（主 Agent）：一/);
-    assert.match(s.prompt, /## 这一轮\n用户：第二句/);
+    // redesign R5a (N11): 这条消息, no longer 这一轮 (the words changed, not what is checked)
+    assert.match(s.prompt, /## 这条消息\n用户：第二句/);
   }
   assert.match(sends[2].prompt, /查到的结果/, 'the follow-up after a lookup is replayed whole too');
   assert.deepEqual(readSessions(w.agentDir), {}, 'an API connection caches no session');
@@ -177,6 +180,9 @@ test('API (no session): every call carries the history; the transcript is replay
 
 // ---------------------------------------------------------------- the situation
 
+// redesign R5a (N11): the situation is in the interface's words now — 追踪要求, the five states as the page says them (no
+// ok / empty / gap / failed / blocked), 上次运行 and 次运行 (not the old word), 来源异常, 系统检测 as sentences (no kind:subject
+// key), 主 Agent 提议 (no 提议卡); the assertions below were changed to those words, what they check is the same.
 test('situation: every item of C1 for each library, the month\'s use with the agent\'s own, the newest notes', () => {
   const w = world('situation', [{ id: 'aaaaaaaa', name: 'AI 工具' }, { id: 'bbbbbbbb', name: '读书' }]);
   const dir = w.dir(0);
@@ -197,17 +203,18 @@ test('situation: every item of C1 for each library, the month\'s use with the ag
   assert.ok(!s.text.includes(TRUNCATED_MARK));
   const t = s.text;
   assert.match(t, /## 库「AI 工具」（id aaaaaaaa）/);
-  assert.match(t, /要求：追踪 AI 编程工具。+…/, 'the brief, cut');
-  assert.equal(/要求：(.*)/.exec(t)[1].length, 201, 'its first 200 characters and the ellipsis');
+  assert.match(t, /追踪要求：追踪 AI 编程工具。+…/, 'the brief, cut');
+  assert.equal(/追踪要求：(.*)/.exec(t)[1].length, 201, 'its first 200 characters and the ellipsis');
   assert.match(t, /主题：agent 框架（2 个关键词）/);
-  assert.match(t, /来源：3 个（ok 1 · empty 0 · gap 0 · failed 0 · blocked 1 · 暂停 1 · 还没抓过 0）/);
+  assert.match(t, /来源：3 个（正常 1 · 没新内容 0 · 地址有问题 0 · 暂时失败 0 · 被拒绝 1 · 已暂停 1 · 还没抓过 0）/);
   assert.match(t, /待看：0 条/);
-  assert.match(t, /上一轮：2026-11-04T08:30:00.000Z，进待看 0 条/);
-  assert.match(t, /问题：来源出问题、连续 3 轮以上没有产出/);
-  assert.match(t, /未处理的建议卡：source-failing:feed-a；no-output:library/);
-  assert.match(t, /待定的提议卡：p-1（edit_cap）\n/, 'only the pending card');
-  assert.match(t, /## 库「读书」（id bbbbbbbb）[\s\S]*来源：1 个（ok 0 · empty 0 · gap 0 · failed 0 · blocked 0 · 暂停 0 · 还没抓过 1）/);
-  assert.match(t, /待定的建库提议卡：p-3（新库）/);
+  assert.match(t, /上次运行：2026-11-04T08:30:00.000Z，进入待看 0 条/);
+  assert.match(t, /问题：来源异常、连续 3 次以上运行没有新内容进入待看/);
+  assert.match(t, /未处理的系统检测：来源「feed-a」连续 3 次运行未能抓取（「暂时失败」0 次、「被拒绝」3 次）。处理建议：对方不让程序抓，重试没用；换一个来源。；连续 3 次运行没有新内容进入待看。当前严格程度：「自定义」。/, 'redesign R5a (precheck fix 10): the 处理建议 is the page\'s own FETCH_HINTS sentence');
+  assert.match(t, /待确认的主 Agent 提议：p-1（修改单次运行上限）\n/, 'only the pending one');
+  assert.match(t, /## 库「读书」（id bbbbbbbb）[\s\S]*来源：1 个（正常 0 · 没新内容 0 · 地址有问题 0 · 暂时失败 0 · 被拒绝 0 · 已暂停 0 · 还没抓过 1）/);
+  assert.match(t, /待确认的创建库提议：p-3（新库）/);
+  assert.doesNotMatch(t, /\b(ok|empty|gap|failed|blocked)\b|建议卡|提议卡|轮/, 'none of the words the interface no longer uses');
   assert.match(t, /全部库本月用量合计：6 次调用（其中主 Agent 2 次）/);
   assert.match(t, /你的笔记（最近 1 条）：\n- 用户只看中文/);
   // a library whose folder is gone: said, not thrown
@@ -352,12 +359,14 @@ test('turn: a card that is not { kind, params, why } or that package B refuses i
   assert.deepEqual(w.made.map((m) => [m.kind, m.by]), [['edit_brief', 'agent']], 'package B made the good one, by: agent');
   assert.equal(readProposals(w.proposalsFile).cards[0].by, 'agent');
   assert.equal(readProposals(w.proposalsFile).cards[0].status, 'pending');
-  assert.ok(r.reply.endsWith('有 3 张提议没出（格式不对）'), r.reply);
+  // redesign R5a (precheck fix 2): the sentence names each one's action and kind of failure in the interface's words (it said
+  // 「没出（格式不对）」 for every one, and the note row carried the kind names and the refusals' own texts — bad-proposal, shape)
+  assert.ok(r.reply.endsWith('有 3 张提议没能生成：修改单次运行上限 · 格式不对；修改追踪要求 · 格式不对；暂停或恢复来源 · 找不到这个库'), r.reply);
   assert.deepEqual(r.notice, [{ code: 'proposals-dropped', count: 3 }]);
   const note = readTranscript(w.agentDir).rows.find((x) => x.role === 'note');
   assert.equal(note.data.dropped.length, 3);
-  assert.match(note.text, /bad-proposal/);
-  assert.match(note.text, /shape/);
+  assert.deepEqual(note.data.dropped.map((d) => d.category), ['format', 'format', 'no-library']);
+  assert.doesNotMatch(JSON.stringify(note), /bad-proposal|shape|edit_cap|pause_source|unknown-library/);
   // from a library's dialog: a library card without libraryId takes it
   const c2 = scriptedAgentConnector({ answers: [{ reply: '好', proposals: [{ kind: 'edit_cap', params: { cap: 30 }, why: '你说的' }] }] });
   const r2 = await w.turn(c2, '每轮最多 30 次', { libraryId: 'aaaaaaaa' });
@@ -394,6 +403,8 @@ test('turn: the connection failing → a note row, reply null, notice connection
 
 // ---------------------------------------------------------------- lookups
 
+// redesign R5a (N11 · O9): a source's last fetch and its log lines are a state in words and what to do (no status code, no
+// HTTP code, no message); a pending proposal also carries what the interface calls its kind — the assertions changed to those.
 test('runLookup: each kind read only; notes_search gives only titles and dates of kept items, at most 10; errors say what is wrong', () => {
   const w = world('lookup-kinds');
   const dir = w.dir();
@@ -406,11 +417,13 @@ test('runLookup: each kind read only; notes_search gives only titles and dates o
   const ctx = { registry: w.registry, proposals: [{ id: 'p-1', kind: 'edit_cap', libraryId: 'aaaaaaaa', status: 'pending', why: 'w', createdAt: 'c' }], now };
   const lib = runLookup({ what: 'library', libraryId: 'aaaaaaaa' }, ctx);
   assert.equal(lib.ok, true);
-  assert.deepEqual(lib.result.sources.map((s) => [s.name, s.last?.status]), [['feed-a', 'failed']]);
+  // redesign R5a (precheck fix 10): the 处理建议 is the page's own FETCH_HINTS sentence
+  assert.deepEqual(lib.result.sources.map((s) => [s.name, s.last?.state, s.last?.advice]), [['feed-a', '暂时失败', '下一轮会自动再试，不需要你改地址。']]);
   assert.deepEqual(lib.result.topics, [{ name: 'agent 框架', keywords: ['agent framework', 'MCP'] }]);
-  assert.deepEqual(lib.result.pendingProposals, [{ id: 'p-1', kind: 'edit_cap' }]);
+  assert.deepEqual(lib.result.pendingProposals, [{ id: 'p-1', kind: 'edit_cap', what: '修改单次运行上限' }]);
   const log = runLookup({ what: 'source_log', libraryId: 'aaaaaaaa', name: 'feed-a' }, ctx);
-  assert.deepEqual(log.result.lines.map((l) => [l.status, l.http]), [['failed', 503]]);
+  assert.deepEqual(log.result.lines.map((l) => [l.state, l.advice, l.status, l.http, l.message]), [['暂时失败', '下一轮会自动再试，不需要你改地址。', undefined, undefined, undefined]]);
+  assert.ok(!JSON.stringify([lib, log]).includes('HTTP 503') && !JSON.stringify([lib, log]).includes('503'), 'no raw message, no HTTP code');
   assert.equal(runLookup({ what: 'proposals' }, ctx).result.cards.length, 1);
   assert.deepEqual(runLookup({ what: 'suggestions', libraryId: 'aaaaaaaa' }, ctx).result.suggestions, []);
   const found = runLookup({ what: 'notes_search', libraryId: 'aaaaaaaa', query: 'agent MEMORY' }, ctx);
@@ -454,7 +467,8 @@ test('compression: exactly the threshold does nothing; one character more → a 
   assert.equal(rows.length, 5, 'the old rows stay in the transcript');
   assert.deepEqual(readSessions(w.agentDir).fake, { sessionId: null, startedAt: null, turns: 0, summarizedThrough: 2 });
   assert.equal(charsSinceSummary(readTranscript(w.agentDir).rows), 0, 'counted from the summary on');
-  assert.match(historyBlock(rows), /## 之前对话的摘要（到第 2 轮）/);
+  // redesign R5a (N11): 条消息, no longer 轮 (the words changed, not what is checked)
+  assert.match(historyBlock(rows), /## 之前对话的摘要（到第 2 条消息）/);
   // a turn that goes over the threshold compresses at its end
   const w2 = world('compress-turn');
   const c2 = scriptedAgentConnector({ answers: Array.from({ length: 6 }, () => ({ reply: '长'.repeat(7000) })), summary: '短摘要' });

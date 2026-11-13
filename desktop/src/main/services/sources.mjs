@@ -17,12 +17,15 @@
  *
  * Redesign R4b (docs/desktop.md §4.17): 严格程度 on 来源与要求 — `getStrictness` / `setStrictness(level)` (core readStrictness /
  * saveStrictness; the thresholds recorded by 'you') — and 高级设置's 变更记录, `getChangeLog` (core changeLog).
+ * Redesign R5a (O9; docs/desktop.md §4.19): `trySource` answers the state (the five fetch states), the hint (what to do: its
+ * key) and the count — no longer the fetcher's message or the HTTP code; those go to the log and 「复制诊断信息」 (raw-errors.mjs).
  * @module desktop/main/services/sources
  */
 
 import { BridgeError, coreCaller } from '../bridge-methods.mjs'
 import * as realCore from '../core.mjs'
 import { byYou } from './changes.mjs'
+import { publicSourceRow } from '../public-data.mjs'
 
 const HTTP_URL = /^https?:\/\/\S+$/i
 // what a try may carry of a source (streams.json's keys the fetchers read)
@@ -37,8 +40,9 @@ const SAMPLE = 3
  * @param {Record<string, unknown>} [o.core] - the core's exports (tests: a stand-in for what is not there yet)
  * @param {() => Date} [o.now]
  * @param {object} [o.fetchContext] - overrides for the core's fetch context (tests: fetchImpl, timeoutMs)
+ * @param {{note: Function}|null} [o.rawErrors] - redesign R5a (O9): raw-errors.mjs
  */
-export function createSourcesService({ library, emit, log, core = realCore, now = () => new Date(), fetchContext = {} }) {
+export function createSourcesService({ library, emit, log, core = realCore, now = () => new Date(), fetchContext = {}, rawErrors = null }) {
   const call = coreCaller(core)
 
   const config = dir => {
@@ -63,7 +67,9 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
 
   const handlers = {
     getSources() {
-      return call('sourcesView', library.require())
+      // redesign R5a (O9): each row's last fetch as a state and a hint — the fetcher's message and the HTTP code to the diagnostics
+      const v = call('sourcesView', library.require())
+      return { ...v, sources: (v.sources ?? []).map(s => publicSourceRow(s, { raw: rawErrors, where: 'source row' })) }
     },
     guessSource(input) {
       return call('guessSource', input)
@@ -79,8 +85,10 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
       const r = await call('fetchSource', s, call('makeContext', { ...fetchContext, now }))
       const items = Array.isArray(r.items) ? r.items : []
       log(`sources: tried ${s.name ?? s.url ?? s.query}: ${r.status} (${items.length})`)
+      // redesign R5a (O9): the fetcher's message and the HTTP code only into the log and the diagnostics
+      if (r.status !== 'ok' && (r.message || r.http)) rawErrors?.note(`trySource ${s.name ?? s.url ?? s.query}`, { message: r.message, http: r.http, code: r.status })
       return {
-        status: r.status, hint: r.hint ?? null, http: r.http ?? null, message: r.message ?? '', count: items.length,
+        status: r.status, hint: r.hint ?? null, count: items.length,
         sample: items.slice(0, SAMPLE).map(i => ({ title: i.title ?? '', date: i.date ?? null })),
       }
     },

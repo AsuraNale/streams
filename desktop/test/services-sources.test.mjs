@@ -79,7 +79,8 @@ test('trySource: one fetch on a local server, a summary back (count, the first t
   const fetchLog = readFileSync(join(dir, '_pipeline', 'fetch_log.jsonl'), 'utf8')
   const n = w.events.length
   const r = await h.trySource({ name: 'try', kind: 'rss', url: feed, extra: 'dropped' })
-  assert.deepEqual(Object.keys(r).sort(), ['count', 'hint', 'http', 'message', 'sample', 'status'])
+  // redesign R5a (O9): no `http` and no `message` any more — the state, the hint (what to do), the count and the sample
+  assert.deepEqual(Object.keys(r).sort(), ['count', 'hint', 'sample', 'status'])
   assert.deepEqual([r.status, r.hint, r.count, r.sample.length], ['ok', 'none', 5, 3])
   assert.ok(r.sample.every(s => Object.keys(s).sort().join() === 'date,title' && typeof s.title === 'string' && s.title !== ''))
   assert.equal(readFileSync(join(dir, '_pipeline', 'ledger.jsonl'), 'utf8'), ledger, 'no ledger line')

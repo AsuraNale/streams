@@ -7,7 +7,8 @@
 //               params.libraryId takes it)
 //   ctx = { agentDir, connector (connect/session.mjs createSessionConnector, or agent/fake.mjs), registry (or a function
 //           giving it), proposals (cards, or a function), createProposal(kind, params, why, { by }) (package B's, the
-//           desktop's services/proposals.mjs), now, log, situationMax }
+//           desktop's services/proposals.mjs), now, log, situationMax, rawError?(where, { code, message }) }
+//           (redesign R5a: where a raw text goes besides the log — the desktop's raw-errors.mjs, for 「复制诊断信息」)
 //
 // What the model is given: AGENT_SYSTEM (protocol.mjs) + the situation (situation.mjs) + this turn; and the context of the
 // conversation — the newest summary and the last RECENT_TURNS turns, from the transcript — whenever the connection does
@@ -19,10 +20,14 @@
 // most MAX_LOOKUP_ROUNDS rounds; the call after the last round is told so and may not ask again (an answer that does is
 // not usable: retried once, then as above).
 // `proposals`: each one handed to ctx.createProposal(kind, params, why, { by: 'agent' }); one that is not an object of
-// { kind, params, why } or that createProposal refuses is not made — its reason in a `note` row, and the reply ends with
-// 「有 N 张提议没出（格式不对）」 (notice 'proposals-dropped').
+// { kind, params, why } or that createProposal refuses is not made — a `note` row and the end of the reply say so in the
+// interface's words (words.mjs droppedSentence: 「有 N 张提议没能生成：添加来源 · 来源填写有误」 — the action's name and the
+// kind of failure; notice 'proposals-dropped'). Redesign R5a (precheck fix 2): no kind name, no code, no raw text in the row's
+// text or data (data.dropped = [{ index, category }]); the thrower's own text goes to ctx.log and ctx.rawError only.
 // `note`: kept in agent/notes.jsonl (store.mjs appendAgentNote).
-// The connection failing (not logged in, network, …): a `note` row, reply null (notice 'connection').
+// The connection failing (not logged in, network, …): a `note` row, reply null (notice 'connection'). Redesign R5a (precheck
+// fix 2): the row says it in the page's words (words.mjs connectionSentence); data.error is the code the page words
+// (CONNECTIONS.codes), never the connection's own text (that goes to ctx.log and ctx.rawError).
 // Every call is one line of agent/usage.jsonl (purpose 'agent'; the summary's 'agent-summary').
 // At the end, compressIfNeeded: more than COMPRESS_THRESHOLD characters of transcript since the last summary → the model
 // (a one-shot call, no session) writes a summary of at most AGENT_SUMMARY_MAX characters: a `summary` row (data.through = this
@@ -33,6 +38,7 @@ import { createUsageRecorder } from '../connect/usage.mjs';
 import { completeJson } from '../connect/complete-json.mjs';
 import { LIBRARY_KINDS } from '../proposals/params.mjs';
 import { AGENT_SYSTEM, MAX_LOOKUP_ROUNDS, checkAnswer } from './protocol.mjs';
+import { DROP_CATEGORIES, connectionSentence, dropCategory, droppedSentence } from './words.mjs';
 import { runLookup } from './lookups.mjs';
 import { situation } from './situation.mjs';
 import {
@@ -59,15 +65,47 @@ export function languageOf(text) {
   return /[㐀-鿿豈-﫿]/.test(String(text ?? '')) ? 'zh' : 'en';
 }
 
-export function droppedSentence(n, lang) {
-  return lang === 'zh' ? `有 ${n} 张提议没出（格式不对）` : `${n} proposal${n === 1 ? ' was' : 's were'} not made (wrong format)`;
+// redesign R5a (precheck fix 2): the sentence of the proposals not made is words.mjs droppedSentence (the action, the kind of failure)
+export { droppedSentence };
+
+// the kind of failure of a row written before redesign R5a's precheck fix 2 (its reason was 'shape: …', 'no-proposal-service'
+// or '<code> (<reason>): <message>')
+function oldCategory(reason) {
+  const s = String(reason ?? '');
+  if (s.startsWith('shape')) return 'format';
+  const m = /^([a-z-]+)(?: \(([a-z-]+)\))?/.exec(s);
+  return m ? dropCategory({ code: m[1], reason: m[2] }) : 'error';
 }
 
-// a transcript row as the model reads it again
-function renderRow(r) {
+const SESSION_LOST = '会话接不上，开了新会话，从对话记录（摘要 + 最近几条消息）重建上下文';
+
+/**
+ * Redesign R5a (precheck fix 2; N11 · O9): a row as the model reads it again and as the page gets it (desktop
+ * getAgentTranscript): a note of the proposals not made, of a connection that failed or of a session lost says it in the
+ * interface's words, and its data keeps only the keys the page words (data.dropped [{ index, category }], data.error the
+ * connection's code, data.session) — no kind name, no raw text. Rows written before this fix (kind names, codes and raw texts
+ * in them) are said again the same way; the rest as they are.
+ */
+export function publicRow(r) {
+  if (!r || r.role !== 'note' || !isObject(r.data)) return r;
+  const d = r.data;
+  const lang = languageOf(r.text);
+  if (Array.isArray(d.dropped)) {
+    const list = d.dropped.map((x) => ({ index: Number.isInteger(x?.index) ? x.index : null, kind: x?.kind ?? null, category: DROP_CATEGORIES.includes(x?.category) ? x.category : oldCategory(x?.reason) }));
+    const old = d.dropped.some((x) => isObject(x) && (x.reason !== undefined || x.kind !== undefined));
+    return { ...r, text: old ? droppedSentence(list, lang) : r.text, data: { dropped: list.map(({ index, category }) => ({ index, category })) } };
+  }
+  if (typeof d.error === 'string') return { ...r, text: connectionSentence(d.error, lang), data: { error: d.error } };
+  if (d.session === 'lost') return { ...r, text: SESSION_LOST, data: { session: 'lost' } };
+  return r;
+}
+
+// a transcript row as the model reads it again (redesign R5a: through publicRow)
+function renderRow(row) {
+  const r = publicRow(row);
   switch (r.role) {
     case 'you': return `用户：${r.text}`;
-    case 'agent': return `你（主 Agent）：${r.text}${r.data?.ask ? `\n（问了：${r.data.ask.question}｜${r.data.ask.options.join('｜')}）` : ''}${r.data?.proposalIds?.length ? `\n（出了提议卡：${r.data.proposalIds.join('、')}）` : ''}`;
+    case 'agent': return `你（主 Agent）：${r.text}${r.data?.ask ? `\n（问了：${r.data.ask.question}｜${r.data.ask.options.join('｜')}）` : ''}${r.data?.proposalIds?.length ? `\n（出了主 Agent 提议：${r.data.proposalIds.join('、')}）` : ''}`;
     case 'lookup': return `（查了 ${r.text}）`;
     case 'note': return `（流息：${r.text}）`;
     default: return '';
@@ -78,7 +116,8 @@ function renderRow(r) {
 export function historyBlock(rows, { recentTurns = RECENT_TURNS, maxChars = RECENT_MAX_CHARS } = {}) {
   const parts = [];
   const s = lastSummary(rows);
-  if (s) parts.push(`## 之前对话的摘要（到第 ${s.data?.through ?? '?'} 轮）\n${s.text}`);
+  // redesign R5a (N11): 「第 n 条消息」, not the word the interface no longer uses (轮)
+  if (s) parts.push(`## 之前对话的摘要（到第 ${s.data?.through ?? '?'} 条消息）\n${s.text}`);
   const turns = [...new Set(rows.filter((r) => r.role !== 'summary').map((r) => r.turn))].slice(-recentTurns);
   const recent = rows.filter((r) => r.role !== 'summary' && turns.includes(r.turn)).map(renderRow).filter(Boolean);
   while (recent.length && charsOf(recent.join('\n')) > maxChars) recent.shift();
@@ -89,8 +128,9 @@ export function historyBlock(rows, { recentTurns = RECENT_TURNS, maxChars = RECE
 function turnBlock(text, { as, libraryId, registry }) {
   const lib = libraryId ? (registry?.libraries ?? []).find((l) => l.id === libraryId) : null;
   const from = libraryId ? `（这句话是从库「${lib?.name ?? libraryId}」（id ${libraryId}）的对话框转来的）\n` : '';
-  if (as === 'note') return `## 这一轮\n${from}流息转来一件事（不是用户打的字，是界面上的一个动作）：\n${text}`;
-  return `## 这一轮\n${from}用户：${text}`;
+  // redesign R5a (N11): 这条消息 (the user's one message, or one thing the interface hands over), not 这一轮
+  if (as === 'note') return `## 这条消息\n${from}流息转来一件事（不是用户打的字，是界面上的一个动作）：\n${text}`;
+  return `## 这条消息\n${from}用户：${text}`;
 }
 
 const ANSWER_NOW = 'Answer with the one JSON object only.';
@@ -114,6 +154,11 @@ export async function agentTurn(input, ctx) {
   if (!nonEmpty(text) || charsOf(text.trim()) > TEXT_IN_MAX) throw new StreamsError('bad-argument', `a message is 1–${TEXT_IN_MAX} characters`);
   if (as !== 'you' && as !== 'note') throw new StreamsError('bad-argument', 'as is you or note');
   const { agentDir, connector, createProposal, now = () => new Date(), log = () => {}, situationMax } = ctx ?? {};
+  // redesign R5a (O9): a raw text (a refusal's message, a connection's detail) goes to the log and the diagnostics only
+  const rawError = (where, raw) => {
+    try { log(`agent: ${where}: ${[raw?.code, raw?.message].filter(Boolean).join(' · ')}`); } catch { /* best effort */ }
+    try { if (typeof ctx?.rawError === 'function') ctx.rawError(where, raw); } catch { /* best effort */ }
+  };
   if (!agentDir || !connector || typeof connector.send !== 'function') throw new StreamsError('bad-argument', 'agentTurn needs agentDir and a connector');
   const registry = typeof ctx.registry === 'function' ? ctx.registry() : (ctx.registry ?? { libraries: [] });
   const cards = typeof ctx.proposals === 'function' ? ctx.proposals() : (ctx.proposals ?? []);
@@ -150,7 +195,9 @@ export async function agentTurn(input, ctx) {
     calls++;
     recordUsage(usage, kind, r, 'agent');
     if (connector.sessionful && r?.sessionLost) {
-      write('note', '会话接不上，开了新会话，从对话记录（摘要 + 最近几轮）重建上下文', { session: 'lost', code: r.code ?? null, detail: clip(r.detail, 300) });
+      // redesign R5a (N11 · O9): 最近几条消息 (not the old word), and the connection's own text to the log / diagnostics only
+      write('note', SESSION_LOST, { session: 'lost' });
+      rawError(`session of ${kind} lost`, { code: r.code ?? null, message: clip(r.detail, 300) });
       log(`agent: session ${state.sessionId} of ${kind} lost (${r.code}): a new one`);
       notice.push({ code: 'session-rebuilt' });
       state.sessionId = null;
@@ -204,7 +251,7 @@ export async function agentTurn(input, ctx) {
     const results = a.lookups.map((item) => runLookup(item, { registry, proposals: cards, now }));
     a.lookups.forEach((item, i) => write('lookup', lookupRowText(item, results[i]), { request: item, result: results[i], round: lookupRounds }));
     pieces.push(`你要查的（第 ${lookupRounds} 次，最多 ${MAX_LOOKUP_ROUNDS} 次）：${JSON.stringify(a.lookups)}\n查到的结果：${JSON.stringify(results)}`);
-    if (lookupRounds >= MAX_LOOKUP_ROUNDS) write('note', `已经查了 ${MAX_LOOKUP_ROUNDS} 次，这一轮不能再查`, { lookupRounds });
+    if (lookupRounds >= MAX_LOOKUP_ROUNDS) write('note', `已经查了 ${MAX_LOOKUP_ROUNDS} 次，这条消息不能再查`, { lookupRounds });
   }
 
   // the answer: cards through package B, the note kept, the reply recorded
@@ -212,25 +259,27 @@ export async function agentTurn(input, ctx) {
   const dropped = [];
   for (const [i, p] of answer.proposals.entries()) {
     if (!isObject(p) || typeof p.kind !== 'string' || !isObject(p.params) || !nonEmpty(p.why) || Object.keys(p).some((k) => !['kind', 'params', 'why'].includes(k))) {
-      dropped.push({ index: i, kind: isObject(p) ? p.kind ?? null : null, reason: 'shape: a proposal is { kind, params, why }' });
+      dropped.push({ index: i, kind: isObject(p) ? p.kind ?? null : null, category: 'format' });
       continue;
     }
     const params = { ...p.params };
     if (libraryId && LIBRARY_KINDS.includes(p.kind) && params.libraryId === undefined) params.libraryId = libraryId;
-    if (typeof createProposal !== 'function') { dropped.push({ index: i, kind: p.kind, reason: 'no-proposal-service' }); continue; }
+    if (typeof createProposal !== 'function') { dropped.push({ index: i, kind: p.kind, category: 'error' }); rawError(`proposal ${i} not made`, { code: 'no-proposal-service' }); continue; }
     try {
       const card = await createProposal(p.kind, params, p.why, { by: 'agent' });
       proposalIds.push(card.id);
     } catch (err) {
-      dropped.push({ index: i, kind: p.kind, reason: `${err?.code ?? 'error'}${err?.reason ? ` (${err.reason})` : ''}: ${clip(err?.message ?? err, 300)}` });
+      dropped.push({ index: i, kind: p.kind, category: dropCategory(err) });
+      rawError(`proposal ${i} (${p.kind}) not made`, { code: `${err?.code ?? 'error'}${err?.reason ? ` (${err.reason})` : ''}`, message: clip(err?.message ?? err, 300) });
     }
   }
   if (dropped.length) {
-    write('note', `有 ${dropped.length} 张提议没出：${dropped.map((d) => `${d.kind ?? '?'}：${d.reason}`).join('；')}`, { dropped });
+    // the interface's words (the action's name, the kind of failure) in the text; in the data the categories only — no kind name
+    write('note', droppedSentence(dropped, lang), { dropped: dropped.map((d) => ({ index: d.index, category: d.category })) });
     notice.push({ code: 'proposals-dropped', count: dropped.length });
   }
   if (answer.note) appendAgentNote(agentDir, answer.note, { turn, now });
-  const reply = dropped.length ? `${answer.reply}\n\n${droppedSentence(dropped.length, lang)}` : answer.reply;
+  const reply = dropped.length ? `${answer.reply}\n\n${droppedSentence(dropped, lang)}` : answer.reply;
   write('agent', reply, { ...(answer.ask ? { ask: answer.ask } : {}), ...(proposalIds.length ? { proposalIds } : {}), ...(answer.note ? { note: answer.note } : {}) });
   const out = finish({ reply, ask: answer.ask, proposalIds });
   try {
@@ -243,7 +292,11 @@ export async function agentTurn(input, ctx) {
   return out;
 
   function connectionEnd(r) {
-    write('note', `连接出了问题（${r?.code ?? 'unknown'}），这一轮没有回答`, { error: r?.code ?? 'unknown', detail: clip(r?.detail, 300) });
+    // redesign R5a (precheck fix 2): the page's words of the code in the text, the code (the page words it) in the data, the
+    // connection's own text to the log and the diagnostics
+    const code = typeof r?.code === 'string' && r.code !== '' ? r.code : 'unknown';
+    write('note', connectionSentence(code, lang), { error: code });
+    rawError(`turn ${turn}: the connection failed`, { code, message: clip(r?.detail, 300) });
     notice.push({ code: 'connection', connection: r?.code ?? 'unknown' });
     return finish({ reply: null, ask: null, proposalIds: [] });
   }
@@ -257,7 +310,7 @@ export function charsSinceSummary(rows) {
 
 export const SUMMARY_PROMPT = [
   'Below is a conversation between the user of Streams and you, its main agent, with your earlier summary of what came before it.',
-  `Write one summary of all of it, at most ${AGENT_SUMMARY_MAX} characters, in the language the user mostly writes in: what the user wants, what was decided, what proposal cards were made and what became of them, what is still open. Facts only; nothing that was not said.`,
+  `Write one summary of all of it, at most ${AGENT_SUMMARY_MAX} characters, in the language the user mostly writes in: what the user wants, what was decided, what proposals by the main agent were made and what became of them, what is still open. Facts only; nothing that was not said.`,
   'Answer with exactly this JSON and nothing else: {"summary": "..."}',
 ].join('\n');
 
@@ -273,7 +326,7 @@ export async function compressIfNeeded({ agentDir, connector, now = () => new Da
   const upTo = Number.isInteger(turn) ? turn : nextTurn(rows) - 1;
   const prev = lastSummary(rows);
   const segment = rows.filter((r) => r.role !== 'summary' && r.turn > through && r.turn <= upTo).map(renderRow).filter(Boolean).join('\n');
-  const prompt = [SUMMARY_PROMPT, prev ? `## 之前的摘要（到第 ${through} 轮）\n${prev.text}` : '', `## 第 ${through + 1}–${upTo} 轮的对话\n${segment}`].filter(nonEmpty).join('\n\n');
+  const prompt = [SUMMARY_PROMPT, prev ? `## 之前的摘要（到第 ${through} 条消息）\n${prev.text}` : '', `## 第 ${through + 1}–${upTo} 条消息的对话\n${segment}`].filter(nonEmpty).join('\n\n');
   const usage = createUsageRecorder(agentPaths(agentDir).usage, { now });
   const r = await completeJson(connector, { prompt, format: 'json' });
   recordUsage(usage, kind, r, 'agent-summary');

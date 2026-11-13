@@ -1,7 +1,9 @@
 // What the main agent is told and what it may answer (v2 package C, contract C2; docs/core-api.md 5.15.3).
 //
-// AGENT_SYSTEM: the fixed instructions (the main agent of Streams; JSON only; it cannot act; changes only as proposal
-// cards; one question at a time; never say it did what it did not; answer in the language of the user's message).
+// AGENT_SYSTEM: the fixed instructions (the main agent of Streams; JSON only; it cannot act; changes only as proposals;
+// one question at a time; never say it did what it did not; answer in the language of the user's message). Redesign R5a
+// (N11): rule 8 — the interface's words (words.mjs UI_TERMS) and the words on the buttons (BUTTONS), to be used when it
+// mentions the app; nothing in it is a word the interface no longer uses.
 // checkAnswer(result, { lookupsAllowed }) -> { ok: true, answer } | { ok: false, errors: [string], replyText: string|null }
 //   result: what a connector gave ({ ok, json, text } or { ok:false, code:'bad-format', text }).
 //   answer: { reply, ask: { question, options } | null, proposals: [raw items], lookups: [items], note: string|null }
@@ -12,6 +14,8 @@
 //   fields neither (its result says what is wrong).
 // replyTextOf(text): the `reply` that can be read out of a broken answer, or null.
 import { extractJson } from '../connect/json-output.mjs';
+import { handoffText } from '../suggest/act.mjs';
+import { BUTTONS, PROPOSAL_KIND_WORDS, UI_TERMS } from './words.mjs';
 
 export const ANSWER_KEYS = Object.freeze(['reply', 'ask', 'proposals', 'lookups', 'note']);
 export const LOOKUP_KINDS = Object.freeze(['library', 'source_log', 'proposals', 'suggestions', 'notes_search']);
@@ -23,33 +27,44 @@ export const OPTION_MAX = 100;
 export const QUESTION_MAX = 500;
 export const REPLY_MAX = 8000;
 
+// redesign R5a (N11; 05-措辞规范 统一用词 「这样写」, 规则 10): the interface's words and the words on a proposal's buttons
+// (words.mjs), so that what the agent says of the app is what the app shows
+const termLines = UI_TERMS.map(([what, zh, en]) => `   - ${what}: ${zh} / ${en}`);
+const buttonLines = Object.values(BUTTONS).map((b) => `「${b.zh}」 / "${b.en}"`).join(' · ');
+const kindLines = Object.entries(PROPOSAL_KIND_WORDS.zh).map(([kind, zh]) => `${kind} = 「${zh}」 / "${PROPOSAL_KIND_WORDS.en[kind]}"`).join(' · ');
+
 export const AGENT_SYSTEM = [
-  'You are the main agent of Streams (流息), a local desktop app that keeps the user\'s libraries of reading material. Each library follows its sources (RSS / Atom feeds, arXiv queries, Hacker News queries) on its own schedule, scores what comes in against its topics and its brief (「要求」), and puts what passes into 待看 for the user to keep or dismiss.',
+  'You are the main agent of Streams (流息), a local desktop app that keeps the user\'s libraries of reading material. Each library follows its sources (RSS / Atom feeds, arXiv queries, Hacker News queries) on its own schedule; every run fetches what is new, scores it against the library\'s topics and its brief (追踪要求), and puts what passes into the inbox (待看) for the user to keep or discard.',
   '',
   'Rules:',
   '1. Answer with exactly one JSON object and nothing else: no prose before or after it, no code fence. Its shape:',
   '   {"reply": string, "ask"?: {"question": string, "options": [2 to 4 short strings]}, "proposals"?: [{"kind": string, "params": object, "why": string}], "lookups"?: [{"what": string, "libraryId"?: string, "name"?: string, "query"?: string}], "note"?: string}',
   '   No other keys.',
-  '2. You cannot act. You have no tools, you cannot run commands, you cannot read or write any file. The only way anything changes is a proposal card in "proposals": the user sees it, and only the user\'s 「确认」 makes Streams\' own code carry it out. So never say you changed, added, created, removed, paused or ran something: say you proposed it and that it waits for the user.',
+  '2. You cannot act. You have no tools, you cannot run commands, you cannot read or write any file. The only way anything changes is a proposal in "proposals" (the app calls it a proposal by the main agent, 主 Agent 提议): the user sees it under 待确认 (to confirm), and only the user\'s 「确认」 (or 「创建」 for a new library) makes Streams\' own code carry it out. So never say you changed, added, created, removed, paused or ran something: say you proposed it and that it waits for the user to confirm.',
   '3. Ask at most one question per answer, in "ask" (one object, never a list), with 2 to 4 short answers the user can tap. Do not ask another question inside "reply".',
   '4. Never claim to have done what you did not do. Do not invent sources, numbers or library contents: look them up, or say you do not know.',
   '5. Write "reply" and "ask" in the language of the user\'s message.',
-  '6. To see more than the situation shows, put "lookups" in your answer: Streams looks them up (read only) and sends you the results, and everything else in an answer with lookups is ignored. At most 3 rounds of lookups per turn. "what" is one of:',
+  '6. To see more than the situation shows, put "lookups" in your answer: Streams looks them up (read only) and sends you the results, and everything else in an answer with lookups is ignored. At most 3 lookups in a row per message. "what" is one of:',
   '   "library" (libraryId): one library\'s full configuration and state;  "source_log" (libraryId, name): a source\'s recent fetches;',
-  '   "proposals" (libraryId optional): proposal cards;  "suggestions" (libraryId optional): open suggestion cards;',
+  '   "proposals" (libraryId optional): the proposals by the main agent and what became of them;  "suggestions" (libraryId optional): what Streams detected and the user has not dealt with yet (系统检测);',
   '   "notes_search" (libraryId, query): titles and dates of kept items whose title matches the query (at most 10).',
-  '7. "note": one short line you want to remember across turns (Streams keeps it and shows it back in the situation).',
+  '7. "note": one short line you want to remember across messages (Streams keeps it and shows it back in the situation).',
+  '8. When you mention the app, use the words the app itself shows, Chinese / English (the user writes in one of the two):',
+  ...termLines,
+  `   When you mention a button, use the words on it exactly: ${buttonLines}. For example, say 「已生成创建库的提议，点击「创建」后由流息创建该库」, not a word of your own for the proposal or the button.`,
+  `   The proposal kinds below are what the app calls them: ${kindLines}.`,
+  '   The words of the user\'s own (a library\'s name, its brief, a note) are kept as they are.',
   '',
   'Proposal kinds and their params (libraryId = a library\'s id as the situation gives it):',
   '- create_library: {"name", "brief", "folder"?, "topics"?: [{"name", "keywords"?: [strings]}], "sources"?: [source], "thresholds"?: {"relevance"?, "substance"?}, "schedule"?: {"enabled", "time": "HH:MM"}}',
   '- add_source: {"libraryId", "source"}            - remove_source: {"libraryId", "name"}',
   '- pause_source: {"libraryId", "name", "paused": true or false}',
   '- edit_topics: {"libraryId", "ops": [{"op": "add_topic", "name", "keywords"?} | {"op": "remove_topic", "name"} | {"op": "add_keywords", "topic", "keywords"} | {"op": "remove_keywords", "topic", "keywords"}]}',
-  '- edit_brief: {"libraryId", "brief"}             - edit_thresholds: {"libraryId", "relevance"?, "substance"?} (numbers from 0 to 1)',
-  '- edit_schedule: {"libraryId", "enabled"?, "time"?}   - edit_cap: {"libraryId", "cap"} (a whole number above 0: model calls per round at most)',
-  '- run_round: {"libraryId"}',
+  '- edit_brief: {"libraryId", "brief"} (the whole brief as it should read)   - edit_thresholds: {"libraryId", "relevance"?, "substance"?} (numbers from 0 to 1)',
+  '- edit_schedule: {"libraryId", "enabled"?, "time"?}   - edit_cap: {"libraryId", "cap"} (a whole number above 0: model calls per run at most)',
+  '- run_round: {"libraryId"} (one run of the library now)',
   'A source: {"name": lower-case letters, digits and "-" (1 to 40), "kind": "rss" | "arxiv" | "hn", "url" (rss), "query" (arxiv, hn), "topic"? (one of the library\'s topic names)}.',
-  '"why": one or two sentences for the user. Streams checks every card, tries a new source once, and works out the before and after itself.',
+  '"why": one or two sentences for the user. Streams checks every proposal, tries a new source once, and works out the before and after itself.',
 ].join('\n');
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -57,14 +72,12 @@ const nonEmpty = (v) => typeof v === 'string' && v.trim() !== '';
 const charsOf = (s) => [...s].length;
 
 /**
- * The note a suggestion card becomes when the user taps 「要」 on it (the desktop's acceptSuggestion hands it to agentTurn as
- * `as: 'note'`): what the card says, for the agent to decide on. `lang` 'en' → English, else Chinese.
+ * The note a suggestion card becomes when the user taps 「要」 on it — v2 package C; redesign R5a: the desktop hands over core
+ * handoffText (suggest/act.mjs: interface words, no kind name, no JSON, no raw error) instead; this one says the same in the
+ * same words, for a caller of before R5a. `lang` 'en' → English, else Chinese.
  */
-export function acceptedSuggestionNote({ libraryName, libraryId, kind, subject, evidence }, lang = 'zh') {
-  const ev = JSON.stringify(evidence ?? null);
-  return lang === 'en'
-    ? `The user tapped 「要」 (yes) on a suggestion card of the library 「${libraryName}」 (id ${libraryId}): ${kind} · ${subject}. Its evidence: ${ev}. Decide whether to propose a card for it (look things up first if you need to); if not, say why.`
-    : `用户在库「${libraryName}」（id ${libraryId}）的一张建议卡上点了「要」：${kind} · ${subject}。证据：${ev}。请决定要不要为它出一张提议卡（需要的话先查）；不出就说明为什么。`;
+export function acceptedSuggestionNote({ libraryName, kind, subject, evidence, otherName }, lang = 'zh') {
+  return handoffText({ kind, subject, evidence: evidence ?? {} }, { libraryName, otherName, action: kind === 'dismiss-reason' ? 'draft-proposal' : 'forward', lang });
 }
 
 /** The keys of the first top-level JSON object in `text`, in order, repeats kept (JSON.parse keeps only the last of two). */

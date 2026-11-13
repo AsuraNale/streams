@@ -70,6 +70,8 @@ const suggestionFilter = f => absent(f) || (isObject(f) && onlyKeys(f, ['library
 const suggestionKey = nonEmptyShort(300)
 // redesign R2: the quick reasons of the 放弃 bar (the core's DISMISS_QUICK)
 const DISMISS_QUICK_IDS = Object.freeze(['marketing', 'irrelevant', 'shallow', 'duplicate'])
+// redesign R5a: a 系统检测's actions (the core's SUGGESTION_ACTIONS)
+export const SUGGESTION_ACTION_IDS = Object.freeze(['pause-source', 'edit-address', 'set-strictness', 'forward', 'draft-proposal', 'dismiss'])
 
 /** name → how many arguments it takes, and a check for them. */
 export const BRIDGE_METHODS = Object.freeze({
@@ -191,6 +193,12 @@ export const BRIDGE_METHODS = Object.freeze({
   listSuggestions: Object.freeze({ args: 1, optional: 1, check: ([f]) => suggestionFilter(f) }),
   dismissSuggestion: Object.freeze({ args: 3, optional: 1, check: ([id, key, reason]) => libraryId(id) && suggestionKey(key) && (absent(reason) || shortString(500)(reason)) }),
   acceptSuggestion: Object.freeze({ args: 2, check: ([id, key]) => libraryId(id) && suggestionKey(key) }),
+  // redesign R5a (services/agent.mjs, services/pipeline.mjs; docs/desktop.md §4.19): one kind of 提议 — every library's 主 Agent
+  // 提议 and 系统检测 in one view; a 系统检测's action on any library (core runSuggestionAction: the 动作表); 重新评分 of a library
+  listToConfirm: Object.freeze({ args: 0 }),
+  actOnSuggestion: Object.freeze({ args: 3, check: ([id, key, action]) => libraryId(id) && suggestionKey(key) && SUGGESTION_ACTION_IDS.includes(action) }),
+  getRescore: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
+  startRescore: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
   // interface B (docs/desktop.md §4.2). The library and reading (services/browse.mjs): an id must be in the index
   getLibrary: Object.freeze({ args: 2, check: ([view, filter]) => LIBRARY_VIEWS.includes(view) && libraryFilter(filter) }),
   searchLibrary: Object.freeze({ args: 2, check: ([q, filter]) => shortString(200)(q) && searchFilter(filter) }),

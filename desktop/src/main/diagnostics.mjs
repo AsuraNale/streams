@@ -23,9 +23,11 @@ const KEY_LIKE = /sk-[A-Za-z0-9_-]{8,}/g
  * @param {{setting: string, resolved: string}|null} [o.locale] - the language setting and what it came to (locale.mjs)
  * @param {string[]} [o.connections] - the connections' state, one line each (services/connections.mjs diagnosticLines:
  *   which one is active, what detection found; never a key or its hint)
+ * @param {string[]} [o.rawErrors] - redesign R5a (O9): the newest raw error texts the page was not given (raw-errors.mjs lines:
+ *   a fetcher's message, an HTTP code, a failed step's text, a run problem's detail), newest last
  * @returns {string}
  */
-export function diagnosticsText({ versions, layout, settings, keysHeld = [], secrets = [], locale = null, connections = [] }) {
+export function diagnosticsText({ versions, layout, settings, keysHeld = [], secrets = [], locale = null, connections = [], rawErrors = [] }) {
   let log = ''
   try {
     const lines = readFileSync(join(layout.logsDir, 'main.log'), 'utf8').split('\n')
@@ -43,6 +45,9 @@ export function diagnosticsText({ versions, layout, settings, keysHeld = [], sec
     `language: ${locale?.setting ?? settings.language ?? 'auto'} (${locale?.resolved ?? 'zh-CN'})`,
     `recent libraries: ${Array.isArray(settings.recentLibraries) && settings.recentLibraries.length ? settings.recentLibraries.join(' · ') : 'none'}`,
     ...connections,
+    '',
+    `--- the last ${rawErrors.length} raw errors (redesign R5a: what the page was given as a state and what to do)`,
+    ...(rawErrors.length ? rawErrors : ['(none)']),
     '',
     `--- the last ${LOG_LINES} lines of logs/main.log`,
     log,

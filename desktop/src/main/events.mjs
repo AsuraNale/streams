@@ -33,6 +33,8 @@ export const EVENT_TOPICS = Object.freeze({
   'quota-changed': 'the plan quota or the API balance of a connection was read, came with a call, or is gone (or the current connection changed): { kind }; the page re-reads getQuota',
   // v2 package L (services/schedule.mjs): the one queue of the rounds
   'queue-changed': 'a library was queued, a round of the queue started or ended: { running, waiting } (library ids; running null when none runs); the page re-reads getQueue',
+  // redesign R5a (services/agent.mjs): the 系统检测
+  'suggestions-changed': 'a rule-based finding of a library was made, dismissed, handed to the main agent, acted on or expired: { libraryId, key, status } (status open · dismissed · accepted · acted · expired); the page re-reads listToConfirm',
 })
 
 /**

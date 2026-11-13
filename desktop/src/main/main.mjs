@@ -42,6 +42,7 @@ import { createScheduleService } from './services/schedule.mjs'
 import { createProposalsService } from './services/proposals.mjs'
 import { createNewLibraryService } from './services/new-library.mjs'
 import { createAgentService } from './services/agent.mjs'
+import { createRawErrors } from './raw-errors.mjs'
 // v2 package M: the plan quota / API balance of the current connection
 import { createQuotaService } from './services/quota.mjs'
 import { createTray } from './tray.mjs'
@@ -255,6 +256,8 @@ app.whenReady().then(() => {
   // the secret store (secrets.mjs), the library (services/library.mjs), the connections (services/connections.mjs), the
   // pipeline (services/pipeline.mjs), then the shell's own services (app-services.mjs): the app state, the settings page
   const secrets = createSecretStore({ dir: layout.secretsDir, safeStorage })
+  // redesign R5a (O9): the raw error texts the page is never given — the log and 「复制诊断信息」 only
+  const rawErrors = createRawErrors({ log, now: clock })
   const currentLocale = () => locale.current()
   // where a new library goes when settings.json has no libraryRoot (v2 packages B and I): a development run never falls back to
   // the real Documents folder. v2 package J2: worked out when first needed, not at start — the packaged app did not start
@@ -280,6 +283,8 @@ app.whenReady().then(() => {
     // a probe made from the page counts in the open library's usage (core createUsageCounter), under `probe`
     usageWrap: c => { const d = library.dir(); return d ? createUsageCounter(d).wrap(c, 'probe') : c },
     onQuota: (kind, q) => quota?.record(kind, q),
+    // redesign R5a (O9): a failed probe's own text into the diagnostics, not to the page
+    rawErrors,
   })
   quota = createQuotaService({ connections, activeKind: () => connections.activeKind(), secrets, emit, log, devConnection: DEV_CONNECTION, devQuotaFile: DEV_QUOTA })
   // the schedule and the queue (services/schedule.mjs) are made below; the pipeline reaches them through these three
@@ -292,6 +297,10 @@ app.whenReady().then(() => {
     schedule: () => scheduler?.view() ?? null, onRoundDone: done => scheduler?.roundDone(done),
     roundGate: () => scheduler.startCurrent('the page'),
     afterRound: r => agent?.afterRound(r),
+    // redesign R5a: rule ⑤ right after a 放弃 is written; 重新评分 through the queue; raw errors out of the page
+    afterDismiss: r => agent?.afterDismiss(r),
+    rescoreGate: entry => scheduler.startRescore(entry),
+    rawErrors,
   })
   pipelineHeld = () => pipeline.held()
   // redesign R2 (N03): a held 放弃 is written when the app quits (whatever quits it: 退出, an update, the last window) …
@@ -320,14 +329,15 @@ app.whenReady().then(() => {
     log(`appearance: Windows changed, the app is ${look.scheme} now (${look.appearance})`)
     emit('settings-changed', null)
   })
-  const sources = createSourcesService({ library, emit, log })
+  const sources = createSourcesService({ library, emit, log, rawErrors })
   // the library's chat box (v2 package E): a sentence routed to a change goes to the main agent (made below) with the library's id
   const ask = createAskService({ library, connections, log, agentSend: (text, options) => agent.handlers.agentSend(text, options) })
-  const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell, schedule: () => scheduler?.view() ?? null })
+  const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell, schedule: () => scheduler?.view() ?? null, rawErrors })
   const services = createAppServices({
     layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets, applyTheme, scheme: () => currentLook().scheme,
     // 许可证与致谢 (licenses.mjs): the packaged app reads its own copies (resources/app, beside Streams.exe), a development run the repository's
     licenses: { packaged: app.isPackaged, desktopDir: DESKTOP_DIR, installDir: dirname(process.execPath) },
+    rawErrors,
   })
   // Windows notifications (services/notify.mjs): made here, used by later wiring (the pipeline's rounds, plan C5)
   const notifier = createNotifier({
@@ -345,6 +355,9 @@ app.whenReady().then(() => {
     libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
     fallbackSchedule: () => readSettings(layout.settingsFile).schedule,
     devProposals: DEV_PROPOSALS,
+    // redesign R5a: a confirmed card changed a library — its 系统检测 that no longer fit are expired (暂停该来源 → ① ③)
+    afterConfirmed: card => agent?.afterProposal(card),
+    rawErrors,
   })
   // redesign R4a: 新建库's one-page form — the same core function as a confirmed create_library card (services/new-library.mjs)
   const newLibrary = createNewLibraryService({
@@ -353,7 +366,7 @@ app.whenReady().then(() => {
   })
   // the main agent (v2 package C): one conversation, one turn at a time; its cards go through createProposal above, so only
   // the user's 「确认」 changes anything
-  agent = createAgentService({ appDataDir: layout.appData, library, connections, proposals, emit, log, now: clock, locale: currentLocale, devScript: DEV_AGENT_SCRIPT })
+  agent = createAgentService({ appDataDir: layout.appData, library, connections, proposals, emit, log, now: clock, locale: currentLocale, devScript: DEV_AGENT_SCRIPT, rawErrors })
   // the tray's count is the current library's
   const inboxNow = () => { const d = library.dir(); if (!d) return 0; try { return listInbox(d).length } catch { return 0 } }
   const tray = createTray({
@@ -371,6 +384,8 @@ app.whenReady().then(() => {
       // … and when another library becomes the current one (redesign R2: 换库 closes the bar)
       const h = pipeline.held()
       if (h && h.dir !== library.dir()) pipeline.settlePending('another library is open')
+      // redesign R5a: the current library's configuration changed — its 系统检测 that no longer fit are expired
+      if (payload?.libraryId) agent.checkLibrary(payload.libraryId)
     }
     else if (topic === 'settings-changed') tray.refresh()
     // a library registered, removed or switched to: the timer again, for the libraries as they are now

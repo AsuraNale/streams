@@ -122,6 +122,8 @@ function apply(states, ev) {
       s.scores[ev.node] = typeof ev.score === 'number' ? { score: ev.score, reason: ev.reason } : { value: ev.value, reason: ev.reason };
       if (typeof ev.quote === 'string') s.scores[ev.node].quote = ev.quote;
       if (typeof ev.materials === 'string') s.scores[ev.node].materials = ev.materials;
+      // redesign R5a: the pass threshold the score was judged against (a verdict stays where it was when the standard changes)
+      if (typeof ev.threshold === 'number') s.scores[ev.node].threshold = ev.threshold;
       delete s.unscored[ev.node];
       rememberCfg(s, ev);
       break;

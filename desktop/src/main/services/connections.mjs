@@ -62,8 +62,10 @@ export const keyRefOf = vendor => `key-${vendor}`
  *   library's usage counter (core createUsageCounter(dir).wrap, purpose `probe`) so the call is counted there
  * @param {(kind: string, quota: object) => void} [o.onQuota] - v2 package M: the plan's windows a Claude Code call brought
  *   (core deps.onQuota), for the corner of the sidebar (services/quota.mjs record)
+ * @param {{note: Function}|null} [o.rawErrors] - redesign R5a (O9): raw-errors.mjs — a failed probe's own text goes there (the
+ *   log, 「复制诊断信息」); the page gets its code only (texts/common.js CONNECTIONS.codes words it)
  */
-export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, devAskScript = null, devDetect = null, connectorDeps = {}, usageWrap = c => c, onQuota = () => {} }) {
+export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, devAskScript = null, devDetect = null, connectorDeps = {}, usageWrap = c => c, onQuota = () => {}, rawErrors = null }) {
   if (devConnection !== null && !DEV_CONNECTION_MODES.includes(devConnection)) throw new TypeError(`STREAMS_DEV_CONNECTION must be one of ${DEV_CONNECTION_MODES.join(' | ')}`)
   const settings = () => readSettings(settingsFile)
   const devAskAnswer = devConnection === 'fake' && devAskScript ? JSON.parse(readFileSync(devAskScript, 'utf8')) : null
@@ -276,7 +278,12 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
     let r
     try { r = await c.probe() } catch (err) { r = { ok: false, latencyMs: 0, code: 'unknown', detail: String(err?.message ?? err) } }
     const out = { ok: r.ok === true, latencyMs: r.latencyMs ?? 0, model: r.model ?? null }
-    if (!out.ok) { out.code = r.code ?? 'unknown'; out.detail = r.detail ?? '' }
+    // redesign R5a (O9): the page gets the kind of failure (its code), not the connection's own text — that goes to the log and
+    // the diagnostics (raw-errors.mjs); the page words the code (texts/common.js CONNECTIONS.codes)
+    if (!out.ok) {
+      out.code = r.code ?? 'unknown'
+      try { rawErrors?.note(`probe ${kind}`, { code: out.code, message: r.detail }) } catch { /* the log is best effort */ }
+    }
     probes[kind] = { ...out, at: new Date().toISOString() }
     log(`connections: probe ${kind}: ${out.ok ? `ok ${out.latencyMs} ms` : out.code}`)
     return out
