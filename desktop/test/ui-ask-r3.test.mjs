@@ -19,6 +19,7 @@ import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { ASK } from '../src/renderer/texts/ask.js'
 import { seedPlanB, seedShelf, worldSession } from './support/seed.mjs'
+import { markIn, markOfFile } from './support/brand.mjs'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
 const QUESTION = 'agent 记忆方案里哪种在长对话上表现最好？代价是什么？'
@@ -96,6 +97,28 @@ test('R3-5 / V9 an answer: each cite number and each note listed is in the core\
   await until(id => document.querySelector(`main[data-screen="library"] [data-reader="${id}"]`) !== null, got.sources[0][1])
   await s.page.click('nav.st-lib-tabs button[data-tab="ask"]')
   await until(() => document.querySelector('main[data-screen="ask"][data-state="ready"] [data-turn="0"]') !== null)
+})
+
+// logo (docs/checks/2026-11-12-logo/contract.md L-3, 2026-11-12): a check added — 流息's speaker avatar was the template's
+// weave glyph; it is 流息's mark now
+test('logo: the answer\'s speaker avatar is 流息\'s mark (mark-black.svg\'s one path, currentColor), not the template\'s weave', async () => {
+  // the answer of the test above; run alone (a name pattern), it asks the question itself
+  if (await s.page.evaluate(() => document.querySelector('[data-turn="0"]') === null)) await send(QUESTION)
+  await until(() => document.querySelector('[data-turn="0"] .speaker .avatar svg') !== null)
+  const file = markOfFile()
+  const got = await markIn(s.page, '[data-turn="0"] .speaker .avatar svg')
+  assert.deepEqual([got.viewBox, got.paths.length, got.paths[0].transform, got.paths[0].d, got.paths[0].fill, got.glyph], [file.viewBox, 1, file.transform, file.d, 'currentColor', null])
+  assert.equal(got.shown, true, 'drawn (单线黑白 hides the template\'s svg in an avatar for a picture)')
+  assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-glyph="weave"]').length), 0, 'no weave anywhere on the page')
+  // 单线黑白 · 深色: the template puts a picture of the 3D mark on white there and hides the svg — here the svg is drawn, no picture
+  for (const [m, v] of [['setTheme', 'monoline'], ['setAppearance', 'dark']]) assert.equal((await s.page.evaluate(([mm, vv]) => window.streams[mm](vv), [m, v])).ok, true)
+  await until(() => document.body.classList.contains('r12-line') && document.body.dataset.appearance === 'dark' && [...document.querySelectorAll('link[data-theme-sheet]')].every(l => l.sheet !== null))
+  const line = await markIn(s.page, '[data-turn="0"] .speaker .avatar svg')
+  assert.equal(line.shown, true)
+  assert.equal(await s.page.evaluate(() => getComputedStyle(document.querySelector('[data-turn="0"] .speaker .avatar')).backgroundImage), 'none')
+  assert.notEqual(line.paths[0].computedFill, await s.page.evaluate(() => getComputedStyle(document.querySelector('[data-turn="0"] .speaker .avatar')).backgroundColor), 'the mark is not the colour of its box')
+  for (const [m, v] of [['setTheme', 'research'], ['setAppearance', 'light']]) assert.equal((await s.page.evaluate(([mm, vv]) => window.streams[mm](vv), [m, v])).ok, true)
+  await until(() => document.body.classList.contains('r11-research') && document.body.dataset.appearance === 'light')
 })
 
 test('R3-5 记到想补的主题 → 已加入待补充主题, in demand.jsonl, and still so after another tab and back; 详情: 引用了 n 篇笔记, what it used, 待补充主题', async () => {

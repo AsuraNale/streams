@@ -6,7 +6,9 @@
 //   node desktop/scripts/build-icon.mjs --check      render into a temporary folder and compare with the committed files;
 //                                                    exit code 1 when any byte differs (nothing in the repository is written)
 //
-// Needs the engine's node_modules (sharp comes from there; `npm ci` in engine/). The same sources give the same bytes
+// Needs sharp (not a dependency of this repository): from STREAMS_SHARP_DIR, or installer/icon-tools (scripts/lib/icon.mjs).
+// --check compares what the sources render to, not the SVG bytes: a byte that changes nothing drawn passes here, and the
+// sources' own bytes are held by test/icon.test.mjs (the five SVGs = docs/design/logo/source byte for byte) (logo). The same sources give the same bytes
 // every time, so the committed streams.ico is exactly what this script writes (scripts/lib/icon.mjs says how).
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

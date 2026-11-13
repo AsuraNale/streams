@@ -1,6 +1,6 @@
 // The left sidebar — redesign R1: the template's parts, as the design's streams/app.js builds it (07-模板版/说明.md 「用了模板
 // 的哪些部件」: brand · navitem · project-item · side-footer, plus streams.css's st-quota):
-//   brand (流息's mark · 流息 · 个人资料库) · 「新建库」 (navitem.new) · 库架 (with how many libraries) · 主 Agent (no number: what
+//   brand (流息's mark — the new logo's 五流 in the theme's ink, lib/brand-mark.js — · 流息 · 个人资料库) · 「新建库」 (navitem.new) · 库架 (with how many libraries) · 主 Agent (no number: what
 //   waits for you is counted on the right panel's 待确认 only, F10) · 「我的库」 · one project-item per library — its icon, its
 //   name, its 待看 count or an amber dot, one line under it: 运行中 · <当前环节> / 排队中 · 第 n 位 / 来源异常 / n 条待看 —
 //   then at the foot the current connection's 套餐用量 (v2 package M; nothing at all when there is none) and 设置.
@@ -14,6 +14,7 @@ import { html } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { fmt } from '../lib/format.js'
 import { SidebarIcon, TIcon } from '../lib/template-icons.js'
+import { BrandMark } from '../lib/brand-mark.js'
 import { BRAND, SIDEBAR } from '../texts/common.js'
 import { SHELL } from '../texts/shell.js'
 import { LIBRARY_ROUTES, LibraryMark } from './library-sections.js'
@@ -33,7 +34,7 @@ const count = n => (typeof n === 'number' && n > 0 ? n : null)
 export function Sidebar({ label, children }) {
   return html`<aside class="sidebar st-sidebar" aria-label=${label ?? SIDEBAR.label}>
     <a href="#" class="brand" aria-label=${BRAND.name} onClick=${prevent(null)}>
-      <span class="brandmark"><${TIcon} name="weave" /></span>
+      <span class="brandmark"><${BrandMark} /></span>
       <span><span class="brandname">${BRAND.name}</span><small>${BRAND.tagline}</small></span>
     </a>
     ${children}

@@ -507,6 +507,43 @@ const MUTANTS = [
     edits: [['src/renderer/screens/sources.js', '  useEffect(() => { if (d && !draft.current) { setOn(d.enabled); setTime(d.time) } }, [d?.enabled, d?.time])', '  useEffect(() => { if (d) { setOn(d.enabled); setTime(d.time) } }, [d?.enabled, d?.time])']],
     test: ['test/ui-schedule.test.mjs', '--test-name-pattern=a new time'],
   },
+  // the new logo (docs/checks/2026-11-12-logo/contract.md 「测」: each 反向 named there, and a few more)
+  {
+    id: 'logo-mark-black',
+    what: 'the brand mark is written black (#000) instead of the theme\'s ink (currentColor)',
+    edits: [['src/renderer/lib/brand-mark.js', '<path transform=${MARK.transform} fill="currentColor" d=${MARK.d} />', '<path transform=${MARK.transform} fill="#000" d=${MARK.d} />']],
+    test: ['test/ui-brand.test.mjs', '--test-name-pattern=· dark:'],
+  },
+  {
+    id: 'logo-weave-back',
+    what: 'the sidebar\'s brand is the template\'s weave glyph again',
+    edits: [['src/renderer/kit/sidebar.js', '      <span class="brandmark"><${BrandMark} /></span>', '      <span class="brandmark"><${TIcon} name="weave" /></span>']],
+    test: ['test/ui-brand.test.mjs', '--test-name-pattern=the sidebar\'s brand is'],
+  },
+  {
+    id: 'logo-path-changed',
+    what: 'one number of the mark\'s path data differs from mark-black.svg (13 → 12: the long middle stream shorter)',
+    edits: [['src/renderer/lib/brand-mark.js', 'M3 4L13 4L12 5L2 5Z', 'M3 4L12 4L12 5L2 5Z']],
+    test: ['test/ui-brand.test.mjs', '--test-name-pattern=the sidebar\'s brand is'],
+  },
+  {
+    id: 'logo-overlay-gone',
+    what: 'the overlay\'s rule for the brand mark is gone (the template\'s tile and colour come back; 单线黑白 hides the svg for its 3D picture)',
+    edits: [['src/renderer/styles/template-app.css', /^\.r11\.r11\.r11\.r11 \.st-sidebar \.brand \.brandmark \{[^\n]*\n/m, '']],
+    test: ['test/ui-brand.test.mjs', '--test-name-pattern=the mark is the theme\'s ink'],
+  },
+  {
+    id: 'logo-avatar-weave',
+    what: '流息\'s speaker avatar in 问库 is the template\'s weave glyph again',
+    edits: [['src/renderer/screens/ask.js', '<span class="avatar"><${BrandMark} /></span>', '<span class="avatar"><${TIcon} name="weave" fallback="spark" /></span>']],
+    test: ['test/ui-ask-r3.test.mjs', '--test-name-pattern=speaker avatar'],
+  },
+  {
+    id: 'logo-icon-source',
+    what: 'one byte of icon-16.svg changed (#000000 → #000001): the source is no longer the design\'s file',
+    edits: [['assets/icon/icon-16.svg', 'fill="#000000"', 'fill="#000001"']],
+    test: ['test/icon.test.mjs', '--test-name-pattern=byte for byte'],
+  },
 ]
 
 function runTest(desktop, test) {

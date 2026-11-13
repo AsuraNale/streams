@@ -34,6 +34,7 @@ import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { useProposals } from '../lib/agent.js'
 import { TIcon } from '../lib/template-icons.js'
+import { BrandMark } from '../lib/brand-mark.js'
 import { LibraryFrame } from './library-frame.js'
 import { Notice } from './chat.js'
 import { ProposalCard } from './proposal-card.js'
@@ -175,7 +176,8 @@ function AgentReply({ result, askOpen, busy, cards, onQuick, onSend, onChanged, 
 }
 
 function Speaker({ name, role, part }) {
-  return html`<div class="speaker"><span class="avatar"><${TIcon} name="weave" fallback="spark" /></span>${name} <small data-part=${part}>${role}</small></div>`
+  // the new logo: 流息's mark (lib/brand-mark.js) where the template drew its own brand's glyph
+  return html`<div class="speaker"><span class="avatar"><${BrandMark} /></span>${name} <small data-part=${part}>${role}</small></div>`
 }
 
 /** 详情 of the latest answer: 引用了 n 篇笔记 · what it used · 本次回答依据 · 待补充主题. */

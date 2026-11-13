@@ -19,6 +19,10 @@
    9. Redesign R4b — 来源与要求 (four parts), 高级设置 (评分环节 · 变更记录 · 库文件夹), the template's dialog (移除该库 and the rest),
       设置 (four parts), 输入 API key, 许可证与致谢: the template's parts; here the source table's columns, the row menu, the seven
       nodes' row, the two columns of 评分环节, the connection rows, the update's boxes.
+   10. The new logo (五流, 2026-11-12; lib/brand-mark.js) — the sidebar's brand mark (39 × 27: 3 px a cell of its 13 × 9) and 流息's speaker avatar in 问库: the mark is
+      the theme's ink (--ink11, the colour of the text) in all four themes, light and dark; the template's tile behind the brand
+      (the accent square, the gradient, the tilt, 单线黑白's picture of the 3D mark on white) is taken away, the avatar keeps its
+      box but not 单线黑白's picture. Body classes four times over: above every theme's own rule for .brandmark / .avatar.
    Colours: only the template's variables. */
 
 /* 1 */
@@ -429,3 +433,10 @@
 .settings__update-bar { height: 6px; border-radius: 3px; background: var(--rule11); overflow: hidden; }
 .settings__update-fill { display: block; height: 100%; background: var(--accent11); }
 .settings__update-wait { padding: 8px 10px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--rule11); font-size: 12px; font-weight: 650; }
+
+/* 10 */
+.r11.r11.r11.r11 .st-sidebar .brand .brandmark { display: grid; place-items: center; width: 39px; height: 27px; flex: none; padding: 0; color: var(--ink11); background: none; border: 0; border-radius: 0; outline: 0; box-shadow: none; transform: none; }
+.r11.r11.r11.r11 .st-sidebar .brand .brandmark .st-brand-mark { display: block; width: 39px; height: 27px; transform: none; opacity: 1; }
+.r11.r11.r11.r11 .speaker .avatar { background-image: none; }
+.r11.r11.r11.r11.r12-line .speaker .avatar { background-color: var(--paper); }
+.r11.r11.r11.r11 .speaker .avatar .st-brand-mark { display: block; width: 18px; height: 13px; transform: none; }

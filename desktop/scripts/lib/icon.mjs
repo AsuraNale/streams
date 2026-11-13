@@ -41,7 +41,7 @@ export function loadSharp() {
 export const sha256 = buf => createHash('sha256').update(buf).digest('hex')
 
 /** The source SVG of one size and how it is rendered: a hand-placed icon-<size>.svg when there is one, else the large one
- *  brought down (today: the large one for every size; the small forms are a later round, docs/desktop.md). */
+ *  brought down (logo, 2026-11-12: the new logo's five sources are all there, so each small size is its own SVG). */
 function sourceOf(size, srcDir = ICON_SRC_DIR) {
   if (size !== 256 && existsSync(join(srcDir, `icon-${size}.svg`))) return { file: `icon-${size}.svg`, density: SMALL_DENSITY, kernel: 'lanczos3' }
   return { file: 'icon-512.svg', density: 72 * (size === 256 ? 1 : 2), kernel: 'lanczos3' }

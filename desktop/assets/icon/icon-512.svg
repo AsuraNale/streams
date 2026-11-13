@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-<rect width="512" height="512" rx="112" fill="#1F6E8C"/>
-<path fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linecap="round" d="M84 176c48-56 112-56 160 0s112 56 160 0"/>
-<path fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linecap="round" stroke-opacity="0.72" d="M84 272c48-56 112-56 160 0s112 56 160 0"/>
-<path fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linecap="round" stroke-opacity="0.44" d="M84 368c48-56 112-56 160 0s112 56 160 0"/>
+<rect width="512" height="512" rx="112.64" fill="#FFFFFF"/>
+<path transform="translate(88 148) scale(24)" fill="#E53935" d="M2 0L4.707 0L6.854 2.146L6.146 2.854L4.293 1L1 1ZM1 2L7.707 2L9.854 4.146L9.146 4.854L7.293 3L0 3ZM3 4L13 4L12 5L2 5ZM2 6L7.293 6L9.146 4.146L9.854 4.854L7.707 7L1 7ZM1 8L4.293 8L6.146 6.146L6.854 6.854L4.707 9L0 9Z"/>
+<path transform="translate(112 148) scale(24)" fill="#1E88E5" d="M2 0L4.707 0L6.854 2.146L6.146 2.854L4.293 1L1 1ZM1 2L7.707 2L9.854 4.146L9.146 4.854L7.293 3L0 3ZM3 4L13 4L12 5L2 5ZM2 6L7.293 6L9.146 4.146L9.854 4.854L7.707 7L1 7ZM1 8L4.293 8L6.146 6.146L6.854 6.854L4.707 9L0 9Z"/>
+<path transform="translate(100 148) scale(24)" fill="#000000" d="M2 0L4.707 0L6.854 2.146L6.146 2.854L4.293 1L1 1ZM1 2L7.707 2L9.854 4.146L9.146 4.854L7.293 3L0 3ZM3 4L13 4L12 5L2 5ZM2 6L7.293 6L9.146 4.146L9.854 4.854L7.707 7L1 7ZM1 8L4.293 8L6.146 6.146L6.854 6.854L4.707 9L0 9Z"/>
 </svg>

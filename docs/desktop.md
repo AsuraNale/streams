@@ -26,7 +26,7 @@ desktop/
   src/preload/preload.cjs   预加载桥：页面里唯一的 window.streams
   src/shared/fetch-states.mjs   主进程与页面共用：五种抓取状态的键
   src/renderer/      页面（§五）：index.html · app.js · lib/ · kit/ · screens/ · texts/ · texts-en/ · styles/
-  assets/icon/       图标：icon-512.svg → png/ → streams.ico（README 在那里）
+  assets/icon/       图标：icon-512/48/32/24/16.svg（新 logo「五流」定稿原样）→ png/ → streams.ico（README 在那里）
   scripts/           start · screenshot · run-tests · csp · mutation-check · build-icon · lib/
   test/              node:test；用 Playwright 驱动 Electron（§七）
 ```
@@ -751,6 +751,18 @@ frame-ancestors 'none'
 
 **测试**：核心 `core/test/r4b-sources.test.mjs`；桌面 `test/ui-sources.test.mjs`（重写：四块与顺序、没有谁定的 / 贴链接；来源行 = `sourcesView`；「⋯」四项、测试抓取不写、暂停恢复与修改地址进 `streams.json` 且记 you、删除先问；就地加来源五种状态的字与怎么办、不漏原始报错、添加只在到达之后、重复地址；主题标签、关键词、只要名字、删除先问；要求三样一个保存进 `streams.json` 与登记、各记一行、空要求拒；定时与上限）、`test/ui-advanced.test.mjs`（新：三块折叠；七个节点与种类、工具为空、固定节点与内置规则桥拒且不写；手动改阈值 → 来源与要求显示自定义、变更记录多一行手动修改，再选一档就不是自定义；变更记录 = 核心 `changeLog`、三种操作来源；库文件夹；移除该库取消不变、移除只去登记、文件夹逐字节不变）、`test/ui-settings-i.test.mjs`（重写：四块与跳转、主 Agent 与定时一览不在、连接行的按钮；用量合计 = 各库 + 主 Agent、等号两边相等、各库数 = 各自用量文件；关于与高级、复制诊断信息只在这里；默认存储位置照旧）；改了走法的旧测试（文件里注明 redesign R4b 与原因）：`ui-pipeline`（右栏数字的元素与措辞）、`ui-settings`（设为当前连接按钮、key 对话框先选厂商、上限用一个保存、阈值在高级里读）、`ui-licenses`（对话框标题、字体单列一行）、`ui-schedule`（一个保存、说明行的字）、`ui-setup-record`（首次设置在变更记录里，没记录的步骤没有行）、`ui-shell`（谁定的 → 变更记录、定时一览 → 右栏进度、等待条件不再等关卡）、`ui-agent`（谁定的 → 变更记录）；验收草案 `tests/acceptance/v2-draft/n06-use-cases.test.mjs` UC3 第 4 步只改了读的地方（谁定的 → 变更记录的行，`standards-draft.mjs` 未动）。变异（`npm run mutants -- <id>`）：`r4b-name-not-saved`（改库名不写进 `streams.json`）· `r4b-manual-not-recorded`（变更记录漏记手动修改）· `r4b-who-back`（谁定的回来）· `r4b-baseline-removable`（内置规则可删）· `r4b-preview-writes`（单条测试写进账本）· `r4b-remove-deletes-file`（移除删掉文件夹里一个文件）· `r4b-total-without-agent`（合计少算主 Agent）· `r4b-custom-not-shown`（手动改阈值不显示自定义）· `r4b-copy-in-banner`（复制诊断信息回到横幅）· `r4b-agent-part-back`（设置的主 Agent 一块回来）· `r4b-draft-overwritten`（定时与上限：输入了还没保存时，一次重新读取把保存过的值盖回输入框）；核心的见 5.19。参数可以写成前缀加 `*`（`npm run mutants -- "r4b-*"`、`node core/scripts/mutation-check.mjs "r4b-*"`），跑这一包的全部变异体。定时与上限一行（以及每轮上限）把用户输入了还没保存的值当作草稿：保存之前，`settings-changed` / `library-changed` 引起的重新读取不覆盖它；保存成功或换库后草稿结束。截图：`node scripts/shots-r4b.mjs` → `docs/shots/2026-11-12-r4b/`。
 
+### 4.18 §四补：新 logo「五流」——应用图标与品牌记号（11-12）
+
+> 截图 `docs/shots/2026-11-12-logo/titlebar*.png` 里标题栏的图标带红蓝边：这台机器的显示缩放大于 100%，Windows 取 24 / 32 那一项缩小来画；`streams.ico` 的 16 px 一项本身只有黑白（`compare-icon.mjs` 逐像素核过）。仓库 `README.md` 用 `docs/brand/lockup-on-white.png`：定稿 `lockup.png` 加 48 px 白边铺白底（定稿是白底黑标、透明底在 GitHub 深色模式下看不见），`lockup.png` 本身与定稿逐字节相同、留着。
+
+> 契约 `docs/checks/2026-11-12-logo/contract.md`。维护者 11-12 让把赞妮的定稿（`Logo设计\定稿\流息\`，维护者 11-10 选的 B 五流）换进流息；定稿原样复制在 `docs/design/logo/source/`（来源与 sha256：`docs/design/logo/来源.md`，核：`node docs/design/logo/check-source.mjs`）。
+
+- **应用图标**：`assets/icon/icon-512/48/32/24/16.svg` 是定稿的同名文件，逐字节相同；`node scripts/build-icon.mjs` 由它们渲染 `png/` 与 `streams.ico`（小尺寸各自 1:1 渲染手对过像素的 SVG，256 由 512 缩）。窗口标题栏、任务栏、托盘都读这一个 `streams.ico`（`src/main/icon.mjs`：`main.mjs` 的窗口与阅读窗口、`tray.mjs`）。本仓渲染的五张与定稿 `png/` 逐像素相同（`node scripts/compare-icon.mjs`；小尺寸的 PNG 文件字节不同，只差 pHYs 一块里记的分辨率）。安装包里的图标等 R6 重打安装包时带上，已安装的那份到 维护者 装新包时才换。
+- **品牌记号**（左栏顶上的 `brand`，`kit/sidebar.js`；首次打开、新建库用的是同一个左栏；问库里流息那一方的头像 `screens/ask.js Speaker`）：`lib/brand-mark.js BrandMark`，画的是 `mark-black.svg` 的那一条路径——viewBox、transform、路径数据都照文件，只把 fill 从黑色换成 `currentColor`。覆盖层（`styles/template-app.css` 第 10 节）把左栏记号的颜色定为当前主题的墨色 `--ink11`（正文的颜色），去掉模板在品牌后面的底块、渐变、倾斜和单线黑白放的那张红蓝 3D 图，记号 39 × 27（13 × 9 格，每格 3 像素）；头像保留模板的小框，只去掉单线黑白的图。模板原来当品牌用的 `weave` 图标不再出现；模板里的 `round12/brand/streams.svg` 仍在 `template/`（模板文件原样、清单不动），应用不再显示它。
+- **为什么单色、跟主题**：定稿只有白底上的黑标与红蓝 3D 两种，**没有深色底版本**（`设计说明.md` 第六节「没做的」）。把黑标直接放进深色主题会看不见；红蓝 3D 在深底上也没设计过。单色记号用主题自己的墨色，四套主题 × 浅 / 深色都和正文一样清楚，而且不用写任何新颜色（覆盖层只用模板变量，`kit.test` 核）。红蓝 3D 只留在应用图标上——那里永远是白色圆角底，正是定稿画的样子。
+- 品牌词规矩（V7）不变：品牌那里只出现「流息 / Streams」。
+- **测试**：`test/ui-brand.test.mjs`（新）；`test/icon.test.mjs`（加：五个来源逐字节等于定稿；设了 `STREAMS_SHARP_DIR` 时重建不跳过）；`test/ui-first-run.test.mjs`（加：首次打开的左栏记号）；`test/ui-ask-r3.test.mjs`（加：问库头像是记号、单线黑白深色下也画出来）；`scripts/lib/mirror.mjs` 的镜像多链一个 `docs/design/logo/source`。变异（`npm run mutants -- "logo-*"`）：`logo-mark-black`（记号写死 #000 → 深色四条红）· `logo-weave-back`（左栏换回 weave）· `logo-path-changed`（路径一个数不同）· `logo-overlay-gone`（覆盖层那条规则没了 → 八条红）· `logo-avatar-weave`（头像换回 weave）· `logo-icon-source`（icon-16.svg 改一个字节）。截图：`node scripts/shots-logo.mjs` → `docs/shots/2026-11-12-logo/`。
+
 ## 五、界面写法
 
 **选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。
@@ -856,7 +868,8 @@ src/renderer/
 | `ui-agent.test.mjs`（v2 包 G） | 三个库 + 五张开发钩子出的卡 + 两张建议卡 + 113 行的旧对话 + 脚本化的主 Agent：等你定的事的数与左栏角标一致、可折叠；正本一页 100 行、加载更早的，lookup / note / summary 只一行淡字不露原文；UC1 一个问题带快捷回答（发出的是选项原文）→ 建库卡（试抓、没勾）→ 建库后左栏多一个库；四种 notice 各一句、连接问题带去设置；一轮进行中不可再发（主进程那一个方法加延迟）；建议卡交给主 Agent / 不要；提议卡不要 = declineProposal、确认连点只调一次、stale、failed、改一下；卡上没有任何开关；问库 unsure 两个按钮带对的 route、change 的「这句转给主 Agent」+ 卡 → 确认后「谁定的」、question 的回答；在页面里画出每种状态与四种建议卡 | 是 |
 | `ui-licenses.test.mjs` | 许可证与致谢：全文与仓库 LICENSE 逐字一致、「由 Starry Digital 开发」、五个组件的版本、开发时「打开完整的第三方声明」不可点并写原因、桥回 `open_failed` | 是 |
 | `wording.test.mjs` · `texts-en.test.mjs` | 字典过扫描器 0 命中、全角标点、别处无汉字、LF；英文表与中文表对齐、无禁词 | 否 |
-| `app-id.test.mjs` · `icon.test.mjs` · `deps.test.mjs` · `start.test.mjs` | 身份值；streams.ico 的五个尺寸（重建对比要 sharp，没有就跳过并说明）；依赖钉死；`npm start` 的文件夹规矩 | 否 |
+| `app-id.test.mjs` · `icon.test.mjs` · `deps.test.mjs` · `start.test.mjs` | 身份值；streams.ico 的五个尺寸；五个 SVG 来源与 `docs/design/logo/source/流息/` 逐字节相同（新 logo）；重建对比要 sharp：没有就跳过并说明，**设了 `STREAMS_SHARP_DIR` 却找不到 sharp 就是失败、不跳过**；依赖钉死；`npm start` 的文件夹规矩 | 否 |
+| `ui-brand.test.mjs`（新 logo） | 真窗口里左栏品牌记号的 viewBox、transform、路径数据与 `mark-black.svg` 一致、fill 是 `currentColor`、不是模板图标；四套主题 × 浅 / 深色：记号算出的 fill 与 color = 该主题的 `--ink11`（也是正文的颜色）、显示出来、13 : 9、后面没有底块 / 渐变 / 图片 / 倾斜、与左栏底色对比 ≥ 4.5 | 是 |
 
 **每项检查都能失败**：`npm run mutants` 在临时副本上逐个故意改坏、跑对应的那条测试，要求「没改坏的副本通过、改坏的副本失败」，并核原文件字节没变：`no-node` · `csp-off` · `session-open` · `bridge-extra` · `banned-word` · `d2-unc` · `d3-emit-any-topic` · `d3-any-topic` · `d4-any-sender` · `d4-permissions-open` · `d10-any-root` · `tokens-undocumented` · `colour-outside-tokens` · `en-missing-key`。11-02 首跑：14 项里 13 项 CAUGHT；`d2-unc` 只在「冷」的时候抓得到——Windows 会把连不上的 SMB 主机 `\\192.0.2.1` 记进否定缓存几分钟，缓存热时 realpath 2 毫秒就回来，改坏的副本也过了「1 秒内 404」这条（冷时 21 秒，抓到）。这是测试判据的盲区，不是改坏项的问题；跑它前别碰那个地址。v2 包 F 加五项（11-09 跑：5 / 5 CAUGHT，原文件字节没变）：`f-sidebar-any-library`（inbox-changed 不看 libraryId，每一行都改）· `f-brief-not-yours` 与 `f-brief-not-yours-ui`（保存要求不记 you：服务层测试与界面测试各抓一次）· `f-tabs-one-memory`（停在哪个标签不按库记）· `f-scroll-one-memory`（滚动不按库记）。v2 包 G 加四项（11-09 跑：4 / 4 CAUGHT，原文件字节没变）：`g-decline-confirms`（提议卡的「不要」调 confirmProposal）· `g-send-while-busy`（一轮进行中仍可发送）· `g-unsure-yes-question`（「是，改这个库」传 question）· `g-card-press-twice`（卡上的按钮到桥回话前还能再按）；都跑 `test/ui-agent.test.mjs` 的对应一条（这几条单独跑也成立，不靠前面几条用掉的脚本回答）。副本里另加了 `core` 的联接（`scripts/lib/mirror.mjs`：主进程与测试都从仓库引核心，没有它副本起不来）。
 
@@ -874,7 +887,7 @@ src/renderer/
 
 1. 11-03 界面 A 落地：首次设置、今日（含 S13 出错卡片与 S12 对话框）、待看、设置的连接方式 / 运行 / 库三块。同日界面 B 的六屏与两个对话框落地（§五「界面 B 的屏」），九个入口没有占位页了；待看的「去调提示词」落到流水线；待看卡片「这一条的记录」（`VerdictDialog`）由 PM 集成时接。
 2. `release.json` 的 `version` 写成 `1.0.0`、`pre_release: dev.0`、`app_ver_name: 流息 1.0.0-dev.0`：`version.mjs` / 更新比较只认 `major.minor.patch` 数字，`1.0.0-dev.0` 填进 `version` 会让应用显示 0.0.0、安装包构建拒绝。要不要改 `VERSION_RE` 以认预发布号，归 PM。
-3. 图标是 15 分钟内的记号（三条白色波浪 + river 圆角方块，`assets/icon/README.md`）；小尺寸由大图缩下来，没有像素级手画版；重建要 sharp（不是本仓依赖）。
+3. ~~图标是 15 分钟内的记号（三条白色波浪 + river 圆角方块）；小尺寸由大图缩下来，没有像素级手画版~~ 11-12 换成赞妮的定稿「五流」（§4.18、`assets/icon/README.md`）：16 / 24 / 32 / 48 是手调的 SVG 1:1 渲染，256 由 512 缩。重建仍要 sharp（不是本仓依赖）。
 4. `services/update.mjs` 的更新状态里还有 `turnRunning`（云织的「研究回合在跑」）：现在永远是 false，以后由流水线的「这一轮在跑」接上。
 5. ~~`services/notify.mjs` 建了没用~~ 11-04 接上：每一轮跑完、写进待看的条数 n > 0 时，`services/schedule.mjs` 经它发「这一轮进来 n 条待看」（窗口在最前面时不发；测试世界写 `logs/notifications.jsonl`）。
 6. 侧栏底色选了 river（方案主色）而不是 ink，理由在 `docs/tokens.md`；要改只动 `--st-sidebar` 一行。

@@ -5,6 +5,7 @@
 //   <M>/core                   a link (the main process and the tests import the core from the repository: desktop/src/main/core.mjs)
 //   <M>/docs/desktop.md        a copy (the bridge and event tables the tests read)
 //   <M>/docs/design/redesign/source   a link (redesign R1: the design's template, which test/theme.test.mjs compares with)
+//   <M>/docs/design/logo/source       a link (logo, 2026-11-12: the final 五流 files test/icon.test.mjs and ui-brand.test.mjs compare with)
 // Remove it with removeTree (links first).
 import { cpSync, existsSync, mkdirSync, symlinkSync } from 'node:fs'
 import { dirname, join, sep } from 'node:path'
@@ -24,6 +25,7 @@ export async function makeMirror({ root }) {
   link(join(REPO_DIR, 'core'), join(root, 'core'))
   mkdirSync(join(root, 'docs'), { recursive: true })
   link(join(REPO_DIR, 'docs', 'design', 'redesign', 'source'), join(root, 'docs', 'design', 'redesign', 'source'))
+  link(join(REPO_DIR, 'docs', 'design', 'logo', 'source'), join(root, 'docs', 'design', 'logo', 'source'))
   for (const doc of ['desktop.md', 'tokens.md']) {
     if (existsSync(join(REPO_DIR, 'docs', doc))) cpSync(join(REPO_DIR, 'docs', doc), join(root, 'docs', doc))
   }

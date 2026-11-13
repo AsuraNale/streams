@@ -26,6 +26,7 @@ import { FIRST_RUN as T, HOW_IT_WORKS } from '../src/renderer/texts/first-run.js
 import { fmt } from '../src/renderer/lib/format.js'
 import { ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
+import { markIn, markOfFile } from './support/brand.mjs'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
 const POLL = { polling: 100, timeout: 60_000 }
@@ -75,6 +76,16 @@ test('R4a-1 signed in → one screen at once: Claude Code chosen without asking,
   // the usual frame: the sidebar and the right panel (its 详情: 流息怎样工作)
   assert.equal(await a.page.evaluate(() => document.querySelector('aside.sidebar [data-action="add-library"]') !== null), true)
   assert.equal(await text(a.page, '[data-part="how-it-works"] h3'), HOW_IT_WORKS.titleFirst)
+})
+
+// logo (docs/checks/2026-11-12-logo/contract.md L-3, 2026-11-12): a check added — 首次打开's sidebar shows the new mark too
+test('logo: 首次打开\'s brand is 流息\'s mark — mark-black.svg\'s one path in currentColor, the theme\'s ink (not the template\'s weave)', async () => {
+  const file = markOfFile()
+  const got = await markIn(a.page, '.st-sidebar .brand .brandmark svg')
+  assert.deepEqual([got.viewBox, got.paths.length, got.paths[0].transform, got.paths[0].d, got.paths[0].fill, got.glyph], [file.viewBox, 1, file.transform, file.d, 'currentColor', null])
+  const ink = await a.page.evaluate(() => getComputedStyle(document.body).color)
+  assert.equal(got.paths[0].computedFill, ink)
+  assert.equal(got.shown, true)
 })
 
 test('R4a-1 an example only fills the box: nothing is sent (no record of the main agent), the page stays', async () => {
