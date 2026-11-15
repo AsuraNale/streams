@@ -6,7 +6,7 @@
 //   「先不放权」: a suggestion is only ever shown to you; nothing in src/suggest/ changes a source, a topic or a setting.
 //
 //   1. source-failing  subject = source name. The source's newest fetch_log lines, counted back from the last one, are
-//                      `failed` (暂时失败) or `blocked` (被拒绝), mixed or not, at least SOURCE_FAILING_ROUNDS (3) in a row.
+//                      `failed` (暂时失败) or `blocked` (访问被拒), mixed or not, at least SOURCE_FAILING_ROUNDS (3) in a row.
 //                      Any other status (ok / empty / gap / paused) ends the run. Paused or removed sources are skipped.
 //                      Redesign R5a (维护者 11-12 第 6 条): or the newest lines are `gap` (地址无效) at least SOURCE_GAP_ROUNDS
 //                      (2) in a row — evidence then { rounds, gap, state: 'gap', since, last }; any other status ends that run.

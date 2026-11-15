@@ -7,7 +7,7 @@
 // written say why and have no write button, the sub folder is named; a text box line that cannot be read is refused with
 // the file untouched (control); 「跳过」 writes nothing and the card is back when the page is opened again; a changed title
 // is what lands on disk; 「全部按拟的写入」 writes the rest. After every write the file's body is byte for byte the old one
-// (the core's bodyHash of the file on disk = listPending's before) and the file is in 我写的.
+// (the core's bodyHash of the file on disk = listPending's before) and the file is in 我的笔记.
 // Session F (no library, 首次设置): step 1 with that folder says the same and 下一步 opens it as a library.
 // v2 package I: 设置 has no 「打开已有文件夹」 any more and 首次设置 has no folder step: both sessions reach the folder through 新建库
 // (the manual way, screens/new-library.js), whose first step is v1.0's — session M opens 新建库 directly (a library is open, the
@@ -26,6 +26,8 @@
 // 「手动创建」 (首次打开 is one screen now). What is checked of the folder is as it was (nothing written before, every file byte for
 // byte after, notesDir "."), and the files the import adds now include _pipeline/changes.jsonl (the form's settings are the user's
 // own: 「谁定的」, as every change the user makes).
+// redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
+// (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -188,7 +190,7 @@ test('「跳过」 writes nothing and hides the card; opened again, the card is 
   untouched(['untitled.md'])
 })
 
-test('「写入这一个」 with a changed title: the title on disk is the changed one, the body byte for byte the old file, the file is in 我写的', async () => {
+test('「写入这一个」 with a changed title: the title on disk is the changed one, the body byte for byte the old file, the file is in 我的笔记', async () => {
   const file = '记忆方案选型.md'
   const sel = `${card(file)} textarea[data-field="header"]`
   const original = await page().evaluate(s => document.querySelector(s).value, sel)

@@ -4,13 +4,15 @@
 // lacks), the main Agent's two turns too (STREAMS_DEV_AGENT_SCRIPT: each a proposal to change this library's run cap).
 //   - V9 on the page: every cite number and every note listed under the answer is in the core's candidate set for that
 //     question (askCandidates); 打开 opens that note in 资料库; 查看原文 opens Streams' reading window (its log), not the browser
-//   - 「库内缺少：…」 + 「记到想补的主题」 → 「已加入待补充主题」 (demand.jsonl has the click); another tab and back: still 已加入 — the state
+//   - 「库内缺少：…」 + 「加入待补充主题」 → 「已加入待补充主题」 (demand.jsonl has the click); another tab and back: still 已加入 — the state
 //     is the core's record, not the page's (mutant r3-demand-forgotten: the page's own state only → red here); 详情: 引用了 n 篇笔记,
 //     the line of what the answer used, 待补充主题 with 已提问 n 次 and the hint
 //   - a sentence that asks to change the library: 「已转交主 Agent」 and the proposal in the conversation; the same card in the right
 //     panel's 待确认; 确认 in 待确认 → the conversation's card is confirmed; the second card 确认'd in the conversation → it leaves
 //     待确认 (mutant r3-card-not-shared: 待确认's 确认 calls nothing → red here)
 //   - the box: 「每次提问约 2–5 次模型调用 · 如需调整来源、主题或要求，可直接描述」
+// redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
+// (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -121,7 +123,7 @@ test('logo: the answer\'s speaker avatar is 流息\'s mark (mark-black.svg\'s on
   await until(() => document.body.classList.contains('r11-research') && document.body.dataset.appearance === 'light')
 })
 
-test('R3-5 记到想补的主题 → 已加入待补充主题, in demand.jsonl, and still so after another tab and back; 详情: 引用了 n 篇笔记, what it used, 待补充主题', async () => {
+test('R3-5 加入待补充主题 → 已加入待补充主题, in demand.jsonl, and still so after another tab and back; 详情: 引用了 n 篇笔记, what it used, 待补充主题', async () => {
   const before = await s.page.evaluate(() => document.querySelector('[data-turn="0"] [data-part="demand-added"]'))
   assert.equal(before, null, 'control: not added before the click')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-turn="0"] [data-action="add-demand"] button').textContent), ASK.demand.add)

@@ -2,7 +2,7 @@
 // core's statusView (the next run is 「定时没开」 while the schedule is off), the source rows are statusView's (the 404 one
 // four rounds in a row, with 「去处理」 that goes to 来源与主题), 「现在试一次」 answers, no row offers a sign-in (control),
 // 「复制诊断信息」 and 「打开运行记录文件夹」 go through the bridge. With the sign-in expired (STREAMS_DEV_CONNECTION=login-expired):
-// the two command-line rows are the fourth place with 「去登录」, the line under it and 「我登录好了，再试一次」, which detects again.
+// the two command-line rows are the fourth place with 「前往登录」, the line under it and 「已登录，重新检测」, which detects again (redesign R6b-2: 05's words for the two buttons).
 //
 // v2 package F: 运行状态 is no screen of its own any more but the 「运行状态」 part of a library's 概览 ([data-part="run"];
 // STREAMS_START_SCREEN 'status' is v1.0's id and leads there): its numbers are [data-stat] (v1.0 [data-num]: 概览 has its own four
@@ -70,7 +70,7 @@ test('fake connection (设置): three rows, the chosen one in use, 现在试一�
   await s.page.waitForFunction(() => document.querySelector('[data-connection="claude-code"] [data-probe="ok"]') !== null, null, POLL)
 })
 
-test('sign-in expired (设置): the two tools\' rows carry 去登录, the line under it and 我登录好了，再试一次', async () => {
+test('sign-in expired (设置): the two tools\' rows carry 前往登录, the line under it and 已登录，重新检测', async () => {
   await toSettings(e)
   const loops = await e.page.evaluate(() => [...document.querySelectorAll('[data-part="login"]')].map(l => [l.dataset.kind, l.closest('[data-connection]').dataset.connState, l.querySelector('[data-action="login"]') !== null, l.querySelector('[data-action="login-again"]')?.textContent, l.textContent]))
   assert.deepEqual(loops.map(l => l.slice(0, 4)), [['claude-code', 'not-logged-in', true, CONNECTIONS.login.again], ['codex', 'not-logged-in', true, CONNECTIONS.login.again]])

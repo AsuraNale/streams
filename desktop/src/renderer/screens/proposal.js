@@ -33,13 +33,14 @@ import { call } from '../lib/bridge.js'
 import { fmt, whenText } from '../lib/format.js'
 import { TIcon } from '../lib/template-icons.js'
 import { levelOf, placeOf } from '../lib/strictness.js'
-import { CONNECTIONS, FETCH_STATES, WHEN } from '../texts/common.js'
+import { CONNECTIONS, FETCH_STATES, PUNCT, WHEN } from '../texts/common.js'
 import { INBOX } from '../texts/inbox.js'
 import { PROPOSALS as T } from '../texts/proposals.js'
 
 const C = T.card
 const REVISE_MAX = 2000
-const LIST = '、'
+// redesign R6b-3: the marks between names, by language (texts/common.js PUNCT) — they were full-width marks written here
+const LIST = PUNCT.list
 
 /**
  * The model calls one message of the main agent takes (the line under the 主 Agent page's box, and beside 交由主 Agent 分析 /
@@ -98,7 +99,7 @@ const capText = n => (typeof n === 'number' ? fmt(C.capLine, { n }) : C.capDefau
 const trialState = t => (t && Object.hasOwn(FETCH_STATES, t.status) ? FETCH_STATES[t.status] : '')
 const quickWords = q => (Object.hasOwn(INBOX.bar.quick, q ?? '') ? INBOX.bar.quick[q] : String(q ?? ''))
 
-/** A 系统检测's key of words: 地址有问题 has its own (R5a services/agent.mjs systemItem). */
+/** A 系统检测's key of words: 地址无效 has its own (R5a services/agent.mjs systemItem). */
 const systemKey = item => (item.kind === 'source-failing' && item.evidence?.state === 'gap' ? 'source-failing-gap' : item.kind)
 
 /** The title: 动作 + 对象 for a 主 Agent 提议, the finding for a 系统检测. */
@@ -138,7 +139,7 @@ export function sideText(card, side) {
   }
   if ('topics' in view) {
     const topics = list(view.topics)
-    return topics.length ? fmt(C.topicsLine, { topics: topics.map(t => (list(t.keywords).length ? `${t.name}（${t.keywords.join(LIST)}）` : t.name)).join('；') }) : C.topicsNone
+    return topics.length ? fmt(C.topicsLine, { topics: topics.map(t => (list(t.keywords).length ? `${t.name}${PUNCT.open}${t.keywords.join(LIST)}${PUNCT.close}` : t.name)).join(PUNCT.semi) }) : C.topicsNone
   }
   if ('brief' in view) return typeof view.brief === 'string' && view.brief ? view.brief : C.briefNone
   if ('thresholds' in view) {
@@ -250,7 +251,7 @@ function TopicsView({ view, other }) {
   const them = new Map(list(other?.topics).map(t => [t.name, new Set(list(t.keywords))]))
   return html`<span>${topics.map((t, i) => {
     const known = them.get(t.name)
-    return html`<span key=${t.name} data-topic=${t.name}>${i ? '；' : ''}<span class=${known ? undefined : 'st-changed'} data-name=${t.name} data-changed=${String(!known)}>${t.name}</span>${list(t.keywords).length ? html`（${t.keywords.map((k, j) => html`<span key=${k}>${j ? LIST : ''}<span class=${known && !known.has(k) ? 'st-changed' : undefined} data-keyword=${k} data-changed=${String(Boolean(known) && !known.has(k))}>${k}</span></span>`)}）` : null}</span>`
+    return html`<span key=${t.name} data-topic=${t.name}>${i ? PUNCT.semi : ''}<span class=${known ? undefined : 'st-changed'} data-name=${t.name} data-changed=${String(!known)}>${t.name}</span>${list(t.keywords).length ? html`${PUNCT.open}${t.keywords.map((k, j) => html`<span key=${k}>${j ? LIST : ''}<span class=${known && !known.has(k) ? 'st-changed' : undefined} data-keyword=${k} data-changed=${String(Boolean(known) && !known.has(k))}>${k}</span></span>`)}${PUNCT.close}` : null}</span>`
   })}</span>`
 }
 
@@ -272,7 +273,7 @@ function CardPoints({ card }) {
     return html`<${Points} rows=${[
       [P.brief, html`<span data-part="brief">${a.brief || C.briefNone}</span>`],
       [P.strictness, html`<span data-part="thresholds">${levelText(a.thresholds ?? { relevance: 0.5, substance: 0.6 })}</span>`],
-      [P.topicsSources, html`<span data-part="topics">${topics.length ? topics.map((t, i) => html`<span key=${t.name} data-topic=${t.name}>${i ? ' · ' : ''}${t.name}${list(t.keywords).length ? html`（${t.keywords.map((k, j) => html`<span key=${k}>${j ? LIST : ''}<span data-keyword=${k}>${k}</span></span>`)}）` : null}</span>`) : C.topicsNone}</span>
+      [P.topicsSources, html`<span data-part="topics">${topics.length ? topics.map((t, i) => html`<span key=${t.name} data-topic=${t.name}>${i ? ' · ' : ''}${t.name}${list(t.keywords).length ? html`${PUNCT.open}${t.keywords.map((k, j) => html`<span key=${k}>${j ? LIST : ''}<span data-keyword=${k}>${k}</span></span>`)}${PUNCT.close}` : null}</span>`) : C.topicsNone}</span>
         <span class="st-trials" data-part="sources">${trials.length ? trials.map(t => html`<${TrialLine} key=${t.name} name=${t.name} trial=${t} />`) : C.sourcesNone}</span>`],
       [P.scheduleCap, html`<span data-part="schedule">${scheduleText(a.schedule)}</span><span data-part="cap"> · ${capText(a.cap)}</span>`],
     ]} />`

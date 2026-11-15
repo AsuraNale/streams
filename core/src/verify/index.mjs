@@ -9,7 +9,7 @@
 //   ai-instructions.mjs  「写给 AI 的话」: the fixed-pattern rule, the judge fallback item, _pipeline/ai-instructions.jsonl
 // The pipeline layer (src/pipeline/) imports from here; nothing here writes the ledger or notes/.
 export { checkRule, countWords, parseRule, RULE_OPS } from './rules.mjs';
-export { lockChecklist, gateBaseline, summaryBaseline, BANNED_WORDS, CHECK_KINDS, MAX_CHECKLIST_ITEMS, MIN_DESC_CHARS } from './checklist.mjs';
+export { lockChecklist, gateBaseline, summaryBaseline, baselineDescription, describeChecklist, BASELINE_LANGUAGES, BANNED_WORDS, CHECK_KINDS, MAX_CHECKLIST_ITEMS, MIN_DESC_CHARS } from './checklist.mjs';
 export { judgeItems, buildJudgePrompt, JUDGE_PROMPT } from './judge.mjs';
 export { verifyOnce, verifyLoop } from './verify.mjs';
 export { detectAiInstructions, normalizeForDetect, AI_INSTRUCTION_PATTERNS, AI_JUDGE_ITEM, AI_INSTRUCTIONS_FILE, AI_INSTRUCTION_BY, aiInstructionsPath, readAiInstructions, recordAiInstruction, aiInstructionMark, recordMark } from './ai-instructions.mjs';

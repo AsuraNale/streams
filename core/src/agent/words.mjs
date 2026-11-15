@@ -5,18 +5,19 @@
 // NOT_IN_LIBRARY      redesign R6a (V9): 问库's answer when the library has nothing on the question, { zh, en } — the page's
 //                     sentence word for word (desktop texts/ask.js, texts-en/ask.js; tests/acceptance v09 compares), in UI_TERMS too
 // BUTTONS             the words on a proposal's buttons, { id: { zh, en } } (strictness: with the level, {level})
-// STATE_WORDS         the five fetch states (and paused / never fetched) as the page says them now — the desktop's
-//                     dictionaries' FETCH_STATES (R6 changes those words; until then these are the same: desktop test)
+// STATE_WORDS         the five fetch states (and paused / never fetched) as the page says them — the desktop's dictionaries'
+//                     FETCH_STATES and wording/glossary.json fetch_states, word for word (redesign R6b-1, 05 第三节: 正常 / 无更新 /
+//                     地址无效 / 暂时失败 / 访问被拒; the desktop test and the wording test hold the three equal)
 // ADVICE_WORDS        what to do about a state (the core's hint codes, fetch/states.mjs HINTS): the page's own sentences, word
-//                     for word — the desktop's FETCH_HINTS (R6 rewrites them in both places; until then the same: desktop test)
+//                     for word — the desktop's FETCH_HINTS (redesign R6b-1 rewrote them in both places: desktop test)
 // CONNECTION_WORDS    a connection's failure (core connect CONNECTION_CODES, and unknown) as the page says it — the desktop's
 //                     CONNECTIONS.codes, word for word (desktop test)
 // DROP_WORDS          why a proposal of the main agent could not be made (dropCategory), in words
 // dropCategory(err)   → 'format' · 'no-change' · 'no-library' · 'exists' · 'source' · 'refused' · 'error': the kind of failure
 //                     of a proposal that was not made (the thrower's code / reason), never its text
-// droppedSentence(list, lang)  「有 N 张提议没能生成：添加来源 · 来源填写有误；…」 — the interface's name of each one's action and
+// droppedSentence(list, lang)  「有 N 项提议未能生成：添加来源 · 来源填写有误；…」 — the interface's name of each one's action and
 //                     its kind of failure; no kind name, no code, no raw text
-// connectionSentence(code, lang)  「连接出了问题：网络连不上，这条消息没有回答。」 — the page's words of the code
+// connectionSentence(code, lang)  「连接出现问题：网络无法连接，该消息未获得回答。」 — the page's words of the code (redesign R6b-2: in 05's tone)
 // LEVEL_WORDS         严格程度's three levels and 自定义 (the desktop's texts/sources.js levels)
 // QUICK_WORDS         the 放弃 quick reasons (the core's DISMISS_QUICK; the desktop's texts/inbox.js quick)
 // PROPOSAL_STATUS_WORDS  a proposal's status as the page says it
@@ -47,9 +48,9 @@ export const UI_TERMS = Object.freeze([
   ['instructions aimed at AI inside an article', '面向 AI 的指令', 'instructions aimed at AI'],
   ['what a library tracks, in the user\'s words', '追踪要求', 'brief'],
   ['the two pass thresholds of a library', '严格程度（宽松、标准、严格、自定义）', 'strictness (Loose, Standard, Strict, Custom)'],
-  ['what passed and waits for the user', '待看', 'inbox (to review)'],
-  ['the list of everything to agree to', '待确认', 'to confirm'],
-  ['a library\'s sources and brief page', '来源与要求', 'sources and brief'],
+  ['what passed and waits for the user', '待看', 'Inbox (to review)'],
+  ['the list of everything to agree to', '待确认', 'To confirm'],
+  ['a library\'s sources and brief page', '来源与要求', 'Sources & Brief'],
   // redesign R6a (维护者 11-11 第 1 条, V9): what 问库 answers when the library has nothing on the question — the sentence on
   // the page (desktop texts/ask.js answer.notInLibrary, texts-en the English one), so the main agent says the same
   ['what 问库 says when the library has nothing on the question', NOT_IN_LIBRARY.zh, NOT_IN_LIBRARY.en],
@@ -69,24 +70,24 @@ export const BUTTONS = Object.freeze({
 });
 
 export const STATE_WORDS = Object.freeze({
-  zh: Object.freeze({ ok: '正常', empty: '没新内容', gap: '地址有问题', failed: '暂时失败', blocked: '被拒绝', paused: '已暂停', never: '还没抓过' }),
-  en: Object.freeze({ ok: 'OK', empty: 'Nothing new', gap: 'Address problem', failed: 'Failed for now', blocked: 'Blocked by the site', paused: 'Paused', never: 'Not fetched yet' }),
+  zh: Object.freeze({ ok: '正常', empty: '无更新', gap: '地址无效', failed: '暂时失败', blocked: '访问被拒', paused: '已暂停', never: '尚未抓取' }),
+  en: Object.freeze({ ok: 'OK', empty: 'No updates', gap: 'Invalid address', failed: 'Temporary failure', blocked: 'Access denied', paused: 'Paused', never: 'Not fetched yet' }),
 });
 
 export const ADVICE_WORDS = Object.freeze({
   // precheck fix 10 (redesign R5a): the page's FETCH_HINTS as they are (texts/common.js, texts-en/common.js), so the model and
-  // the page say the same thing; R6 rewrites these sentences (05 第三节 「五种抓取状态」) in both places at once
+  // the page say the same thing; redesign R6b-1 rewrote these sentences (05 第三节 「五种抓取状态」) in both places at once
   zh: Object.freeze({
-    none: '不需要你做什么。',
-    'fix-address-or-remove': '这不是临时故障，重试没用：改地址，或删掉这个来源。',
-    'retry-next-round': '下一轮会自动再试，不需要你改地址。',
-    'blocked-remove-source': '对方不让程序抓，重试没用；换一个来源。',
+    none: '无需处理。',
+    'fix-address-or-remove': '该地址无效，重试无法解决。请修改地址，或移除该来源。',
+    'retry-next-round': '下次运行时将自动重试，无需修改地址。',
+    'blocked-remove-source': '该网站拒绝程序访问，重试无法解决。请改用其他来源。',
   }),
   en: Object.freeze({
-    none: 'Nothing for you to do.',
-    'fix-address-or-remove': 'This is not a passing fault and retrying will not help: change the address, or remove this source.',
-    'retry-next-round': 'It is tried again next round by itself; no need to change the address.',
-    'blocked-remove-source': 'The site does not let programs read it, and retrying will not help; use another source.',
+    none: 'No action needed.',
+    'fix-address-or-remove': 'This address is not valid, so retrying will not help. Change the address or remove this source.',
+    'retry-next-round': 'Streams tries again on the next run. There is no need to change the address.',
+    'blocked-remove-source': 'This site does not allow programs to read it, so retrying will not help. Use a different source.',
   }),
 });
 
@@ -117,21 +118,24 @@ export const PROPOSAL_KIND_WORDS = Object.freeze({
 });
 
 // precheck fix 2 (redesign R5a): the page's CONNECTIONS.codes, word for word
+// redesign R6b-2 (05 规则 2 / 4 / 5): the eleven words rewritten in the interface's tone, here and in the page's dictionaries at once
+// (redesign R6b precheck: not signed in, without yet — 未登录, as the page says it now)
 export const CONNECTION_WORDS = Object.freeze({
   zh: Object.freeze({
-    'not-installed': '没有找到它', 'not-logged-in': '还没登录', 'login-expired': '登录过期了', 'bad-key': 'key 不对', 'bad-model': '型号不对',
-    'rate-limited': '对方要求放慢', network: '网络连不上', timeout: '等太久没回应', 'bad-format': '回答的格式不对', refused: '被拒绝了', unknown: '出了没见过的错',
+    'not-installed': '未找到该工具', 'not-logged-in': '未登录', 'login-expired': '登录已过期', 'bad-key': 'key 无效', 'bad-model': '型号无效',
+    'rate-limited': '请求过于频繁', network: '网络无法连接', timeout: '响应超时', 'bad-format': '回答格式不符', refused: '请求被拒', unknown: '未知错误',
   }),
   en: Object.freeze({
-    'not-installed': 'it was not found', 'not-logged-in': 'not signed in yet', 'login-expired': 'the sign-in has expired', 'bad-key': 'the key is wrong',
-    'bad-model': 'the model name is wrong', 'rate-limited': 'the service asked to slow down', network: 'the network is unreachable', timeout: 'no answer in time',
+    'not-installed': 'the tool was not found', 'not-logged-in': 'not signed in', 'login-expired': 'the sign-in has expired', 'bad-key': 'the key is not valid',
+    'bad-model': 'the model name is not valid', 'rate-limited': 'too many requests', network: 'the network is unreachable', timeout: 'no answer in time',
     'bad-format': 'the answer was not in the expected form', refused: 'the request was declined', unknown: 'an unexpected error',
   }),
 });
 
 // precheck fix 2 (redesign R5a): why a proposal of the main agent was not made, by kind of failure
 export const DROP_WORDS = Object.freeze({
-  zh: Object.freeze({ format: '格式不对', 'no-change': '与现在的设置相同', 'no-library': '找不到这个库', exists: '已经有了', source: '来源填写有误', refused: '与库现在的设置不合', error: '出了没见过的错' }),
+  // redesign R6b-2 (05 规则 2 / 4 / 5): in the interface's tone (该库 · 未 · 已), as the connection words above
+  zh: Object.freeze({ format: '格式不符', 'no-change': '与当前设置相同', 'no-library': '未找到该库', exists: '已存在', source: '来源填写有误', refused: '与该库当前的设置不符', error: '未知错误' }),
   en: Object.freeze({ format: 'wrong format', 'no-change': 'the same as the settings now', 'no-library': 'the library was not found', exists: 'it is there already', source: 'the source is not filled in right', refused: 'it does not fit the library as it is', error: 'an unexpected error' }),
 });
 export const DROP_CATEGORIES = Object.freeze(Object.keys(DROP_WORDS.zh));
@@ -160,18 +164,18 @@ export function droppedSentence(list, lang) {
   const l = langOf(lang);
   const items = Array.isArray(list) ? list : [];
   const n = items.length;
-  // own keys only: a kind the model made up (even one named like a property of every object) is just 「一张提议」
+  // own keys only: a kind the model made up (even one named like a property of every object) is just 「一项提议」
   const own = (o, k) => (typeof k === 'string' && Object.hasOwn(o, k) ? o[k] : undefined);
-  const what = (d) => `${own(PROPOSAL_KIND_WORDS[l], d?.kind) ?? (l === 'en' ? 'a proposal' : '一张提议')} · ${own(DROP_WORDS[l], d?.category) ?? DROP_WORDS[l].error}`;
+  const what = (d) => `${own(PROPOSAL_KIND_WORDS[l], d?.kind) ?? (l === 'en' ? 'a proposal' : '一项提议')} · ${own(DROP_WORDS[l], d?.category) ?? DROP_WORDS[l].error}`;
   return l === 'en'
     ? `${n} proposal${n === 1 ? '' : 's'} could not be made: ${items.map(what).join('; ')}`
-    : `有 ${n} 张提议没能生成：${items.map(what).join('；')}`;
+    : `有 ${n} 项提议未能生成：${items.map(what).join('；')}`;
 }
 
 export function connectionSentence(code, lang) {
   const l = langOf(lang);
   const why = typeof code === 'string' && Object.hasOwn(CONNECTION_WORDS[l], code) ? CONNECTION_WORDS[l][code] : CONNECTION_WORDS[l].unknown;
-  return l === 'en' ? `The connection had a problem: ${why}; this message got no answer.` : `连接出了问题：${why}，这条消息没有回答。`;
+  return l === 'en' ? `The connection had a problem: ${why}; this message got no answer.` : `连接出现问题：${why}，该消息未获得回答。`;
 }
 
 export function wordsOf(lang) {

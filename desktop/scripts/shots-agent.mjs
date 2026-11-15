@@ -50,9 +50,10 @@ const BASE = `http://127.0.0.1:${server.address().port}`
 const feed = (name, n) => `${BASE}/feed/${name}?n=${n}`
 
 const EV_SOURCES = [['cpca-weekly', 6, '整车销量'], ['caam-monthly', 3, '整车销量'], ['battery-monthly', 4, '电池'], ['charging-alliance', 2, '充电'], ['ev-review', 12, '整车销量'], ['hkex-auto', 9, '整车销量'], ['us-filings-auto', 5, '整车销量']]
+// redesign R6b-1: the scripted reply names the unticked source by its state as the page says it now (访问被拒; it said the v1 word)
 const script = (ids) => [
   { reply: '好。先问一件事：', ask: { question: '港股、美股上市的中国车企要算进来吗？', options: ['要', '不要'] } },
-  { reply: '按你说的拟了一个库（港股、美股上市的也算）。8 个来源我都试抓过了，被拒绝的那个没勾：', proposals: [{ kind: 'create_library', why: '你要追整车销量、电池和充电；港股、美股上市的车企也算', params: {
+  { reply: '按你说的拟了一个库（港股、美股上市的也算）。8 个来源均已测试抓取，状态为「访问被拒」的来源未勾选：', proposals: [{ kind: 'create_library', why: '你要追整车销量、电池和充电；港股、美股上市的车企也算', params: {
     name: '中国电动车行业',
     brief: '追踪中国电动车行业：整车销量（月销、交付、上险量）、动力电池（装机量、价格、技术路线）、充电（公共桩、换电、超充）。含在港股、美股上市的中国车企。不要：二手车、汽车金融、纯营销稿。',
     topics: [{ name: '整车销量', keywords: ['月销', '交付量', '上险量'] }, { name: '电池', keywords: ['动力电池', '装机量', '固态电池'] }, { name: '充电', keywords: ['充电桩', '换电', '超充'] }],

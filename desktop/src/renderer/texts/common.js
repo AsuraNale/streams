@@ -27,7 +27,7 @@ export const SIDEBAR = Object.freeze({
   noLibrary: '未打开库',
   libraryLabel: '当前的库',
   // the badge after 待看: how many items wait (kit/sidebar.js, from getHome / inbox-changed)
-  inboxBadge: '{n} 条等你看',
+  inboxBadge: '{n} 条待看',
 })
 
 export const SEP = ' · '
@@ -41,17 +41,18 @@ export const NEXT_WHEN = Object.freeze({ today: '今天 {hm}', tomorrow: '明天
 // what the page says when a bridge call fails (codes: src/main/bridge-methods.mjs ERROR_CODES)
 export const ERRORS = Object.freeze({
   retry: '重试',
-  failed: '没有成功，可以再试一次。',
-  noLibrary: '还没打开库。',
+  failed: '操作未成功，请重试。',
+  noLibrary: '尚未打开库。',
 })
 
-// the five fetch states of a source (src/shared/fetch-states.mjs; plan §1.7)
+// the five fetch states of a source (src/shared/fetch-states.mjs; redesign R6b-1: 05 第三节's words, the same in the core's
+// STATE_WORDS and wording/glossary.json)
 export const FETCH_STATES = Object.freeze({
   ok: '正常',
-  empty: '没新内容',
-  gap: '地址有问题',
+  empty: '无更新',
+  gap: '地址无效',
   failed: '暂时失败',
-  blocked: '被拒绝',
+  blocked: '访问被拒',
 })
 
 // the three ways to connect a model (plan C2; getConnections().kinds), the words S1 / S13 / S14 share. The brand words
@@ -75,33 +76,33 @@ export const CONNECTIONS = Object.freeze({
   recommended: '推荐',
   // the login loop (plan v2.3, Phrolova's wording): the button, the line under it, the control that detects again
   login: Object.freeze({
-    go: '去登录',
-    note: '会打开一个终端窗口，由它自己完成登录；流息不经手任何凭据',
-    again: '我登录好了，再试一次',
-    failed: '没能打开登录窗口。',
+    go: '前往登录',
+    note: '将打开终端窗口，由该工具自行完成登录；流息不接触账号密码',
+    again: '已登录，重新检测',
+    failed: '未能打开登录窗口。',
   }),
   // a real call tried once (probeConnection)
   probe: Object.freeze({
-    trying: '正在试一次……',
-    ok: '试了一次：可用 · 用时 {seconds} 秒 · 算在你的套餐里',
-    failed: '试了一次：没成功 · {reason}',
+    trying: '正在测试连接……',
+    ok: '测试结果：可用 · 用时 {seconds} 秒 · 计入套餐用量',
+    failed: '测试结果：未成功 · {reason}',
   }),
   // the model slots: null means the connection's own default / the same as the main model
   defaultModel: '默认',
   sameAsMain: '同主模型',
   // a connection's error codes (core connect; docs/core-api.md 三) in words
   codes: Object.freeze({
-    'not-installed': '没有找到它',
-    'not-logged-in': '还没登录',
-    'login-expired': '登录过期了',
-    'bad-key': 'key 不对',
-    'bad-model': '型号不对',
-    'rate-limited': '对方要求放慢',
-    network: '网络连不上',
-    timeout: '等太久没回应',
-    'bad-format': '回答的格式不对',
-    refused: '被拒绝了',
-    unknown: '出了没见过的错',
+    'not-installed': '未找到该工具',
+    'not-logged-in': '未登录',
+    'login-expired': '登录已过期',
+    'bad-key': 'key 无效',
+    'bad-model': '型号无效',
+    'rate-limited': '请求过于频繁',
+    network: '网络无法连接',
+    timeout: '响应超时',
+    'bad-format': '回答格式不符',
+    refused: '请求被拒',
+    unknown: '未知错误',
   }),
 })
 
@@ -126,16 +127,16 @@ export const ROUND_PHASES = Object.freeze({
 
 // what to do about a source's fetch state: the core's hint code (core fetch/states.mjs HINTS) in words
 export const FETCH_HINTS = Object.freeze({
-  none: '不需要你做什么。',
-  'fix-address-or-remove': '这不是临时故障，重试没用：改地址，或删掉这个来源。',
-  'retry-next-round': '下一轮会自动再试，不需要你改地址。',
-  'blocked-remove-source': '对方不让程序抓，重试没用；换一个来源。',
+  none: '无需处理。',
+  'fix-address-or-remove': '该地址无效，重试无法解决。请修改地址，或移除该来源。',
+  'retry-next-round': '下次运行时将自动重试，无需修改地址。',
+  'blocked-remove-source': '该网站拒绝程序访问，重试无法解决。请改用其他来源。',
 })
 
 // a source that is not in one of the five states: paused by the user, or never fetched yet
 export const SOURCE_STATES = Object.freeze({
   paused: '已暂停',
-  never: '还没抓过',
+  never: '尚未抓取',
 })
 
 // the three kinds of source (streams.json sources[].kind)
@@ -148,12 +149,26 @@ export const SOURCE_KINDS = Object.freeze({
 // a note's status in the index (spec v0: kept · authored · archived)
 export const NOTE_STATUS = Object.freeze({
   kept: '已收藏',
-  authored: '我写的',
+  authored: '我的笔记',
   archived: '已归档',
 })
 
 // the bridge's error code no_connection (askLibrary, previewNode): no connection chosen yet
 export const NO_CONNECTION = Object.freeze({
-  text: '还没选连接方式，这一步要用模型。',
-  go: '去设置',
+  text: '尚未选择连接方式，该操作需要调用模型。',
+  go: '前往设置',
+})
+
+/**
+ * Redesign R6b-3: the punctuation the screens put between pieces of text themselves (a bracket round a note, a colon
+ * after a label, the mark between the names of a list). Chinese uses the full-width marks; the English table has the
+ * half-width ones with their spaces, so no full-width mark reaches an English screen.
+ */
+export const PUNCT = Object.freeze({
+  open: '（',
+  close: '）',
+  colon: '：',
+  list: '、',
+  semi: '；',
+  comma: '，',
 })

@@ -284,7 +284,7 @@ test('维护者\'s scenario: 流息Test catching up, 安省中小企业补助 wa
   // a third library, pressed while two are in the line: the end, place 3, 流息Test named as the one running
   library.handlers.setActiveLibrary(ids.Rust)
   assert.deepEqual(await page.handlers.startRound(), { started: false, queued: true, position: 3, runningLibraryId: liu })
-  // redesign R2 (O7): Rust has never run, so the run asked for is its first one (建库后的第一轮), not 'manual'
+  // redesign R2 (O7): Rust has never run, so the run asked for is its first one (创建库后的首次运行), not 'manual'
   assert.deepEqual(s.handlers.getQueue().waiting.map(x => [x.libraryId, x.why]), [[an, 'catch-up'], [ids.Rust, 'first']])
   // every change of the queue was said to the page
   const said = w.eventsOf('queue-changed').map(e => e.payload)
@@ -311,7 +311,8 @@ test('the notification names the library whose round it was (another one than th
   await sleep(0)
   await p.finish(2)
   const lines = readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
-  assert.deepEqual(lines.map(l => l.body), ['论文：这一轮进来 2 条待看。'])
+  // redesign R6b-2: the notification's sentence is 05 第 173 行's (本次运行新增 n 条待看) — only the expected words changed
+  assert.deepEqual(lines.map(l => l.body), ['论文：本次运行新增 2 条待看。'])
   // a round with nothing new: no notification
   await s.startCurrent('the page')
   await p.finish(0)

@@ -48,8 +48,8 @@ export function classifyHttp(status, headers = {}, { now } = {}) {
     : { state, http: s, message: `${message} (Retry-After: ${retryAfterSeconds}s)`, retryAfterSeconds });
   if (s >= 200 && s < 300) return out('ok', `HTTP ${s}`);
   if (BLOCKED_HTTP.includes(s)) return out('blocked', `HTTP ${s}: refused`);
-  if (FAILED_HTTP_4XX.includes(s)) return out('failed', `HTTP ${s}: slow down, retry next round`);
-  if (s >= 500) return out('failed', `HTTP ${s}: server-side, retry next round`);
+  if (FAILED_HTTP_4XX.includes(s)) return out('failed', `HTTP ${s}: slow down, retry next run`);
+  if (s >= 500) return out('failed', `HTTP ${s}: server-side, retry next run`);
   if (s >= 400) return out('gap', `HTTP ${s}: check the address`);
   if (s >= 300) return out('gap', `HTTP ${s}: redirect not followed`);
   return out('failed', `HTTP ${s}: unexpected informational response`);

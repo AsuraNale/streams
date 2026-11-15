@@ -175,7 +175,7 @@ export function suggestionText(s, { otherName, lang = 'zh', thresholds } = {}) {
     case 'no-output': {
       const level = thresholds ? W.levels[strictnessOf(thresholds)] : null;
       return l === 'en'
-        ? `${f.rounds} runs in a row put nothing new into the inbox.${level ? ` The strictness now: "${level}".` : ''}`
+        ? `${f.rounds} runs in a row put nothing new into the Inbox.${level ? ` The strictness now: "${level}".` : ''}`
         : `连续 ${f.rounds} 次运行没有新内容进入待看。${level ? `当前严格程度：「${level}」。` : ''}`;
     }
     case 'ai-instruction': {
@@ -207,11 +207,11 @@ export function handoffText(s, { libraryName, otherName, action = 'forward', bri
   const what = suggestionText(s, { otherName, lang: l, thresholds });
   if (action === 'draft-proposal') {
     return l === 'en'
-      ? `In "to confirm", the user pressed "${W.buttons.draftProposal}" on something Streams detected in the library "${libraryName}": ${what} Write one proposal by the main agent that edits the library's brief (give the whole brief as it should read after the edit; Streams shows it as before / after). The brief stays as it is until the user confirms it.${brief ? ` The brief now: "${brief}"` : ''}`
+      ? `In "To confirm", the user pressed "${W.buttons.draftProposal}" on something Streams detected in the library "${libraryName}": ${what} Write one proposal by the main agent that edits the library's brief (give the whole brief as it should read after the edit; Streams shows it as before / after). The brief stays as it is until the user confirms it.${brief ? ` The brief now: "${brief}"` : ''}`
       : `用户在「待确认」中对库「${libraryName}」的一条系统检测点击了「${W.buttons.draftProposal}」。系统检测：${what}请据此出一条修改追踪要求的主 Agent 提议（写出修改后的追踪要求全文，流息会列出修改前 / 修改后）；用户确认前，追踪要求保持不变。${brief ? `当前追踪要求：「${brief}」` : ''}`;
   }
   return l === 'en'
-    ? `In "to confirm", the user pressed "${W.buttons.forward}" on something Streams detected in the library "${libraryName}": ${what} Look into why. If a setting should change, make a proposal by the main agent (it takes effect only once the user confirms it); if not, say why.`
+    ? `In "To confirm", the user pressed "${W.buttons.forward}" on something Streams detected in the library "${libraryName}": ${what} Look into why. If a setting should change, make a proposal by the main agent (it takes effect only once the user confirms it); if not, say why.`
     : `用户在「待确认」中对库「${libraryName}」的一条系统检测点击了「${W.buttons.forward}」。系统检测：${what}请分析原因；需要修改设置时，出一条主 Agent 提议（用户确认后才生效）；不需要就说明原因。`;
 }
 

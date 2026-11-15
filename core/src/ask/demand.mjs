@@ -1,7 +1,7 @@
 // What the user asked for and the library did not have (core-api 5.5, product spec 4.7 「想补的主题」).
 //
 // _pipeline/demand.jsonl    one line per question asked  { ts, question, topic, notInLibrary, used }
-//                           and one per click of 「记到想补的主题」 { ts, topic, question, by:'user' }
+//                           and one per click of 「加入待补充主题」 { ts, topic, question, by:'user' }
 // _pipeline/feedback.jsonl  one line per 「这个回答哪里不对」 { ts, question, note }
 //
 // appendDemandLine(libraryDir, row)                -> row (ts filled in)
@@ -9,7 +9,7 @@
 //   grouped by topic with case and whitespace folded (the newest spelling is shown), lines whose topic
 //   is null / empty are not grouped; most asked first, then most recent, then topic. Never adds a topic.
 // addDemand(libraryDir, topic, { question?, now? }) -> { topic, count }   empty topic -> 'bad-topic'
-// demandsAdded(libraryDir) -> [{ topic, question }]  redesign R3 (问库 「已加入待补充主题」, F42): every click of 「记到想补的主题」
+// demandsAdded(libraryDir) -> [{ topic, question }]  redesign R3 (问库 「已加入待补充主题」, F42): every click of 「加入待补充主题」
 //   (the lines by 'user'), in the file's order — so an answer can say, when the page is opened again, that its topic was added
 // answerFeedback(libraryDir, { question, note }, { now? }) -> { ok:true }  empty note -> 'bad-feedback'
 // Appends never glue onto a last line that lost its newline (same rule as the ledger).

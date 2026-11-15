@@ -25,12 +25,12 @@ export const INBOX = Object.freeze({
     waiting: '等了 {n} 天',
     unverified: '未通过核验',
     // a run without a connection: the item came in without a score
-    scoreless: '没有打分',
+    scoreless: '未评分',
     scorelessNote: '本次运行未连接模型，未评分、未生成摘要。在设置中连接后，新抓取的内容将会评分。',
     maybeDuplicate: '可能重复',
     // N02: moved in by the user from 未通过筛选
     moved: '未通过筛选 · 手动移入',
-    movedNote: '这一条未通过筛选，由你手动移入待看：没有生成摘要，也没有核验。',
+    movedNote: '该条内容未通过筛选，已手动移入待看：未生成摘要，未核验。',
     // v2 package H: the material had 「写给 AI 的话」; hovering shows what was found
     aiInstruction: '检测到面向 AI 的指令，已忽略',
     aiInstructionHint: '命中的原句：{phrases}',
@@ -92,7 +92,7 @@ export const INBOX = Object.freeze({
     confirm: '添加',
     cancel: '取消',
     bad: '请输入以 http:// 或 https:// 开头的网址。',
-    seen: '这个网址已在该库中，未重复添加。',
+    seen: '该网址已在该库中，未重复添加。',
     added: '已添加，将在下次运行时评分。',
   }),
 

@@ -1,7 +1,7 @@
 // English (docs/desktop.md §六) for src/renderer/texts/ask.js: the same exports and keys.
 
 export const ASK = Object.freeze({
-  title: 'Answers from this library only',
+  title: 'Answers only from this library',
   scope: 'Scope: {kept} kept · {authored} in my notes · offline',
   empty: 'Each sentence of an answer carries the number of the note it comes from; choose a number to see which. To change the sources, topics or brief of this library, you can also describe it here.',
   inputLabel: 'Ask a question, or describe a change to this library',
@@ -42,9 +42,9 @@ export const ASK = Object.freeze({
   }),
 
   demand: Object.freeze({
-    add: 'Add to topics to add',
-    added: 'Added to topics to add',
-    label: 'Topic to add',
+    add: 'Add to topics to cover',
+    added: 'Added to topics to cover',
+    label: 'Topic to cover',
     failed: 'Not recorded: enter a topic.',
   }),
 
@@ -64,13 +64,13 @@ export const ASK = Object.freeze({
     citesNone: 'No question yet',
     basis: 'What this answer used',
     basisLine: '{candidates} found · {used} cited · {calls} model call{calls?|s} · {check} · The model had no tools and no network access',
-    check: 'checked in {rounds} round{rounds?|s}{passed}',
+    check: 'verified in {rounds} round{rounds?|s}{passed}',
     checkPassed: ', all passed',
     checkFailed: ', not all passed',
-    checkNone: 'not checked',
+    checkNone: 'not verified',
     none: 'After a question, the notes the answer cites and what it used show here.',
-    demands: 'Topics to add ({n})',
-    demandsNone: 'No topics to add yet.',
+    demands: 'Topics to cover ({n})',
+    demandsNone: 'No topics to cover yet.',
     demandLine: 'Asked {n} time{n?|s}',
     suggest: 'Suggested as a topic',
     demandsHint: 'Anything asked 3 times is suggested as a topic.',

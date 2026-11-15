@@ -18,7 +18,7 @@ export const SIDEBAR = Object.freeze({
   settings: 'Settings',
   noLibrary: 'No library open',
   libraryLabel: 'Current library',
-  inboxBadge: '{n} item{n?|s} waiting for you',
+  inboxBadge: '{n} item{n?|s} to review',
 })
 
 export const SEP = ' · '
@@ -36,17 +36,17 @@ export const ERRORS = Object.freeze({
 
 export const FETCH_STATES = Object.freeze({
   ok: 'OK',
-  empty: 'Nothing new',
-  gap: 'Address problem',
-  failed: 'Failed for now',
-  blocked: 'Blocked by the site',
+  empty: 'No updates',
+  gap: 'Invalid address',
+  failed: 'Temporary failure',
+  blocked: 'Access denied',
 })
 
 export const CONNECTIONS = Object.freeze({
   names: Object.freeze({
     'claude-code': 'Connect the Claude Code on this computer',
     codex: 'Connect the Codex on this computer',
-    api: 'Enter an API key',
+    api: 'Enter API key',
   }),
   found: 'Found',
   notFound: 'Not found',
@@ -60,24 +60,24 @@ export const CONNECTIONS = Object.freeze({
   recommended: 'Recommended',
   login: Object.freeze({
     go: 'Sign in',
-    note: 'A terminal window opens and does the sign-in by itself; Streams never touches any credential',
-    again: 'I am signed in, try again',
+    note: 'A terminal window opens and the tool signs in by itself; Streams never handles your account or password',
+    again: 'I have signed in, check again',
     failed: 'The sign-in window could not be opened.',
   }),
   probe: Object.freeze({
-    trying: 'Trying once…',
-    ok: 'Tried once: usable · {seconds} s · counted against your own plan',
-    failed: 'Tried once: did not work · {reason}',
+    trying: 'Testing the connection…',
+    ok: 'Test result: usable · {seconds} s · counted against your plan',
+    failed: 'Test result: failed · {reason}',
   }),
   defaultModel: 'Default',
   sameAsMain: 'Same as the main model',
   codes: Object.freeze({
-    'not-installed': 'it was not found',
-    'not-logged-in': 'not signed in yet',
+    'not-installed': 'the tool was not found',
+    'not-logged-in': 'not signed in',
     'login-expired': 'the sign-in has expired',
-    'bad-key': 'the key is wrong',
-    'bad-model': 'the model name is wrong',
-    'rate-limited': 'the service asked to slow down',
+    'bad-key': 'the key is not valid',
+    'bad-model': 'the model name is not valid',
+    'rate-limited': 'too many requests',
     network: 'the network is unreachable',
     timeout: 'no answer in time',
     'bad-format': 'the answer was not in the expected form',
@@ -104,10 +104,10 @@ export const ROUND_PHASES = Object.freeze({
 // ---- 11-03 plan B ----
 
 export const FETCH_HINTS = Object.freeze({
-  none: 'Nothing for you to do.',
-  'fix-address-or-remove': 'This is not a passing fault and retrying will not help: change the address, or remove this source.',
-  'retry-next-round': 'It is tried again next round by itself; no need to change the address.',
-  'blocked-remove-source': 'The site does not let programs read it, and retrying will not help; use another source.',
+  none: 'No action needed.',
+  'fix-address-or-remove': 'This address is not valid, so retrying will not help. Change the address or remove this source.',
+  'retry-next-round': 'Streams tries again on the next run. There is no need to change the address.',
+  'blocked-remove-source': 'This site does not allow programs to read it, so retrying will not help. Use a different source.',
 })
 
 export const SOURCE_STATES = Object.freeze({
@@ -123,11 +123,21 @@ export const SOURCE_KINDS = Object.freeze({
 
 export const NOTE_STATUS = Object.freeze({
   kept: 'Kept',
-  authored: 'Written by you',
+  authored: 'My notes',
   archived: 'Archived',
 })
 
 export const NO_CONNECTION = Object.freeze({
-  text: 'No connection is chosen yet, and this step needs a model.',
+  text: 'No connection has been chosen, and this action needs a model.',
   go: 'Go to Settings',
+})
+
+/** Redesign R6b-3: the punctuation the screens put between pieces of text themselves (see texts/common.js PUNCT). */
+export const PUNCT = Object.freeze({
+  open: ' (',
+  close: ')',
+  colon: ': ',
+  list: ', ',
+  semi: '; ',
+  comma: ', ',
 })

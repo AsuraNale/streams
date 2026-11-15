@@ -6,7 +6,11 @@
 // port nobody listens on, so it fails in the round and the banner of 今日 has a line) → runRound with the core's scripted
 // connector (scores per item from SCORES below; item 7 fails relevance and stays 「抓到的」) → keep one, dismiss one, leave four
 // in the inbox, one of them with its inbox event moved 17 days back → the live source's address switched to the dead port, so
-// the next round fails on both and nothing reaches the network. Returns what it wrote, for the tests to compare against.
+// the next run fails on both and nothing reaches the network. Returns what it wrote, for the tests to compare against.
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed.
 import { createServer } from 'node:http'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
@@ -122,7 +126,7 @@ export async function seedLibrary(dir, { now = () => new Date() } = {}) {
     return JSON.stringify(ev)
   })
   writeFileSync(ledgerFile, lines.join('\n'), 'utf8')
-  // the live source goes dead too: the next round fails on both, and nothing leaves this machine
+  // the live source goes dead too: the next run fails on both, and nothing leaves this machine
   const cfg = readJson(configFile)
   cfg.sources = cfg.sources.map(s => ({ ...s, url: dead }))
   writeJson(configFile, cfg)

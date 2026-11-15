@@ -1,6 +1,6 @@
 // redesign R4b: 首次设置's record is shown in 来源与要求 → 高级设置's 变更记录 (contract R4b-2: 「首次设置记录并进来」; F55), one row per
 // recorded step — 「创建库 · <step>：<by>」 with 操作来源 「初始设置」 — instead of 「这个库」's list of six (gone with 「这个库」). A step
-// with no record has no row there (the history shows what was recorded, nothing made up), so session B's 「the others 没有记录」 is
+// with no record has no row there (the history shows what was recorded, nothing made up), so session B's 「the others 暂无记录」 is
 // now 「only the recorded one is listed」. What is recorded, and that the page shows each recorded step with who decided it, is as before.
 // redesign R1: 概览 is gone and the app opens on a library's 待看 — the screen this file waits for is 'inbox' (was 'overview'); nothing else changed
 // 首次设置's record of who decided each step (plan A1; docs/desktop.md §4.1「首次设置」), on the running app, read back from the
@@ -11,13 +11,15 @@
 // 新建库 from the chat's guide: the folder, the blank pack left as it is (sources: default), walked back from the round and the
 // pack chosen again (the record replaced, the others untouched), the round not run (trial: skipped), 完成 (schedule: default);
 // the connection's record is 首次打开's, copied with its time. 「这个库」 then says the six. Session B: a library made before (the
-// seeded world, no record) → 「没有记录」; a record written by the core into it, the page read again → it shows.
+// seeded world, no record) → 「暂无记录」; a record written by the core into it, the page read again → it shows.
 // Redesign R4a: 首次打开 is one screen and 新建库 one page (docs/checks/2026-11-12-r4a/contract.md R4a-1 … R4a-3), so session A walks
 // them: nothing found (STREAMS_DEV_DETECT) → 连接选择 → 暂时跳过 (settings.json skipped) → 手动创建 → 新建库 → 更改… (the hook's folder)
 // → a name and 追踪要求 → 仅创建. The form writes the records when it creates the library (there are no steps to walk back to any
 // more, so v2 package I's check of a record replaced on going back is gone with them): library (chose: 更改… chose it), the
 // connection copied with its time, pack (skipped: no preset pack), sources (default: none added or removed), trial (skipped: 仅创建),
 // schedule (default: the app's). The six records and how 「这个库」 shows them are as before.
+// redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
+// (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'

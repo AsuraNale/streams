@@ -26,7 +26,7 @@ export const AGENT = Object.freeze({
     // is opened again or the conversation is summarized — at most {max} (core TURN_CALLS; screens/proposal.js AGENT_CALLS)
     calls: '每条消息通常 {lo}–{hi} 次模型调用；回答需要重试或整理对话记录时会更多，最多 {max} 次模型调用',
     send: '发送',
-    thinking: '主 Agent 在想…',
+    thinking: '主 Agent 正在处理…',
     tooLong: '每条消息最多 4000 个字。',
     failed: '消息未能发送，请重试。',
     busy: '主 Agent 正在回复上一条消息，请稍候再发送。',

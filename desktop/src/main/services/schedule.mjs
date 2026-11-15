@@ -21,7 +21,7 @@
  * The catch-up, at start and on waking from sleep: for each library on its own, core missedRun against the start of the
  * last round in its rounds.jsonl says whether one round is owed, and one is queued, never more (three missed days still
  * give one); several libraries owing one are queued one after the other (oldest slot first). After every round that wrote
- * something into 待看, one notification 「<库名>：这一轮进来 n 条待看」 (none for 0).
+ * something into 待看, one notification 「<库名>：本次运行新增 n 条待看」 (none for 0).
  *
  * The timer never waits longer than MAX_WAIT_MS at a time: on each tick it looks at the clock again, so a changed system
  * time or a late timer cannot skip a slot or run one twice; each library's slot that has fired is remembered and not
@@ -43,7 +43,7 @@ import { byYou } from './changes.mjs'
 export const MAX_WAIT_MS = 10 * 60_000
 /**
  * v2 package L: why a library waits — its slot came, a missed slot is caught up, or someone asked (开始 · the tray · a card).
- * Redesign R2 (O7): 'first' — the first run of a library that has never run (建库后的第一轮): what a run someone asked for is
+ * Redesign R2 (O7): 'first' — the first run of a library that has never run (创建库后的首次运行): what a run someone asked for is
  * called when the library has no run record yet (a confirmed 新建库 card, 新建库's 开始, 立即运行 on a new library).
  */
 export const QUEUE_WHY = Object.freeze(['first', 'manual', 'schedule', 'catch-up'])

@@ -68,7 +68,10 @@ test('what must not appear (plan §1.7): keeper, Intake Gate, Preflight, selftes
 test('the five fetch states: the shell\'s keys, in order, each with its words', async () => {
   const { FETCH_STATES } = await import('../../desktop/src/shared/fetch-states.mjs')
   assert.deepEqual(glossary.fetch_states.map(s => s.id), [...FETCH_STATES])
-  assert.deepEqual(glossary.fetch_states.map(s => s.zh), ['正常', '没新内容', '地址有问题', '暂时失败', '被拒绝'])
+  // redesign R6b-1: the five words are 05 第三节's now (维护者 11-11 过目第 1 条; the contract's table, word for word) — this line used
+  // to hold the v1 words, and the English column was only checked for being there
+  assert.deepEqual(glossary.fetch_states.map(s => s.zh), ['正常', '无更新', '地址无效', '暂时失败', '访问被拒'])
+  assert.deepEqual(glossary.fetch_states.map(s => s.en), ['OK', 'No updates', 'Invalid address', 'Temporary failure', 'Access denied'])
   for (const s of FETCH_STATES) {
     assert.equal(fetchStateWord(s), userTerm(s).zh, s)
     assert.ok(fetchStateWord(s, 'en'), `${s} in English`)
@@ -81,6 +84,15 @@ test('the five fetch states: the shell\'s keys, in order, each with its words', 
     assert.equal(WORDS[s], fetchStateWord(s, 'zh'), `${s}: the page's Chinese word is the glossary's`)
     assert.equal(WORDS_EN[s], fetchStateWord(s, 'en'), `${s}: the page's English word is the glossary's`)
   }
+  // redesign R6b-1: and the words the main agent is given (core/src/agent/words.mjs STATE_WORDS) — one definition, the same in all three
+  const { STATE_WORDS } = await import('../../core/src/agent/words.mjs')
+  for (const s of FETCH_STATES) {
+    assert.equal(STATE_WORDS.zh[s], fetchStateWord(s, 'zh'), `${s}: the core's Chinese word is the glossary's`)
+    assert.equal(STATE_WORDS.en[s], fetchStateWord(s, 'en'), `${s}: the core's English word is the glossary's`)
+  }
+  // reverse: a glossary whose word for one state differs is seen by the same lookup
+  const stale = { ...glossary, fetch_states: glossary.fetch_states.map(s => (s.id === 'gap' ? { ...s, zh: '地址出错' } : s)) }
+  assert.notEqual(fetchStateWord('gap', 'zh', stale), WORDS.gap)
 })
 
 test('V7: every word of the hard list is a banned term that points at a glossary entry', () => {
@@ -118,4 +130,46 @@ test('nothing the glossary tells us to say is itself a banned term (Chinese and 
   assert.deepEqual(bad, [])
   // control: the check sees a banned word in a sentence like the ones above
   assert.equal(scanText('过了关的进 Silver').ok, false)
+})
+
+// ---- redesign R6b-3: the English word list (glossary.json `english`) ---------------------------------------------------------
+test('R6b-3 the English word list: every word the contract asks for, the two deliberate deviations with their reasons, patterns that compile and catch their own samples', async () => {
+  const { englishShapeProblems, englishProblems, REQUIRED_ENGLISH_TERMS } = await import('../src/english.mjs')
+  const english = glossary.english
+  assert.deepEqual(englishShapeProblems(english), [])
+  const word = zh => english.terms.find(t => t.zh === zh)?.en
+  // the words the contract names (docs/checks/2026-11-13-r6b/contract.md R6b-3), one definition each
+  assert.deepEqual(['待看', '库架', '资料库', '问库', '来源与要求', '追踪要求', '主 Agent', '收藏', '放弃', '稍后处理', '忽略', '待确认', '系统检测', '运行', '核验'].map(word),
+    ['Inbox', 'Shelf', 'Library', 'Ask', 'Sources & Brief', 'Brief', 'Main agent', 'Keep', 'Discard', 'Later', 'Dismiss', 'To confirm', 'Detected by Streams', 'run', 'verification'])
+  assert.equal(word('核验的第 n 轮'), 'round', 'the verification rounds have a word of their own')
+  assert.equal(word('提示词'), 'Instructions')
+  assert.equal(word('设为当前连接'), 'Set as current connection')
+  assert.ok(REQUIRED_ENGLISH_TERMS.length >= 22)
+  // the two deviations from 05's English column, each with what 05 drafted, what is used and why
+  assert.deepEqual(english.deviations.map(d => [d.line, d.draft, d.ours]), [[145, 'Prompt (editable)', 'Instructions (editable)'], [167, 'Use for scoring', 'Set as current connection']])
+  for (const d of english.deviations) assert.ok(d.reason.length > 20, `line ${d.line} says why`)
+  // the old word for 放弃 is gone from the v1 table too, and nothing the list says is a banned term
+  assert.equal(userTerm('dismiss').en, 'Discard')
+  for (const t of english.terms) assert.equal(scanText(t.en).ok, true, `${t.id}: ${t.en}`)
+  // the word for a run is not the word the verification rounds keep: 'round' is banned except on the listed keys
+  const round = english.banned.find(b => b.id === 'round')
+  assert.equal(round.allow_keys.length, 5)
+
+  // reverse: the checker on a small pair of tables — each kind of problem is reported, and clean tables are clean
+  const clean = [
+    { key: 'shell.js:SHELL.tabs.inbox', zh: '待看', en: 'Inbox' },
+    { key: 'inbox.js:INBOX.card.keep', zh: '收藏', en: 'Keep' },
+    { key: 'library.js:VERDICTS.round', zh: '第 {n} 轮', en: 'Round {n}' },
+    { key: 'run.js:RUN.outcome', zh: '收藏 {kept} · 放弃 {dismissed}', en: 'kept {kept} · discarded {dismissed}' },
+  ]
+  const small = { ...english, terms: english.terms.filter(t => ['inbox', 'keep'].includes(t.id)).map(t => ({ ...t, keys: t.keys.filter(k => clean.some(c => c.key === k)) })), banned: english.banned.map(b => ({ ...b, allow_keys: b.allow_keys.filter(k => clean.some(c => c.key === k)) })) }
+  assert.deepEqual(englishProblems(clean, small), [])
+  const broken = (key, en) => englishProblems(clean.map(c => (c.key === key ? { ...c, en } : c)), small)
+  assert.equal(broken('shell.js:SHELL.tabs.inbox', 'To read').length, 3, 'To read: not the list\'s word, not Inbox, and banned')
+  assert.equal(broken('shell.js:SHELL.tabs.inbox', 'inbox').length, 3, 'inbox in lower case: the list writes Inbox')
+  assert.equal(broken('inbox.js:INBOX.card.keep', 'Save').length, 3, 'Save for 收藏')
+  assert.equal(broken('run.js:RUN.outcome', 'kept {kept} · let go {dismissed}').length, 3, 'let go for 放弃')
+  assert.equal(englishProblems([...clean, { key: 'x.js:X.y', zh: '上次运行', en: 'Last round' }], small).length, 1, 'round for a run')
+  assert.equal(englishProblems([...clean, { key: 'x.js:X.y', zh: '核验模型', en: 'Checking model' }], small).length, 3, 'check for 核验')
+  assert.equal(englishProblems(clean.filter(c => c.key !== 'library.js:VERDICTS.round'), { ...small, banned: english.banned }).length, 5, 'a key on a white list that the tables do not have')
 })

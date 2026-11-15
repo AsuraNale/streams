@@ -142,9 +142,13 @@ test('the page\'s words in the user\'s language (docs/desktop.md��): in Engl
   // a locale asked on every request: the same handler answers the other language after a switch
   let current = 'zh-CN'
   const h = handler(true, () => current)
-  assert.equal(await (await get(h, 'app://ui/texts/screens.js')).text(), text('texts/screens.js'))
+  // redesign R6b-2: read with shell.js — it used to be screens.js, the placeholder screen's table, deleted as dead code
+  assert.equal(await (await get(h, 'app://ui/texts/shell.js')).text(), text('texts/shell.js'))
   current = 'en'
-  assert.equal(await (await get(h, 'app://ui/texts/screens.js')).text(), text('texts-en/screens.js'))
+  assert.equal(await (await get(h, 'app://ui/texts/shell.js')).text(), text('texts-en/shell.js'))
+  assert.notEqual(text('texts/shell.js'), text('texts-en/shell.js'), 'control: the two tables differ')
+  // and the deleted table is not served in either language
+  assert.equal((await get(h, 'app://ui/texts/screens.js')).status, 404)
 })
 
 test('D7 · the component gallery\'s files are served only in a development run, whatever the case of the request (N2)', async () => {

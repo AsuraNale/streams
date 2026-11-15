@@ -1,6 +1,8 @@
 // Importing a folder of the user's own .md files (core-api 5.9, plan A3 / mockup S8): notesDir, the first level only,
 // importFolder, applyProposedHeader, listPending's bodyHash / nameOk. Every "nothing was touched" claim is a byte
 // comparison of every file that was there before, each with a reverse case that the same comparison sees a change.
+// redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
+// (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -181,7 +183,7 @@ test('splitNoteBytes follows parseFrontmatter: head + body is the file, and the 
 
 // ---------------------------------------------------------------- applyProposedHeader
 
-test('applyProposedHeader with the proposal: the file conforms, is indexed as 我写的, and its body is byte for byte the old file', () => {
+test('applyProposedHeader with the proposal: the file conforms, is indexed as authored (我的笔记), and its body is byte for byte the old file', () => {
   const dir = userFolder('import-apply');
   importFolder(dir, { name: 'x' });
   const old = readFileSync(join(dir, 'plain.md'));

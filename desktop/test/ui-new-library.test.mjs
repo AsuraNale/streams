@@ -7,12 +7,15 @@
 // Session N (the shelf's three libraries; 新建库 opened from the sidebar): the one page in the usual frame (sidebar, right panel),
 // no step of a wizard; the defaults (标准, the app's schedule, the cap 120, <root>\<name>); 追踪要求 empty → both create buttons
 // off and the bridge refuses it, nothing made; five sources typed, each tried where it was typed — 正常 · 2 条 with its latest
-// title, 没新内容, 地址有问题, 暂时失败, 被拒绝 — each in V3's words with V3's 「怎么办」, never the server's own message; a row
+// title, 无更新, 地址无效, 暂时失败, 访问被拒 — each in V3's words with V3's 「怎么办」, never the server's own message; a row
 // removed; the preset pack's line → its sources (not fetched) and topics, each removable; 严格程度 switched and back; 仅创建 → the
 // library made, current, 标准 0.5 / 0.6, nothing queued and no round, the app on its 待看.
 // Session R (one source on this machine): 创建并运行 → its first run goes (rounds.jsonl gets it), the app on its 待看.
 // Session F (更改… chose a folder of the user's .md files): it says how many and that nothing is moved; 仅创建 opens it as a library,
 // every file byte for byte. Session O (更改… chose a folder holding other things): it says so, the create buttons stay off.
+// redesign R6b-1: the comments / test names / expected words here name the fetch states with 05 第三节's words (无更新 · 地址无效 ·
+// 访问被拒; they said the v1 words) — the page's dictionaries changed; what is checked did not. 「创建库后的首次运行」 is how the queue says
+// a first run now (R6b-2).
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -217,7 +220,7 @@ const r = worldSession({
   env: world => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'new-libs'), STREAMS_START_SCREEN: 'new-library' }),
 })
 
-test('R4a-3 创建并运行: the library made and its first run goes (建库后的第一轮; rounds.jsonl gets it); the app on its 待看', async () => {
+test('R4a-3 创建并运行: the library made and its first run goes (创建库后的首次运行; rounds.jsonl gets it); the app on its 待看', async () => {
   await formReady(r.page)
   await r.page.fill('[data-field="name"]', '电池')
   await r.page.fill('[data-field="brief"]', '追踪动力电池装车量。')

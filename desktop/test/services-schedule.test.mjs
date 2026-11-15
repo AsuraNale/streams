@@ -222,7 +222,7 @@ test('the timer: waits at most MAX_WAIT_MS at a time, fires at the slot once, no
   assert.ok(w.lines.some(l => l.includes('a round of this library is running, no second one')))
 })
 
-test('after a round: n > 0 new cards → one notification 「这一轮进来 n 条待看」 (written to notifications.jsonl in a test run); 0 → none', () => {
+test('after a round: n > 0 new cards → one notification 「本次运行新增 n 条待看」 (written to notifications.jsonl in a test run); 0 → none', () => {
   const w = testWorld('st-schedule-'); worlds.push(w)
   const time = fakeTime(at(2026, 11, 4, 9, 0))
   const logFile = join(w.root, 'logs', 'notifications.jsonl')
@@ -236,9 +236,9 @@ test('after a round: n > 0 new cards → one notification 「这一轮进来 n �
   assert.equal(s.roundDone({ roundId: 'd-4', libraryId: 'dev', result: { started: true, counts: { inbox: 3 } } }), true)
   const lines = readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
   assert.equal(lines.length, 1, 'one notification, for the round with 3')
-  // v2: 「<库名>：这一轮进来 n 条待看」
+  // v2: 「<库名>：…」; redesign R6b-2: the sentence is 05 第 173 行's (本次运行新增 n 条待看) — only the expected words changed
   assert.deepEqual([lines[0].kind, lines[0].screen, lines[0].body], ['newItems', 'inbox', NOTIFY.kinds.newItems.replace('{n}', '3').replace('{library}', 'lib')])
-  assert.equal(lines[0].body, 'lib：这一轮进来 3 条待看。')
+  assert.equal(lines[0].body, 'lib：本次运行新增 3 条待看。')
 })
 
 test('the pipeline service: getHome().nextRun and getPipelineSettings().schedule are the schedule\'s; a round in the background reports its end', async () => {

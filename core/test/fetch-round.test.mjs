@@ -1,3 +1,7 @@
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chmodSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -74,7 +78,7 @@ test('round: every source gets one log line, items are registered, one failed so
   assert.deepEqual(Object.keys(log[0]), ['ts', 'round', 'source', 'kind', 'status', 'hint', 'http', 'count', 'new', 'message']);
   assert.deepEqual(log[1], {
     ts: CLOCK.toISOString(), round: r.round.id, source: 'hn-b', kind: 'hn', status: 'failed', hint: 'retry-next-round',
-    http: 503, count: 0, new: 0, message: 'HTTP 503: server-side, retry next round (Retry-After: 120s)', retry_after_seconds: 120,
+    http: 503, count: 0, new: 0, message: 'HTTP 503: server-side, retry next run (Retry-After: 120s)', retry_after_seconds: 120,
   });
   assert.deepEqual([log[2].status, log[2].count, log[2].new], ['empty', 1, 0], 'atom-c: parsed 1, all already seen this round -> empty');
   assert.equal(srv.hits('/hn'), 1, 'the 503 is not retried in this round');

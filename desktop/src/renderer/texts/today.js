@@ -12,23 +12,23 @@ export const TODAY = Object.freeze({
   problem: Object.freeze({
     connection: Object.freeze({
       'login-expired': '{name} 登录已过期，本次运行未开始。已抓取的 {n} 条内容已保留。',
-      'not-logged-in': '{name} 还没登录，本次运行未开始。已抓取的 {n} 条内容已保留。',
-      'not-installed': '{name}：没有找到它，本次运行未开始。已抓取的 {n} 条内容已保留。',
-      'bad-key': 'API key 不对，本次运行未开始。已抓取的 {n} 条内容已保留。',
-      network: '{name} 连不上，本次运行未开始。已抓取的 {n} 条内容已保留。',
-      timeout: '{name} 等太久没回应，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      'not-logged-in': '{name} 未登录，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      'not-installed': '未找到 {name}，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      'bad-key': 'API key 无效，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      network: '{name} 无法连接，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      timeout: '{name} 响应超时，本次运行未开始。已抓取的 {n} 条内容已保留。',
       // redesign R5b (O9) + R6a (V6), merged 11-13: no code in the sentence (the raw text is in 「复制诊断信息」); the run did not
       // start, as in V6's sentence and the seven lines above
       other: '{name} 连接出现问题，本次运行未开始。已抓取的 {n} 条内容已保留。',
-      none: '还没选连接方式，本次运行未开始。已抓取的 {n} 条内容已保留。',
+      none: '尚未选择连接方式，本次运行未开始。已抓取的 {n} 条内容已保留。',
     }),
     fix: Object.freeze({
       login: '请点击「前往登录」，在打开的窗口中完成登录后，点击「已登录，重试」。',
-      'not-installed': '装好它后点击「重试」，或更换连接方式。',
+      'not-installed': '安装该工具后点击「重试」，或更换连接方式。',
       'bad-key': '到设置中重新输入 API key，再点击「重试」。',
       network: '网络恢复后点击「重试」。',
       timeout: '稍后点击「重试」。',
-      other: '点击「重试」再试一次；仍不行请在「设置 → 关于 → 高级」中复制诊断信息发给我们。',
+      other: '点击「重试」；如仍未解决，请在「设置 → 关于 → 高级」中复制诊断信息并发送给开发者。',
       none: '点击「更换连接方式」选择一种连接，再点击「重试」。',
     }),
     'not-writable': '库文件夹无法写入，本次运行未开始。请检查该文件夹是否为只读，或被其他程序占用。',

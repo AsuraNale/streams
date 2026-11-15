@@ -9,6 +9,10 @@
 // given and fails numbers-in-source exactly when a number of the summary is not in the material. (3) Wrong in both rounds →
 // the card is still written to 待看 with verification.passed false, and the real app (the pinned Electron) shows it in 待看
 // marked 「未通过核验」. Reverse: answers that are right the first time pass in one round, are not sent back and carry no mark.
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed.
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -133,7 +137,7 @@ test('V12 (3) wrong in both rounds → the card is in 待看 with verification.p
   assert.deepEqual(ledger(dir).filter(e => e.ev === 'inbox').map(e => [e.url, e.verified]), [[items[0].url, false]])
   assert.equal(core.homeNumbers(dir).inbox, 1, '今日 counts it in 待看')
   assert.equal(verdicts(dir).filter(l => l.node === 'summary' && l.item === 'numbers-in-source' && !l.passed).length, 2)
-  // the next round leaves it where it is
+  // the next run leaves it where it is
   await core.runRound(dir, { connector: conn, ctx: fetchCtx() })
   assert.equal(core.listInbox(dir).filter(c => c.url === items[0].url).length, 1)
 })

@@ -10,9 +10,9 @@ export const RUN = Object.freeze({
   cells: Object.freeze({
     fetched: 'Fetched ({n} source{n?|s})',
     fetchedPlain: 'Fetched',
-    new: 'New after removing duplicates',
+    new: 'New after dedup',
     gate: 'Passed {name}',
-    inbox: 'Into the inbox',
+    inbox: 'Into the Inbox',
   }),
   empty: '—',
   skipped: 'Not scored (no model connection)',
@@ -20,7 +20,7 @@ export const RUN = Object.freeze({
   stopWhy: Object.freeze({
     'self-check': 'Pre-run check failed: {what}',
     connection: 'Connection error: {what}',
-    cap: 'Reached the per-run limit; the rest waits for the next run',
+    cap: 'Reached the per-run cap; the rest waits for the next run',
     aborted: 'Stopped by hand; the rest waits for the next run',
     other: 'The run did not finish: {what}',
   }),
@@ -57,6 +57,6 @@ export const RUN = Object.freeze({
   stepNow: 'Current step: {step}',
   stop: 'Stop',
   stopping: 'Stopping',
-  chip: 'Running: {phase} · model calls {calls} / limit {cap}',
+  chip: 'Running: {phase} · model calls {calls} / cap {cap}',
   chipNoCap: 'Running: {phase} · model calls {calls}',
 })

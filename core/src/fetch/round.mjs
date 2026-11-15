@@ -15,7 +15,7 @@
 //       * an `ok` fetch whose items were all already known is logged as `empty`
 //         (count = parsed items, new = 0): "no new content" is what the user needs to hear;
 //       * a fetch whose new items could not be written to the ledger is logged as `failed` with the
-//         ledger error in the message. It is never `empty`: nothing was recorded, so next round must
+//         ledger error in the message. It is never `empty`: nothing was recorded, so next run must
 //         fetch again.
 //
 // Disk writes: fetch_log.jsonl (this module, through appendFetchLog) and ledger.jsonl (through
@@ -108,7 +108,7 @@ export async function fetchRound(libraryDir, { config, ctx } = {}) {
         appendEvent(libraryDir, { ts, ev: 'seen', url: item.url, source: item.source, title: item.title, date: item.date, summary: item.summary || undefined, maybe_duplicate_of: dupOf });
       } catch (e) {
         ledgerError = e;
-        break; // the rest of this source's items stay unregistered; next round fetches them again
+        break; // the rest of this source's items stay unregistered; next run fetches them again
       }
       known.urls.add(item.url);
       if (key !== '' && !known.titles.has(key)) known.titles.set(key, item.url);

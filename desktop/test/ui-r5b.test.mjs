@@ -7,6 +7,8 @@
 // app on the way (a 放弃 written → rule ⑤).
 // Each check first shows the input that makes it fail (the control beside it), and the r5b-* mutants break a copy of the page
 // for each reverse the contract names.
+// redesign R6b-1: the comments / test names / expected words here name the fetch states with 05 第三节's words (无更新 · 地址无效 ·
+// 访问被拒; they said the v1 words) — the page's dictionaries changed; what is checked did not.
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -89,7 +91,7 @@ describe('R5b-1 the one card: ten 主 Agent 提议 and ①–⑤ drawn; its stat
     prepare: async world => {
       W.shelf = await seedShelf(world)
       const [seeded, ev, fashion] = W.shelf.dirs
-      // ① a source failing three runs (暂时失败 ×2, 被拒绝 ×1, the fetcher's raw text and the HTTP code in the log)
+      // ① a source failing three runs (暂时失败 ×2, 访问被拒 ×1, the fetcher's raw text and the HTTP code in the log)
       for (const [i, status] of ['failed', 'failed', 'blocked'].entries()) core.appendFetchLog(seeded, { ts: hoursAgo(6 - i), round: `r${i}`, source: 'mcp-news', kind: 'rss', status, count: 0, new: 0, hint: 'retry-next-round', message: status === 'blocked' ? 'HTTP 403 Forbidden' : 'connect ECONNREFUSED 127.0.0.1:9', ...(status === 'blocked' ? { http: 403 } : {}) })
       // ③ words aimed at AI in one of letta-blog's articles
       core.recordAiInstruction(seeded, { at: hoursAgo(3), source: 'letta-blog', itemId: 'https://example.test/x/1', by: 'rule', phrases: ['忽略之前的所有指令'] })
@@ -100,7 +102,7 @@ describe('R5b-1 the one card: ten 主 Agent 提议 and ①–⑤ drawn; its stat
         core.appendEvent(seeded, { ts: hoursAgo(4 - i), ev: 'dismissed', url, quick: 'marketing', reason: '营销内容' })
       }
       core.recordSuggestions(seeded, core.suggestFor(seeded))
-      // ① 地址有问题 twice in a row (a 404: its code and its raw text in the log only)
+      // ① 地址无效 twice in a row (a 404: its code and its raw text in the log only)
       core.addSource(ev, { name: 'ev-feed', kind: 'rss', url: 'http://127.0.0.1:9/ev.xml', topic: '整车销量' })
       for (const i of [1, 2]) core.appendFetchLog(ev, { ts: hoursAgo(3 - i), round: `g${i}`, source: 'ev-feed', kind: 'rss', status: 'gap', count: 0, new: 0, hint: 'fix-address-or-remove', http: 404, message: 'HTTP 404: check the address' })
       // ② 时尚: three runs without anything new (seedShelf); ④ its topics the same as 电动车's
@@ -551,7 +553,7 @@ describe('R5b-3 the right panel\'s 待确认 (P16, O5): one list of every librar
       W.shelf = await seedShelf(world)
       const [seeded, ev, fashion] = W.shelf.dirs
       W.ids = W.shelf.ids
-      // ① in 电动车 (not the current library): a source failing three runs; ① 地址有问题 in 时尚; ② 时尚's three runs (seedShelf)
+      // ① in 电动车 (not the current library): a source failing three runs; ① 地址无效 in 时尚; ② 时尚's three runs (seedShelf)
       core.addSource(ev, { name: 'ev-feed', kind: 'rss', url: 'http://127.0.0.1:9/ev.xml', topic: '整车销量' })
       for (const i of [1, 2, 3]) core.appendFetchLog(ev, { ts: hoursAgo(5 - i), round: `f${i}`, source: 'ev-feed', kind: 'rss', status: 'failed', count: 0, new: 0, hint: 'retry-next-round', message: 'connect ECONNREFUSED' })
       core.recordSuggestions(ev, core.suggestFor(ev))
@@ -736,7 +738,7 @@ describe('R5b-3 the right panel\'s 待确认 (P16, O5): one list of every librar
     await openRow(W.ids[0])
     await onDecide()
     const item = (await list()).items.find(i => i.from === 'system' && i.libraryId === W.ids[2] && i.kind === 'source-failing')
-    assert.ok(item && item.evidence.state === 'gap', 'control: 时尚\'s ① 地址有问题 waits')
+    assert.ok(item && item.evidence.state === 'gap', 'control: 时尚\'s ① 地址无效 waits')
     await s.page.click(`[data-decide="${item.id}"] [data-action="edit-address"] button`)
     await until(id => document.querySelector(`.lib-page[data-library="${id}"] main[data-screen="sources"]`) !== null && document.querySelector('dialog[data-dialog="edit-source"][open]') !== null, W.ids[2])
     await s.page.click('dialog[data-dialog="edit-source"] [data-action="cancel-edit-source"] button')
@@ -749,7 +751,7 @@ describe('R5b-3 the right panel\'s 待确认 (P16, O5): one list of every librar
     await openRow(W.ids[0])
     await onDecide()
     const item = (await list()).items.find(i => i.from === 'system' && i.libraryId === W.ids[2] && i.kind === 'source-failing')
-    assert.ok(item && item.evidence.state === 'gap', 'control: 时尚\'s ① 地址有问题 waits')
+    assert.ok(item && item.evidence.state === 'gap', 'control: 时尚\'s ① 地址无效 waits')
     await s.page.click(`[data-decide="${item.id}"] [data-action="edit-address"] button`)
     await until(id => document.querySelector(`.lib-page[data-library="${id}"] main[data-screen="sources"]`) !== null && document.querySelector('dialog[data-dialog="edit-source"][open]') !== null, W.ids[2])
     assert.equal(await s.page.evaluate(() => document.querySelector('dialog[data-dialog="edit-source"] [data-field="address"]').value), 'http://127.0.0.1:9/hk.xml', 'the row\'s own address')

@@ -20,7 +20,7 @@
  *     schedule and the cap (only a cap other than the pipeline's default is written) — each field the user's own in
  *     changes.jsonl (byYou) — the setup records (library · connection from 首次打开 · pack · sources · trial · schedule), the
  *     registration (it becomes the current library) and, for 「创建并运行」 only, one round in the app's one queue
- *     (services/schedule.mjs queueRound: why 'first', 建库后的第一轮). 「仅创建」 queues nothing.
+ *     (services/schedule.mjs queueRound: why 'first', 创建库后的首次运行). 「仅创建」 queues nothing.
  * Pure Node apart from what is injected (test/services-new-library.test.mjs).
  * @module desktop/main/services/new-library
  */

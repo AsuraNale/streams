@@ -38,7 +38,7 @@ import { PROBLEM_WORDS, situation } from '../src/agent/situation.mjs';
 import { runLookup } from '../src/agent/lookups.mjs';
 import { agentTurn, compressIfNeeded, publicRow } from '../src/agent/turn.mjs';
 import { appendTranscript, readTranscript } from '../src/agent/store.mjs';
-import { ADVICE_WORDS, CONNECTION_WORDS, DROP_WORDS } from '../src/agent/words.mjs';
+import { ADVICE_WORDS, CONNECTION_WORDS, DROP_WORDS, STATE_WORDS } from '../src/agent/words.mjs';
 import { scriptedAgentConnector } from '../src/agent/fake.mjs';
 import { makeLibrary, TEST_CONFIG } from './support/fixtures.mjs';
 import { startFakeServer } from './support/fake-server.mjs';
@@ -265,7 +265,7 @@ test('R5a the handing over: interface words, no kind name, no JSON, no raw error
   assert.match(draft, /点击了「生成修改提议」/);
   assert.match(draft, /修改追踪要求的主 Agent 提议/);
   assert.match(draft, /用户确认前，追踪要求保持不变/);
-  assert.match(handoffText(list.find((s) => s.kind === 'source-failing'), { libraryName: '我的库' }), /点击了「交由主 Agent 分析」。系统检测：来源「feed-a」连续 2 次运行的抓取结果为「地址有问题」/);
+  assert.match(handoffText(list.find((s) => s.kind === 'source-failing'), { libraryName: '我的库' }), /点击了「交由主 Agent 分析」。系统检测：来源「feed-a」连续 2 次运行的抓取结果为「地址无效」/);
 });
 
 // ---- 追踪要求 in the scoring -------------------------------------------------------------------------------------------
@@ -386,12 +386,36 @@ export const NOT_USED = [
   /HTTP \d{3}|ECONNREFUSED|check the address|socket hang up/,
 ];
 // precheck fix 10: the 处理建议 the model is given is the page's FETCH_HINTS word for word (words.mjs ADVICE_WORDS; the desktop test
-// holds the two equal). Those sentences still say 删掉 / next round — R6 rewrites them in both places (05 第三节 「五种抓取状态」:
-// 「处理建议」一句按正式口气重写), as it does the state words — so the scan takes exactly those sentences out first, as the
-// contract has the current dictionary's words for a state used until R6. Anything else that says 删掉 or round is still caught.
-const HINT_SENTENCES = [...Object.values(ADVICE_WORDS.zh), ...Object.values(ADVICE_WORDS.en)];
-const withoutHints = (text) => HINT_SENTENCES.reduce((t, s) => t.replaceAll(s, ''), String(text));
-export const hits = (text) => { const t = withoutHints(text); return NOT_USED.filter((re) => re.test(t)).map((re) => `${re}: ${re.exec(t)[0]}`); };
+// holds the two equal).
+// redesign R6b-1: this scan used to take the 处理建议 sentences out of the text first, because the v1 sentences themselves said
+// two of 05's 不再用 words (R5a left them for R6). R6b rewrote the four sentences (05 第三节 「五种抓取状态」), so nothing is taken
+// out any more: the sentences are scanned like everything else, and the next test holds them to it.
+export const hits = (text) => { const t = String(text); return NOT_USED.filter((re) => re.test(t)).map((re) => `${re}: ${re.exec(t)[0]}`); };
+
+test('redesign R6b-1: the four 处理建议 and the state words the main agent is given say none of 05\'s 不再用 (中英); a sentence that says 删掉 or round is seen', () => {
+  for (const lang of ['zh', 'en']) {
+    for (const [k, s] of Object.entries(ADVICE_WORDS[lang])) assert.deepEqual(hits(s), [], `${lang} ${k}: ${s}`);
+    for (const [k, s] of Object.entries(STATE_WORDS[lang])) assert.deepEqual(hits(s), [], `${lang} ${k}: ${s}`);
+  }
+  // the contract's two tables, word for word (docs/checks/2026-11-13-r6b/contract.md R6b-1)
+  assert.deepEqual([STATE_WORDS.zh.ok, STATE_WORDS.zh.empty, STATE_WORDS.zh.gap, STATE_WORDS.zh.failed, STATE_WORDS.zh.blocked], ['正常', '无更新', '地址无效', '暂时失败', '访问被拒']);
+  assert.deepEqual([STATE_WORDS.en.ok, STATE_WORDS.en.empty, STATE_WORDS.en.gap, STATE_WORDS.en.failed, STATE_WORDS.en.blocked], ['OK', 'No updates', 'Invalid address', 'Temporary failure', 'Access denied']);
+  assert.deepEqual({ ...ADVICE_WORDS.zh }, {
+    none: '无需处理。',
+    'fix-address-or-remove': '该地址无效，重试无法解决。请修改地址，或移除该来源。',
+    'retry-next-round': '下次运行时将自动重试，无需修改地址。',
+    'blocked-remove-source': '该网站拒绝程序访问，重试无法解决。请改用其他来源。',
+  });
+  assert.deepEqual({ ...ADVICE_WORDS.en }, {
+    none: 'No action needed.',
+    'fix-address-or-remove': 'This address is not valid, so retrying will not help. Change the address or remove this source.',
+    'retry-next-round': 'Streams tries again on the next run. There is no need to change the address.',
+    'blocked-remove-source': 'This site does not allow programs to read it, so retrying will not help. Use a different source.',
+  });
+  // control: the scan sees a 处理建议 that says them (the kind of sentence that used to be taken out)
+  assert.equal(hits('重试无法解决：修改地址，或删掉该来源。').length, 1);
+  assert.equal(hits('It is tried again in the following round.').length, 1);
+});
 
 test('R5a N11: the system prompt, the situation, the lookups and the handing over use the interface\'s words — none of 05\'s 不再用, no state code, no raw error', () => {
   assert.deepEqual(hits('上一轮 · 提议卡 · failed · HTTP 404 · 「不要」 · 稍后'), [NOT_USED[0], NOT_USED[1], NOT_USED[2], NOT_USED[4], NOT_USED[5]].map((re) => hits('上一轮 · 提议卡 · failed · HTTP 404 · 「不要」 · 稍后').find((h) => h.startsWith(String(re)))), 'control: the scan finds them');
@@ -401,7 +425,7 @@ test('R5a N11: the system prompt, the situation, the lookups and the handing ove
   for (const w of ['确认', '创建', '提出修改', '拒绝', '暂停该来源', '修改地址', '交由主 Agent 分析', '生成修改提议', '忽略', '将严格程度调整为「{level}」', '运行', '追踪要求', '主 Agent 提议', '系统检测', '待确认']) assert.ok(AGENT_SYSTEM.includes(w), w);
   // a library with every kind of state, card and problem
   const dir = library('r5a-words', { sources: ['feed-a', 'feed-b', 'feed-c'], paused: ['feed-c'] });
-  fetchRows(dir, 'feed-a', ['blocked', 'failed', 'failed'], 0, { http: 503, message: 'HTTP 503: server-side, retry next round' });
+  fetchRows(dir, 'feed-a', ['blocked', 'failed', 'failed'], 0, { http: 503, message: 'HTTP 503: server-side, retry next run' });
   fetchRows(dir, 'feed-b', ['gap', 'gap'], 0, { http: 404, message: 'HTTP 404: check the address' });
   recordAiInstruction(dir, { at: at(1), source: 'feed-a', itemId: 'u1', by: 'rule', phrases: ['照做'] });
   noOutputRounds(dir, 3);
@@ -426,7 +450,7 @@ test('R5a N11: the system prompt, the situation, the lookups and the handing ove
 
 test('R5a N11: what one turn sends the model — the system prompt, the situation, the history, the summary\'s request, the handing over — none of 05\'s 不再用', async () => {
   const dir = library('r5a-turn');
-  fetchRows(dir, 'feed-a', ['failed', 'failed', 'failed'], 0, { http: 503, message: 'HTTP 503: server-side, retry next round' });
+  fetchRows(dir, 'feed-a', ['failed', 'failed', 'failed'], 0, { http: 503, message: 'HTTP 503: server-side, retry next run' });
   recordSuggestions(dir, suggestFor(dir, { now: clock(5) }), { now: clock(5) });
   const registry = { libraries: [{ id: 'aaaaaaaa', path: dir, name: '词库' }] };
   const agentDir = join(dir, '..', 'r5a-turn-agent');
@@ -476,7 +500,8 @@ test('R5a precheck fix 2: a proposal not made and a connection that failed — t
   const ctx = { agentDir, connector: conn, registry, proposals: [], createProposal, now: clock(6), log: (l) => logLines.push(l), rawError: (where, raw) => rawLines.push(`${where}: ${raw.code} ${raw.message}`) };
   const r1 = await agentTurn({ text: '加个来源' }, ctx);
   assert.deepEqual(r1.notice, [{ code: 'proposals-dropped', count: 1 }], 'control: the proposal was not made');
-  assert.ok(r1.reply.endsWith('有 1 张提议没能生成：添加来源 · 来源填写有误'), r1.reply);
+  // redesign R6b-2: the sentence is in 05's tone now (项 · 未能 · 格式不符 · 未找到该库 · 网络无法连接; words.mjs) — only the expected words changed
+  assert.ok(r1.reply.endsWith('有 1 项提议未能生成：添加来源 · 来源填写有误'), r1.reply);
   failNext = true;
   const r2 = await agentTurn({ text: '再试试' }, ctx);
   assert.deepEqual([r2.reply, r2.notice], [null, [{ code: 'connection', connection: 'network' }]], 'control: the connection failed');
@@ -485,8 +510,8 @@ test('R5a precheck fix 2: a proposal not made and a connection that failed — t
   await agentTurn({ text: '现在呢' }, ctx);
   // the user part of each call (the system prompt names the kinds on purpose: the model writes them in its JSON answer)
   const prompt = scripted.calls.slice(before).map((c) => c.prompt ?? '').join('\n');
-  assert.match(prompt, /有 1 张提议没能生成：添加来源 · 来源填写有误/, 'control: the next message has the sentence of the proposal not made');
-  assert.match(prompt, /连接出了问题：网络连不上，这条消息没有回答。/, 'control: and the one of the connection');
+  assert.match(prompt, /有 1 项提议未能生成：添加来源 · 来源填写有误/, 'control: the next message has the sentence of the proposal not made');
+  assert.match(prompt, /连接出现问题：网络无法连接，该消息未获得回答。/, 'control: and the one of the connection');
   assert.deepEqual(notForTheModel(prompt), [], prompt);
   const rows = readTranscript(agentDir).rows;
   const notes = rows.filter((x) => x.role === 'note');
@@ -513,9 +538,10 @@ test('R5a precheck fix 2: rows written before the fix (kind names, codes, raw te
   assert.equal(shown.length, 5, 'control: every row is there');
   assert.deepEqual(notForTheModel(scanned(shown)), [], JSON.stringify(shown));
   assert.ok(Object.hasOwn(CONNECTION_WORDS.zh, shown[3].data.error), 'data.error is a code the page words');
-  assert.equal(shown[1].text, '有 2 张提议没能生成：添加来源 · 来源填写有误；修改单次运行上限 · 格式不对');
+  // redesign R6b-2: the sentence is in 05's tone now (项 · 未能 · 格式不符 · 未找到该库 · 网络无法连接; words.mjs) — only the expected words changed
+  assert.equal(shown[1].text, '有 2 项提议未能生成：添加来源 · 来源填写有误；修改单次运行上限 · 格式不符');
   assert.deepEqual(shown[1].data, { dropped: [{ index: 0, category: 'source' }, { index: 1, category: 'format' }] });
-  assert.deepEqual([shown[3].text, shown[3].data], ['连接出了问题：网络连不上，这条消息没有回答。', { error: 'network' }]);
+  assert.deepEqual([shown[3].text, shown[3].data], ['连接出现问题：网络无法连接，该消息未获得回答。', { error: 'network' }]);
   assert.deepEqual(shown[4].data, { session: 'lost' });
   assert.deepEqual(hits(shown.map((x) => x.text).join('\n')), [], 'none of 05\'s 不再用 (最近几轮)');
   const scripted = scriptedAgentConnector({ sessionful: false, answers: [{ reply: '好' }] });

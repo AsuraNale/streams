@@ -3,8 +3,9 @@
 // its own app-data and local-data folders (STREAMS_APP_DATA / STREAMS_LOCAL_DATA — never %APPDATA%\Streams), Chinese
 // pinned as the system language, no update request (STREAMS_DEV_UPDATE_URL off), every connection the core's stand-in
 // (STREAMS_DEV_CONNECTION=fake) and the main Agent on a script (STREAMS_DEV_AGENT_SCRIPT). The window starts hidden
-// (STREAMS_WINDOW=hidden: a test run — nothing is opened outside the app, a click on 「用 Obsidian 打开」 only writes the log)
+// (STREAMS_WINDOW=hidden: a test run — nothing is opened outside the app, a click on 「在 Obsidian 中打开」 only writes the log)
 // and is then shown without taking the focus (showInactive), so that it draws and the screenshots are of the real window.
+// (redesign R6b-4: the menu item is named above as the page says it now, 05 第 124 行; a comment only.)
 //
 //   const a = await launchApp({ appData, localData, env })   → { app, page, errors, log(), close() }
 //   await ready(page, 'chat')                                 main[data-screen="chat"][data-state="ready"]

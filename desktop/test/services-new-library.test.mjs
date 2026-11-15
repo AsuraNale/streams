@@ -5,13 +5,15 @@
 //   - the defaults: 标准, the three levels' numbers, the app's schedule, the pipeline's cap, the starter packs as the core keeps them
 //   - an empty brief (or one of spaces) is refused and nothing is made; the bridge's own check refuses a form of other keys
 //   - 仅创建: made, registered, the current library, 标准's thresholds, the form's sources / topics / schedule; nothing queued,
-//     no round; 创建并运行: its first run queued once, why 'first' (建库后的第一轮)
+//     no round; 创建并运行: its first run queued once, why 'first' (创建库后的首次运行)
 //   - the three levels write their two numbers
 //   - a folder of the user's .md files is opened as a library: every one of them byte for byte as it was
 //   - a folder holding a library already: opened as it is (streams.json byte for byte, no run even when asked); other things: refused
 //   - O15: the form's library and a confirmed card's, from the same name and brief and the app's schedule, have the same pipeline,
 //     schedule and cap
 //   - the setup records: library · pack · sources · trial · schedule, and 首次打开's connection copied with its time
+// redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
+// (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -147,7 +149,7 @@ test('R4a 仅创建: made at <root>\\<name>, registered and current, 标准 0.5 
   assert.deepEqual(lines(join(dir, '_pipeline', 'changes.jsonl')).map(l => [l.field, l.by]).sort(), [['brief', 'you'], ['schedule', 'you'], ['sources', 'you'], ['thresholds', 'you'], ['topics', 'you']])
 })
 
-test('R4a 创建并运行: the first run in the queue once, why first (建库后的第一轮); the new library is the current one', async () => {
+test('R4a 创建并运行: the first run in the queue once, why first (创建库后的首次运行); the new library is the current one', async () => {
   const { h, schedule, pipelineStub, queued } = setup()
   const r = h.createNewLibrary(FORM({ name: '电池', run: true }))
   assert.equal(r.made, 'created')

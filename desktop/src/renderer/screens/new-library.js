@@ -15,7 +15,7 @@
 //   .md files is opened as a library, nothing of the user's moved or changed, F57) · 定时: 每天 [time] 自动运行 · 单次运行最多 [n] 次
 //   模型调用 (the app's schedule and the pipeline's cap to start with: the same a main agent's card gets, O15).
 // The form-footer: 取消 · 「创建后立即开始首次运行，预计 n–m 次模型调用」 (estimateNewLibrary from what the rows found) · 仅创建 ·
-// 创建并运行 — createNewLibrary(form, run). 创建并运行 queues the first run (建库后的第一轮, the queue's rules); 仅创建 queues nothing.
+// 创建并运行 — createNewLibrary(form, run). 创建并运行 queues the first run (创建库后的首次运行, the queue's rules); 仅创建 queues nothing.
 // Either way the new library is the current one and the app goes to its 待看.
 // Words: texts/first-run.js NEW_LIBRARY (and HOW_IT_WORKS); FETCH_STATES / FETCH_HINTS / SOURCE_KINDS of texts/common.js.
 // Test hooks: main[data-screen="new-library"][data-state]; [data-field=name|brief|source|topic|time|cap|daily];
@@ -35,7 +35,7 @@ import { RightPanel } from './right-panel.js'
 import { HowItWorks } from './first-run.js'
 
 const LEVELS = ['loose', 'standard', 'strict']
-// what to do about a state that is not 正常 (V3's sentence; 没新内容's is 「不需要你做什么。」)
+// what to do about a state that is not 正常 (V3's sentence; 无更新's is 「无需处理。」)
 const hintWords = h => (h && Object.hasOwn(FETCH_HINTS, h) ? FETCH_HINTS[h] : null)
 export const whereOf = s => s.url ?? s.query ?? ''
 

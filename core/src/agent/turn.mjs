@@ -21,7 +21,7 @@
 // not usable: retried once, then as above).
 // `proposals`: each one handed to ctx.createProposal(kind, params, why, { by: 'agent' }); one that is not an object of
 // { kind, params, why } or that createProposal refuses is not made — a `note` row and the end of the reply say so in the
-// interface's words (words.mjs droppedSentence: 「有 N 张提议没能生成：添加来源 · 来源填写有误」 — the action's name and the
+// interface's words (words.mjs droppedSentence: 「有 N 项提议未能生成：添加来源 · 来源填写有误」 — the action's name and the
 // kind of failure; notice 'proposals-dropped'). Redesign R5a (precheck fix 2): no kind name, no code, no raw text in the row's
 // text or data (data.dropped = [{ index, category }]); the thrower's own text goes to ctx.log and ctx.rawError only.
 // `note`: kept in agent/notes.jsonl (store.mjs appendAgentNote).

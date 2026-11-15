@@ -18,7 +18,7 @@
 //
 // A key is open from its `suggested` line until a dismissed / accepted / acted / expired line for it. A handled key can be
 // suggested again later (a new `suggested` line opens it again), but only when its rule fires on evidence newer than the
-// handling (rules.mjs), so a dismissal is not undone by the next round.
+// handling (rules.mjs), so a dismissal is not undone by the next run.
 //
 // replaySuggestions(libraryDir)                      -> Map<key, { status: 'open'|'dismissed'|'accepted'|'acted'|'expired', suggestion, handledAt, handled }>
 // openSuggestions(libraryDir)                        -> [suggestion, ...]   oldest first

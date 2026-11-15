@@ -11,7 +11,7 @@
 //   under the verification loop -> inbox -> rounds.jsonl line + logs/<day>.md section -> cleanCache.
 //   Counting: every connector.complete (gate, summary, judge) counts 1; calls >= cap -> stop after the current
 //   item (stoppedAt:'cap'); signal.aborted -> stop after the current item ('aborted'); a connection failure ->
-//   stop at once ('connection'). Items not reached keep their ledger state and are picked up next round.
+//   stop at once ('connection'). Items not reached keep their ledger state and are picked up next run.
 //   -> { ok, started, round:{ id, startedAt, finishedAt }, counts, gates, calls, callsBy, stoppedAt?, stoppedNode?, problems, warnings }
 //   redesign R2 (N10): callsBy = { selfCheck, gates: { <id>: n }, summary, verify } — the self-check's probe, each gate's own
 //   calls, the summary's own calls and every check's judge calls; selfCheck + calls = their sum (the run's 模型调用 N).

@@ -28,6 +28,57 @@ const MUTANTS = [
     edits: [['src/agent/words.mjs', "export const NOT_IN_LIBRARY = Object.freeze({ zh: '库内暂无相关内容。',", "export const NOT_IN_LIBRARY = Object.freeze({ zh: '库里没有。',"]],
     test: ['test/r6a.test.mjs', '--test-name-pattern=R6a NOT_IN_LIBRARY'],
   },
+  // redesign R6b-1 (docs/checks/2026-11-13-r6b/contract.md 「测」): the words the main agent is given for a source's state and
+  // what to do about it are the contract's tables (the page's are held to the same tables by the desktop's and V3's tests)
+  {
+    id: 'r6b-core-state-word',
+    what: 'the core\'s word for a state is not 05\'s (the main agent would say another word than the page)',
+    edits: [['src/agent/words.mjs', "gap: '地址无效', failed: '暂时失败', blocked: '访问被拒', paused: '已暂停', never: '尚未抓取' }),", "gap: '地址待查', failed: '暂时失败', blocked: '访问被拒', paused: '已暂停', never: '尚未抓取' }),"]],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=redesign R6b-1'],
+  },
+  {
+    id: 'r6b-core-advice-round',
+    what: 'the core\'s 处理建议 of 暂时失败 says 下一轮 again (a word 05 no longer uses; R5a took such sentences out of its scan)',
+    edits: [['src/agent/words.mjs', "    'retry-next-round': '下次运行时将自动重试，无需修改地址。',", "    'retry-next-round': '下一轮会自动重试，无需修改地址。',"]],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=redesign R6b-1'],
+  },
+  {
+    id: 'r6b-core-advice-en',
+    what: 'the core\'s English 处理建议 of 访问被拒 is not the contract\'s sentence',
+    edits: [['src/agent/words.mjs', "    'blocked-remove-source': 'This site does not allow programs to read it, so retrying will not help. Use a different source.',", "    'blocked-remove-source': 'This site does not allow programs to read it. Use another source.',"]],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=redesign R6b-1'],
+  },
+  {
+    id: 'r6b-core-connection-words',
+    what: 'the sentence of a connection that failed is the one before R6b again (连接出了问题 … 这条消息没有回答)',
+    edits: [['src/agent/words.mjs', '`连接出现问题：${why}，该消息未获得回答。`', '`连接出了问题：${why}，这条消息没有回答。`']],
+    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 2: a proposal not made'],
+  },
+  // redesign R6b-3 (docs/checks/2026-11-13-r6b/contract.md 「英文字典全量」): the English the core supplies
+  {
+    id: 'r6b-core-rule-desc-not-english',
+    what: 'the English description of a built-in rule is the Chinese one (an English interface would show 理由不超过 120 字)',
+    edits: [['src/verify/checklist.mjs', "    'reason-length': 'The reason is at most 120 characters',", "    'reason-length': '理由不超过 120 字',"]],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 describeChecklist: the eleven'],
+  },
+  {
+    id: 'r6b-core-rule-desc-from-words',
+    what: 'describeChecklist rewords a user\'s own item that carries a built-in id',
+    edits: [['src/verify/checklist.mjs', "  if (!isPlainObject(item) || item.origin !== 'streams' || typeof item.id !== 'string') return null;", "  if (!isPlainObject(item) || typeof item.id !== 'string') return null;"]],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 describeChecklist leaves'],
+  },
+  {
+    id: 'r6b-core-run-desc-changed',
+    what: 'the description the pipeline runs with (and tells the verifier) is the English one',
+    edits: [['src/verify/checklist.mjs', "export function summaryBaseline(language = 'zh-CN') {", "export function summaryBaseline(language = 'en') {"]],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 describeChecklist: the eleven'],
+  },
+  {
+    id: 'r6b-core-inbox-case',
+    what: 'the English sentence the core writes into the conversation says inbox in lower case again',
+    edits: [['src/suggest/act.mjs', 'runs in a row put nothing new into the Inbox.', 'runs in a row put nothing new into the ' + 'in' + 'box.']],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 the proper names'],
+  },
   // redesign R2 (docs/checks/2026-11-11-r2/contract.md 「测」)
   {
     id: 'r2-dismiss-placeholder',

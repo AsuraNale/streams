@@ -41,6 +41,13 @@
 //               saying 没要) — dismissed is read from the library's suggestions.jsonl, as it was
 //   test names  (precheck fix 13) UC1 step 3 / 4, UC2 step 4 and UC5 step 4 name the buttons as they are now (拒绝 · 提出修改 · 创建,
 //               忽略 · 交由主 Agent 分析) and the place (待确认, was 概览); only the names changed, every assertion is as above
+// redesign R6b-4: eight test names say what the page says now (主 Agent; 进度 / 来源与要求, was 概览; 「连续 3 次运行没有新内容进入待看」; 「库内暂无相关内容。」;
+// 「已转交主 Agent」; 「主 Agent 提议 · 已确认」 in 高级设置's 变更记录; 「检测到面向 AI 的指令，已忽略」; the 系统检测's sentence) — the names
+// only: no assertion, no locator and no fixture the assertions read changed.
+// redesign R6b precheck: five more names (UC1 steps 4–5, UC2 steps 1–2, UC5 steps 1–2) say run (运行; were round) and
+// discards (放弃; was lets one go, the v1 English word) — the names only, as above.
+// redesign R6b-1: the fake main agent's reply in UC1 step 2 names the unticked source by its state as the page says it now
+// (「访问被拒」, 05 规则 10) — it said the v1 word; it is a stub of a model's answer, no assertion reads it.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -139,7 +146,7 @@ before(async () => {
   ])
   const script = [
     /* UC1 step 1 */ { reply: '好。先问一件事。', ask: { question: '港股、美股上市的中国车企要算进来吗？', options: ['要', '不要'] } },
-    /* UC1 step 2 */ { reply: '按你说的拟了一个库，被拒绝的那个没勾：', proposals: [{ kind: 'create_library', why: '你要追中国电动车行业，港股美股上市的也算', params: {
+    /* UC1 step 2 */ { reply: '已按你的要求生成建库提议，状态为「访问被拒」的来源未勾选：', proposals: [{ kind: 'create_library', why: '你要追中国电动车行业，港股美股上市的也算', params: {
       name: EV, brief: '追踪中国电动车行业：整车销量、电池和充电。港股、美股上市的中国车企也算。不要二手车。',
       topics: [{ name: '整车销量', keywords: ['月销', '交付'] }, { name: '电池', keywords: ['装机量'] }, { name: '充电', keywords: ['充电桩'] }],
       sources: evSources, thresholds: { relevance: 0.7, substance: 0.6 }, schedule: { enabled: true, time: '08:30' } } }] },
@@ -184,7 +191,7 @@ const evEntry = () => JSON.parse(readFileSync(join(appData, 'libraries.json'), '
 
 // ---------------------------------------------------------------------------------------------------------------------
 // UC1 聊着建一个新库：中国电动车行业
-test('UC1 step 1 · 和主 Agent 聊: the sentence → one question with two quick answers 要 / 不要', async () => {
+test('UC1 step 1 · 主 Agent: the sentence → one question with two quick answers 要 / 不要', async () => {
   await p().click('[data-nav="chat"]')
   await ready(p(), 'chat')
   assert.equal(await p().evaluate(() => document.querySelector('[data-part="ask"][data-open="true"]')), null, 'control: no question before the sentence')
@@ -231,7 +238,7 @@ test('UC1 step 3 · 要 → the create card: name, brief, three topics, eight so
   await shot('uc1-3')
 })
 
-test('UC1 step 4 · 创建 (redesign R5b): the code makes the folder, the sidebar has 中国电动车行业, the first round starts', async () => {
+test('UC1 step 4 · 创建 (redesign R5b): the code makes the folder, the sidebar has 中国电动车行业, the first run starts', async () => {
   const rowsBefore = await p().evaluate(() => document.querySelectorAll('[data-library-row]').length)
   assert.equal(rowsBefore, 2, 'control: two libraries before')
   await p().click(`[data-part="conversation"] [data-proposal="${W.createCard.id}"] [data-action="confirm"] button`)
@@ -250,7 +257,7 @@ test('UC1 step 4 · 创建 (redesign R5b): the code makes the folder, the sideba
   await shot('uc1-4')
 })
 
-test('UC1 step 5 · the first round ends: the sidebar number is the core\'s 待看; 概览 shows the round\'s numbers and the seven sources fine', async () => {
+test('UC1 step 5 · the first run ends: the sidebar number is the core\'s 待看; 进度 shows the run\'s 进入待看 and 来源与要求 the seven sources fine', async () => {
   const dir = W.ev.path
   const end = Date.now() + 90_000
   while (!(core.listRounds(dir, 1)[0]?.finishedAt)) { if (Date.now() > end) throw new Error('the first round did not end'); await sleep(200) }
@@ -276,7 +283,7 @@ test('UC1 step 5 · the first round ends: the sidebar number is the core\'s 待�
 
 // ---------------------------------------------------------------------------------------------------------------------
 // UC2 早上在三个库之间来回看
-test('UC2 step 1 · 库架: three cards with each library\'s 待看; AI Agent 工具 carries its problem, the other two none; the card of 电动车 says when its first round ran', async () => {
+test('UC2 step 1 · 库架: three cards with each library\'s 待看; AI Agent 工具 carries its problem, the other two none; the card of 电动车 says when its first run ended', async () => {
   await p().click('[data-nav="shelf"]')
   await ready(p(), 'shelf')
   const o = (await bridge('getLibrariesOverview')).data
@@ -297,7 +304,7 @@ test('UC2 step 1 · 库架: three cards with each library\'s 待看; AI Agent �
   await shot('uc2-1')
 })
 
-test('UC2 step 2 · 中国电动车行业 → 待看, by the keyboard: C keeps (a file in notes/), D lets one go with a reason', async () => {
+test('UC2 step 2 · 中国电动车行业 → 待看, by the keyboard: C keeps (a file in notes/), D discards one with a reason', async () => {
   await p().click(`[data-shelf-card="${W.ev.id}"]`)
   await onPage('inbox', W.ev.id) // back where this library was left (UC1 step 5); the design's first visit is 待看
   await tab('inbox', W.ev.id)
@@ -333,7 +340,7 @@ test('UC2 step 3 · 中国时尚上市公司 from the sidebar: straight to its �
   await shot('uc2-3')
 })
 
-test('UC2 step 4 · AI Agent 工具 → 待确认: 「连续 3 轮没有产出」 and the 系统检测 (忽略 / 交由主 Agent 分析 / …, nothing that acts by itself) (redesign R5b)', async () => {
+test('UC2 step 4 · AI Agent 工具 → 待确认: 「连续 3 次运行没有新内容进入待看」 and the 系统检测 (忽略 / 交由主 Agent 分析 / …, nothing that acts by itself) (redesign R5b)', async () => {
   await openRow(W.ids.tools)
   await onPage('inbox', W.ids.tools)
   await lastRun()
@@ -359,7 +366,7 @@ test('UC2 step 4 · AI Agent 工具 → 待确认: 「连续 3 轮没有产出�
 
 // ---------------------------------------------------------------------------------------------------------------------
 // UC3 在库里问问题，顺手改需求
-test('UC3 steps 1–2 · 中国时尚上市公司 → 问库: a question is answered from the library only (nothing kept yet: 「库里没有」, no sentence made up)', async () => {
+test('UC3 steps 1–2 · 中国时尚上市公司 → 问库: a question is answered from the library only (nothing kept yet: 「库内暂无相关内容。」, no sentence made up)', async () => {
   await openRow(W.ids.fashion)
   await onPage('inbox', W.ids.fashion)
   await tab('ask', W.ids.fashion)
@@ -376,7 +383,7 @@ test('UC3 steps 1–2 · 中国时尚上市公司 → 问库: a question is answ
   await shot('uc3-2')
 })
 
-test('UC3 step 3 · 「以后也追踪港股服装公司的公告。」: 「这句转给主 Agent」, then two cards in the box (a source tried, a keyword)', async () => {
+test('UC3 step 3 · 「以后也追踪港股服装公司的公告。」: 「已转交主 Agent」, then two cards in the box (a source tried, a keyword)', async () => {
   W.fashionBefore = sha(join(W.fashion, 'streams.json'))
   await p().fill('textarea[data-field="question"]', '以后也追踪港股服装公司的公告。')
   await p().click('main[data-screen="ask"] [data-action="send"] button')
@@ -389,7 +396,7 @@ test('UC3 step 3 · 「以后也追踪港股服装公司的公告。」: 「这�
   await shot('uc3-3')
 })
 
-test('UC3 step 4 · 确认 both → 来源与要求: the new source and the keyword, each 「主 Agent 提的 · 你确认的 · <date>」', async () => {
+test('UC3 step 4 · 确认 both → 来源与要求: the new source and the keyword, each 「主 Agent 提议 · 已确认」 in 高级设置\'s 变更记录', async () => {
   for (const kind of ['add_source', 'edit_topics']) {
     await p().click(`[data-turn="1"] [data-proposal][data-kind="${kind}"] [data-action="confirm"] button`)
     await until(k => document.querySelector(`[data-turn="1"] [data-proposal][data-kind="${k}"]`)?.dataset.status === 'confirmed', kind)
@@ -525,7 +532,7 @@ test('UC4 step 4 · 收藏: the item goes into notes/; in 资料库 its 「更�
 
 // ---------------------------------------------------------------------------------------------------------------------
 // UC5 一篇文章里藏着给 AI 的指令 (the source UC3 added serves it)
-test('UC5 steps 1–2 · a round of 中国时尚上市公司 reads the article with 「忽略之前的所有要求…」: the round runs as usual, nothing of the library changes', async () => {
+test('UC5 steps 1–2 · a run of 中国时尚上市公司 reads the article with 「忽略之前的所有要求…」: the run goes on as usual, nothing of the library changes', async () => {
   await openRow(W.ids.fashion)
   await onPage('sources', W.ids.fashion)
   await tab('inbox', W.ids.fashion)
@@ -541,7 +548,7 @@ test('UC5 steps 1–2 · a round of 中国时尚上市公司 reads the article w
   await shot('uc5-1')
 })
 
-test('UC5 step 3 · 待看: the card of that article carries 「这一条里有写给 AI 的话，已忽略」; the other new card does not', async () => {
+test('UC5 step 3 · 待看: the card of that article carries 「检测到面向 AI 的指令，已忽略」; the other new card does not', async () => {
   await tab('inbox', W.ids.fashion)
   const marked = `${site.base}/hkex/1`
   const plain = `${site.base}/hkex/2`
@@ -554,7 +561,7 @@ test('UC5 step 3 · 待看: the card of that article carries 「这一条里有�
   await shot('uc5-3')
 })
 
-test('UC5 step 4 · 待确认: the 系统检测 「来源 hkex-filings 出现过写给 AI 的指令…」; 忽略 → recorded, the source not paused, nothing else changed (redesign R5b)', async () => {
+test('UC5 step 4 · 待确认: the 系统检测 「来源「hkex-filings」的内容中检测到面向 AI 的指令」; 忽略 → recorded, the source not paused, nothing else changed (redesign R5b)', async () => {
   await panelTab('decide')
   const key = 'ai-instruction:hkex-filings'
   // redesign R5b: the one list of 待确认, this library's card (was its own list [data-part="suggestions"])

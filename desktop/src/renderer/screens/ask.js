@@ -6,7 +6,7 @@
 //     question → the answer: its sentences, each with its cite numbers (`cite`; a click marks that note in the list); the notes
 //                cited (file-row: number, title, date · 打开 → that note in 资料库, 查看原文 → Streams' reading window for a web
 //                source); what the check took out; 「库内暂无相关内容。」 is a real answer (V9's sentence — 维护者 11-11 第 16 题 changed it in
-//                R6a with the standard); 「库内缺少：…」 + 「记到想补的主题」 (addDemand) — once pressed 「已加入待补充主题」, and so when
+//                R6a with the standard); 「库内缺少：…」 + 「加入待补充主题」 (addDemand) — once pressed 「已加入待补充主题」, and so when
 //                the page is opened again: the state is read from getDemands (`added`: the questions it was pressed for, the
 //                core's record), not kept by the page; 「反馈回答问题」 (answerFeedback).
 //     change   → 「已转交主 Agent」: the main Agent's words and its proposals (redesign R5b: the one card, screens/proposal.js —
@@ -51,14 +51,14 @@ const isWeb = u => typeof u === 'string' && /^https?:\/\//i.test(u)
 // the same folding as the core's topicKey: trimmed, inner white space one space, lower case
 const keyOf = t => (typeof t === 'string' ? t.trim().replace(/\s+/g, ' ').toLowerCase() : '')
 
-/** Whether 「记到想补的主题」 was pressed for this topic and question (getDemands' `added`, the core's record). */
+/** Whether 「加入待补充主题」 was pressed for this topic and question (getDemands' `added`, the core's record). */
 export function demandAdded(demands, topic, question) {
   const row = (Array.isArray(demands) ? demands : []).find(d => keyOf(d.topic) === keyOf(topic))
   const q = typeof question === 'string' && question.trim() ? question.trim() : null
   return Boolean(row && Array.isArray(row.added) && row.added.some(a => a === q))
 }
 
-/** 库内缺少 + 记到想补的主题 → 已加入待补充主题 (a topic the answer names; with none, a field to write one). */
+/** 库内缺少 + 加入待补充主题 → 已加入待补充主题 (a topic the answer names; with none, a field to write one). */
 function Demand({ question, missing, demands, onAdded }) {
   const [topic, setTopic] = useState(missing ?? '')
   const [state, setState] = useState(null)
@@ -106,7 +106,7 @@ function Feedback({ question }) {
 
 /**
  * One answer under its question (exported for the page-level test that draws a given answer: test/ui-ask.test.mjs).
- * `demands` (getDemands) says whether 「记到想补的主题」 was pressed; `sourceOf(id)` a note's web source (查看原文).
+ * `demands` (getDemands) says whether 「加入待补充主题」 was pressed; `sourceOf(id)` a note's web source (查看原文).
  */
 export function Answer({ turn, index, highlight, onCite, onOpen, onOriginal, onDemand, onSettings, demands = [], sourceOf = () => null }) {
   if (turn.status === 'asking') return html`<p class="limit-note" data-part="asking" role="status">${T.asking}</p>`
