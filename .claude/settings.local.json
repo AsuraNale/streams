@@ -4,7 +4,14 @@
       "Read(//c/Users/you/dev/yunzhi-desktop/**)",
       "Bash(git --version)",
       "Read(//c/Users/you/.claude/skills/personal-wiki-toolkit/**)",
-      "Read(//c/Users/you/Downloads/**)"
+      "Read(//c/Users/you/Downloads/**)",
+      "Bash(node scripts/mutation-check.mjs:*)",
+      "Bash(node desktop/scripts/mutation-check.mjs:*)",
+      "Bash(node core/scripts/mutation-check.mjs:*)",
+      "Bash(node C:/Users/you/dev/streams/desktop/scripts/mutation-check.mjs:*)",
+      "Bash(node C:/Users/you/dev/streams/core/scripts/mutation-check.mjs:*)",
+      "Bash(STREAMS_SHARP_DIR=* node scripts/mutation-check.mjs:*)",
+      "Bash(STREAMS_SHARP_DIR=* node desktop/scripts/mutation-check.mjs:*)"
     ]
   }
 }
