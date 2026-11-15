@@ -423,8 +423,10 @@ function releaseNotes({ file, bytes, sha256, electron }) {
   const fence = '```'
   // v2 package N: the size in MB too, and how much of what is installed is the bundled font (the stage's own file; a build of
   // an older app — STREAMS_INSTALLER_APP_REF — has none, and its notes then say nothing of it)
-  const fontFile = join(STAGE, 'resources', 'app', 'src', 'renderer', 'fonts', 'NotoSansSC-VF.ttf')
-  const fontBytes = existsSync(fontFile) ? statSync(fontFile).size : null
+  // redesign R6c: and the Research theme's heading font, Noto Serif SC (redesign R6a), when the stage has it
+  const fontBytesOf = name => { const p = join(STAGE, 'resources', 'app', 'src', 'renderer', 'fonts', name); return existsSync(p) ? statSync(p).size : null }
+  const fontBytes = fontBytesOf('NotoSansSC-VF.ttf')
+  const serifBytes = fontBytesOf('NotoSerifSC-VF.ttf')
   const mb = n => (n / 1_000_000).toFixed(1)
   const group = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   return [
@@ -437,7 +439,9 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     '| | |',
     '|---|---|',
     `| 文件 / File | ${tick}${file}${tick} |`,
-    `| 大小 / Size | ${bytes} 字节 / bytes（约 / about ${mb(bytes)} MB）${fontBytes === null ? '' : `，含界面字体 Noto Sans SC / including the interface font Noto Sans SC（字体文件 / font file ${group(fontBytes)} 字节 / bytes，装好后 / installed）`} |`,
+    `| 大小 / Size | ${bytes} 字节 / bytes（约 / about ${mb(bytes)} MB）${fontBytes === null ? '' : serifBytes === null
+      ? `，含界面字体 Noto Sans SC / including the interface font Noto Sans SC（字体文件 / font file ${group(fontBytes)} 字节 / bytes，装好后 / installed）`
+      : `，含界面字体 Noto Sans SC 与研究对话主题的标题字体 Noto Serif SC / including the interface font Noto Sans SC and the Research theme's heading font Noto Serif SC（字体文件 / font files ${group(fontBytes)} + ${group(serifBytes)} 字节 / bytes，装好后 / installed）`} |`,
     `| sha256 | ${tick}${sha256}${tick} |`,
     `| 版本 / Version | ${v}（${RELEASE.app_ver_name}） |`,
     `| 发布者 / Publisher | ${RELEASE.publisher} |`,
@@ -452,19 +456,28 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     '',
     '显示的值应与上面的 sha256 一致（大小写不论）。The hash shown must be the sha256 above (letter case aside).',
     '',
-    // v2 package N: what this build has that the v2 trial build (2026-11-09) had not — packages K2, L, M; nothing about the
-    // version number or a release date, which are not decided
+    // redesign R6c: what this build has since the redesign (packages R1–R6: 丽芙's template in four themes, the sidebar and the
+    // shelf, a library's four tabs, the right panel's tabs of now, one kind of proposal and the main agent's page, 首次打开 as one
+    // screen and 新建库 as one page, the new icon, the serif heading font), in the words of the design's 05-措辞规范 — the earlier
+    // text was v2 package N's (K2, L, M). Nothing about the version number or a release date, which are not decided; nothing
+    // yet about the wording having been made one throughout (redesign R6b does that: its line goes in with the build after R6b)
     '## 这一版有什么 / What is new in this build',
     '',
-    '- **三套新主题**：精密国际主义（默认）、澄明玻璃、研究对话，各有浅色与深色；「外观」可选浅色 / 深色 / 跟随系统（默认跟随系统：Windows 换深色，流息跟着换）。换掉了 v1.0 测试版的河蓝 / 素灰 / 夜间：旧设置自动换算——河蓝 → 精密国际主义 + 跟随系统，素灰 → 精密国际主义 + 浅色，夜间 → 精密国际主义 + 深色，别的设置不动。界面字体 Noto Sans SC 随安装包带着（SIL Open Font License 1.1，全文在「设置 → 许可证与致谢」和安装目录的 `THIRD-PARTY-NOTICES.txt`）。',
-    '- **右栏四个标签**：进度（全部库：在跑的那一轮、排队的先后、下一次定时）、等你决定（全部库待确认的提议卡与建议卡）、详情（随主区变：待看的这一条、资料库的这一篇、问库的这一问）、文件（当前库的笔记按主题分组、待看、这个库的要求与来源）。右栏可以收起；收起与停在哪个标签，下次打开照旧。资料库改成「列表 + 阅读」两栏。',
-    '- **排队**：已经有一个库在跑时再点「开始」（或托盘的「现在跑一轮」），这个库排到队尾、轮到了自动开始，不再「没能开始」；已经排上的不重复排，仍然一次只跑一轮。跑一轮对话框、概览、库架和左栏写明谁在跑、排第几。',
-    '- **左下角「套餐已用」/「API 余额」**（「设置」上面）：当前连接是 Claude Code 时跟着它的调用读，Codex 时问它自己（不调模型），API 只有 DeepSeek 与 Moonshot 有余额接口；读不到就整块不显示（没有连接时也不显示）。只放在内存里，不写盘。',
+    '- **四套主题**：研究对话（默认）、精密国际主义、澄明玻璃、单线黑白，各有浅色与深色；外观可选浅色、深色或跟随系统（默认跟随系统）。此前的主题设置自动换算：v1.0 测试版的河蓝、素灰、夜间分别变为研究对话 + 跟随系统、浅色、深色；已选择的精密国际主义、澄明玻璃、研究对话保持不变，其他设置不受影响。',
+    '- **左栏与库架**：左栏依次为新建库、库架、主 Agent 与「我的库」；每个库一行，显示运行中、排队中、来源异常或待看条数；底部显示当前连接的套餐用量或 API 余额（无法读取时不显示）。库架为每个库显示一张卡片：追踪范围、上次运行、待看条数与来源状态。打开应用后直接进入当前库的待看。',
+    '- **库页四个标签**：待看、资料库、问库、来源与要求。页面顶部显示该库的追踪范围、下次运行时间与「立即运行」。',
+    '- **右栏四个标签**：进度（全部库的运行情况、队列顺序与下次运行时间）、待确认（全部库中需要确认的提议）、详情（随当前页面内容变化）、文件（当前库的笔记、待看与程序记录）。右栏可收起，收起状态与所选标签下次打开时保持。',
+    '- **一种提议与主 Agent**：主 Agent 提议与系统检测统一为一种提议，均需确认后才会执行；主 Agent 提议可确认、拒绝或提出修改。主 Agent 页用于管理全部库：创建库、修改来源与追踪要求。',
+    '- **首次打开与新建库**：首次打开为一屏，流息自动选用已登录的连接，仅在需要时显示连接选择；输入一句想追踪的内容，由主 Agent 生成建库提议，也可手动创建。新建库为一页表单：库名称、追踪要求、严格程度（宽松、标准、严格）、来源（添加后立即测试抓取）、预设来源包、存储位置与定时，可选择「仅创建」或「创建并运行」。',
+    '- **新应用图标与衬线字体**：应用图标更换为新标志。研究对话主题的标题使用衬线字体 Noto Serif SC，与界面字体 Noto Sans SC 一同随安装包提供（均为 SIL Open Font License 1.1，全文见「设置 → 许可证与致谢」与安装目录的 `THIRD-PARTY-NOTICES.txt`）。',
     '',
-    '- **Three new themes**: Precision (the default), Clear Glass and Research, each light and dark; the appearance is Light, Dark or Follow the system (the default). They replace the v1.0 test version\'s River / Paper / Night, whose setting is carried over: River → Precision + Follow the system, Paper → Precision + Light, Night → Precision + Dark; no other setting changes. The interface font, Noto Sans SC, ships with the installer (SIL Open Font License 1.1, in full under Settings → Licenses and credits and in `THIRD-PARTY-NOTICES.txt`).',
-    '- **A right panel with four tabs**: Progress (every library: the round running, the queue, the next timed rounds), For you (proposal and suggestion cards of every library), Details (follows the main area) and Files (the current library\'s notes by topic, its inbox, its requirements and sources). It folds away, and stays folded or on its tab next time. The library tab has two columns (list and reading).',
-    '- **A queue**: Start while another library runs puts this one at the end of the queue; it starts by itself when its turn comes (no more "could not start"), is never queued twice, and still one round runs at a time. The run dialog, the overview, the shelf and the sidebar say which one runs and where each one waits.',
-    '- **"Plan used" / "API balance" above Settings**: for Claude Code read from its own calls, for Codex asked of Codex itself (no model call), for an API key only where the vendor has a balance endpoint (DeepSeek, Moonshot); nothing is shown when it cannot be read (or with no connection). Kept in memory only.',
+    '- **Four themes**: Research (the default), Precision, Clear Glass and Monoline, each light and dark; the appearance is Light, Dark or Follow system (the default). Earlier theme settings carry over: the v1.0 test version\'s River, Paper and Night become Research with Follow system, Light and Dark; Precision, Clear Glass and Research stay as chosen, and no other setting changes.',
+    '- **Sidebar and Shelf**: the sidebar lists New library, Shelf, Main agent and My libraries — one row per library with its state (running, queued, source issues, or the number of items to review) — and, at the foot, the current connection\'s plan usage or API balance (hidden when it cannot be read). The Shelf shows one card per library: what it tracks, its last run, items to review and the state of its sources. The app opens on the current library\'s Inbox.',
+    '- **Four tabs on a library\'s page**: Inbox, Library, Ask, Sources & Brief. The header shows what the library tracks, its next run and Run now.',
+    '- **A right panel with four tabs**: Progress (runs, queue order and next scheduled runs of all libraries), To confirm (proposals of all libraries that need your confirmation), Details (follows the current page) and Files (the current library\'s notes, inbox and program records). The panel folds away, and stays folded or on its tab next time.',
+    '- **One kind of proposal, and the main agent**: proposals by the main agent and items detected by Streams are one kind of proposal, and nothing is applied until you confirm it; a proposal by the main agent can be confirmed, declined or sent back with a change request. The Main agent page manages all libraries: creating one, changing its sources and its brief.',
+    '- **First run and New library**: the first run is one screen — Streams picks a signed-in connection by itself and shows the connection choice only when needed; say in one sentence what to track and the main agent drafts a proposal for the library, or set it up manually. New library is one form: name, brief, strictness (loose, standard, strict), sources (fetched once as a test when added), a starter pack, location and schedule, with Create only or Create and run.',
+    '- **A new app icon and a serif font**: the app has a new icon. Headings of the Research theme use the serif font Noto Serif SC, which ships with the installer beside the interface font Noto Sans SC (both SIL Open Font License 1.1, in full under Settings → Licenses and credits and in `THIRD-PARTY-NOTICES.txt`).',
     '',
     '## 这一版没有代码签名 / This version is not code-signed',
     '',
@@ -483,11 +496,11 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     '',
     '## 安装与卸载 / Install and uninstall',
     '',
-    `- 按用户安装，不要管理员权限：默认装到 ${tick}%LOCALAPPDATA%\\Programs\\${RELEASE.install_folder}${tick}；开始菜单与桌面有「${RELEASE.app_name}」。安装本身不联网。`,
+    `- 按用户安装，无需管理员权限：默认装到 ${tick}%LOCALAPPDATA%\\Programs\\${RELEASE.install_folder}${tick}；开始菜单与桌面有「${RELEASE.app_name}」。安装本身不联网。`,
     // v2 package J2: the app data of v2 also holds the library register (libraries.json) and the main agent's conversation
-    `- 卸载：「设置 → 应用 → 已安装的应用」里找「${RELEASE.app_ver_name}」→ 卸载。最后会问是否同时删除应用数据（API key、设置、登记了哪些库、和主 Agent 的对话记录、缓存），默认「否」；你的库（Markdown 文件夹）不会被删除，选「是」也只是忘了登记过哪些库。`,
-    '- 装过 v1.0 测试版：直接装这个安装包，不用先卸载；第一次打开时，v1.0 用的那个库会登记进库架，它的定时搬进这个库自己的设置（v1.0 的设置文件只读不改）。',
-    '- 以后的版本可以在应用里「设置 → 关于 → 检查更新」直接更新，不用先卸载。',
+    `- 卸载：「设置 → 应用 → 已安装的应用」里找「${RELEASE.app_ver_name}」→ 卸载。最后会询问是否同时删除应用数据（API key、设置、库的登记、主 Agent 的对话记录、日志和缓存），默认「否」；选择「是」会删除这些应用数据，选择「否」将全部保留；两种选择下你的库（Markdown 文件夹）都不会被删除。`,
+    '- 已安装 v1.0 测试版：直接运行本安装包，无需先卸载；首次打开时，v1.0 使用的库会登记到库架，其定时移入该库自己的设置（v1.0 的设置文件只读取、不修改）。',
+    '- 之后的版本可在应用内「设置 → 关于 → 检查更新」直接更新，无需先卸载。',
     '',
   ].join('\n')
 }

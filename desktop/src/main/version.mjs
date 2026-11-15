@@ -5,7 +5,7 @@
  *                 writes from release.json's `version` (and checks); so the packaged app says what the setup program and
  *                 Streams.exe's version info say
  *   development   release.json's `version` read from the repository, marked `dev` (desktop/package.json's own version,
- *                 0.2.0-dev.0, is npm's and is not read): the page says 「开发版」 next to it, and a development run may check
+ *                 1.0.0-dev.1, is npm's and is not read): the page says 「开发版」 next to it, and a development run may check
  *                 for a newer version but does not update itself (services/update.mjs)
  * Settings 「关于」 shows it, the update check compares with it, the diagnostics name it.
  * @module desktop/main/version

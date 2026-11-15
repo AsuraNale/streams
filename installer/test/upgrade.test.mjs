@@ -36,18 +36,21 @@
 //   6. a start of 1.0.0 (harness): packaged, 1.0.0, 关于 says 1.0.0; the library and its note, the settings — still there;
 //      updates\ emptied; nothing asked of GitHub at start. v2 package J2, the migration of v1.0's data (made by the 1.0.0 that
 //      the setup program opened again, its first start): libraries.json made from settings.json — the library registered
-//      and current, nothing else; the app opens on its 概览, the sidebar (plan B) has its row and 库架 its card; its
+//      and current, nothing else; the app opens on its 待看 (redesign R1: 概览 is gone), the sidebar has its row and 库架 its card; its
 //      schedule moved into its streams.json (the time set in 2, also what getSchedule answers); settings.json's libraryPath,
-//      recentLibraries and schedule as 0.9.0 left them (read, not written). v2 package N, K2's theme migration (the maintainer 11-10):
-//      v1.0's 夜间 is 精密国际主义 + 深色 (what the app reads, the page draws, the window's colour), every other field of
-//      settings.json as v1.0 wrote it; and the table's three v1.0 ids (river → precision + system, paper → + light, night →
-//      + dark) given to the installed app one by one in the test user's settings.json
+//      recentLibraries and schedule as 0.9.0 left them (read, not written). The theme migration (v2 package N; redesign R6c:
+//      the table of now — 维护者 11-11, the R1 contract: every v1.0 id becomes the default theme, 研究对话, read from the
+//      installed code's theme.mjs and not written here; river follows the default appearance, paper is light, night is dark):
+//      v1.0's 夜间 is the default theme + 深色 (what the app reads, the page draws, the window's colour), every other field of
+//      settings.json as v1.0 wrote it; the table's three v1.0 ids given to the installed app one by one in the test user's
+//      settings.json; the installed migrateLook says the same. 关于's version line and the page's version chip are the
+//      installed dictionary's sentence with 1.0.0
 //   7. silent uninstall: entry, files, shortcuts, toast activator key gone; nothing of Streams left on the real machine
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { launchInstalled, readRecord, requestQuit } from './harness.mjs'
 import {
@@ -55,15 +58,16 @@ import {
   sha256File, shellFolder, shortcut, sleep, toastKey, uninstallEntry,
 } from './machine.mjs'
 import { startGitHub } from './github-standin.mjs'
-import { appEnv, startFeed, startTrap, trapsUntouched } from './world.mjs'
-import { keepCurrent, openAbout, updateState, v1FirstRunToInbox } from './use-case-a.mjs'
+import { appEnv, startFeed, startTrap, trapLogLines, trapsUntouched } from './world.mjs'
+import { appWords, isAppWord, keepCurrent, openAbout, updateState, v1FirstRunToInbox } from './use-case-a.mjs'
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const imp = p => import(pathToFileURL(join(REPO, p)).href)
 const { TOAST_ACTIVATOR_CLSID } = await imp('desktop/src/main/app-id.mjs')
 const { SETUP_ARGS } = await imp('desktop/src/main/services/update.mjs')
-// v2 package N: each theme set's page colour (K2)
-const { THEME_PAGE } = await imp('desktop/src/shared/themes.mjs')
+// redesign R6c: the look's defaults, page colours and migration are read in 6 from the installed 1.0.0's own code (use-case-a.mjs
+// appWords); the repository's defaults only as the control of the installed ones
+const REPO_THEME = await imp('desktop/src/main/theme.mjs')
 const { removeTree } = await imp('desktop/scripts/lib/remove-tree.mjs')
 const { tempDir } = await imp('desktop/scripts/lib/temp.mjs')
 const core = await imp('core/src/index.mjs')
@@ -85,10 +89,12 @@ const V1_SCHEDULE = (() => {
   return { enabled: true, time: t === '08:30' ? '08:31' : t }
 })()
 // v2 package N: the theme 0.9.0 (v1.0's app) is set to in 2 — 夜间, the one v1.0 theme whose migration changes the appearance
-// (the maintainer 11-10's table, desktop/src/main/theme.mjs migrateLook: none / river / anything else → precision + system, paper →
-// precision + light, night → precision + dark). 6 checks the migration of all three in the installed 1.0.0
+// (desktop/src/main/theme.mjs migrateLook). 6 checks the migration of all three in the installed 1.0.0
 const V1_THEME = 'night'
-const MIGRATION = Object.freeze({ river: { theme: 'precision', appearance: 'system' }, paper: { theme: 'precision', appearance: 'light' }, night: { theme: 'precision', appearance: 'dark' } })
+// redesign R6c: the table of now (the maintainer 11-11, the R1 contract): what each v1.0 theme id becomes. The theme is the app's default
+// one for all three — read in 6 from the installed code, not written here; the appearance: river follows the default one (null
+// here), paper is light, night is dark
+const V1_APPEARANCE = Object.freeze({ river: null, paper: 'light', night: 'dark' })
 // how long the older app's exit is held after 开始更新 (the harness's slowExitMs): the busy machine of the update's handshake
 const SLOW_EXIT_MS = 8000
 const GITHUB_LATEST = 'https://api.github.com/repos/AsuraNale/streams/releases/latest'
@@ -101,7 +107,9 @@ const W = {
   profile: join(ROOT, 'profile'),
   tmp: join(ROOT, 'tmp'),
   traps: join(ROOT, 'traps'),
-  library: join(ROOT, '我的库'),
+  // (R6c fixer, after the pre-check: not 「我的库」, the sidebar group's own word — test 6 checks the name is no app word; only
+  // the folder's name changed, the code of steps 2–5 is as it was)
+  library: join(ROOT, '安装测试库'),
 }
 W.roaming = join(W.profile, 'AppData', 'Roaming')
 W.local = join(W.profile, 'AppData', 'Local')
@@ -401,15 +409,30 @@ test(`6 · a start of ${RELEASE.version}: packaged, 关于 says ${RELEASE.versio
     assert.equal(await B.evaluate("require('electron').app.getVersion()"), RELEASE.version)
     assert.equal(await B.evaluate("require('electron').app.isPackaged"), true)
     await until(B.page, () => document.querySelector('main[data-state="ready"]'))
-    // v2 package J2: the migrated library is current, so v2 opens on its 概览 (v1.0 opened on 今日; v2 shows 首次打开 only
-    // when no library is registered); the sidebar of plan B has the library's row, current
-    assert.equal(await B.page.evaluate(() => document.querySelector('main').dataset.screen), 'overview', 'the library opens at start (no 首次打开)')
-    assert.deepEqual(await B.page.evaluate(() => [...document.querySelectorAll('[data-library-row]')].map(r => [r.dataset.active, r.querySelector('.st-sidebar__lib-name')?.textContent])), [['true', '我的库']], 'the sidebar\'s one library row, current')
+    // redesign R6c: the installed 1.0.0's own words and look (its dictionaries, its theme.mjs), and the table of now made from
+    // them: each v1.0 id → the default theme with the appearance of V1_APPEARANCE. Controls: the installed defaults are the
+    // repository's, and the installed migrateLook — the function the app reads settings.json through — says the same as the
+    // table for each id
+    const T = await appWords(join(W.install, 'resources', 'app'))
+    assert.deepEqual([T.DEFAULT_THEME, T.DEFAULT_APPEARANCE], [REPO_THEME.DEFAULT_THEME, REPO_THEME.DEFAULT_APPEARANCE], 'the installed code\'s default look is the repository\'s')
+    assert.ok(Object.hasOwn(T.THEME_PAGE, T.DEFAULT_THEME), `the default theme is one of the app's: ${T.DEFAULT_THEME}`)
+    const MIGRATION = Object.fromEntries(Object.entries(V1_APPEARANCE).map(([old, appearance]) => [old, { theme: T.DEFAULT_THEME, appearance: appearance ?? T.DEFAULT_APPEARANCE }]))
+    for (const [old, want] of Object.entries(MIGRATION)) assert.deepEqual(T.migrateLook(old, undefined), want, `theme.mjs migrateLook: v1.0's ${old} → ${want.theme} + ${want.appearance}`)
+    assert.equal(new Set(Object.values(MIGRATION).map(m => m.appearance)).size, 3, 'control: the three v1.0 ids become three appearances')
+    const LIB_NAME = basename(W.library)
+    // (R6c fixer) the library's name is no word of the app's, so a row or a card drawn with one does not pass for it; control:
+    // the sidebar group's word is one
+    assert.equal(isAppWord(T, T.SHELL.sidebar.mine), true, 'control: the sidebar group\'s word is an app word')
+    assert.equal(isAppWord(T, LIB_NAME), false, `the test library's name is no app word: ${LIB_NAME}`)
+    // the migrated library is current, so the app opens on its 待看 (redesign R1: 概览 is gone; v1.0 opened on 今日; 首次打开
+    // shows only when no library is registered); the sidebar has the library's row, current
+    assert.equal(await B.page.evaluate(() => document.querySelector('main').dataset.screen), 'inbox', 'the library opens at start, on its 待看 (no 首次打开)')
+    assert.deepEqual(await B.page.evaluate(() => [...document.querySelectorAll('[data-library-row]')].map(r => [r.dataset.active, r.querySelector('.st-sidebar__lib-name')?.textContent])), [['true', LIB_NAME]], 'the sidebar\'s one library row, current')
     // v2 package J2, the migration (docs/desktop.md §4.4): libraries.json made from v1.0's settings.json — the library v1.0
     // had open, registered and current, named after its folder, and nothing else (recentLibraries held only it)
     const registry = JSON.parse(readFileSync(join(W.appData, 'libraries.json'), 'utf8'))
     assert.equal(registry.schema, 'streams.libraries/1')
-    assert.deepEqual(registry.libraries.map(l => [resolve(l.path).toLowerCase(), l.name]), [[resolve(W.library).toLowerCase(), '我的库']], `registered: ${JSON.stringify(registry)}`)
+    assert.deepEqual(registry.libraries.map(l => [resolve(l.path).toLowerCase(), l.name]), [[resolve(W.library).toLowerCase(), LIB_NAME]], `registered: ${JSON.stringify(registry)}`)
     assert.equal(registry.active, registry.libraries[0].id, 'and current')
     assert.match(readFileSync(join(W.appData, 'logs', 'main.log'), 'utf8'), /library: the registry made from settings\.json: 1 libraries, current /, 'main.log: made from settings.json')
     // the schedule moved into the library's own streams.json (the time 0.9.0 was given, not the default), and that is what
@@ -421,16 +444,18 @@ test(`6 · a start of ${RELEASE.version}: packaged, 关于 says ${RELEASE.versio
     // settings.json's v1.0 fields: read, not written — as 0.9.0 left them
     const settings = JSON.parse(readFileSync(join(W.appData, 'settings.json'), 'utf8'))
     assert.deepEqual({ libraryPath: settings.libraryPath, recentLibraries: settings.recentLibraries, schedule: settings.schedule }, S.result.v1Settings, 'settings.json keeps libraryPath, recentLibraries and schedule as v1.0 wrote them')
-    // v2 package N (package K2's migration, after a real update): v1.0's 夜间 is 精密国际主义 + 深色 now — what the app reads,
-    // what the page draws, the window's colour — and every other setting v1.0 wrote is as it wrote it (only the theme field
-    // is v1.0's own that v2 reads differently; settings.json keeps 'night' until v2 writes it, or has the two new fields)
+    // the theme migration after a real update (v2 package N; redesign R6c: the table of now): v1.0's 夜间 is the default theme
+    // + 深色 now — what the app reads, what the page draws, the window's colour — and every other setting v1.0 wrote is as it
+    // wrote it (only the theme field is v1.0's own that the app of now reads differently; settings.json keeps 'night' until the
+    // app writes it, or has the two new fields)
     const look = (await B.page.evaluate(() => window.streams.getAppState())).data
     assert.deepEqual({ theme: look.theme, appearance: look.appearance, scheme: look.scheme }, { ...MIGRATION[V1_THEME], scheme: 'dark' }, `v1.0's ${V1_THEME} migrated`)
-    assert.deepEqual(await B.page.evaluate(() => ({ theme: document.documentElement.dataset.theme, appearance: document.documentElement.dataset.appearance })), { theme: 'precision', appearance: 'dark' }, 'the page draws 精密国际主义 dark')
+    assert.equal(MIGRATION[V1_THEME].appearance, 'dark', 'control: the theme 0.9.0 was given is the one that becomes dark')
+    assert.deepEqual(await B.page.evaluate(() => ({ theme: document.documentElement.dataset.theme, appearance: document.documentElement.dataset.appearance, bodyClass: document.body.className, bodyAppearance: document.body.dataset.appearance })), { theme: MIGRATION[V1_THEME].theme, appearance: 'dark', bodyClass: T.THEME_TEMPLATE[MIGRATION[V1_THEME].theme].bodyClass, bodyAppearance: 'dark' }, 'the page draws the default theme, dark')
     const background = await B.evaluate("require('electron').BrowserWindow.getAllWindows().find(w => !w.isDestroyed()).getBackgroundColor()")
-    assert.equal(background.toUpperCase(), THEME_PAGE.precision.dark.toUpperCase(), `the window's colour: ${background}`)
+    assert.equal(background.toUpperCase(), T.THEME_PAGE[MIGRATION[V1_THEME].theme].dark.toUpperCase(), `the window's colour: ${background}`)
     for (const [k, v] of Object.entries(S.settings)) if (k !== 'theme') assert.deepEqual(settings[k], v, `settings.json's ${k}: as v1.0 wrote it`)
-    assert.ok(settings.theme === V1_THEME || (settings.theme === 'precision' && settings.appearance === 'dark'), `settings.json's theme: ${settings.theme} / ${settings.appearance}`)
+    assert.ok(settings.theme === V1_THEME || (settings.theme === MIGRATION[V1_THEME].theme && settings.appearance === MIGRATION[V1_THEME].appearance), `settings.json's theme: ${settings.theme} / ${settings.appearance}`)
     // the rest of the maintainer's table in the installed app: the test user's settings.json given each v1.0 id (the rest as v1.0 left
     // it), the app asked (getAppState reads the file each time, through the same readSettings / migrateLook as at start)
     const settingsFile = join(W.appData, 'settings.json')
@@ -447,11 +472,16 @@ test(`6 · a start of ${RELEASE.version}: packaged, 关于 says ${RELEASE.versio
     await B.page.click('.st-sidebar [data-nav="shelf"]')
     await until(B.page, () => document.querySelector('main[data-screen="shelf"][data-state="ready"]') && document.querySelectorAll('[data-shelf-card]').length > 0)
     const shelf = await B.page.evaluate(() => [...document.querySelectorAll('[data-shelf-card]')].map(c => ({ id: c.dataset.shelfCard, active: c.dataset.active, name: c.querySelector('[data-part="name"]')?.textContent })))
-    assert.deepEqual(shelf, [{ id: registry.active, active: 'true', name: '我的库' }], '库架: the migrated library')
+    assert.deepEqual(shelf, [{ id: registry.active, active: 'true', name: LIB_NAME }], '库架: the migrated library')
     S.result.migration = { registry, schedule: config.schedule, settings: S.result.v1Settings, shelf }
+    // 设置 of now (redesign R4b): 关于's version line — inside [data-part="about"] — and the page's version chip both say the
+    // installed dictionary's sentence with this version (a packaged app: not the development one's)
     const about = await openAbout(B.page)
     assert.equal(about.version, RELEASE.version)
-    assert.ok(about.text.includes(`流息 ${RELEASE.version}（Windows 版）`), about.text)
+    const versionLine = T.fmt(T.SETTINGS.version, { version: RELEASE.version })
+    assert.ok(versionLine.includes(RELEASE.version) && versionLine !== T.fmt(T.SETTINGS.versionDev, { version: RELEASE.version }), `control: the sentence carries the version and is not the development build's: ${versionLine}`)
+    assert.equal(about.text, versionLine)
+    assert.deepEqual(await B.page.evaluate(() => ({ inAbout: document.querySelector('main[data-screen="settings"] [data-part="about"] [data-update-root] [data-version]') !== null, chip: document.querySelector('[data-part="version-chip"]')?.textContent ?? null })), { inAbout: true, chip: versionLine }, '关于\'s line is in 设置\'s 关于; the page\'s chip says the same')
     assert.equal(readFileSync(S.note.file, 'utf8'), S.note.text, 'the kept note is still there, unchanged')
     const id = S.note.file.split(/[\\/]/).pop().replace(/\.md$/, '')
     assert.ok(core.readIndex(W.library).some(e => e.id === id && e.source === S.kept), 'the library\'s index has the kept note')
@@ -462,6 +492,8 @@ test(`6 · a start of ${RELEASE.version}: packaged, 关于 says ${RELEASE.versio
   assert.equal(S.github.requests.length, githubBefore, 'no check at start (only the user asks)')
   assert.deepEqual(S.trap.requests, [], 'nothing through the proxy trap, in either version')
   assert.deepEqual(trapsUntouched(W.traps), [], 'no development switch taken')
+  // redesign R6c: nor did one whose trap is a file leave a line in main.log (world.mjs trapLogLines), in either version
+  assert.deepEqual(trapLogLines(W.traps, readFileSync(join(W.appData, 'logs', 'main.log'), 'utf8')), [], 'no development switch left a line in main.log')
 })
 
 // ---------------------------------------------------------------- 7. uninstall

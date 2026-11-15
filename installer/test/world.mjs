@@ -11,7 +11,9 @@
  *   appEnv(o)          the app's whole environment: a machine without Node, Python, git or a model tool on PATH
  *                      (System32 only); the user's folders (USERPROFILE, APPDATA, LOCALAPPDATA, TEMP) inside the test's
  *                      folder; the trap as the proxy; and every development switch the app knows (STREAMS_*) set — to a
- *                      trap. A packaged app must take none of them; `trapsUntouched` says what each would have changed
+ *                      trap. A packaged app must take none of them; `trapsUntouched` says what each would have changed and
+ *                      `trapLogLines` what main.log would say (redesign R6c: every switch desktop/src/main reads has a
+ *                      trap — installer/test/switches.test.mjs compares the two lists without a build)
  * @module installer/test/world
  */
 
@@ -76,12 +78,48 @@ export async function startTrap() {
   return { url: `http://127.0.0.1:${server.address().port}`, requests, close: () => new Promise(resolve => { server.closeAllConnections(); server.close(resolve) }) }
 }
 
-/** The development switches, each set to a trap (folders below `traps`, a file that must never appear, a stand-in address). */
+/** The trap folders: each must stay as it was made (empty). */
+const TRAP_FOLDERS = Object.freeze(['app-data', 'local-data', 'library', 'choose-folder', 'library-root'])
+/** redesign R6c: what STREAMS_DEV_DETECT's trap says of the two tools — found and signed in, a version no tool has. */
+export const DETECT_TRAP_VERSION = '0.0.0-trap'
+
+/**
+ * The development switches, each set to a trap (folders below `traps`, files that would leave a line in main.log or change
+ * what the page shows, a file that must never appear, a stand-in address). Redesign R6c: every switch desktop/src/main reads
+ * is here (switches.test.mjs compares the two lists: one missing and it fails). What taking each would show:
+ *
+ *   STREAMS_APP_DATA / STREAMS_LOCAL_DATA    the app's data in the trap folders (trapsUntouched: they stay empty)
+ *   STREAMS_WINDOW=hidden                    no tray icon made (packaged.test.mjs 3: one was, through the stand-in)
+ *   STREAMS_START_SCREEN=settings            the app opens on 设置 (3: 首次打开)
+ *   STREAMS_DEV_SYSTEM_LANGUAGES=en          English words (3: the installed Chinese dictionary's)
+ *   STREAMS_DEV_UPDATE_URL                   the update asks the trap proxy's address (upgrade.test.mjs: GitHub's own addresses)
+ *   STREAMS_DEV_UPDATE_SETUP_RECORD          setup-record.json written (trapsUntouched)
+ *   STREAMS_DEV_LIBRARY                      that folder open at start (3: no library known; trapsUntouched)
+ *   STREAMS_DEV_CHOOSE_FOLDER                更改… gives the trap folder (3: the dialog's folder; trapsUntouched)
+ *   STREAMS_DEV_LIBRARY_ROOT                 a new library's default place is the trap folder (3: Documents\Streams of the test
+ *                                            user; trapsUntouched)
+ *   STREAMS_DEV_CONNECTION=fake              both tools usable, the run scored by the stand-in (3: nothing to connect, every item to 待看)
+ *   STREAMS_DEV_DETECT                       both tools found and signed in, version 0.0.0-trap (3: neither found, 连接选择 shown)
+ *   STREAMS_DEV_NOW                          notes kept on 2001-02-03 (3: kept today)
+ *   STREAMS_DEV_QUOTA                        not JSON: main.log says 「quota: development file not read」 (trapLogLines)
+ *   STREAMS_DEV_PROPOSALS                    not JSON: main.log says 「proposals: <file> unreadable」 at start (trapLogLines)
+ *   STREAMS_DEV_AGENT_SCRIPT                 not JSON; read only with STREAMS_DEV_CONNECTION=fake, when the main agent first
+ *                                            answers: main.log then says 「agent: <file> unreadable」 (trapLogLines)
+ *   STREAMS_DEV_ASK_SCRIPT                   not JSON; read only with STREAMS_DEV_CONNECTION=fake, at start: the app then does
+ *                                            not start at all (JSON.parse throws in services/connections.mjs)
+ */
 export function trapSwitches(traps, trapUrl) {
-  for (const d of ['app-data', 'local-data', 'library', 'choose-folder']) mkdirSync(join(traps, d), { recursive: true })
+  for (const d of TRAP_FOLDERS) mkdirSync(join(traps, d), { recursive: true })
   // v2 package N: package M's switch, a quota file read at start — the trap is a file that is not JSON, so an app that took
   // the switch would write 「quota: development file not read」 into its main.log (QUOTA_TRAP_LINE; packaged.test.mjs looks)
   writeFileSync(join(traps, 'quota.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_QUOTA)\n')
+  // redesign R6c: the same for the cards file and the two scripts (each read with JSON.parse)
+  writeFileSync(join(traps, 'proposals.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_PROPOSALS)\n')
+  writeFileSync(join(traps, 'agent-script.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_AGENT_SCRIPT)\n')
+  writeFileSync(join(traps, 'ask-script.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_ASK_SCRIPT)\n')
+  // redesign R6c: the detection's stand-in says what this machine does not have — an app that took it would show both tools usable
+  const found = { installed: true, loggedIn: true, version: DETECT_TRAP_VERSION }
+  writeFileSync(join(traps, 'detect.json'), `${JSON.stringify({ 'claude-code': found, codex: found })}\n`)
   return {
     STREAMS_DEV_QUOTA: join(traps, 'quota.json'),
     STREAMS_APP_DATA: join(traps, 'app-data'),
@@ -95,16 +133,32 @@ export function trapSwitches(traps, trapUrl) {
     STREAMS_DEV_CHOOSE_FOLDER: join(traps, 'choose-folder'),
     STREAMS_DEV_CONNECTION: 'fake',
     STREAMS_DEV_NOW: '2001-02-03T04:05:06.000Z',
+    STREAMS_DEV_PROPOSALS: join(traps, 'proposals.json'),
+    STREAMS_DEV_LIBRARY_ROOT: join(traps, 'library-root'),
+    STREAMS_DEV_AGENT_SCRIPT: join(traps, 'agent-script.json'),
+    STREAMS_DEV_ASK_SCRIPT: join(traps, 'ask-script.json'),
+    STREAMS_DEV_DETECT: join(traps, 'detect.json'),
   }
 }
 
 /** v2 package N: what main.log would say had the app taken STREAMS_DEV_QUOTA (its trap file is not JSON; services/quota.mjs). */
 export const QUOTA_TRAP_LINE = 'quota: development file not read'
 
+/**
+ * redesign R6c: what main.log would hold had the app taken a switch whose trap is a file — the quota's line, the cards file's
+ * (services/proposals.mjs loadDev), the agent script's (services/agent.mjs), the detection's had its file been unreadable
+ * (services/connections.mjs) — and the trap folder's own path (a switch that names its file or folder in the log). The lines
+ * of `log` (main.log's text) that hold one of them: [] when no switch left a line.
+ */
+export function trapLogLines(traps, log) {
+  const marks = [QUOTA_TRAP_LINE, `proposals: ${join(traps, 'proposals.json')}`, `agent: ${join(traps, 'agent-script.json')}`, 'connections: STREAMS_DEV_DETECT', 'development cards made', traps]
+  return String(log).split(/\r?\n/).filter(line => marks.some(m => line.includes(m)))
+}
+
 /** The trap folders and file are as they were made (empty / absent): [] when no switch was taken. */
 export function trapsUntouched(traps) {
   const wrong = []
-  for (const d of ['app-data', 'local-data', 'library', 'choose-folder']) {
+  for (const d of TRAP_FOLDERS) {
     const names = readdirSync(join(traps, d))
     if (names.length) wrong.push(`${d}: ${names.join(', ')}`)
   }

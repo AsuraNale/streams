@@ -16,24 +16,29 @@
 //      default app, no component gallery, the license files there
 //   2. the scan (installer/scan.mjs) on the install folder and on the installer file finds nothing; its controls find
 //      what is planted
-//   3. use case A in the installed app, started by installer/test/harness.mjs (no development switch: every STREAMS_* is
-//      set to a trap and must stay untaken): packaged, version 1.0.0, no menu, no developer tools. v2 package J2: v2's way
-//      (docs/desktop.md §4.10) — 首次打开 (no library registered): 连接方式, nothing to connect, skipped (settings.json
-//      setupConnection) → 和主 Agent 聊 with its guide (the examples, 「还没有连接」, 「也可以手动新建」) → 新建库's four steps:
-//      the folder (the dialog answered with the test's empty folder; registered and current), the blank pack with one RSS
-//      feed on this machine, the trial round (no connection: nothing scored, every item to 待看), 定时 → 完成 (the schedule in
-//      the library's own streams.json; settings.json's v1.0 fields not written; streams.json's setup records the six steps,
-//      the connection's copied from setupConnection; getLicenses gives the MIT text of the repository's LICENSE, the parts
-//      with @mozilla/readability, and the notices there); in 待看 the key C keeps the current card → a note file in the
-//      library's notes/ that the core's own check passes; then the sidebar of plan B (库架 · 和主 Agent 聊 and the library's
-//      row) and 库架 with the library's card; 资料库 → 「打开原文」 on the kept note → the reading window, isolated (its two web
-//      contents' parameters, its own in-memory session, no bridge), in 阅读模式 with the item's article from the feed on this
-//      machine and none of the page's script, then 回到条目 closes it; the only address the app asked for is the feed on this
-//      machine (the harness's record of every request; the proxy trap empty). v2 package N, what packages K2, L and M added:
-//      the first start's look is 精密国际主义 following Windows (settings, Electron's themeSource, the window's colour before
-//      the first frame, the served index.html's data-theme / data-appearance, the page's background), the bundled Noto Sans
-//      SC is installed and loaded; on 待看 the right panel's four tabs (进度 · 等你决定 · 详情 · 文件, 详情 current, a switch
-//      remembered in settings.json) and no quota corner (no connection: getQuota null, nothing above 设置)
+//   3. use case A in the installed app, started by installer/test/harness.mjs (no development switch: every STREAMS_* the
+//      main process reads is set to a trap — world.mjs trapSwitches, switches.test.mjs — and must stay untaken): packaged,
+//      version 1.0.0, no menu, no developer tools. Redesign R6c: the way of now (docs/desktop.md §4.16), every word compared
+//      with the installed app's own dictionaries (resources\app\src\renderer\texts; use-case-a.mjs appWords) and the default
+//      look with the installed code's (src\main\theme.mjs), never with a literal here — 首次打开, one screen (no library
+//      registered): the default theme following Windows (settings, Electron's themeSource, the window's colour before the
+//      first frame, the served index.html's data-theme / data-appearance, the template's body class, the page's background);
+//      nothing to connect on this machine, so 连接选择 shows (three connections, none found) with the usual sidebar; the
+//      template's fonts (the interface font's file loads, the body names its family after the digits' face; the title is drawn
+//      with the shipped Noto Serif SC; app:// serves the installed files); 暂时跳过 (settings.json setupConnection) → the one
+//      screen says 未连接, 发送 off → 手动创建 → 新建库's one page: the name (the default place is the test user's
+//      Documents\Streams\<name>), the brief (required), the feed on this machine typed and tried in place, 更改… (the dialog
+//      answered with the test's empty folder), the schedule and cap as shown → 创建并运行: the library made, registered and
+//      current, its first run with no connection (no model call, every item to 待看), streams.json's setup records the six
+//      things (docs/desktop.md §4.16), settings.json's v1.0 fields not written; getLicenses gives the MIT text of the
+//      repository's LICENSE, the parts with @mozilla/readability and the two fonts, the notices there with each font's line,
+//      sha256 and OFL; on 待看 the right panel's four tabs (the detail tab current, a switch remembered in settings.json), no
+//      quota corner (no connection), no trap's line in main.log; the key C keeps the current card → a note file in the
+//      library's notes/ that the core's own check passes; the sidebar (新建库 · 库架 1 · 主 Agent · the library's row) and 库架
+//      with the library's card; 资料库 → 查看原文 on the kept note → the reading window, isolated (its two web contents'
+//      parameters, its own in-memory session, no bridge), in 阅读模式 with the item's article from the feed on this machine
+//      and none of the page's script, then 返回条目 closes it; the only address the app asked for is the feed on this machine
+//      (the harness's record of every request; the proxy trap empty)
 //   4. quitting, with no debugger attached: nothing of the install left running
 //   4b. v2 package J2: the reverse of world.mjs's Documents folder — started again with the test user's Documents removed,
 //      the installed app still comes up (getPath('documents') fails, as the control shows); a new library's default place
@@ -57,20 +62,23 @@ import {
 } from './machine.mjs'
 // v2 package N: the uninstall with its dialogs (the maintainer's way)
 import { uninstallTexts, uninstallWithDialogs } from './dialogs.mjs'
-import { FEED_ITEMS, QUOTA_TRAP_LINE, SCRIPT_RAN, appEnv, articleLine, startFeed, startTrap, trapsUntouched } from './world.mjs'
+import { DETECT_TRAP_VERSION, FEED_ITEMS, SCRIPT_RAN, appEnv, articleLine, startFeed, startTrap, trapLogLines, trapsUntouched } from './world.mjs'
+// redesign R6c: the installed app's own words and defaults
+import { appWords, isAppWord } from './use-case-a.mjs'
+import { BUNDLED_FONTS } from '../fonts.mjs'
 import { machineMarkers, scanForLeaks } from '../scan.mjs'
 import { groupMatchesIco, iconGroups, innoCopyright, setupVersionInfo, versionInfo } from '../exe-resources.mjs'
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const imp = p => import(pathToFileURL(join(REPO, p)).href)
-const { FIRST_RUN } = await imp('desktop/src/renderer/texts/first-run.js')
-// v2 package J2: the guide of 和主 Agent 聊 (首次打开's second step) and the reading window's own session
-const { AGENT } = await imp('desktop/src/renderer/texts/agent.js')
+// redesign R6c: no dictionary and no theme table of the repository is read here — what a page shows is compared with the installed
+// app's own files (use-case-a.mjs appWords, in test 3). The repository's default look and its theme table (each theme's page
+// colours and template body) are read only as the control of the installed ones; the reading window's own session is the
+// repository's constant (v2 package J2)
+const REPO_THEME = await imp('desktop/src/main/theme.mjs')
+const REPO_THEMES = await imp('desktop/src/shared/themes.mjs')
 const { READER_PARTITION } = await imp('desktop/src/main/reader.mjs')
-// v2 package N: the page colour of each theme set (K2), the right panel's tab names (L), the pinned ISCC (its language file:
-// the uninstaller's own texts)
-const { THEME_PAGE } = await imp('desktop/src/shared/themes.mjs')
-const { PANEL } = await imp('desktop/src/renderer/texts/panel.js')
+// v2 package N: the pinned ISCC (its language file: the uninstaller's own texts)
 const { ensureInnoSetup } = await imp('installer/innosetup/setup_innosetup.mjs')
 const { APP_USER_MODEL_ID, TOAST_ACTIVATOR_CLSID } = await imp('desktop/src/main/app-id.mjs')
 const { ICON_FILE } = await imp('desktop/src/main/icon.mjs')
@@ -85,7 +93,10 @@ const SETUP = join(REPO, RECORD.installer.file)
 const STAGE_MANIFEST = JSON.parse(readFileSync(join(DIST, 'stage-manifest.json'), 'utf8'))
 const RELEASE = RECORD.release
 const RELEASE_FILE = JSON.parse(readFileSync(join(REPO, 'installer', 'setup', 'release.json'), 'utf8'))
-const RSS_NAME = 'local-feed'
+// redesign R6c: the two shipped fonts as the build lists them (installer/fonts.mjs): the interface font and the heading font
+const FONTS = Object.freeze({ ui: BUNDLED_FONTS.find(f => f.name === 'Noto Sans SC'), display: BUNDLED_FONTS.find(f => f.name === 'Noto Serif SC') })
+// redesign R6c: what the test types into 新建库 (the user's own words): the brief
+const BRIEF = '追踪安装检查用的本机来源，不要别的。'
 const POLL = { polling: 200, timeout: 120_000 }
 const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -96,13 +107,16 @@ const W = {
   profile: join(ROOT, 'profile'),
   tmp: join(ROOT, 'tmp'),
   traps: join(ROOT, 'traps'),
-  library: join(ROOT, '我的库'),
+  // (R6c fixer, after the pre-check: not 「我的库」, the sidebar group's own word — test 3 checks the name is no app word)
+  library: join(ROOT, '安装测试库'),
 }
 W.roaming = join(W.profile, 'AppData', 'Roaming')
 W.local = join(W.profile, 'AppData', 'Local')
 W.appData = join(W.roaming, RELEASE.install_folder)
 W.exe = join(W.install, RELEASE.exe_name)
 for (const d of [W.profile, W.tmp, W.traps, W.library]) mkdirSync(d, { recursive: true })
+// redesign R6c: the name typed into 新建库 (the folder the dialog gives is named the same)
+const LIB_NAME = basename(W.library)
 
 // v2 package N: the real %APPDATA%\Streams and %LOCALAPPDATA%\Streams are no longer pictured (listed) here — contract N: no
 // test reads or writes them (玄翎 compares them from outside the tests). What keeps them safe: the app runs with its user
@@ -279,22 +293,51 @@ test('2 · no key, no address of ours, nothing of this machine in the install fo
 // ---------------------------------------------------------------- 3. use case A
 
 let A = null
+// redesign R6c: the installed app's own words and defaults (use-case-a.mjs appWords), read once the app is installed
+let T = null
 const page = () => A.page
 const until = (fn, arg, o = {}) => page().waitForFunction(fn, arg, { ...POLL, ...o })
 const click = sel => page().click(`${sel} button`)
-// v2 package J2: 首次打开 and 新建库 are two screens (first-run, new-library), each with its own .fr-body[data-step]
-const stepIs = (id, screen = 'new-library') => until(([s, i]) => document.querySelector(`main[data-screen="${s}"][data-state="ready"] .fr-body`)?.dataset.step === i, [screen, id])
-const sidebarSteps = () => page().evaluate(() => [...document.querySelectorAll('.st-sidebar [data-step]')].map(e => [e.dataset.step, e.dataset.stepState]))
+const text = sel => page().evaluate(s => document.querySelector(s)?.textContent ?? null, sel)
 const registryFile = () => join(W.appData, 'libraries.json')
 const registryOnDisk = () => (existsSync(registryFile()) ? JSON.parse(readFileSync(registryFile(), 'utf8')) : null)
-// (v2 writes settings.json only when it has something to keep: before 首次打开's first step is walked there is none)
+// (settings.json is written only when there is something to keep: before 连接选择 is answered there is none)
 const settingsOnDisk = () => (existsSync(join(W.appData, 'settings.json')) ? JSON.parse(readFileSync(join(W.appData, 'settings.json'), 'utf8')) : {})
-const G = AGENT.guide
+const mainLog = () => readFileSync(join(W.appData, 'logs', 'main.log'), 'utf8')
+// redesign R6c: 首次打开 is one screen with two views (docs/desktop.md §4.16): home (P01) and pick (连接选择, P02)
+const firstRunView = () => page().evaluate(() => document.querySelector('main[data-screen="first-run"][data-state="ready"] [data-part="first-run"]')?.dataset.view ?? null)
+const viewIs = v => until(x => document.querySelector('main[data-screen="first-run"][data-state="ready"] [data-part="first-run"]')?.dataset.view === x, v)
+// the left sidebar as it is drawn: 新建库, the two entries (库架 with how many libraries), 我的库 and its rows, 设置
+const sidebarNow = () => page().evaluate(() => ({
+  add: document.querySelector('.st-sidebar [data-action="add-library"]')?.textContent.trim() ?? null,
+  nav: [...document.querySelectorAll('.st-sidebar [data-nav]')].map(a => [a.dataset.nav, a.querySelector('.st-sidebar__nav-text')?.textContent ?? null, a.querySelector('[data-nav-count]')?.textContent ?? null]),
+  group: document.querySelector('.st-sidebar .st-sidebar__group')?.textContent ?? null,
+  rows: [...document.querySelectorAll('.st-sidebar [data-library-row]')].map(r => [r.dataset.active, r.querySelector('.st-sidebar__lib-name')?.textContent ?? null]),
+  settings: [...document.querySelectorAll('.st-sidebar .st-sidebar__footer-button')].map(b => b.textContent.trim()),
+}))
+const HAN = /[\u4e00-\u9fff]/
 // v2 package J2: the reading window as the main process holds it (desktop/src/main/reader.mjs: a BrowserWindow on the reader's
 // partition — its own web contents is the bar — with one WebContentsView, the page)
 const READER_WINDOW = `require('electron').BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && w.webContents.session === require('electron').session.fromPartition(${JSON.stringify(READER_PARTITION)}))`
 
-test('3 · use case A in the installed app, no development switch (v2: 首次打开 → 和主 Agent 聊 → 也可以手动新建 → 新建库): no connection, a feed on this machine, the round to 待看, C keeps one → a note in notes/; 库架 and the sidebar of plan B; the reading window, isolated; no request but the feed', async () => {
+test('3 · use case A in the installed app, no development switch (redesign R6c: the first run → the connection choice, nothing to connect, skipped → set up manually → New library\'s one page → create and run): no connection, a feed on this machine, the run to the inbox, C keeps one → a note in notes/; the look, the fonts, the sidebar, the right panel and the shelf of now, in the installed app\'s own words; the reading window, isolated; no request but the feed', async () => {
+  // redesign R6c: every word a page is compared with is the installed app's own (resources\app\src\renderer\texts), every
+  // default of the look the installed code's (src\main\theme.mjs) — and that default is the repository's (control: a default
+  // changed in the installed copy alone would agree with itself)
+  T = await appWords(join(W.install, 'resources', 'app'))
+  const { FIRST_RUN: F, NEW_LIBRARY: NL, CONNECTIONS, PANEL, SIDEBAR, SHELL, SEP, fmt } = T
+  const C = F.connect
+  // (R6c fixer) the library's name is no word of the app's, so a row or a card drawn with one does not pass for it; control:
+  // the sidebar group's word is one
+  assert.equal(isAppWord(T, SHELL.sidebar.mine), true, 'control: the sidebar group\'s word is an app word')
+  assert.equal(isAppWord(T, LIB_NAME), false, `the test library's name is no app word: ${LIB_NAME}`)
+  assert.deepEqual([T.DEFAULT_THEME, T.DEFAULT_APPEARANCE], [REPO_THEME.DEFAULT_THEME, REPO_THEME.DEFAULT_APPEARANCE], 'the installed code\'s default look is the repository\'s')
+  // (the window's colour and the template's body below are compared with the installed table; the table itself with the
+  // repository's, so a colour changed in the installed copy alone does not agree with itself)
+  assert.deepEqual({ page: T.THEME_PAGE, template: T.THEME_TEMPLATE }, { page: REPO_THEMES.THEME_PAGE, template: REPO_THEMES.THEME_TEMPLATE }, 'the installed theme table is the repository\'s')
+  assert.ok(Object.hasOwn(T.THEME_PAGE, T.DEFAULT_THEME) && Object.hasOwn(T.THEME_TEMPLATE, T.DEFAULT_THEME), `the default theme is one of the app's: ${T.DEFAULT_THEME}`)
+  for (const w of [F.title, C.title, C.skip, F.manual, NL.createRun, SIDEBAR.settings, ...Object.values(PANEL.tabs)]) assert.match(w, HAN, `control: the dictionary read is the Chinese one: ${w}`)
+
   const env = appEnv({ profile: W.profile, tmp: W.tmp, trapUrl: S.trap.url, traps: W.traps })
   A = await launchInstalled({ exe: W.exe, env, hook: hook(1), chromiumProxy: S.trap.url, repo: REPO, cwd: W.install })
   await until(() => document.querySelector('main[data-screen="first-run"][data-state="ready"]'))
@@ -308,10 +351,11 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   assert.equal(facts.visible, false, 'the window was never shown')
   assert.equal(facts.toastActivatorCLSID, TOAST_ACTIVATOR_CLSID)
   S.result.app = facts
-  // v2 package N (package K2's look, in the installed app): a first start is 精密国际主义 following Windows — the settings say
-  // so (no settings.json yet: the defaults), Electron's own parts follow Windows (themeSource 'system'), the window was made
-  // with that set's page colour (what shows before the first frame), the served index.html carries data-theme and
-  // data-appearance on <html> before any script runs, and the page paints that colour
+  // the look of a first start (v2 package N; redesign R6c: the default theme of now, read from the installed code — 研究对话
+  // since redesign R1): the settings say the default theme following Windows (no settings.json yet: the defaults), Electron's
+  // own parts follow Windows, the window was made with that set's page colour (what shows before the first frame), the served
+  // index.html carries data-theme and data-appearance on <html> before any script runs, and the page is that theme of the
+  // template (its body class and data-theme) painting that colour
   assert.equal(existsSync(join(W.appData, 'settings.json')), false, 'control: a first start, no settings.json (the look is the default)')
   const look = await A.evaluate(`(async () => {
     const { BrowserWindow, nativeTheme, net } = require('electron')
@@ -320,40 +364,23 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
     return { background: w.getBackgroundColor(), themeSource: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors, htmlTag: (/<html[^>]*>/.exec(served) ?? [served.slice(0, 200)])[0] }
   })()`)
   const scheme = look.dark ? 'dark' : 'light'
+  const theme = T.DEFAULT_THEME
   const state = (await page().evaluate(() => window.streams.getAppState())).data
-  assert.deepEqual({ theme: state.theme, appearance: state.appearance, scheme: state.scheme }, { theme: 'precision', appearance: 'system', scheme }, '精密国际主义, 跟随系统 (Windows is ' + scheme + ' now)')
-  assert.equal(look.themeSource, 'system', 'Electron\'s own parts follow Windows')
-  assert.equal(look.background.toUpperCase(), THEME_PAGE.precision[scheme].toUpperCase(), `the window's colour before the first frame: ${look.background}`)
-  assert.match(look.htmlTag, /\sdata-theme="precision"/, `the served index.html: ${look.htmlTag}`)
+  assert.deepEqual({ theme: state.theme, appearance: state.appearance, scheme: state.scheme }, { theme, appearance: T.DEFAULT_APPEARANCE, scheme }, `the default theme, following Windows (which is ${scheme} now)`)
+  assert.equal(look.themeSource, T.DEFAULT_APPEARANCE, 'Electron\'s own parts follow Windows')
+  assert.equal(look.background.toUpperCase(), T.THEME_PAGE[theme][scheme].toUpperCase(), `the window's colour before the first frame: ${look.background}`)
+  assert.match(look.htmlTag, new RegExp(`\\sdata-theme="${theme}"`), `the served index.html: ${look.htmlTag}`)
   assert.match(look.htmlTag, new RegExp(`\\sdata-appearance="${scheme}"`), `the served index.html: ${look.htmlTag}`)
-  const painted = await page().evaluate(() => ({ theme: document.documentElement.dataset.theme, appearance: document.documentElement.dataset.appearance, page: getComputedStyle(document.body).backgroundColor }))
+  const painted = await page().evaluate(() => ({ theme: document.documentElement.dataset.theme, appearance: document.documentElement.dataset.appearance, bodyClass: document.body.className, bodyTheme: document.body.dataset.theme, bodyAppearance: document.body.dataset.appearance, page: getComputedStyle(document.body).backgroundColor }))
   const rgb = hex => `rgb(${[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`
-  assert.deepEqual(painted, { theme: 'precision', appearance: scheme, page: rgb(THEME_PAGE.precision[scheme]) }, 'the page paints the set\'s colour')
-  // v2 package N (K2's font): Noto Sans SC is installed (test 1 compared it byte for byte with the stage) and is the font the
-  // page loaded — from the install folder, through app:// — and draws its body in
-  const fontFile = join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts', 'NotoSansSC-VF.ttf')
-  assert.ok(STAGE_MANIFEST.files.some(f => f.path === 'resources/app/src/renderer/fonts/NotoSansSC-VF.ttf') && existsSync(fontFile), 'the font is in the stage and installed')
-  await page().evaluate(() => document.fonts.ready)
-  const font = await page().evaluate(() => ({
-    check: document.fonts.check('14px "Streams Noto Sans SC"'),
-    faces: [...document.fonts].map(f => [f.family.replace(/"/g, ''), f.status]).filter(([f]) => f === 'Streams Noto Sans SC'),
-    body: getComputedStyle(document.body).fontFamily,
-  }))
-  // (a face whose file is missing or broken ends 'error', and check() is then false)
-  assert.deepEqual({ check: font.check, faces: font.faces }, { check: true, faces: [['Streams Noto Sans SC', 'loaded']] }, `Noto Sans SC loaded: ${JSON.stringify(font)}`)
-  assert.match(font.body, /^"?Streams Numerals"?, "?Streams Noto Sans SC"?, sans-serif$/, 'the body\'s font')
-  S.result.look = { ...look, scheme, painted, font }
-  // no development switch taken so far: 首次打开 (not STREAMS_DEV_LIBRARY's library, not STREAMS_START_SCREEN's settings),
-  // in Chinese (not STREAMS_DEV_SYSTEM_LANGUAGES' English), the tray icon made (STREAMS_WINDOW=hidden would make none)
-  // v2 package J2: 首次打开 shows because no library is registered (the registry the first start made is empty); its first
-  // step is 连接方式 and its own sidebar has two steps (v1.0's 首次设置 began with the folder)
-  assert.equal(await page().evaluate(() => document.querySelector('main[data-screen="first-run"] .fr-body')?.dataset.step), 'connection')
-  assert.deepEqual(await sidebarSteps(), [['connection', 'current'], ['track', 'todo']], '首次打开\'s two steps')
-  assert.ok((await page().evaluate(() => document.body.innerText)).includes(FIRST_RUN.title), 'the Chinese words')
+  assert.deepEqual(painted, { theme, appearance: scheme, bodyClass: T.THEME_TEMPLATE[theme].bodyClass, bodyTheme: T.THEME_TEMPLATE[theme].dataTheme, bodyAppearance: scheme, page: rgb(T.THEME_PAGE[theme][scheme]) }, 'the page is the default theme of the template, painting its colour')
+  S.result.look = { ...look, scheme, painted }
+  // no development switch taken so far: 首次打开 (not STREAMS_DEV_LIBRARY's library, not STREAMS_START_SCREEN's settings), the
+  // tray icon made (STREAMS_WINDOW=hidden would make none). 首次打开 shows because no library is registered
   assert.equal((await page().evaluate(() => window.streams.getAppState())).data.libraryCount, 0, 'no library known')
   assert.deepEqual(registryOnDisk()?.libraries ?? [], [], 'the registry has no library (nothing of v1.0 to take over)')
-  // v2 package J2: where a new library goes by default (Documents\Streams, packaged) is the test user's Documents, not the
-  // real one (world.mjs appEnv makes that folder; 4b starts the app without it)
+  // where a new library goes by default (Documents\Streams, packaged) is the test user's Documents, not the real one (world.mjs
+  // appEnv makes that folder; 4b starts the app without it) and not STREAMS_DEV_LIBRARY_ROOT's trap folder
   const root = (await page().evaluate(() => window.streams.getLibraryRoot())).data
   assert.equal(root.isDefault, true)
   assert.ok(same(root.path, join(W.profile, 'Documents', 'Streams')), `the default place for a new library: ${root.path}`)
@@ -363,92 +390,213 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   assert.deepEqual(rec0.filter(r => r.kind === 'app-user-model-id').map(r => r.id), [APP_USER_MODEL_ID])
   assert.deepEqual(rec0.filter(r => r.kind === 'toast-activator-clsid').map(r => r.id), [TOAST_ACTIVATOR_CLSID])
 
-  // 首次打开 step 1, 连接方式: nothing to connect on this machine (no tool on PATH, no key; STREAMS_DEV_CONNECTION=fake would
-  // make the two tools usable): skipped
-  // (the main process's detection, waited for until it has answered for both tools: a card shows 「没找到」 also before)
+  // 首次打开 (redesign R4a: one screen). Nothing to connect on this machine — no tool on PATH, no key; STREAMS_DEV_CONNECTION=fake
+  // would make the two tools usable, STREAMS_DEV_DETECT's trap says both are found and signed in — so 流息 cannot choose a
+  // connection itself and shows 连接选择 (the pick view), in the installed dictionary's words (not STREAMS_DEV_SYSTEM_LANGUAGES'
+  // English)
+  // (the main process's detection, waited for until it has answered for both tools)
   await until(() => window.streams.getConnections().then(r => ['claude-code', 'codex'].every(k => typeof r?.data?.kinds?.[k]?.installed === 'boolean')))
   const conns = (await page().evaluate(() => window.streams.getConnections())).data.kinds
   assert.deepEqual(Object.fromEntries(['claude-code', 'codex', 'api'].map(k => [k, k === 'api' ? conns[k].hasKey : conns[k].installed])), { 'claude-code': false, codex: false, api: false }, `nothing to connect on this machine: ${JSON.stringify(conns)}`)
-  await until(() => document.querySelectorAll('[data-connection]').length === 3)
-  const cards = await page().evaluate(() => [...document.querySelectorAll('[data-connection]')].map(c => [c.dataset.connection, c.dataset.connState]))
-  assert.deepEqual(cards.map(c => c[0]), ['claude-code', 'codex', 'api'])
-  assert.ok(cards.every(([, state]) => state !== 'usable'), `no connection usable: ${JSON.stringify(cards)}`)
+  assert.equal(['claude-code', 'codex'].some(k => conns[k].version === DETECT_TRAP_VERSION || conns[k].loggedIn === true), false, 'STREAMS_DEV_DETECT (a trap: both found and signed in) not taken')
+  await until(() => ['home', 'pick'].includes(document.querySelector('main[data-screen="first-run"][data-state="ready"] [data-part="first-run"]')?.dataset.view))
+  assert.equal(await firstRunView(), 'pick', 'the connection choice shows at once: no connection is usable')
+  assert.deepEqual([await text('#fr-title'), await text('[data-part="connect"] h2')], [C.title, C.heading], 'the connection choice\'s title and heading, the installed words')
+  const cards = await page().evaluate(() => [...document.querySelectorAll('[data-part="connect"] [data-connection]')].map(c => [c.dataset.connection, c.dataset.connState, c.querySelector('.file-text')?.firstChild?.textContent ?? null, c.querySelector('[data-detect]')?.textContent ?? null]))
+  assert.deepEqual(cards, [
+    ['claude-code', 'not-installed', CONNECTIONS.names['claude-code'], [C.recommended, C.notFound, F.billing['claude-code']].join(SEP)],
+    ['codex', 'not-installed', CONNECTIONS.names.codex, [C.notFound, F.billing.codex].join(SEP)],
+    ['api', 'no-key', CONNECTIONS.names.api, [C.anyVendor, F.billing.api].join(SEP)],
+  ], 'the three connections: none found, none usable')
+  assert.deepEqual(await page().evaluate(() => ['redetect', 'skip-connection'].map(n => document.querySelector(`[data-action="${n}"] button`)?.textContent.trim() ?? null)), [C.redetect, C.skip])
   S.result.connectionCards = cards
-  assert.equal(settingsOnDisk().setupConnection ?? null, null, 'control: nothing recorded before the step is walked through')
-  await click('[data-action="skip"]')
-  await until(() => document.querySelector('main[data-screen="chat"][data-state="ready"]'))
+  // the usual frame is there already: the sidebar with no library yet
+  assert.deepEqual(await sidebarNow(), { add: SHELL.sidebar.newLibrary, nav: [['shelf', SIDEBAR.entries.shelf, '0'], ['chat', SIDEBAR.entries.chat, null]], group: SHELL.sidebar.mine, rows: [], settings: [SIDEBAR.settings] }, 'the sidebar of the first run: new library, the shelf with 0, the main agent, no library row, settings')
+
+  // the fonts (v2 package N's Noto Sans SC; redesign R6a's Noto Serif SC; redesign R6c: the template's families): both files
+  // are installed (test 1 compared them byte for byte with the stage). The page's own @font-face rules say which family each
+  // file is declared under; the body's font names the interface font's family after the digits' face (a face of local fonts,
+  // no file); the title's font names the heading font's family, and its glyphs were drawn from that web font; and what app://
+  // serves at each rule's address is the installed file
+  const fontsDir = join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts')
+  for (const f of [FONTS.ui.file, FONTS.display.file]) assert.ok(STAGE_MANIFEST.files.some(m => m.path === `resources/app/src/renderer/fonts/${f}`) && existsSync(join(fontsDir, f)), `${f} is in the stage and installed`)
+  await page().evaluate(() => document.fonts.ready)
+  const rules = await page().evaluate(() => {
+    const out = []
+    const walk = sheet => {
+      let list = []
+      try { list = [...sheet.cssRules] } catch { return }
+      for (const r of list) {
+        if (r instanceof CSSImportRule && r.styleSheet) walk(r.styleSheet)
+        if (!(r instanceof CSSFontFaceRule)) continue
+        const m = /url\(["']?([^"')]+)["']?\)/.exec(r.style.getPropertyValue('src'))
+        out.push({ family: r.style.getPropertyValue('font-family').replace(/["']/g, '').trim(), url: m ? new URL(m[1], sheet.href ?? location.href).href : null })
+      }
+    }
+    for (const sheet of document.styleSheets) walk(sheet)
+    return out
+  })
+  const ruleOf = file => rules.filter(r => r.url !== null && new URL(r.url).pathname.endsWith(`/fonts/${file}`))
+  assert.deepEqual([ruleOf(FONTS.ui.file).length, ruleOf(FONTS.display.file).length], [1, 1], `one @font-face rule for each shipped font file: ${JSON.stringify(rules)}`)
+  const uiFace = ruleOf(FONTS.ui.file)[0]
+  const displayFace = ruleOf(FONTS.display.file)[0]
+  const font = await page().evaluate(async ([ui, display]) => {
+    const families = el => getComputedStyle(el).fontFamily.split(',').map(f => f.trim().replace(/["']/g, ''))
+    const faces = () => [...document.fonts].map(f => [f.family.replace(/["']/g, ''), f.status])
+    const title = document.querySelector('#fr-title')
+    const ts = getComputedStyle(title)
+    const before = faces()
+    // the interface font's face is asked for only where a glyph needs it (the template names the system's own font before it):
+    // asked for here the way a page would, for the title's own text
+    const asked = await document.fonts.load(`${getComputedStyle(document.body).fontSize} "${ui}"`, title.textContent).then(l => l.map(f => [f.family.replace(/["']/g, ''), f.status]), e => `error: ${e.message}`)
+    return {
+      body: families(document.body), title: families(title), titleText: title.textContent, before, asked, faces: faces(),
+      uiCheck: document.fonts.check(`${getComputedStyle(document.body).fontSize} "${ui}"`, title.textContent),
+      displayCheck: document.fonts.check(`${ts.fontWeight} ${ts.fontSize} "${display}"`, title.textContent),
+    }
+  }, [uiFace.family, displayFace.family])
+  assert.match(font.titleText, HAN, `control: the title is Chinese text: ${font.titleText}`)
+  // (a face whose file is missing or broken ends 'error', and check() is then false)
+  assert.ok(font.body.includes(uiFace.family), `the body's font names the interface font's family (${uiFace.family}): ${font.body.join(', ')}`)
+  assert.deepEqual(font.asked, [[uiFace.family, 'loaded']], `the interface font loads from its file: ${JSON.stringify(font.asked)}`)
+  assert.equal(font.uiCheck, true, 'document.fonts.check for the interface font')
+  const digits = rules.find(r => r.family === font.body[0])
+  assert.ok(digits && digits.url === null, `the body's first family is the template's face for digits, made of local fonts: ${font.body[0]} (${JSON.stringify(digits)})`)
+  assert.ok(font.faces.some(([f, s]) => f === font.body[0] && s === 'loaded'), `the digits' face is loaded: ${JSON.stringify(font.faces)}`)
+  assert.ok(font.title.includes(displayFace.family) && font.title.indexOf(displayFace.family) < font.title.indexOf(uiFace.family), `the title's font names the heading font's family (${displayFace.family}) before the interface font's: ${font.title.join(', ')}`)
+  assert.deepEqual(font.faces.filter(([f]) => f === displayFace.family), [[displayFace.family, 'loaded']], `the heading font's face is loaded: ${JSON.stringify(font.faces)}`)
+  assert.equal(font.displayCheck, true, 'document.fonts.check for the title in the heading font')
+  // what was really drawn: the title's glyphs come from the web font of that family (a copy installed in Windows would not be one)
+  const cdp = await page().context().newCDPSession(page())
+  let drawn = []
+  try {
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    const { root: doc } = await cdp.send('DOM.getDocument', { depth: 0 })
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: doc.nodeId, selector: '#fr-title' })
+    drawn = (await cdp.send('CSS.getPlatformFontsForNode', { nodeId })).fonts.map(f => ({ familyName: f.familyName, isCustomFont: f.isCustomFont, glyphCount: f.glyphCount }))
+  } finally { await cdp.detach().catch(() => {}) }
+  const drawnDisplay = drawn.filter(f => f.familyName === displayFace.family)
+  assert.ok(drawnDisplay.length >= 1 && drawnDisplay.every(f => f.isCustomFont === true) && drawnDisplay.reduce((n, f) => n + f.glyphCount, 0) >= 2, `the title is drawn with the shipped heading font: ${JSON.stringify(drawn)}`)
+  // the files behind the two faces: what the app's own protocol serves at each rule's address is the installed file, byte for byte
+  const servedFonts = await A.evaluate(`(async () => {
+    const { net } = require('electron')
+    const { createHash } = require('crypto')
+    const out = {}
+    for (const u of ${JSON.stringify([uiFace.url, displayFace.url])}) {
+      try { const r = await net.fetch(u, { cache: 'no-store' }); const b = Buffer.from(await r.arrayBuffer()); out[u] = { status: r.status, type: r.headers.get('content-type'), bytes: b.length, sha256: createHash('sha256').update(b).digest('hex') } } catch (e) { out[u] = { error: e.message } }
+    }
+    return out
+  })()`)
+  for (const [face, file] of [[uiFace, FONTS.ui.file], [displayFace, FONTS.display.file]]) {
+    const got = servedFonts[face.url]
+    assert.deepEqual({ status: got.status, bytes: got.bytes, sha256: got.sha256 }, { status: 200, bytes: statSync(join(fontsDir, file)).size, sha256: sha256File(join(fontsDir, file)) }, `${face.url} is the installed ${file}: ${JSON.stringify(got)}`)
+  }
+  S.result.fonts = { rules, ...font, drawn, served: servedFonts }
+
+  // 连接选择 answered: 暂时跳过，稍后在设置中连接 → back on the one screen, which says there is no connection
+  assert.equal(settingsOnDisk().setupConnection ?? null, null, 'control: nothing recorded before the connection choice is answered')
+  await click('[data-action="skip-connection"]')
+  await viewIs('home')
   // with no library yet, who decided the connection goes to settings.json (setupConnection)
   const setupConnection = settingsOnDisk().setupConnection
   assert.equal(setupConnection?.by, 'skipped', JSON.stringify(setupConnection))
   assert.equal(Object.hasOwn(setupConnection, 'detail'), false)
+  assert.equal(settingsOnDisk().connections?.active ?? null, null, 'no connection chosen')
   assert.deepEqual(registryOnDisk()?.libraries ?? [], [], 'still no library')
+  const home = await page().evaluate(() => ({
+    title: document.querySelector('#fr-title')?.textContent ?? null,
+    chip: document.querySelector('[data-part="head-connection"]')?.textContent ?? null,
+    current: document.querySelector('[data-part="current-connection"]') !== null,
+    none: [document.querySelector('[data-part="no-connection"] .file-text')?.firstChild?.textContent ?? null, document.querySelector('[data-part="no-connection"] .file-text small')?.textContent ?? null],
+    heading: document.querySelector('[data-part="track"] h2')?.textContent ?? null,
+    examples: [...document.querySelectorAll('[data-part="examples"] [data-example] .file-text')].map(e => e.firstChild.textContent),
+    buttons: ['pick-connection', 'send', 'manual-new', 'skip-create'].map(n => document.querySelector(`[data-action="${n}"] button`)?.textContent.trim() ?? null),
+  }))
+  assert.deepEqual(home, { title: F.title, chip: F.headChipNone, current: false, none: [F.none, F.noneLine], heading: F.heading, examples: [...F.examples], buttons: [F.pick, F.send, F.manual, F.skip] }, 'the first run\'s one screen with no connection, the installed words')
+  // 发送 has nothing to send to: off even with a sentence in the box
+  await page().fill('textarea[data-field="track"]', BRIEF)
+  assert.equal(await page().evaluate(() => document.querySelector('[data-action="send"] button').disabled), true, 'no connection: the send button stays off')
+  S.result.firstRun = home
 
-  // 首次打开 step 2, 和主 Agent 聊 with its guide: the text, three examples, 「还没有连接」 (the connection was skipped),
-  // 「也可以手动新建」 → 新建库
-  await until(() => document.querySelector('[data-part="first-guide"]') !== null)
-  assert.equal(await page().evaluate(() => document.querySelector('[data-part="first-guide"] .chat-guide__text')?.textContent), G.text)
-  assert.deepEqual(await page().evaluate(() => [...document.querySelectorAll('[data-part="first-guide"] [data-action="example"]')].map(e => e.textContent.trim())), [...G.examples])
-  assert.equal(await page().evaluate(() => document.querySelector('[data-part="guide-no-connection"] .st-t-wait')?.textContent), G.noConnection)
-  assert.equal(await page().evaluate(() => document.querySelector('[data-action="manual-new"]')?.textContent.trim()), G.manual)
+  // 手动创建 → 新建库, one page (redesign R4a): no step of a wizard, no starter-pack step
   await click('[data-action="manual-new"]')
-  await stepIs('folder')
-  assert.deepEqual(await sidebarSteps(), [['folder', 'current'], ['pack', 'todo'], ['trial', 'todo'], ['schedule', 'todo']], '新建库: v1.0\'s steps without the connection')
+  await until(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] [data-part="folder-state"]')?.dataset.state !== '')
+  assert.equal(await page().evaluate(() => document.querySelectorAll('.fr-body, [data-step], [data-pack="blank"], [data-action="next"]').length), 0, 'no wizard, no pack step')
+  const disabled = () => page().evaluate(() => ['create-only', 'create-run'].map(n => document.querySelector(`[data-action="${n}"] button`)?.disabled ?? null))
+  const location = () => page().evaluate(() => { const l = document.querySelector('[data-part="location"]'); const s = l?.querySelector('[data-part="folder-state"]'); return l && { path: l.dataset.path, chosen: l.dataset.chosen, state: s?.dataset.state ?? null, text: s?.textContent ?? null } })
+  // 库名称: the default place follows it — <the test user's Documents>\Streams\<name>, an empty folder
+  await page().fill('[data-field="name"]', LIB_NAME)
+  await until(n => document.querySelector('[data-part="location"]')?.dataset.path.endsWith(n) && document.querySelector('[data-part="folder-state"]')?.dataset.state === 'empty', LIB_NAME)
+  const byDefault = await location()
+  assert.ok(same(byDefault.path, join(W.profile, 'Documents', 'Streams', LIB_NAME)), `the default place: ${byDefault.path} (not STREAMS_DEV_LIBRARY_ROOT's)`)
+  assert.deepEqual([byDefault.chosen, byDefault.state, byDefault.text], ['false', 'empty', NL.folderStates.empty])
+  // 追踪要求 is required: both create buttons off and the line says so, until it is written
+  assert.deepEqual(await disabled(), [true, true], 'control: no brief yet, nothing can be created')
+  assert.equal(await text('[data-part="brief-required"]'), NL.briefRequired)
+  await page().fill('[data-field="brief"]', BRIEF)
+  await until(() => document.querySelector('[data-action="create-run"] button')?.disabled === false)
+  assert.equal(await page().evaluate(() => document.querySelector('[data-part="brief-required"]')), null)
+  // 来源: the feed's address typed and Enter → tried where it was typed (one fetch of the feed on this machine): 正常, how many
+  // items, the latest one's title
+  await page().fill('[data-field="source"]', S.feed.feed)
+  await page().press('[data-field="source"]', 'Enter')
+  await until(() => { const r = [...document.querySelectorAll('[data-part="sources"] [data-source]')]; return r.length === 1 && r[0].dataset.fetchState !== 'trying' })
+  const tried = await page().evaluate(() => [...document.querySelectorAll('[data-part="sources"] [data-source]')].map(r => ({ name: r.dataset.source, state: r.dataset.fetchState, from: r.dataset.from, chip: r.querySelector('.status-chip')?.textContent.trim() ?? null, hint: r.querySelector('[data-part="source-hint"]')?.textContent ?? null })))
+  assert.equal(tried.length, 1)
+  const sourceName = tried[0].name
+  assert.ok(typeof sourceName === 'string' && sourceName.length > 0, 'the source was given a name')
+  assert.deepEqual(tried[0], { name: sourceName, state: 'ok', from: 'typed', chip: fmt(NL.okCount, { state: T.FETCH_STATES.ok, n: FEED_ITEMS.length }), hint: fmt(NL.latest, { title: FEED_ITEMS[0].title }) }, 'the source tried in place: fetched, its items, its latest title')
+  assert.deepEqual(S.feed.requests, ['GET /feed'], 'the try asked the feed once')
+  // 存储位置: 更改… → the folder dialog (the harness answers with the test's empty folder — not STREAMS_DEV_CHOOSE_FOLDER's)
+  await click('[data-action="change-folder"]')
+  await until(() => document.querySelector('[data-part="location"]')?.dataset.chosen === 'true')
+  const chosen = await location()
+  assert.ok(same(chosen.path, W.library), `the dialog's folder: ${chosen.path}`)
+  assert.deepEqual([chosen.state, chosen.text], ['empty', NL.folderStates.empty])
+  assert.deepEqual(readRecord(hook(1).recordFile).filter(r => r.kind === 'dialog').map(r => r.folder), [true], 'the folder dialog was asked once')
+  // 定时 and the cap as the form shows them (the app's defaults), and what the first run is expected to cost
+  const form = await page().evaluate(() => ({ daily: document.querySelector('[data-field="daily"]').checked, time: document.querySelector('[data-field="time"]').value, cap: Number(document.querySelector('[data-field="cap"]').value), estimate: document.querySelector('[data-part="estimate"]').textContent, lo: Number(document.querySelector('[data-part="estimate"]').dataset.lo), hi: Number(document.querySelector('[data-part="estimate"]').dataset.hi) }))
+  assert.match(form.time, /^\d\d:\d\d$/)
+  assert.ok(form.cap >= 1 && form.lo >= 1 && form.hi >= form.lo, JSON.stringify(form))
+  assert.equal(form.estimate, fmt(NL.estimate, { lo: form.lo, hi: form.hi }))
+  assert.deepEqual(await page().evaluate(() => ['create-only', 'create-run'].map(n => document.querySelector(`[data-action="${n}"] button`)?.textContent.trim() ?? null)), [NL.createOnly, NL.createRun])
+  assert.equal(existsSync(join(W.library, 'streams.json')), false, 'control: nothing made before create-and-run')
+  S.result.newLibraryForm = { byDefault, chosen, source: tried[0], ...form }
 
-  // 新建库 1: the folder from the dialog (the harness answers with the test's empty folder): made, registered and current
-  await click('[data-action="choose-folder"]')
-  await until(() => document.querySelector('[data-folder-path]') !== null)
-  assert.ok(same(await page().evaluate(() => document.querySelector('[data-folder-path]').dataset.folderPath), W.library), 'the dialog\'s folder (not STREAMS_DEV_CHOOSE_FOLDER)')
-  assert.equal(await page().evaluate(() => document.querySelector('.fr-folder').dataset.folderState), 'empty')
-  assert.equal(existsSync(join(W.library, 'streams.json')), false, 'control: nothing made before 下一步')
-  await click('[data-action="next"]')
-  await stepIs('pack')
-  assert.ok(existsSync(join(W.library, 'streams.json')), 'the library was made in the folder')
-  const reg = registryOnDisk()
-  assert.deepEqual(reg.libraries.map(l => resolve(l.path).toLowerCase()), [resolve(W.library).toLowerCase()], 'registered')
-  assert.equal(reg.active, reg.libraries[0].id, 'and current')
-
-  // 新建库 2: blank, one RSS on this machine
-  await page().click('[data-pack="blank"]')
-  await until(() => document.querySelector('[data-part="pack-detail"]') !== null)
-  await page().fill('[data-field="rss-name"]', RSS_NAME)
-  await page().fill('[data-field="rss-url"]', S.feed.feed)
-  await click('[data-action="add-rss"]')
-  await until(name => document.querySelector(`[data-part="pack-detail"] [data-source="${name}"]`) !== null, RSS_NAME)
-  await click('[data-action="apply"]')
-  await until(() => document.querySelector('[data-part="tried"]') !== null)
-  assert.deepEqual(await page().evaluate(() => [...document.querySelectorAll('[data-part="tried"] [data-source]')].map(e => [e.dataset.source, e.dataset.fetchState])), [[RSS_NAME, 'ok']])
-  const config = JSON.parse(readFileSync(join(W.library, 'streams.json'), 'utf8'))
-  assert.deepEqual(config.sources.map(s => [s.name, s.kind, s.url]), [[RSS_NAME, 'rss', S.feed.feed]])
-  await click('[data-action="continue"]')
-  await stepIs('trial')
-
-  // 新建库 3: the trial round with no connection: nothing scored, every item to 待看
-  assert.ok(await page().evaluate(() => document.querySelector('[data-no-connection]') !== null), 'the page says there is no connection')
-  await click('[data-action="start"]')
-  await until(() => document.querySelector('[data-part="round-progress"]')?.dataset.done === 'true')
-  const inbox = core.listInbox(W.library)
-  assert.equal(inbox.length, FEED_ITEMS.length, `every item of the feed in 待看: ${inbox.map(i => i.title).join(' | ')}`)
-  S.result.inbox = inbox.map(i => ({ title: i.title, url: i.url }))
-  await click('[data-action="next"]')
-  await stepIs('schedule')
-
-  // 新建库 4: 定时 → 完成，去待看. v2 package A: the schedule is the library's own (its streams.json); settings.json's v1.0 fields
-  // (libraryPath, recentLibraries, schedule) are only read, never written — settings.json is written whole with its defaults
-  // (settings.mjs: libraryPath null, recentLibraries [], the default schedule), so the new library is in none of them
-  await click('[data-action="go-inbox"]')
+  // 创建并运行: the library made in the folder, registered and current; its first run goes — with no connection: nothing
+  // scored, no model call, every item to 待看 — and the app is on its 待看 with the cards
+  await click('[data-action="create-run"]')
   await until(() => document.querySelector('main[data-screen="inbox"][data-state="ready"]'))
-  assert.deepEqual(JSON.parse(readFileSync(join(W.library, 'streams.json'), 'utf8')).schedule, { enabled: true, time: '08:30' }, '定时 → 完成 turned the library\'s schedule on')
+  await until(n => document.querySelectorAll('article[data-card]').length === n, FEED_ITEMS.length)
+  const inbox = core.listInbox(W.library)
+  assert.equal(inbox.length, FEED_ITEMS.length, `every item of the feed in the inbox: ${inbox.map(i => i.title).join(' | ')}`)
+  S.result.inbox = inbox.map(i => ({ title: i.title, url: i.url }))
+  const rounds = core.listRounds(W.library, 5)
+  assert.equal(rounds.length, 1, 'its first run ran, once')
+  assert.deepEqual([rounds[0].calls, rounds[0].counts.inbox], [0, FEED_ITEMS.length], `no model call (STREAMS_DEV_CONNECTION=fake would score them): ${JSON.stringify(rounds[0].counts)}`)
+  const reg = registryOnDisk()
+  assert.deepEqual(reg.libraries.map(l => [resolve(l.path).toLowerCase(), l.name]), [[resolve(W.library).toLowerCase(), LIB_NAME]], 'registered, under the name typed')
+  assert.equal(reg.active, reg.libraries[0].id, 'and current')
+  const config = JSON.parse(readFileSync(join(W.library, 'streams.json'), 'utf8'))
+  assert.equal(config.brief, BRIEF)
+  assert.deepEqual(config.sources.map(s => [s.name, s.kind, s.url]), [[sourceName, 'rss', S.feed.feed]])
+  assert.deepEqual(config.schedule, { enabled: form.daily, time: form.time }, 'the schedule the form showed is the library\'s own (its streams.json)')
+  assert.equal(config.pipeline.cap, form.cap)
+  assert.equal(core.readStrictness(W.library).level, 'standard', 'the default strictness')
+  // v2 package A: settings.json's v1.0 fields (libraryPath, recentLibraries) are only read, never written — the new library is
+  // in none of them
   const settings = settingsOnDisk()
   assert.deepEqual({ libraryPath: settings.libraryPath ?? null, recentLibraries: settings.recentLibraries ?? [] }, { libraryPath: null, recentLibraries: [] }, `settings.json's v1.0 library fields not written: ${JSON.stringify(settings)}`)
-  // who decided each step, in the library's streams.json (plan A1): the folder chosen, the connection skipped (copied from
-  // settings.json's setupConnection, its time kept), the blank pack with one RSS added (sources written), the round run, the
-  // schedule taken as shown
+  // who decided each thing, in the library's streams.json (docs/desktop.md §4.16): the folder chosen (更改…) and empty, the
+  // connection skipped (copied from settings.json's setupConnection, its time kept), no preset pack, one source written, the
+  // first run asked for, the schedule taken as shown
   const setup = core.readSetup(W.library)
   assert.deepEqual(Object.fromEntries(Object.entries(setup).map(([k, v]) => [k, [v.by, v.detail ?? null]])), {
-    library: ['chose', 'empty'], connection: ['skipped', null], pack: ['chose', 'blank'], sources: ['wrote', { removed: 0, added: 1 }],
-    trial: ['chose', null], schedule: ['default', { enabled: true, time: '08:30' }],
+    library: ['chose', 'empty'], connection: ['skipped', null], pack: ['skipped', null], sources: ['wrote', { removed: 0, added: 1 }],
+    trial: ['chose', null], schedule: ['default', { enabled: form.daily, time: form.time }],
   })
-  assert.equal(setup.connection.at, setupConnection.at, 'the connection\'s record is 首次打开\'s, its time kept')
+  assert.equal(setup.connection.at, setupConnection.at, 'the connection\'s record is the first run\'s, its time kept')
   S.result.setup = setup
   // 许可证与致谢 in the installed app (S14): Streams' MIT license word for word the repository's (the build put it in
   // resources\app), the parts with the runtime's versions and, for the npm packages, the versions of the package.json files
@@ -466,39 +614,42 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
     ['Preact', installedVersion('preact')], ['htm', installedVersion('htm')], ['@mozilla/readability', installedVersion('@mozilla/readability')],
     // v2 package K2: the bundled UI font, its version read from the installed font file
     ['Noto Sans SC', '2.04'],
-    // redesign R6a: the Research theme's heading font ships too, its version read the same way (this install test was not run
-    // in R6a — no installer was rebuilt; R6b runs it)
+    // redesign R6a: the Research theme's heading font ships too, its version read the same way (first run in an install:
+    // redesign R6c)
     ['Noto Serif SC', '2.003'],
   ])
-  assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes(`@mozilla/readability@${installedVersion('@mozilla/readability')}`), 'the notices list @mozilla/readability')
-  // v2 package K2: the font and its license installed, and the license in full in the notices
-  const ofl = readFileSync(join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts', 'OFL-NotoSansSC.txt'), 'utf8')
-  assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes(ofl.replace(/\r\n/g, '\n').trim()), 'the notices carry the font\'s OFL in full')
-  assert.equal(licenses.font.license, 'OFL-1.1')
-  // v2 package N: the notices' own line for the font (its file, OFL 1.1, where it is installed) and the license page's text is
-  // the shipped OFL file's
-  assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes('* NotoSansSC-VF.ttf — Noto Sans SC, the interface font (界面字体), unmodified — SIL Open Font License 1.1 — installed at resources\\app\\src\\renderer\\fonts\\NotoSansSC-VF.ttf'), 'the notices name the font and its license')
-  assert.equal(licenses.font.text.replace(/\r\n/g, '\n').trim(), ofl.replace(/\r\n/g, '\n').trim(), 'the license page shows the shipped OFL in full')
-  assert.match(licenses.font.text, /SIL OPEN FONT LICENSE Version 1\.1/)
-  // redesign R6a: the same for Noto Serif SC — installed with its license text, its line and its OFL in full in the notices, the
-  // license page showing the shipped text (installer/test/fonts.test.mjs checks the notices' section without an install)
-  const serifOfl = readFileSync(join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts', 'OFL-NotoSerifSC.txt'), 'utf8')
-  assert.ok(existsSync(join(W.install, 'resources', 'app', 'src', 'renderer', 'fonts', 'NotoSerifSC-VF.ttf')), 'the heading font is installed')
-  assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes('* NotoSerifSC-VF.ttf — Noto Serif SC, the heading font of the Research theme (研究对话主题的标题字体), unmodified — SIL Open Font License 1.1 — installed at resources\\app\\src\\renderer\\fonts\\NotoSerifSC-VF.ttf'), 'the notices name the heading font and its license')
-  assert.ok(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8').includes(serifOfl.replace(/\r\n/g, '\n').trim()), 'the notices carry the heading font\'s OFL in full')
-  assert.equal(licenses.displayFont.text.replace(/\r\n/g, '\n').trim(), serifOfl.replace(/\r\n/g, '\n').trim(), 'the license page shows the heading font\'s shipped OFL in full')
+  const lf = s => s.replace(/\r\n/g, '\n')
+  const notices = lf(readFileSync(join(W.install, 'THIRD-PARTY-NOTICES.txt'), 'utf8'))
+  assert.ok(notices.includes(`@mozilla/readability@${installedVersion('@mozilla/readability')}`), 'the notices list @mozilla/readability')
+  // the two shipped fonts (v2 package K2: Noto Sans SC; redesign R6a: Noto Serif SC, first run in an install: redesign R6c) —
+  // each installed with its license text; the notices' own line for it (its file, its name and use — the words of
+  // installer/fonts.mjs, which fonts.test.mjs pins — OFL 1.1, where it is installed) followed by the installed file's sha256,
+  // and its OFL in full; the license page's text is the shipped OFL file's
+  const noticeLine = f => `* ${f.file} — ${f.name}, ${f.role}, unmodified — ${f.license} — installed at resources\\app\\src\\renderer\\fonts\\${f.file}\n    sha256: ${sha256File(join(fontsDir, f.file))}\n`
+  const shown = { [FONTS.ui.name]: licenses.font, [FONTS.display.name]: licenses.displayFont }
+  const oflOf = {}
+  for (const f of [FONTS.ui, FONTS.display]) {
+    assert.ok(existsSync(join(fontsDir, f.file)) && existsSync(join(fontsDir, f.licenseFile)), `${f.name}: the font and its license text are installed`)
+    oflOf[f.name] = lf(readFileSync(join(fontsDir, f.licenseFile), 'utf8')).trim()
+    assert.match(oflOf[f.name], /SIL OPEN FONT LICENSE Version 1\.1/, `${f.licenseFile} is the OFL 1.1`)
+    assert.ok(notices.includes(noticeLine(f)), `the notices name ${f.name}, its license and its file's sha256`)
+    assert.ok(notices.includes(oflOf[f.name]), `the notices carry the OFL of ${f.name} in full`)
+    assert.deepEqual([shown[f.name]?.name, shown[f.name]?.license], [f.name, 'OFL-1.1'], `the license page's entry for ${f.name}`)
+    assert.equal(lf(shown[f.name].text).trim(), oflOf[f.name], `the license page shows the shipped OFL of ${f.name} in full`)
+  }
+  assert.notEqual(oflOf[FONTS.ui.name], oflOf[FONTS.display.name], 'control: the two fonts\' license texts are two texts')
   S.result.licenses = { own: licenses.own.license, components: licenses.components, notices: licenses.notices }
 
-  // v2 package N (package L's right panel, in the installed app): on 待看 the panel is open with its four tabs in order —
-  // 进度 · 等你决定 · 详情 · 文件, the words of texts/panel.js — 详情 current (the default); a click on 进度 switches it and
-  // settings.json remembers it (panel), and back to 详情
+  // the right panel (v2 package L; redesign R6c: the tabs of now, in the installed words): on 待看 the panel is open with its
+  // four tabs in order — progress · decide · detail · files, each under PANEL.tabs' word — the detail tab current (the
+  // default); a click on the progress tab switches it and settings.json remembers it (panel), and back
   const panelNow = () => page().evaluate(() => {
     const a = document.querySelector('aside[data-part="right-panel"]')
     return a && { open: a.dataset.open, tab: a.dataset.tab, tabs: [...a.querySelectorAll('[data-panel-tab]')].map(b => [b.dataset.panelTab, b.textContent.trim(), b.getAttribute('aria-current')]) }
   })
   const tabsWith = current => ['progress', 'decide', 'detail', 'files'].map(id => [id, PANEL.tabs[id], id === current ? 'true' : null])
-  assert.deepEqual(await panelNow(), { open: 'true', tab: 'detail', tabs: tabsWith('detail') }, 'the right panel: four tabs, 详情 current')
-  assert.deepEqual(Object.values(PANEL.tabs), ['进度', '等你决定', '详情', '文件'], 'control: the words are the Chinese ones')
+  assert.equal(new Set(Object.values(PANEL.tabs)).size, 4, 'control: four different words')
+  assert.deepEqual(await panelNow(), { open: 'true', tab: 'detail', tabs: tabsWith('detail') }, 'the right panel: four tabs, the detail tab current')
   await page().click('aside[data-part="right-panel"] [data-panel-tab="progress"]')
   await until(() => document.querySelector('aside[data-part="right-panel"]')?.dataset.tab === 'progress')
   assert.deepEqual(await panelNow(), { open: 'true', tab: 'progress', tabs: tabsWith('progress') })
@@ -510,7 +661,14 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   // there at all (维护者 11-10: what cannot be read is not shown); control: the sidebar and its 设置 are
   const corner = await page().evaluate(async () => ({ quota: (await window.streams.getQuota()).data, part: document.querySelectorAll('[data-part="quota"]').length, settingsButton: document.querySelectorAll('.st-sidebar .st-sidebar__footer-button').length }))
   assert.deepEqual(corner, { quota: null, part: 0, settingsButton: 1 }, `no quota corner without a connection: ${JSON.stringify(corner)}`)
-  assert.equal(readFileSync(join(W.appData, 'logs', 'main.log'), 'utf8').includes(QUOTA_TRAP_LINE), false, 'STREAMS_DEV_QUOTA (a trap: not JSON) not taken')
+  // redesign R6c: no switch whose trap is a file left a line in main.log — STREAMS_DEV_QUOTA (v2 package N), STREAMS_DEV_PROPOSALS,
+  // STREAMS_DEV_AGENT_SCRIPT, STREAMS_DEV_DETECT — and no line names a trap folder (world.mjs trapLogLines; control: the log
+  // has the app's own lines)
+  assert.match(mainLog(), /connections: detected /, 'control: main.log holds the app\'s lines')
+  assert.deepEqual(trapLogLines(W.traps, mainLog()), [], 'no development switch left a line in main.log')
+  // (R6c fixer, after the pre-check: this is no check of STREAMS_DEV_PROPOSALS — its trap is not JSON, so an app that took it
+  // makes no card and says so in main.log, which trapLogLines just above tells; this only says no card waits at this point)
+  assert.equal((await page().evaluate(() => window.streams.listProposals(null))).data.length, 0, 'no card waits (nothing has proposed one yet)')
   S.result.panelAndCorner = { panel: await panelNow(), corner }
 
   // 待看: C keeps the current card
@@ -523,45 +681,44 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   await until(url => !document.querySelector(`article[data-card][data-url="${url}"]`), current)
   const notes = readdirSync(notesDir).filter(n => n.endsWith('.md'))
   assert.equal(notes.length, 1, `one note: ${notes.join(', ')}`)
-  const text = readFileSync(join(notesDir, notes[0]), 'utf8')
-  const checked = core.validateNote({ fileName: notes[0], text, config: JSON.parse(readFileSync(join(W.library, 'streams.json'), 'utf8')) })
+  const noteText = readFileSync(join(notesDir, notes[0]), 'utf8')
+  const checked = core.validateNote({ fileName: notes[0], text: noteText, config: JSON.parse(readFileSync(join(W.library, 'streams.json'), 'utf8')) })
   assert.deepEqual(checked.problems, [], 'the note passes the core\'s own check')
   assert.equal(checked.ok, true)
   assert.equal(checked.meta.source, current, 'the note is the kept card\'s')
   assert.equal(checked.meta.status, 'kept')
   assert.equal(checked.meta.kept, localDay(), 'kept today (not STREAMS_DEV_NOW\'s day)')
-  S.result.note = { path: join(notesDir, notes[0]), file: notes[0], text, problems: checked.problems, warnings: checked.warnings }
+  S.result.note = { path: join(notesDir, notes[0]), file: notes[0], text: noteText, problems: checked.problems, warnings: checked.warnings }
 
-  // v2 package J2: the sidebar of plan B (docs/desktop.md §五「侧栏」): 库架 and 和主 Agent 聊 on top, the library's own row
-  // below, current; then 库架 with the library's card (its name, current, the two left in 待看)
-  const libName = basename(W.library)
-  assert.deepEqual(await page().evaluate(() => [...document.querySelectorAll('.st-sidebar [data-nav]')].map(a => a.dataset.nav)), ['shelf', 'chat'], 'plan B: 库架 and 和主 Agent 聊')
-  const rows = await page().evaluate(() => [...document.querySelectorAll('[data-library-row]')].map(r => [r.dataset.active, r.querySelector('.st-sidebar__lib-name')?.textContent]))
-  assert.deepEqual(rows, [['true', libName]], 'the new library is the one row, current')
+  // the left sidebar of now (redesign R1): 新建库, 库架 (one library) and 主 Agent, 我的库 with the new library's row, current,
+  // 设置 — the installed words; then 库架 with the library's card (its name, current, the two left in 待看)
+  assert.deepEqual(await sidebarNow(), { add: SHELL.sidebar.newLibrary, nav: [['shelf', SIDEBAR.entries.shelf, '1'], ['chat', SIDEBAR.entries.chat, null]], group: SHELL.sidebar.mine, rows: [['true', LIB_NAME]], settings: [SIDEBAR.settings] }, 'the sidebar: the new library is the one row, current')
   await page().click('.st-sidebar [data-nav="shelf"]')
   await until(() => document.querySelector('main[data-screen="shelf"][data-state="ready"]'))
   await until(n => document.querySelectorAll('[data-shelf-card]').length === 1 && document.querySelector('[data-shelf-card] [data-part="inbox"]')?.dataset.value === String(n), FEED_ITEMS.length - 1)
   const shelf = await page().evaluate(() => [...document.querySelectorAll('[data-shelf-card]')].map(c => ({ id: c.dataset.shelfCard, active: c.dataset.active, name: c.querySelector('[data-part="name"]')?.textContent, inbox: c.querySelector('[data-part="inbox"]')?.dataset.value })))
-  assert.deepEqual(shelf, [{ id: reg.active, active: 'true', name: libName, inbox: String(FEED_ITEMS.length - 1) }], '库架: the library, current, two left in 待看')
+  assert.deepEqual(shelf, [{ id: reg.active, active: 'true', name: LIB_NAME, inbox: String(FEED_ITEMS.length - 1) }], 'the shelf: the library, current, two left in the inbox')
   S.result.shelf = shelf
 
   // v2 package J2: the reading window (docs/desktop.md §4.9) on the kept note's own address — the item's page, on the feed on
-  // this machine. 库架's card → the library; its 资料库 tab opens 已收藏 on the kept note; 「打开原文」 = openReader(url, 'reader')
-  // (each wait says what the page showed when it times out)
+  // this machine. 库架's card → the library; its 资料库 tab opens on the kept note, whose actions (redesign R3: [data-part=
+  // "item-actions"][data-id]) have 查看原文 = openReader(url, 'reader') (each wait says what the page showed when it times out)
   const where = () => page().evaluate(() => JSON.stringify({ screen: document.querySelector('main[data-screen]')?.dataset.screen, state: document.querySelector('main[data-screen]')?.dataset.state, views: [...document.querySelectorAll('[data-view]')].map(v => [v.dataset.view, v.dataset.count, v.getAttribute('aria-current')]), rows: document.querySelectorAll('[data-part="list"] [data-row]').length, actions: [...document.querySelectorAll('[data-part="item-actions"]')].map(a => a.outerHTML.slice(0, 300)), text: document.querySelector('main')?.innerText.slice(0, 400) }))
-  const untilSaid = async (fn, what) => { try { await until(fn) } catch (e) { throw new Error(`${what}: ${e.message}; the page: ${await where().catch(() => '?')}`) } }
+  const untilSaid = async (fn, what, arg) => { try { await until(fn, arg) } catch (e) { throw new Error(`${what}: ${e.message}; the page: ${await where().catch(() => '?')}`) } }
   await page().click('[data-shelf-card]')
-  // (the card opens the library where it was: here its 待看; the tabs are the library frame's, beside main)
-  await untilSaid(() => document.querySelector('main[data-screen]:not([data-screen="shelf"])[data-state="ready"]') !== null && document.querySelector('.lib-page nav.st-lib-tabs button[data-tab="library"]') !== null, '库架 card → a page of the library, with its tabs')
-  await page().click('.lib-page nav.st-lib-tabs button[data-tab="library"]')
-  await untilSaid(() => document.querySelector('main[data-screen="library"][data-state="ready"]') !== null, '资料库')
-  await untilSaid(() => document.querySelector('[data-part="item-actions"][data-for="note"] [data-action="source"] button') !== null, '已收藏 opens the kept note, with 打开原文')
+  // (the card opens the library where it was: here its 待看; the tabs are the library frame's)
+  await untilSaid(() => document.querySelector('main[data-screen]:not([data-screen="shelf"])[data-state="ready"]') !== null && document.querySelector('nav.st-lib-tabs button[data-tab="library"]') !== null, 'the shelf card → a page of the library, with its tabs')
+  await page().click('nav.st-lib-tabs button[data-tab="library"]')
+  await untilSaid(() => document.querySelector('main[data-screen="library"][data-state="ready"]') !== null, 'the library tab')
+  const noteId = notes[0].replace(/\.md$/, '')
+  await untilSaid(id => document.querySelector(`[data-part="item-actions"][data-id="${id}"] [data-action="source"] button`) !== null, 'the library tab opens on the kept note, with its view-original action', noteId)
+  assert.equal((await text(`[data-part="item-actions"][data-id="${noteId}"] [data-action="source"] button`)).trim(), T.LIBRARY.actions.source)
   const itemPath = new URL(current).pathname
   const asked = () => S.feed.requests.filter(q => q === `GET ${itemPath}`).length
   const askedBefore = asked()
   const n = Number(/\/item\/(\d+)$/.exec(current)?.[1])
   assert.ok(n >= 1, `the kept card is an item of the feed: ${current}`)
-  await page().click('[data-part="item-actions"] [data-action="source"] button')
+  await page().click(`[data-part="item-actions"][data-id="${noteId}"] [data-action="source"] button`)
   const readerNow = () => A.evaluate(`(async () => {
     const win = ${READER_WINDOW}
     if (!win || win.contentView.children.length === 0) return null
@@ -574,7 +731,7 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   const settled = x => Boolean(x && !x.loading && x.mode)
   for (let i = 0; i < 300 && !settled(r); i += 1) { r = await readerNow(); if (!settled(r)) await sleep(200) }
   assert.ok(settled(r), `the reading window opened: ${JSON.stringify(r)}`)
-  assert.equal(r.mode, 'reading', `阅读模式 (the item's article is long enough): ${JSON.stringify(r)}`)
+  assert.equal(r.mode, 'reading', `reading mode (the item's article is long enough): ${JSON.stringify(r)}`)
   assert.ok(r.pageUrl.startsWith('data:text/html'), 'a page the reader wrote, not the address')
   const isolated = await A.evaluate(`(async () => {
     const { session } = require('electron')
@@ -599,13 +756,13 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   assert.equal(isolated.article.scripts, 0, 'no script in the reading page')
   assert.ok(asked() > askedBefore, `the reader asked the item's page from the feed on this machine (${S.feed.requests.join(', ')})`)
   assert.deepEqual(S.feed.requests.filter(q => q.includes(SCRIPT_RAN)), [], 'the page\'s script never ran')
-  assert.ok(readFileSync(join(W.appData, 'logs', 'main.log'), 'utf8').includes(`reader: ${current}: reading`), 'main.log: the reader\'s line')
+  assert.ok(mainLog().includes(`reader: ${current}: reading`), 'main.log: the reader\'s line')
   S.result.reader = { url: current, mode: r.mode, prefs: isolated.prefs[0], ownSession: isolated.ownSession, persistent: isolated.persistent }
-  // 回到条目 (a link in the bar, the bar's one action that closes the window)
+  // 返回条目 (a link in the bar, the bar's one action that closes the window)
   await A.evaluate(`(() => { const win = ${READER_WINDOW}; win.webContents.executeJavaScript('document.querySelector(\\'[data-reader-action="back"]\\').click(); true').catch(() => {}); return true })()`)
   let open = true
   for (let i = 0; i < 100 && open; i += 1) { open = await A.evaluate(`(() => Boolean(${READER_WINDOW}))()`); if (open) await sleep(200) }
-  assert.equal(open, false, '回到条目 closed the reading window')
+  assert.equal(open, false, 'the bar\'s back action closed the reading window')
 
   // nothing went anywhere but the feed: every request the harness saw was to the feed on this machine; the proxy trap got
   // nothing (neither Node's requests nor Chromium's); no development switch reached anything
@@ -616,13 +773,14 @@ test('3 · use case A in the installed app, no development switch (v2: 首次打
   assert.ok(S.feed.requests.length >= 1, 'the feed was asked')
   assert.deepEqual(S.trap.requests, [], 'nothing through the proxy trap')
   assert.deepEqual(trapsUntouched(W.traps), [], 'no development switch taken')
+  assert.deepEqual(trapLogLines(W.traps, mainLog()), [], 'no development switch left a line in main.log, to the end of the use case')
   S.result.requests = requests.map(r => `${r.via} ${r.method} ${r.url}`)
   // control of the note check: the same file under another name fails it
-  assert.ok(core.validateNote({ fileName: `x-${notes[0]}`, text }).problems.some(p => p.code === 'id-mismatch'), 'control: a note whose id is not its file name fails')
+  assert.ok(core.validateNote({ fileName: `x-${notes[0]}`, text: noteText }).problems.some(p => p.code === 'id-mismatch'), 'control: a note whose id is not its file name fails')
   // the app's own session cancels every request that is not app:// (desktop/src/main/security.mjs hardenSession) and logs
   // it: what the pages tried, if anything, is in main.log
   const blockedLine = /^\S+ blocked: (.*)$/
-  const blocked = () => readFileSync(join(W.appData, 'logs', 'main.log'), 'utf8').split(/\r?\n/).map(l => blockedLine.exec(l)?.[1]).filter(Boolean)
+  const blocked = () => mainLog().split(/\r?\n/).map(l => blockedLine.exec(l)?.[1]).filter(Boolean)
   const blockedBefore = blocked()
   S.result.blockedBySession = blockedBefore
   // controls of the egress checks, made from the main process after the use case: a request by Node's fetch and by
@@ -683,7 +841,7 @@ test('4b · the reverse of world.mjs\'s Documents: the test user has no Document
   const B = await launchInstalled({ exe: W.exe, env, hook: hook(2), chromiumProxy: S.trap.url, repo: REPO, cwd: W.install })
   let exit = null
   try {
-    // the app is up: its page ready (the library made in 3 is registered: its 概览), the main process answering
+    // the app is up: its page ready (the library made in 3 is registered: its 待看), the main process answering
     await B.page.waitForFunction(() => document.querySelector('main[data-screen][data-state="ready"]') !== null, null, POLL)
     const facts = await B.evaluate(`(() => { const { app } = require('electron'); let documents; try { documents = app.getPath('documents') } catch (e) { documents = 'error: ' + e.message } return { documents, home: app.getPath('home') } })()`)
     // the case is real: Electron cannot give the Documents folder here
