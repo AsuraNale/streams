@@ -4,7 +4,7 @@
 // 待评分 rows (file-row), the bar after 放弃 (progress-alert + filters), 稍后处理 and 未通过筛选 folded (phase-row), the empty page
 // (empty-state + the last run's funnel, screens/run-funnel.js, + 最近收藏), the run in progress (screens/run-steps.js).
 //   A card: the title (a click opens Streams' reading window: openReader(url, 'reader')), ONE line 「来源 · 日期 · 相关度 0.90 · 实质
-//   0.85 · 新 / 后续」, the marks (检测到面向 AI 的指令，已忽略 · 未通过核验 · 可能重复 · 没有打分 · 等了 n 天 · 未通过筛选 · 手动移入),
+//   0.85 · 新 / 后续」, the marks (检测到面向 AI 的指令，已忽略 · 未通过核验 · 可能重复 · 未评分 · 等了 n 天 · 未通过筛选 · 手动移入),
 //   内容概述 and its points, 收藏 · 放弃 · 稍后处理. The reasons are NOT on the card: they are the right panel's 详情 of the current card
 //   (推荐理由, 核验, the folded 核验记录 — what the record dialog had, which no longer opens from here — and the source line).
 //   放弃 (D) takes the card off at once (dismissItem: held in the main process, nothing written); the bar 「已放弃「…」。可选择原

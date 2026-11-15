@@ -52,7 +52,7 @@ export const PANEL = Object.freeze({
   detail: Object.freeze({
     eyebrow: '详情 · {where}',
     where: Object.freeze({
-      inbox: '待看 · 选中的这一条',
+      inbox: '待看 · 当前选中内容',
       // redesign R3 (07-模板版 「资料库」 「问库」 「图谱」 详情): the template's words
       library: '当前笔记',
       ask: '当前回答',
@@ -66,7 +66,7 @@ export const PANEL = Object.freeze({
       eyebrow: '当前条目',
       empty: '暂无待看内容。',
       scores: '推荐理由',
-      scoresNone: '这一条没有评分（未连接模型时只抓取不评分）。',
+      scoresNone: '该条内容未评分（未连接模型时仅抓取，不评分）。',
       score: '{name} {score}',
       check: '核验',
       passed: '核验通过',
@@ -87,7 +87,7 @@ export const PANEL = Object.freeze({
     }),
     ask: Object.freeze({
       cites: '{n} 篇笔记',
-      citesNone: '还没有问过，或这一问的回答没有引用笔记。',
+      citesNone: '尚未提问，或本次回答未引用笔记。',
       hint: '点一篇，在资料库标签里打开。',
     }),
     chat: Object.freeze({
@@ -109,7 +109,7 @@ export const PANEL = Object.freeze({
     reveal: '在资源管理器中显示',
     notes: '笔记（{n}）· 按主题',
     other: '其它',
-    notesNone: '还没有笔记。',
+    notesNone: '暂无笔记。',
     untopiced: '未分主题',
     topic: '{topic}（{n}）',
     inbox: '待看（{n}）· 尚未生成文件',
@@ -136,7 +136,7 @@ export const PANEL = Object.freeze({
 export const QUEUE = Object.freeze({
   // why a library runs / waits (getQueue's `why`), as a line of the panel's list
   // redesign R2 (O7): the four reasons, said as they are
-  why: Object.freeze({ first: '建库后的第一轮', manual: '手动触发', schedule: '定时', 'catch-up': '补跑' }),
+  why: Object.freeze({ first: '创建库后的首次运行', manual: '手动触发', schedule: '定时', 'catch-up': '补跑' }),
   // a library's place (the sidebar's line, 库架's card, the panel)
   running: '运行中',
   runningPhase: '运行中 · {phase}',

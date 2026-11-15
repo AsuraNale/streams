@@ -58,7 +58,7 @@ import {
   homeNumbers, keep, later, listInbox, listRounds, listStarterPacks, makeContext, pipelineConfig, previewNode, readIndex, recentDismissReasons,
   recentVerdictFailures, replayLedger, runRound, savePipelineConfig, selfCheck, DEFAULT_PIPELINE, NO_OUTPUT_ROUNDS, pipelineFrom,
   DISMISS_QUICK, buildQueue, failedStart, listManualWaiting, listRejected, moveToInbox, releaseLater, roundOutcome, runFunnel,
-  rescoreInfo, rescoreRejected,
+  rescoreInfo, rescoreRejected, describeChecklist,
 } from '../core.mjs'
 import { byYou } from './changes.mjs'
 import { publicProblems, publicResult, publicTrial } from '../public-data.mjs'
@@ -487,9 +487,9 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       const config = pipelineConfig(dir)
       const checked = config.nodes.filter(n => n.kind === 'gate' || n.kind === 'summary')
       return {
-        config,
+        config: shown(config),
         // 「恢复默认」: the default pipeline in the library's language, resolved the same way (locked checklists included)
-        defaults: pipelineFrom({ pipeline: DEFAULT_PIPELINE(config.language) }),
+        defaults: shown(pipelineFrom({ pipeline: DEFAULT_PIPELINE(config.language) })),
         lastRound: publicResult(listRounds(dir, 1)[0] ?? null, { raw: rawErrors, where: 'last run' }),
         dismissReasons: recentDismissReasons(dir, 10),
         verdictFailures: Object.fromEntries(checked.map(n => [n.id, recentVerdictFailures(dir, n.id, 5)])),
@@ -500,7 +500,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       try { byYou(dir, ['thresholds', 'cap', 'prompts'], () => savePipelineConfig(dir, cfg), { log, now }) } catch (err) { throw bridgeErrorOf(err) }
       log('pipeline: configuration saved')
       emit('library-changed', library.current())
-      return { config: pipelineConfig(dir) }
+      return { config: shown(pipelineConfig(dir)) }
     },
     /** `draft`: the node as edited on the page and not saved yet, or null for the saved one (product spec C3). */
     async previewNode(nodeId, url, draft) {
@@ -519,6 +519,17 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       log(`pipeline: preview ${nodeId}: ${r.ok ? `${r.status} · calls ${r.calls}` : `connection ${r.code}`}`)
       return r
     },
+  }
+
+  /**
+   * Redesign R6b-3: a pipeline configuration as the page shows it — the built-in rules of each step described in the
+   * language of the interface (the core's describeChecklist; the ids, the rules and the user's own items untouched).
+   * Only what goes to the page: what is stored and what a run checks with stay the core's. A configuration the page sends
+   * back to save carries these words on its built-in items; the core never reads them (it regenerates those items).
+   */
+  function shown(config) {
+    const language = typeof locale === 'function' ? locale().resolved : 'zh-CN'
+    return { ...config, nodes: config.nodes.map(n => (Array.isArray(n.checklist) ? { ...n, checklist: describeChecklist(n.checklist, language) } : n)) }
   }
 
   /**

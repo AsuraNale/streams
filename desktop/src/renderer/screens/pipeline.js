@@ -23,7 +23,7 @@ import { dayText, fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { TIcon } from '../lib/template-icons.js'
-import { CONNECTIONS, DAY, ERRORS, FETCH_STATES, NODE_NAMES, NO_CONNECTION, SEP } from '../texts/common.js'
+import { CONNECTIONS, DAY, ERRORS, FETCH_STATES, NODE_NAMES, NO_CONNECTION, PUNCT, SEP } from '../texts/common.js'
 import { PIPELINE as T } from '../texts/pipeline.js'
 import { Btn, TDialog } from './t-dialog.js'
 
@@ -81,7 +81,7 @@ function Checklist({ node, onChange }) {
     <div class="section-label"><span>${T.editor.checklist}</span><small class="muted">${T.editor.baselineHint}</small></div>
     ${items.map(it => html`<div key=${it.id} class="step-line st-gate-check" data-check=${it.id} data-origin=${it.origin ?? 'user'}>
       <${TIcon} name=${it.origin === 'streams' ? 'lock' : 'check'} fallback="check" />
-      <span>${it.desc ?? it.id}${it.origin === 'streams' ? html`<small class="muted">（${T.editor.baseline}）</small>` : html`<small class="muted"> · ${T.editor.kinds[it.kind] ?? it.kind ?? ''}</small>`}</span>
+      <span>${it.desc ?? it.id}${it.origin === 'streams' ? html`<small class="muted">${PUNCT.open}${T.editor.baseline}${PUNCT.close}</small>` : html`<small class="muted"> · ${T.editor.kinds[it.kind] ?? it.kind ?? ''}</small>`}</span>
       ${it.origin === 'streams' ? null : html`<${Btn} name="remove-check" kind="quiet" label=${T.editor.removeCheck} onClick=${() => onChange(items.filter(x => x.id !== it.id))}>${T.editor.removeCheck}<//>`}
     </div>`)}
     <div class="st-gate-add">
@@ -159,7 +159,7 @@ function Editor({ node, nodes, thresholdText, onThreshold, onChange, dirty, caug
     <label class="field"><span id="pl-editor-title">${fmt(T.editor.requirementTitle, { name: title })}</span>
       <textarea data-field="requirement" rows="6" value=${node.requirement ?? ''} onInput=${e => onChange({ requirement: e.currentTarget.value })}></textarea>
       <small>${T.editor.requirementHint}</small></label>
-    <p class="limit-note st-gate-output">${T.editor.output}：<code data-part="output">${JSON.stringify(node.output ?? {})}</code></p>
+    <p class="limit-note st-gate-output">${T.editor.output}${PUNCT.colon}<code data-part="output">${JSON.stringify(node.output ?? {})}</code></p>
     ${node.kind === 'gate' ? html`
       <div class="form-row">
         <label class="field"><span>${T.editor.threshold}</span>
@@ -174,7 +174,7 @@ function Editor({ node, nodes, thresholdText, onThreshold, onChange, dirty, caug
           </div></div>
       </div>
     ` : null}
-    <p class="limit-note" data-part="tools" data-tools="none">${T.editor.tools}：<b>${T.editor.toolsValue}</b> · ${T.editor.toolsHint}</p>
+    <p class="limit-note" data-part="tools" data-tools="none">${T.editor.tools}${PUNCT.colon}<b>${T.editor.toolsValue}</b> · ${T.editor.toolsHint}</p>
     <${Checklist} key=${node.id} node=${node} onChange=${checklist => onChange({ checklist })} />
     ${actions}
     <${Preview} node=${node} dirty=${dirty} caught=${caught} onSettings=${onSettings} />

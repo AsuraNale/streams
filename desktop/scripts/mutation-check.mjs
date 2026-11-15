@@ -51,7 +51,8 @@ const MUTANTS = [
   {
     id: 'banned-word',
     what: 'a banned interface word in a text table',
-    edits: [['src/renderer/texts/screens.js', "  placeholder: '这一页明天起做。',", "  placeholder: '这一页明天起做，先 pending。',"]],
+    // redesign R6b-2: anchored in shell.js (texts/screens.js, the placeholder screen's table, is deleted as dead code)
+    edits: [['src/renderer/texts/shell.js', "    problem: '该库存在异常',\n    inboxBadge:", "    problem: '该库存在异常，先 pending',\n    inboxBadge:"]],
     test: ['test/wording.test.mjs', '--test-name-pattern=passes the wording scanner'],
   },
   {
@@ -109,7 +110,8 @@ const MUTANTS = [
   {
     id: 'en-missing-key',
     what: 'an English table misses a key of its Chinese twin',
-    edits: [['src/renderer/texts-en/screens.js', "    status: 'Status',\n  }),\n  about:", "  }),\n  about:"]],
+    // redesign R6b-2: anchored in shell.js (texts-en/screens.js is deleted with the placeholder screen)
+    edits: [['src/renderer/texts-en/shell.js', "    mine: 'My libraries',\n    newLibrary: 'New library',\n", "    mine: 'My libraries',\n"]],
     test: ['test/texts-en.test.mjs', '--test-name-pattern=key parity'],
   },
   // v2 package F (the shell of plan B)
@@ -360,9 +362,9 @@ const MUTANTS = [
   },
   {
     id: 'r3-demand-forgotten',
-    what: '问库\'s 「已加入待补充主题」 is the page\'s own state only: opened again, the answer says 「记到想补的主题」 again',
+    what: '问库\'s 「已加入待补充主题」 is the page\'s own state only: opened again, the answer says 「加入待补充主题」 again',
     edits: [['src/renderer/screens/ask.js', 'const added = named ? demandAdded(demands, missing, question) : noted !== null && demandAdded(demands, noted, question)', 'const added = noted !== null']],
-    test: ['test/ui-ask-r3.test.mjs', '--test-name-pattern=an answer|记到想补的主题'],
+    test: ['test/ui-ask-r3.test.mjs', '--test-name-pattern=an answer|加入待补充主题'],
   },
   {
     id: 'r3-card-not-shared',
@@ -509,7 +511,9 @@ const MUTANTS = [
     id: 'r4b-draft-overwritten',
     what: '定时与上限: a re-read that lands while the user types puts the saved time back over what they typed',
     edits: [['src/renderer/screens/sources.js', '  useEffect(() => { if (d && !draft.current) { setOn(d.enabled); setTime(d.time) } }, [d?.enabled, d?.time])', '  useEffect(() => { if (d) { setOn(d.enabled); setTime(d.time) } }, [d?.enabled, d?.time])']],
-    test: ['test/ui-schedule.test.mjs', '--test-name-pattern=a new time'],
+    // redesign R6b-5: pointed at the test that makes a re-read land for real (a third time through the bridge, waited for). The
+    // test it used to name (「a new time」) only met the re-read by timing: with 80 ms between 保存 and the next fill it missed
+    test: ['test/ui-schedule.test.mjs', '--test-name-pattern=R6b-5 a time typed and not saved'],
   },
   // the new logo (docs/checks/2026-11-12-logo/contract.md 「测」: each 反向 named there, and a few more)
   {
@@ -816,7 +820,8 @@ const MUTANTS = [
   {
     id: 'r5a-advice-not-the-page',
     what: 'the page\'s 处理建议 and the one the main agent is given say different things',
-    edits: [['src/renderer/texts/common.js', "  'fix-address-or-remove': '这不是临时故障，重试没用：改地址，或删掉这个来源。',", "  'fix-address-or-remove': '重试无用，需修改地址或移除该来源。',"]],
+    // redesign R6b-1: anchored on the new sentence (the old one is gone); what it is replaced with is not the new sentence
+    edits: [['src/renderer/texts/common.js', "  'fix-address-or-remove': '该地址无效，重试无法解决。请修改地址，或移除该来源。',", "  'fix-address-or-remove': '该地址无效。请修改地址，或暂停该来源。',"]],
     test: ['test/services-r5a.test.mjs', '--test-name-pattern=precheck fix 10'],
   },
   // redesign R5b (docs/checks/2026-11-12-r5b/contract.md 「测」): the one 提议, the 主 Agent page, 待确认, 重新评分, the page's words for
@@ -1049,7 +1054,8 @@ const MUTANTS = [
   {
     id: 'r5b-time-spliced',
     what: 'a time spliced into the line with spaces round it again (「最近一次 今天 09:33」)',
-    edits: [['src/renderer/texts/proposals.js', "    'source-failing': '暂时失败 {failed} 次 · 被拒绝 {blocked} 次 · 最近一次：{when}',", "    'source-failing': '暂时失败 {failed} 次 · 被拒绝 {blocked} 次 · 最近一次 {when}',"]],
+    // redesign R6b-1: anchored on the sentence with the new state word
+    edits: [['src/renderer/texts/proposals.js', "    'source-failing': '暂时失败 {failed} 次 · 访问被拒 {blocked} 次 · 最近一次：{when}',", "    'source-failing': '暂时失败 {failed} 次 · 访问被拒 {blocked} 次 · 最近一次 {when}',"]],
     test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 the small cards'],
   },
   {
@@ -1057,6 +1063,187 @@ const MUTANTS = [
     what: '待确认 says 「以下事项均需确认后才会执行。」 with nothing below it',
     edits: [['src/renderer/screens/right-panel.js', '      ${n ? html`<p data-part="decide-lead">${L.lead}</p>` : null}', '      <p>${L.lead}</p>']],
     test: ['test/ui-r5b.test.mjs', '--test-name-pattern=precheck fix 9'],
+  },
+  // redesign R6b (docs/checks/2026-11-13-r6b/contract.md 「测」): R6b-1 the five states and the four 处理建议, R6b-2 05's last pass and
+  // the dead placeholder screen (R6b-5's is r4b-draft-overwritten above, pointed at its new test). Where a mutant puts a v1 word
+  // back, the word is written in two pieces: the repository is searched for the v1 words (contract R6b-1, last point).
+  {
+    id: 'r6b-state-word-zh',
+    what: 'a state\'s Chinese word on the page is not 05\'s (地址无效)',
+    edits: [['src/renderer/texts/common.js', "  gap: '地址无效',", "  gap: '地址待查',"]],
+    test: ['../tests/acceptance/v03-five-fetch-states.test.mjs', '--test-name-pattern=V3 dictionaries: each'],
+  },
+  {
+    id: 'r6b-state-word-v1',
+    what: 'a state\'s v1 word is back on the page (the one 05 replaced with 访问被拒)',
+    edits: [['src/renderer/texts/common.js', "  blocked: '访问被拒',", "  blocked: '" + '被' + "拒绝',"]],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1'],
+  },
+  {
+    id: 'r6b-state-word-en',
+    what: 'a state\'s English word on the page is not the contract\'s (Access denied)',
+    edits: [['src/renderer/texts-en/common.js', "  blocked: 'Access denied',", "  blocked: 'No access',"]],
+    test: ['../tests/acceptance/v03-five-fetch-states.test.mjs', '--test-name-pattern=V3 dictionaries: each'],
+  },
+  {
+    id: 'r6b-state-not-the-core',
+    what: 'the page\'s word for a state and the one the main agent is given differ (无更新)',
+    edits: [['src/renderer/texts/common.js', "  empty: '无更新',", "  empty: '暂无更新',"]],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a words: every action'],
+  },
+  {
+    id: 'r6b-hint-next-round',
+    what: 'the 处理建议 of 暂时失败 says 下一轮 again where 05 says 下次运行',
+    edits: [['src/renderer/texts/common.js', "  'retry-next-round': '下次运行时将自动重试，无需修改地址。',", "  'retry-next-round': '下一轮将自动重试，无需修改地址。',"]],
+    test: ['../tests/acceptance/v03-five-fetch-states.test.mjs', '--test-name-pattern=V3 dictionaries: each'],
+  },
+  {
+    id: 'r6b-hint-failed-told-to-remove',
+    what: 'a temporary failure is told what only 访问被拒 is told (请改用其他来源)',
+    edits: [['src/renderer/texts/common.js', "  'retry-next-round': '下次运行时将自动重试，无需修改地址。',", "  'retry-next-round': '下次运行时将自动重试，无需修改地址。请改用其他来源。',"]],
+    test: ['../tests/acceptance/v03-five-fetch-states.test.mjs', '--test-name-pattern=V3 dictionaries: each'],
+  },
+  {
+    id: 'r6b-hint-en-old',
+    what: 'the English 处理建议 of 无需处理 is another sentence than the contract\'s',
+    edits: [['src/renderer/texts-en/common.js', "  none: 'No action needed.',", "  none: 'There is nothing to do.',"]],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1 the five states'],
+  },
+  {
+    id: 'r6b-evidence-v1-word',
+    what: 'a 系统检测\'s evidence names the state with its v1 word again (texts/proposals.js)',
+    edits: [['src/renderer/texts/proposals.js', "    'source-failing-gap': '地址无效 {n} 次 · 最近一次：{when}',", "    'source-failing-gap': '" + '地址有' + "问题 {n} 次 · 最近一次：{when}',"]],
+    test: ['test/services-r5a.test.mjs', '--test-name-pattern=precheck fix 10'],
+  },
+  {
+    id: 'r6b-about-fetch-v1',
+    what: '高级设置\'s line about the fetch step lists a v1 state word again (texts/pipeline.js)',
+    edits: [['src/renderer/texts/pipeline.js', '（正常 / 无更新 / 地址无效 / 暂时失败 / 访问被拒）', '（正常 / ' + '没新' + '内容 / 地址无效 / 暂时失败 / 访问被拒）']],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1'],
+  },
+  {
+    id: 'r6b-never-v1',
+    what: 'a source never fetched says the v1 words again (05 规则 4: 尚未抓取)',
+    edits: [['src/renderer/texts/common.js', "  never: '尚未抓取',", "  never: '" + '还没' + "抓过',"]],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1'],
+  },
+  {
+    id: 'r6b-login-colloquial',
+    what: '设置\'s sign-in button says the v1 words again (05 第 161 行: 已登录，重新检测)',
+    edits: [['src/renderer/texts/common.js', "    again: '已登录，重新检测',", "    again: '" + '我登录' + "好了，再试一次',"]],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-2 the colloquial'],
+  },
+  {
+    id: 'r6b-verdict-colloquial',
+    what: '核验记录 says a check did not pass in the v1 word again (统一用词: 未通过)',
+    edits: [['src/renderer/texts/library.js', "  notPassed: '未通过',", "  notPassed: '" + '没' + "过',"]],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-2 the colloquial'],
+  },
+  {
+    id: 'r6b-english-colloquial',
+    what: 'the English notification is the sentence before R6b again (round)',
+    edits: [['src/main/texts-en/notify.js', "    newItems: '{library}: this run added {n} to the Inbox.',", "    newItems: '{library}: this " + 'round' + " brought {n} into your Inbox.',"]],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-2 the colloquial'],
+  },
+  {
+    id: 'r6b-notify-round',
+    what: 'the notification says 本轮 where 05 第 173 行 says 本次运行',
+    edits: [['src/main/texts/notify.js', "    newItems: '{library}：本次运行新增 {n} 条待看。',", "    newItems: '{library}：本轮新增 {n} 条待看。',"]],
+    test: ['test/services-schedule.test.mjs', '--test-name-pattern=after a round'],
+  },
+  {
+    id: 'r6b-placeholder-import-back',
+    what: 'app.css imports the deleted placeholder screen\'s style file again',
+    edits: [['src/renderer/styles/app.css', "@import url('./menu.css');\n", "@import url('./menu.css');\n@import url('./screens/placeholder.css');\n"]],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-2 the placeholder'],
+  },
+  {
+    id: 'r6b-interim-name-back',
+    what: 'a style names --st-text-3 again, the interim name that went with the placeholder screen (not defined any more)',
+    edits: [['src/renderer/styles/base.css', 'body { overflow: hidden; }', 'body { overflow: hidden; color: var(--st-text-3); }']],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-2 the placeholder'],
+  },
+  // redesign R6b-3 (docs/checks/2026-11-13-r6b/contract.md 「英文字典全量」「测」): the English word list over the dictionaries
+  // (test/r6b-english.test.mjs, no window) and the 21 screens in the real window in English (test/ui-english-screens.test.mjs)
+  {
+    id: 'r6b-en-to-read',
+    what: 'an English sentence names 待看 with the old word again (To read; the word list says Inbox)',
+    edits: [['src/renderer/texts-en/panel.js', "    inboxHint: 'Click to go to the Inbox',", "    inboxHint: 'Click to go to " + 'To' + " read',"]],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 the English word list holds'],
+  },
+  {
+    id: 'r6b-en-round-for-run',
+    what: 'an English sentence calls a run a round again (round is kept only for the verification rounds)',
+    edits: [['src/renderer/texts-en/settings.js', "    turnRunning: 'A run is in progress. Update once this run has finished.',", "    turnRunning: 'A " + 'round' + " is in progress. Update once it has finished.',"]],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 the English word list holds'],
+  },
+  {
+    id: 'r6b-en-check-for-verification',
+    what: '核验模型 is the Checking model again (核验 = verification, not mixed with check)',
+    edits: [['src/renderer/texts-en/settings.js', "    verify: 'Verification model',", "    verify: 'Che" + "cking model',"]],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 the English word list holds'],
+  },
+  {
+    id: 'r6b-en-save-for-keep',
+    what: '收藏 is save again in the line under 流息怎样工作 (the word list says Keep)',
+    edits: [['src/renderer/texts-en/first-run.js', 'Only what you keep becomes a note in the library folder.', 'Only what you ' + 'save' + ' becomes a note in the library folder.']],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 the English word list holds'],
+  },
+  {
+    id: 'r6b-en-proper-name-case',
+    what: 'the tab 来源与要求 is written Sources & brief (the word list writes the proper name Sources & Brief)',
+    edits: [['src/renderer/texts-en/shell.js', "sources: 'Sources & Brief'", "sources: 'Sources & " + "brief'"]],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 the English word list holds'],
+  },
+  {
+    id: 'r6b-en-fullwidth-in-code',
+    what: 'a screen writes a full-width comma itself again (the keywords put into the edit box)',
+    edits: [['src/renderer/screens/sources.js', 'setWords(keywords.join(PUNCT.comma))', "setWords(keywords.join('，'))"]],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 no full-width punctuation'],
+  },
+  {
+    id: 'r6b-en-punct-table-fullwidth',
+    what: 'the English punctuation table holds a full-width bracket',
+    edits: [['src/renderer/texts-en/common.js', "  open: ' (',", "  open: '（',"]],
+    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 no full-width punctuation'],
+  },
+  {
+    id: 'r6b-en-screen-key-in-chinese',
+    what: 'an English key is Chinese again (库架\'s title): the shelf in the real window shows it',
+    edits: [['src/renderer/texts-en/shell.js', "    title: 'Shelf',", "    title: '库架',"]],
+    test: ['test/ui-english-screens.test.mjs', '--test-name-pattern=shelf · '],
+  },
+  {
+    id: 'r6b-en-screen-fullwidth-mark',
+    what: 'the brackets round 内置规则 in 高级设置 are full-width again in every language',
+    edits: [['src/renderer/screens/pipeline.js', '${PUNCT.open}${T.editor.baseline}${PUNCT.close}', '（${T.editor.baseline}）']],
+    test: ['test/ui-english-screens.test.mjs', '--test-name-pattern=sources · advanced · remove'],
+  },
+  {
+    id: 'r6b-en-screen-rules-in-chinese',
+    what: 'the page is given the built-in rules as the pipeline runs them (Chinese) whatever the interface\'s language',
+    edits: [['src/main/services/pipeline.mjs', '        config: shown(config),\n', '        config,\n']],
+    test: ['test/ui-english-screens.test.mjs', '--test-name-pattern=sources · advanced · remove'],
+  },
+  // redesign R6b precheck (adversarial M1): a short word put back in Chinese that the seeded world's sentences hold inside them
+  // (「…评测的新动态」, 「追踪中国…」) — it passed as the user's own while a run was looked up as a bare substring of the world's files
+  {
+    id: 'r6b-en-screen-short-word',
+    what: 'one English word is its Chinese again, a word the world\'s briefs hold inside a sentence (待看\'s 新 badge)',
+    edits: [['src/renderer/texts-en/inbox.js', "freshness: Object.freeze({ new: 'new', followup: 'follow-up', duplicate: 'duplicate' }),", "freshness: Object.freeze({ new: '新', followup: 'follow-up', duplicate: 'duplicate' }),"]],
+    test: ['test/ui-english-screens.test.mjs', '--test-name-pattern=inbox · '],
+  },
+  {
+    id: 'r6b-en-screen-short-word-beside-user',
+    what: 'the shelf card\'s line is 「追踪 {what}」 — a short Chinese word the brief itself starts with, beside the user\'s brief',
+    edits: [['src/renderer/texts-en/shell.js', "    tracking: 'Tracking: {what}',", "    tracking: '追踪 {what}',"]],
+    test: ['test/ui-english-screens.test.mjs', '--test-name-pattern=shelf · '],
+  },
+  {
+    id: 'r6b-zh-punct-not-frozen',
+    what: 'the Chinese table of the screens\' own punctuation can be changed at run time (not frozen)',
+    edits: [['src/renderer/texts/common.js', "export const PUNCT = Object.freeze({\n  open: '（',", "export const PUNCT = ({\n  open: '（',"]],
+    test: ['test/texts-en.test.mjs', '--test-name-pattern=key parity'],
   },
 ]
 

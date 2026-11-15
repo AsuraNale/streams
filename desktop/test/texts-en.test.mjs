@@ -56,6 +56,8 @@ function compare(zh, en, path, problems) {
   if (zh && typeof zh === 'object') {
     if (!en || typeof en !== 'object' || Array.isArray(en)) { problems.push(`${path}: en is not an object`); return }
     if (!Object.isFrozen(en)) problems.push(`${path}: en is not frozen`)
+    // redesign R6b precheck: the Chinese tables are frozen too (texts/common.js PUNCT was the one export that was not)
+    if (!Object.isFrozen(zh)) problems.push(`${path}: zh is not frozen`)
     const zk = Object.keys(zh).sort()
     const ek = Object.keys(en).sort()
     for (const k of zk) if (!ek.includes(k)) problems.push(`${path}.${k}: missing in en`)
@@ -95,6 +97,9 @@ test('controls: each check fails on a pair made to break it', () => {
   assert.ok(problems.some(p => p.includes('1 items in en, 2 in zh')), problems.join('\n'))
   assert.ok(problems.some(p => p.includes('extra: only in en')), problems.join('\n'))
   assert.ok(problems.some(p => p.includes('deep: en is not frozen')), problems.join('\n'))
+  problems = []
+  compare(Object.freeze({ P: { open: '（' } }), Object.freeze({ P: Object.freeze({ open: '(' }) }), 'X', problems)
+  assert.ok(problems.some(p => p.includes('X.P: zh is not frozen')), problems.join('\n'))
   problems = []
   compare(zh, Object.freeze({ A: Object.freeze({ title: 'Title {n}', list: Object.freeze(['one', 'two']), deep: Object.freeze({ k: 'key' }) }) }), 'A', problems)
   assert.deepEqual(problems, [], 'a faithful twin passes')

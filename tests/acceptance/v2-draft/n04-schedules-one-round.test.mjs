@@ -13,8 +13,15 @@
 //   4. 「现在跑一轮」 while the queue is busy is not stacked. v2 package L (维护者 11-10, feedback #1): it is no longer refused —
 //      a library already waiting answers 「already queued」 (not queued twice), one not in the line goes to its END; still
 //      never a second round at once, and each library runs once.
-// Reverse (mutants of a copy of the desktop's main process, ./support/mutant-app.mjs): the queue starts the next round
+// Reverse (mutants of a copy of the desktop's main process, ./support/mutant-app.mjs): the queue starts the next run
 // while one runs → red at 「two rounds at once」; a library already in the queue is queued again → red at 「owed more than one」.
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// redesign R6b-4: the test's name says 立即运行 (was 现在跑一轮), the head's button as it is now.
+// redesign R6b precheck: and one run at a time / a missed run (were round: 运行 is run, 05 统一用词) — the name only.
+// Nothing else that is checked changed. (Only a comment and a mutant's description; the standard's sentence on line 1 and the
+// checks are untouched.)
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -159,12 +166,12 @@ async function scenario(app, label) {
   return problems
 }
 
-test('N4 · three libraries, each on its own schedule: one round at a time; a missed round caught up once, not stacked; 现在跑一轮 while busy queued, not stacked (v2 package L)', async () => {
+test('N4 · three libraries, each on its own schedule: one run at a time; a missed run caught up once, not stacked; 立即运行 while busy queued, not stacked (v2 package L)', async () => {
   assert.deepEqual(await scenario(realApp(), 'real'), [])
 })
 
 const MUTANTS = [
-  { id: 'N4-a', what: 'the queue starts the next round while one runs', at: 'two rounds at once',
+  { id: 'N4-a', what: 'the queue starts the next run while one runs', at: 'two rounds at once',
     edits: [{ file: 'desktop/src/main/services/schedule.mjs', from: '    if (runningId !== null || pipeline.isRunning() || queue.length === 0) return null', to: '    if (queue.length === 0) return null' }] },
   { id: 'N4-b', what: 'a library already in the queue is queued again', at: 'owed more than one',
     edits: [{ file: 'desktop/src/main/services/schedule.mjs', from: '    if (queue.some(q => q.id === entry.id)) {', to: '    if (false) {' }] },

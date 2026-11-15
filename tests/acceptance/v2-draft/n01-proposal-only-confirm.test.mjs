@@ -16,6 +16,11 @@
 //   N1-a  core proposals.mjs assertPending no longer refuses a card that is not pending → step 4 changes the library: red
 //   N1-b  the desktop's 「不要」 runs the card instead of declining it → step 3 changes the library: red
 //   N1-c  the agent service confirms each card the moment it is made → step 2 changes the library: red
+// redesign R6b-4: the test's name and the fixture's words (three 理由 and the 提出修改 sentence of the scripted main agent) use
+// the page's words now — 拒绝 / 提出修改 (were 不要 / 改一下), 严格程度 (过关线), 单次运行上限 (每轮), 立即运行 (现在跑一轮). No assertion reads
+// those words; the messages of the assertions and the mutants' `step` (which must equal a message) are as they were.
+// redesign R6b precheck: three 理由 more without 调 / 跑 (05 统一用词: 修改 / 提高 / 降低, 运行) — 提高严格程度, 降低单次运行上限,
+// 提前定时运行的时间; no assertion reads them.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { existsSync, readFileSync } from 'node:fs'
@@ -42,10 +47,10 @@ function answers(ids, libraryRoot) {
       { kind: 'edit_topics', params: { libraryId: a, ops: [{ op: 'add_keywords', topic: '评测', keywords: ['基准'] }] }, why: '评测加一个关键词' },
     ] },
     { reply: '再拟五张。', proposals: [
-      { kind: 'edit_thresholds', params: { libraryId: a, relevance: 0.75 }, why: '过关线高一点' },
-      { kind: 'edit_schedule', params: { libraryId: b, enabled: true, time: '07:45' }, why: '早一点跑' },
-      { kind: 'edit_cap', params: { libraryId: a, cap: 12 }, why: '每轮少一点' },
-      { kind: 'run_round', params: { libraryId: b }, why: '现在跑一轮看看' },
+      { kind: 'edit_thresholds', params: { libraryId: a, relevance: 0.75 }, why: '提高严格程度' },
+      { kind: 'edit_schedule', params: { libraryId: b, enabled: true, time: '07:45' }, why: '提前定时运行的时间' },
+      { kind: 'edit_cap', params: { libraryId: a, cap: 12 }, why: '降低单次运行上限' },
+      { kind: 'run_round', params: { libraryId: b }, why: '立即运行一次看看' },
       { kind: 'create_library', params: { name: NEW_LIBRARY, brief: '追踪新能源电池：装机量、价格。', folder: join(libraryRoot, 'battery'), topics: [{ name: '电池', keywords: ['装机量'] }], sources: [{ name: 'battery-weekly', kind: 'rss', url: site.feed('battery', 2), topic: '电池' }], schedule: { enabled: false, time: '08:30' } }, why: '你想追新能源电池' },
     ] },
   ]
@@ -96,7 +101,7 @@ async function scenario(app, label) {
   const decide = (fn, ...args) => { try { return { card: w.proposals.handlers[fn](...args) } } catch (err) { return { error: err } } }
   decide('declineProposal', byKind.edit_cap.id)
   decide('declineProposal', byKind.pause_source.id)
-  decide('reviseProposal', byKind.edit_thresholds.id, '过关线别动')
+  decide('reviseProposal', byKind.edit_thresholds.id, '严格程度不要改')
   want(w.proposals.card(byKind.edit_cap.id).status === 'declined', `${label}: 不要 → declined (${w.proposals.card(byKind.edit_cap.id).status})`)
   want(w.proposals.card(byKind.edit_thresholds.id).status === 'revise', `${label}: 改一下 → revise`)
   want(JSON.stringify(facts()) === JSON.stringify(start), `${label}: 不要 / 改一下 changed something: ${diff(start, facts())}`)
@@ -131,7 +136,7 @@ async function scenario(app, label) {
   want(JSON.stringify(w.queued.map(q => q.id).sort()) === JSON.stringify([w.ids.b, newId].sort()), `${label}: queued after the confirms: ${JSON.stringify(w.queued)} (b ${w.ids.b}, new ${newId})`)
   want(existsSync(join(newFolder, 'streams.json')), `${label}: create_library confirmed → the folder is a library`)
   want(w.library.entries().some(e => e.path === newFolder), `${label}: create_library confirmed → registered`)
-  // 「谁定的」: every confirmed change of a, agent-confirmed with its card's id; none from a declined card
+  // 变更记录 (was 「谁定的」): every confirmed change of a, agent-confirmed with its card's id; none from a declined card
   const changes = core.readChanges(w.dirs.a).entries
   const confirmedIds = new Set(['edit_brief', 'add_source', 'edit_topics'].map(k => byKind[k].id))
   want(changes.length > 0 && changes.every(c => c.by === 'agent-confirmed' && confirmedIds.has(c.proposalId)), `${label}: changes.jsonl of a: ${JSON.stringify(changes.map(c => [c.field, c.by, c.proposalId]))}`)
@@ -151,7 +156,7 @@ function diff(a, b) {
   return out.join('; ') || 'nothing'
 }
 
-test('N1 · the main Agent\'s ten kinds of card change nothing until 确认; 不要 / 改一下 change nothing; only 确认 of a pending card changes what it says', async () => {
+test('N1 · the main Agent\'s ten kinds of card change nothing until 确认; 拒绝 / 提出修改 change nothing; only 确认 of a pending card changes what it says', async () => {
   const problems = await scenario(realApp(), 'real')
   assert.deepEqual(problems, [])
 })

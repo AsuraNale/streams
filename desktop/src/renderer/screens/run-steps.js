@@ -4,7 +4,7 @@
 // app's queue (getQueue's running: why, startedAt, phase; round-progress moves the phase) — the same place the head's button,
 // the sidebar's line and the right panel read.
 //   html`<${RunSteps} running=${queue.data.running} sources=${row.sources} />`
-// Why it started: texts/panel.js QUEUE.why (建库后的第一轮 · 手动触发 · 定时 · 补跑). Words: texts/run.js RUN.
+// Why it started: texts/panel.js QUEUE.why (创建库后的首次运行 · 手动触发 · 定时 · 补跑). Words: texts/run.js RUN.
 // Test hooks: [data-part="run-steps"][data-why][data-phase], [data-step=<id>][data-done][data-now], [data-action="cancel-run"].
 import { html, useState } from '../lib/html.js'
 import { call } from '../lib/bridge.js'

@@ -9,9 +9,13 @@
 //
 // Eight items on a local feed, the per-run cap set to 5 in streams.json (pipeline.cap, what 来源与要求's 定时与上限 writes), the core's
 // counting fake connector. Round 1: exactly 5 model calls — gate 1 on items 1–5 — the sixth item is never sent to the model,
-// stoppedAt 'cap', items 6–8 stay at stage seen. The next rounds go on from there: gate 1 on items 6–8 first, and no
+// stoppedAt 'cap', items 6–8 stay at stage seen. The next runs go on from there: gate 1 on items 6–8 first, and no
 // (item, gate) the ledger already has a score for is asked again. Reverse: the same library with a cap of 100 runs to the
 // end in one round with no stoppedAt; a cap passed to runRound overrides the configured one.
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed.
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
@@ -27,7 +31,7 @@ import { ADVANCED as ADVANCED_EN, SOURCES as SOURCES_EN } from '../../desktop/sr
 const pairs = conn => modelCalls(conn).filter(c => fake.promptKind(c) === 'gate').map(c => `${fake.titleOf(c.prompt)}|${fake.scoreKeyOf(c.prompt)}`)
 const titled = (items, i) => items[i - 1].title
 
-test('V10: cap 5 → exactly 5 calls, the sixth item is not sent to the model, stoppedAt cap; the next round goes on with what is left', async (t) => {
+test('V10: cap 5 → exactly 5 calls, the sixth item is not sent to the model, stoppedAt cap; the next run goes on with what is left', async (t) => {
   const { dir, items } = await feedLibrary(t, 'v10-cap', 8)
   setPipeline(dir, { cap: 5 })
   assert.equal(core.pipelineConfig(dir).cap, 5, 'the configured cap is 5')

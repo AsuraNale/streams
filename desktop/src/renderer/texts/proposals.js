@@ -1,6 +1,6 @@
 // One kind of 提议 in words — redesign R5a (01 概念表「提议」, F14–F17; 05-措辞规范 统一用词 · 规则 2 / 9; 维护者 11-11 的动作表、
 // 11-12 第 6 条). A source's state is named with the five states' words as the page has them now (common.js FETCH_STATES:
-// 地址有问题 · 暂时失败 · 被拒绝; R6 changes those words, not this package). The main process hands the page the keys of these words (services/agent.mjs listToConfirm: each
+// 地址无效 · 暂时失败 · 访问被拒 — redesign R6b-1 changed those words here too). The main process hands the page the keys of these words (services/agent.mjs listToConfirm: each
 // action's `label`, a 系统检测's kind and evidence, the status of a handled one, why one expired).
 // Redesign R5b (docs/checks/2026-11-12-r5b/contract.md R5b-1, R5b-3): the one card (screens/proposal.js) — its title by kind
 // (动作 + 对象), its points (decision-points), its states, the right panel's list (待确认) — is drawn with these words. The
@@ -30,7 +30,7 @@ export const PROPOSALS = Object.freeze({
   noModel: '由流息直接执行，不调用模型',
   // the five 系统检测
   kinds: Object.freeze({
-    'source-failing-gap': '来源「{subject}」连续 {n} 次地址有问题',
+    'source-failing-gap': '来源「{subject}」连续 {n} 次地址无效',
     'source-failing': '来源「{subject}」连续 {n} 次抓取失败',
     'no-output': '连续 {n} 次运行没有新内容进入待看',
     'ai-instruction': '来源「{subject}」的内容中检测到面向 AI 的指令',
@@ -41,8 +41,8 @@ export const PROPOSALS = Object.freeze({
   // redesign R5b precheck fix 8: a time stands after a colon (「最近一次：今天 09:33」), never spliced into a sentence with spaces
   // round it (was 「自 今天 09:33 起」)
   evidence: Object.freeze({
-    'source-failing': '暂时失败 {failed} 次 · 被拒绝 {blocked} 次 · 最近一次：{when}',
-    'source-failing-gap': '地址有问题 {n} 次 · 最近一次：{when}',
+    'source-failing': '暂时失败 {failed} 次 · 访问被拒 {blocked} 次 · 最近一次：{when}',
+    'source-failing-gap': '地址无效 {n} 次 · 最近一次：{when}',
     'no-output': '首次出现：{when}',
     'ai-instruction': '{n} 条内容 · 例如「{phrase}」',
     'topic-overlap': '共同的词：{shared}',
@@ -75,7 +75,7 @@ export const PROPOSALS = Object.freeze({
     'library-removed': '对方库已移除',
     'overlap-gone': '主题已不再重合',
     'brief-changed': '追踪要求已修改',
-    // precheck fix 7: rule ① found the other case (地址有问题 ↔ 暂时失败 / 被拒绝): this one gave way to the one that fits now
+    // precheck fix 7: rule ① found the other case (地址无效 ↔ 暂时失败 / 访问被拒): this one gave way to the one that fits now
     'state-changed': '该来源的情况已变化，已换成新的提议',
   }),
   // a 主 Agent 提议 that could not be carried out: what to do (public-data.mjs FAILURE_ADVICE)

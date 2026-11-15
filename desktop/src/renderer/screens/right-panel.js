@@ -6,7 +6,7 @@
 //   进度      every library (the template's panel-summary, phase-row, mini-chart, activity-row): how many run and wait, the round
 //             that runs (its library, why, the step it is at, calls / cap, when it started), the queue in order with why each
 //             waits, each library's next timed slot (getQueue, app.js useQueue; names from the libraries) — the one place the
-//             queue is told in full (F23). Redesign R2 (P07 · P16): the round that runs says why (建库后的第一轮 · 手动触发 · 定时 ·
+//             queue is told in full (F23). Redesign R2 (P07 · P16): the round that runs says why (创建库后的首次运行 · 手动触发 · 定时 ·
 //             补跑), when it started, its step, calls / cap and has 停止; each one waiting why, since when and 「前一任务完成后
 //             自动开始」; the rule 「需保持流息运行…」; nothing running: 「当前无运行任务」. On a library's page, last: that
 //             library's last run as the same funnel 待看 shows when empty (screens/run-funnel.js, getHome().lastRun) — not the

@@ -1,3 +1,7 @@
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -60,7 +64,7 @@ test('idempotent: a second round over the same feed changes no state file and ma
 });
 
 // 中断续跑：第 3 次关卡调用时 abort；第二轮跑完；每 (url,node) 最多一条 scored；没有重复调用；url 集合不少。
-test('resume after abort: the round stops after the current item, the next round finishes; no (url,node) is scored or called twice', async (t) => {
+test('resume after abort: the round stops after the current item, the next run finishes; no (url,node) is scored or called twice', async (t) => {
   const srv = await startFakeServer();
   t.after(() => srv.close());
   const feed = feedRoute(srv, serveItems(srv, 6));
@@ -91,7 +95,7 @@ test('resume after abort: the round stops after the current item, the next round
   assert.equal(calls.length, 12);
 });
 
-test('resume after a connector that throws: the round stops as a connection failure and the next round picks the item up again', async (t) => {
+test('resume after a connector that throws: the round stops as a connection failure and the next run picks the item up again', async (t) => {
   const srv = await startFakeServer();
   t.after(() => srv.close());
   const feed = feedRoute(srv, serveItems(srv, 3));
@@ -115,7 +119,7 @@ test('resume after a connector that throws: the round stops as a connection fail
 });
 
 // V10：cap=5 恰 5 次（含核验判定），stoppedAt:'cap'；第二轮只跑剩余。
-test('cap: exactly cap calls counting judge calls, stoppedAt cap, the rest stays seen; the next round only runs what is left', async (t) => {
+test('cap: exactly cap calls counting judge calls, stoppedAt cap, the rest stays seen; the next run only runs what is left', async (t) => {
   const srv = await startFakeServer();
   t.after(() => srv.close());
   const feed = feedRoute(srv, serveItems(srv, 8));
@@ -205,7 +209,7 @@ test('bad-format-once: the retry succeeds and the item is scored (negative of th
   assert.ok(good.calls[1].prompt.includes(RETRY_NOTE));
 });
 
-test('connection failure mid-round: the current item is recorded unscored connection:<code>, the round stops, the next round retries it', async (t) => {
+test('connection failure mid-round: the current item is recorded unscored connection:<code>, the round stops, the next run retries it', async (t) => {
   const srv = await startFakeServer();
   t.after(() => srv.close());
   const feed = feedRoute(srv, serveItems(srv, 3));

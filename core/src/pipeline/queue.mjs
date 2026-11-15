@@ -5,7 +5,7 @@
 //   why: 'terminal' (kept / dismissed) | 'inbox' | 'below:<gateId>' | 'stuck:<gateId>' (unscored under the
 //   current cfg: the same url, gate and cfg are never called twice; a config change (new cfg) reopens it).
 //   An unscored whose reason is connection:<code> is not a verdict on the item (no answer came back), so it
-//   is retried next round.
+//   is retried next run.
 //   Redesign R5a (N07, 维护者 11-12 第 5 条): a VERDICT (a `scored` event) made under another cfg of that gate — the
 //   评分标准 changed since: the 追踪要求, the threshold / 严格程度, the prompt or the material — is no longer redone by the
 //   next run: it stands where it was, judged against the threshold it was given then (gateResult `old: true`). Only

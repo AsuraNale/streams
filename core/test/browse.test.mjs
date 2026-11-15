@@ -1,3 +1,7 @@
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
@@ -85,7 +89,7 @@ test('listLibrary caught: newest first seen first, stoppedAt says where each one
   assert.deepEqual(r.items.map((i) => [i.url.slice(10), i.stoppedAt]), [
     ['inbox', 'inbox'],
     ['below2', g2.id],
-    ['conn', 'queued'], // no answer came back: it is retried next round, not stuck
+    ['conn', 'queued'], // no answer came back: it is retried next run, not stuck
     ['stuck', 'unscored'],
     ['queued', 'queued'],
     ['below', g1.id],

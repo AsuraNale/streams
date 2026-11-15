@@ -82,6 +82,61 @@ test('a new time → the library streams.json (v1.0: settings.json) and the next
   await s.page.fill('[data-part="run"] input[data-field="schedule-time"]', '21:15')
 })
 
+// redesign R6b-5 (docs/checks/2026-11-13-r6b/contract.md): what the user typed and has not saved is theirs — a re-read that lands
+// meanwhile must not put the saved time over it (sources.js RunPart, `draft`). The test above only meets that by timing (保存 →
+// the next fill within the re-read of its own settings-changed, whose values are the ones just saved, so nothing changes); this
+// one makes a re-read that really changes what the page holds, and waits for it: the time is typed and not saved, a THIRD time
+// is written through the bridge (the main process sends settings-changed { libraryId }; the page reads the schedule again),
+// the line under the row shows that third time's next run (the re-read has landed and the page has drawn it), the effects that
+// follow that drawing have run — and the field still holds what was typed; 保存 then writes the typed time. It stands on its
+// own (it reads what is saved first, and puts it back at the end), so the mutant r4b-draft-overwritten can run it alone.
+const until = async (what, read, want, ms = 30_000) => {
+  const end = Date.now() + ms
+  let got = read()
+  while (JSON.stringify(got) !== JSON.stringify(want) && Date.now() < end) { await new Promise(r => setTimeout(r, 100)); got = read() }
+  assert.deepEqual(got, want, what)
+}
+const settled = () => s.page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 200)))))
+
+test('R6b-5 a time typed and not saved stays when a re-read with another saved time lands (setSchedule through the bridge, the next run redrawn); 保存 then writes the typed time', async () => {
+  const FIELD = '[data-part="run"] input[data-field="schedule-time"]'
+  const TYPED = '19:40'
+  const THIRD = '06:10'
+  await s.page.waitForFunction(() => { const el = document.querySelector('[data-part="run"] input[data-field="schedule-time"]'); return el && !el.disabled && el.value !== '' }, null, POLL)
+  const saved = scheduleOf(s.world.library)
+  assert.equal(saved.enabled, true, 'control: the schedule is on')
+  assert.ok(![TYPED, THIRD].includes(saved.time), `control: the saved time (${saved.time}) is neither of the two this test uses`)
+  assert.equal((await run('input[data-field="schedule-time"]')).value, saved.time, 'control: the field shows the saved time')
+  const nextBefore = (await run('[data-next-run]')).data.nextRun
+  // typed, not saved
+  await s.page.fill(FIELD, TYPED)
+  assert.equal(scheduleOf(s.world.library).time, saved.time, 'control: typing saves nothing')
+  // a third time through the bridge: a re-read that changes what the page holds
+  assert.equal((await s.page.evaluate(v => window.streams.setSchedule(v), { enabled: true, time: THIRD })).ok, true)
+  assert.deepEqual(scheduleOf(s.world.library), { enabled: true, time: THIRD })
+  const third = await schedule()
+  assert.equal(new Date(third.nextRunAt).getHours() * 60 + new Date(third.nextRunAt).getMinutes(), 6 * 60 + 10)
+  assert.notEqual(third.nextRunAt, nextBefore, 'control: the re-read brings a next run the page did not have')
+  await s.page.waitForFunction(iso => document.querySelector('[data-part="run"] [data-next-run]')?.dataset.nextRun === iso, third.nextRunAt, POLL)
+  await settled()
+  assert.equal((await run('[data-next-run]')).data.nextRun, third.nextRunAt, 'the page holds the re-read schedule')
+  assert.equal((await run('input[data-field="schedule-time"]')).value, TYPED, 'the typed time is still in the field (not the re-read one)')
+  assert.equal((await run('input[data-field="schedule-on"]')).checked, true)
+  // 保存 writes what is in the field
+  await s.page.click('[data-part="run"] [data-action="save-run"] button')
+  await until('保存 wrote the typed time', () => scheduleOf(s.world.library), { enabled: true, time: TYPED })
+  await s.page.waitForFunction(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'saved', null, POLL)
+  assert.equal((await run('input[data-field="schedule-time"]')).value, TYPED)
+  // back to what was saved before this test (the tests below go on from it)
+  await s.page.fill(FIELD, saved.time)
+  await s.page.click('[data-part="run"] [data-action="save-run"] button')
+  await until('the time of before is saved again', () => scheduleOf(s.world.library), saved)
+  const back = await schedule()
+  await s.page.waitForFunction(iso => document.querySelector('[data-part="run"] [data-next-run]')?.dataset.nextRun === iso, back.nextRunAt, POLL)
+  await settled()
+  assert.equal((await run('input[data-field="schedule-time"]')).value, saved.time)
+})
+
 test('the switch off → the library streams.json (v1.0: settings.json), 「定时没开」, the time field disabled; on again → back', async () => {
   await s.page.click('[data-part="run"] input[data-field="schedule-on"]')
   await s.page.click('[data-part="run"] [data-action="save-run"] button')

@@ -2,6 +2,7 @@
 
 > 2026-11-02，流息 Streams 第一天：外壳。本文是外壳的说明——窗口、安全基线、应用数据布局、预加载桥与事件、界面骨架与组件、token 名单（`docs/tokens.md`）、测试、从云织拿了什么。外壳来自云织桌面版（`C:\Users\you\dev\yunzhi-desktop`，按产品方案 4.9 的清单复制并改名），谢谢它。
 > 之后每天按方案 5.2 往 `src/renderer/screens/` 里换占位页，往 `src/main/` 里加服务；桥和事件按 §四 的办法加。
+> 2026-11-14（重设计 R6b）：上面两段是第一天的导语。现在的界面是重设计 R1–R6b 之后的样子——§五（界面写法）、§七（测试）、§九（已知缺口）已按现状重写；§4.1–§4.12 是 v1 / v2 各包当时的记录，§4.13–§4.22 是重设计各包的记录（节号按落地先后，4.21 排在 4.19 之前是历史原因）。
 
 ## 〇、放在哪、怎么跑
 
@@ -478,12 +479,12 @@ frame-ancestors 'none'
 
 **提议卡**（`screens/proposal-card.js ProposalCard`，P8；「和主 Agent 聊」与问库共用）：
 - 卡头「提议卡 · 你确认后才生效」（定了以后只写「提议卡」）+ 按 kind 的标题（`cardTitle`：建库：<库名>；改「<库名>」：加 N 个来源 / 删来源「x」/ 暂停（恢复）来源「x」/ 改主题 / 改要求 / 改过关线 / 改定时 / 改每轮上限 / 跑一轮；库名取 `useApp().libraries`，取不到写「这个库」）。
-- 卡身：为什么（`why`）；**改前 / 改后两栏**直接画卡上的 `before` / `after`（核心在副本上算好的；页面不算，只在每一栏里标出另一栏没有的：改后新加的加粗、改前去掉的划线）——来源 `{ count, names, paused }`、主题 `{ topics }`（关键词逐个）、要求、过关线、定时、上限、跑一轮（上一轮 → 排进队列）；**建库卡**不画两栏，画要求、主题与关键词、来源（每个来源一行：勾 / 不勾、名字、试抓结果「<五种状态之一> · N 条」或「被拒绝 · HTTP 403」；`include: false` 的写「没勾」）、过关线、定时、位置（完整路径）；**加来源卡**另有「试抓结果」一行（状态 · 条数 · 最新一条）。
+- 卡身：为什么（`why`）；**改前 / 改后两栏**直接画卡上的 `before` / `after`（核心在副本上算好的；页面不算，只在每一栏里标出另一栏没有的：改后新加的加粗、改前去掉的划线）——来源 `{ count, names, paused }`、主题 `{ topics }`（关键词逐个）、要求、过关线、定时、上限、跑一轮（上一轮 → 排进队列）；**建库卡**不画两栏，画要求、主题与关键词、来源（每个来源一行：勾 / 不勾、名字、试抓结果「<五种状态之一> · N 条」或「访问被拒 · HTTP 403」；`include: false` 的写「没勾」）、过关线、定时、位置（完整路径）；**加来源卡**另有「试抓结果」一行（状态 · 条数 · 最新一条）。
 - 按钮（只在 `pending`）：**确认**（建库卡写「建库」）→ `confirmProposal(id)`；**改一下** → 展开一行输入框（1–2000 字，空的在页面就拒）→「发给主 Agent」= `reviseProposal(id, text)`，再把这句话交给所在页面发给主 Agent（「和主 Agent 聊」：`agentSend(text)`，排在主 Agent 的队列里；问库：`agentSend(text, { libraryId: 当前库 })`），新卡由那一轮出，旧卡显示「已改」；**不要** → `declineProposal(id)`。点了以后到桥回话之前三个按钮都禁用、再点也不发（`useRef` 守着，不靠下一次重画）。
 - 状态：`confirmed`「已生效 · 时间」（建库「已建库 · 时间」，旁边「主 Agent 提的 · 你确认的 · 日期」，建库卡另写第一轮排上没有）· `declined`「没要」· `revise`「已改」· `stale`「库在这之后改过，这张卡不再生效」（`library-gone` / `folder_not_empty` 各有一句）· `failed`「没生效：<哪一步>」（步骤名逐个有字，`op:N` = 第 N 处主题改动）+ 撤回了没有。定了的卡收成一行（标题 + 状态），「看卡上写的」展开。
 - **没有「以后这类直接做」**，也没有任何开关（维护者 11-05「先不放权」）：卡上的按钮只有上面三个（定了以后只有「看卡上写的」）；测试搜 DOM 里的复选框 / 开关与两张字典。
 
-**建议卡**（`screens/suggestion-card.js SuggestionCard`）：一句话（`source-failing`「来源「x」连续 N 轮没抓到」· `no-output`「这个库连续 N 轮没有产出」· `ai-instruction`「来源「x」的文章里出现过写给 AI 的话」· `topic-overlap`「和「<另一个库>」的主题重合很多」）+ 证据一行（失败 / 被拒绝次数与最近一次；从何时起；几处与一句例子；重合百分比与共同的词）+ **交给主 Agent**（`acceptSuggestion(libraryId, key)`：记一笔、主 Agent 跑一轮）/ **不要**（`dismissSuggestion(libraryId, key)`）。按了以后到桥回话之前禁用；处理过的卡在这一页上留着、写「已交给主 Agent」/「没要」（概览上另有「去和主 Agent 聊」）。处理完发页面自己的 DOM 事件 `streams-suggestions-changed`（`lib/agent.js suggestionsChanged`；不是主进程的主题），左栏角标与各处列表重读。概览里那块（`LibrarySuggestions`）= `listSuggestions({ libraryId: 当前库 })`，没有就写「主 Agent 暂时没有给这个库的建议。」；「等你定的事」= 全部库的，卡上带库名。
+**建议卡**（`screens/suggestion-card.js SuggestionCard`）：一句话（`source-failing`「来源「x」连续 N 轮没抓到」· `no-output`「这个库连续 N 轮没有产出」· `ai-instruction`「来源「x」的文章里出现过写给 AI 的话」· `topic-overlap`「和「<另一个库>」的主题重合很多」）+ 证据一行（失败 / 访问被拒次数与最近一次；从何时起；几处与一句例子；重合百分比与共同的词）+ **交给主 Agent**（`acceptSuggestion(libraryId, key)`：记一笔、主 Agent 跑一轮）/ **不要**（`dismissSuggestion(libraryId, key)`）。按了以后到桥回话之前禁用；处理过的卡在这一页上留着、写「已交给主 Agent」/「没要」（概览上另有「去和主 Agent 聊」）。处理完发页面自己的 DOM 事件 `streams-suggestions-changed`（`lib/agent.js suggestionsChanged`；不是主进程的主题），左栏角标与各处列表重读。概览里那块（`LibrarySuggestions`）= `listSuggestions({ libraryId: 当前库 })`，没有就写「主 Agent 暂时没有给这个库的建议。」；「等你定的事」= 全部库的，卡上带库名。
 
 **和主 Agent 聊**（`screens/chat.js ChatScreen`，P2）：
 - 顶上「等你定的事 · N」`[data-part="waiting"]`（`[data-waiting]` = 待定提议卡 `listProposals` 里 `pending` 的 + 打开着的建议卡 `listSuggestions(null)`，与左栏角标同一个数；没有就「等你定的事 · 没有」）：建议卡、待定的提议卡（已经在下面对话里的那张只写一行「提议卡：<标题>（在下面的对话里）」+「看这张卡」滚过去）；可折叠（「收起 / 展开」）；最高占页面四成，多了自己滚。在这里定了的卡留着显示结果，不再算进 N。
@@ -709,7 +710,7 @@ frame-ancestors 'none'
 
 **新建库**（`screens/new-library.js`，路由 `new-library`；P04，F56、F57、F45–F49；维护者 第 5 题「一页表单，留起步包和只建不跑」）：
 - **一页表单**，左栏右栏都在（右栏「详情」是「流息怎样工作 · 把要求写清楚」）。v2 包 I 的四步（库放在哪 → 主题与来源 → 试跑一轮 → 定时）、起步包那一步、`WizardSidebar` 都删了。入口照旧：左栏「新建库」、库架、首次打开的「手动创建」（`useApp().newLibrary()`，`params.back` = 从哪来，「取消」回去）。
-- 页头「新建库」+「由主 Agent 生成，或手动填写。两种方式的默认值相同。」+ 当前连接 chip；表单从上到下：「由主 Agent 生成 · 手动填写」（`filters`，前者去主 Agent）· **库名称** · **追踪要求**（必填：空着或全是空格时「仅创建」「创建并运行」都不可点，下面一行「必填：创建前请填写追踪要求。」；主进程也拒）· **严格程度**三档（`filters`：宽松（收录更多）· 标准 · 严格（仅收录高度相关），默认标准；标签行右边「标准：相关度 ≥ 0.5 且实质 ≥ 0.6 视为通过」随选的变）· **来源**：一个 `search-field`，贴了回车 → `guessSource`（认种类、取名字，重名加 -2）→ 就地 `trySource`（一次抓取，什么都不写）→ 一行 `file-row`：名字、「RSS · 地址」、状态（`FETCH_STATES`，正常带条数）与下面一句——正常是「最新：「标题」」，其余是 V3 的「怎么办」（`FETCH_HINTS`，没新内容也说「不需要你做什么。」），**不显示抓取器自己的报错**；每行「移除」。同一地址再贴：「该来源已在列表中。」· 下面一行 `document-link`「或 使用预设来源包：AI Agent 工具」+「3 个主题 · 9 个来源 · 添加后可逐个移除」（预设包 = 核心现有的起步包，来源与核心存的一样，含 `min_points`）：点了把它的来源加成行（**不自动抓**：标「尚未测试抓取」，每行有「测试抓取」与「移除」）、把它的主题加进主题；加过后这一行不可再点 · **主题（选填）**（`filters` 每个带 ✕，输入框回车加；被某个来源用着的主题不能单独移除）· **存储位置**（`newLibraryFolder`：默认 `<新建库默认存储位置>\<库名作文件夹名>`，装好的流息即 `文档\Streams\<库名>`；「更改…」= `chooseLibraryFolder` 选一个；一行说那个文件夹：空文件夹将在此创建库 / 包含 n 个 .md 文件将作为库打开、不移动不修改原有文件（F57）/ 已有一个库将直接打开它、本表单不写入 / 有别的文件请换一个——这时两个创建按钮不可点）· **定时**：「每天 [时刻] 自动运行 · 单次运行最多 [n] 次模型调用」（默认 = 应用的定时 `settings.json` 与流水线上限 120，和主 Agent 建库时卡没写的一样）。
+- 页头「新建库」+「由主 Agent 生成，或手动填写。两种方式的默认值相同。」+ 当前连接 chip；表单从上到下：「由主 Agent 生成 · 手动填写」（`filters`，前者去主 Agent）· **库名称** · **追踪要求**（必填：空着或全是空格时「仅创建」「创建并运行」都不可点，下面一行「必填：创建前请填写追踪要求。」；主进程也拒）· **严格程度**三档（`filters`：宽松（收录更多）· 标准 · 严格（仅收录高度相关），默认标准；标签行右边「标准：相关度 ≥ 0.5 且实质 ≥ 0.6 视为通过」随选的变）· **来源**：一个 `search-field`，贴了回车 → `guessSource`（认种类、取名字，重名加 -2）→ 就地 `trySource`（一次抓取，什么都不写）→ 一行 `file-row`：名字、「RSS · 地址」、状态（`FETCH_STATES`，正常带条数）与下面一句——正常是「最新：「标题」」，其余是 V3 的「怎么办」（`FETCH_HINTS`，无更新也说「无需处理。」），**不显示抓取器自己的报错**；每行「移除」。同一地址再贴：「该来源已在列表中。」· 下面一行 `document-link`「或 使用预设来源包：AI Agent 工具」+「3 个主题 · 9 个来源 · 添加后可逐个移除」（预设包 = 核心现有的起步包，来源与核心存的一样，含 `min_points`）：点了把它的来源加成行（**不自动抓**：标「尚未测试抓取」，每行有「测试抓取」与「移除」）、把它的主题加进主题；加过后这一行不可再点 · **主题（选填）**（`filters` 每个带 ✕，输入框回车加；被某个来源用着的主题不能单独移除）· **存储位置**（`newLibraryFolder`：默认 `<新建库默认存储位置>\<库名作文件夹名>`，装好的流息即 `文档\Streams\<库名>`；「更改…」= `chooseLibraryFolder` 选一个；一行说那个文件夹：空文件夹将在此创建库 / 包含 n 个 .md 文件将作为库打开、不移动不修改原有文件（F57）/ 已有一个库将直接打开它、本表单不写入 / 有别的文件请换一个——这时两个创建按钮不可点）· **定时**：「每天 [时刻] 自动运行 · 单次运行最多 [n] 次模型调用」（默认 = 应用的定时 `settings.json` 与流水线上限 120，和主 Agent 建库时卡没写的一样）。
 - `form-footer`：**取消** · 小字「创建后立即开始首次运行，预计 n–m 次模型调用」（`estimateNewLibrary`：运行前自检 1 次 + 各行试抓到的条数 × 1–4，两头不超过上限；有没抓过的行时加「（未测试抓取的来源不计入）」）· **仅创建** · **创建并运行**（主色，最右）。两者都是 `createNewLibrary(form)`，`run` 一假一真：主进程按表单建库并登记、设为当前库（§四表、`services/new-library.mjs`），**仅创建**什么都不排；**创建并运行**排进运行（`queueRound`，照 R1 / R2 的排队规矩：没别的在跑就马上开始，否则排到队尾；原因「建库后的第一轮」= `first`）。然后去这个库的待看。
 - **默认值与主 Agent 建的一样（O15）**：两条路都由核心 `fillNewLibrary` 写设置（`docs/core-api.md` 5.18）：阈值（严格程度那一档的两个数；主 Agent 的卡没写 = 标准）、定时（没写 = 应用的）、上限（没改 = 流水线默认）。表单写的每样都是你的（`changes.jsonl` 记 `you`）。首次设置的记录照旧六条：library（更改…选的 = chose，默认位置 = default，带文件夹状态）· connection（首次打开的，抄来）· pack（用了预设包 = chose + id，否则 skipped）· sources（预设包原样、没加 = default，否则 wrote + 删了几个加了几个）· trial（创建并运行 = chose，仅创建 = skipped）· schedule（照默认 = default，否则 wrote）。
 
@@ -733,7 +734,7 @@ frame-ancestors 'none'
 
 **来源与要求**（`screens/sources.js`，路由 `sources`；P14，F45–F50、F54，N01、N08）——四块，一屏多一点（`[data-view="main"]`，`main .st-src > [data-part]` 依次 `brief · sources · topics · run`）：
 - **要求** `[data-part="brief"]`：库名称 `input[data-field="library-name"]`（N08）、追踪要求 `textarea[data-field="brief"]`（常开，不再先点「改要求」）、严格程度三档 `[data-part="strictness"] [data-level=loose|standard|strict]`（`getStrictness`；两个阈值不是任一档时多一个「自定义」`[data-level="custom"]` 并亮着，下面一行说明在高级里手动改过）、标签行右边一行「标准：相关度 ≥ 0.5 且实质 ≥ 0.6 视为通过」`[data-part="level-note"][data-level]`；**一个「保存」** `[data-action="save-brief"]`：改了的才写——库名 `setLibraryMeta(id, { name })`（登记与库自己的 `streams.json` 的 `name`，左栏与页头跟着变）、追踪要求 `setBrief`、严格程度 `setStrictness(level)`（那一档的两个阈值）；每样在 `changes.jsonl` 记一行 by `you`。空的追踪要求、空的或过长的库名在页面就拒，什么都不写。说明行 `[data-part="brief-note"][data-kind=saved|error]`。
-- **来源 · n 个** `[data-part="sources"]`：**就地加来源，不弹对话框**——`search-field` `input[data-field="source"]` 贴了回车 → `guessSource`（认种类、取名字，重名加 -2）→ `trySource`（一次抓取，什么都不写）→ 一行，用的是**新建库表单同一个组件**（`screens/new-library.js SourceRow`，多了 `lead`「已识别为 RSS」与可替换的按钮）：名字、「已识别为 … · 地址」、状态（`FETCH_STATES`，正常带条数）与下面一句（正常：最新一条的标题；其余：V3 的「怎么办」`FETCH_HINTS`，**从不显示抓取器自己的报错**）+ **添加 · 取消**（`[data-part="adding"]`、`[data-action=add-source|cancel-add]`）。「添加」只在试抓到达来源之后可点（正常、没新内容、暂时失败；地址有问题、被拒绝不可点并说一句），`addSource`；同一地址再贴：「该来源已在列表中。」。来源表三列（`.st-src-table`）：**来源**（名字、种类 · 地址）· **状态与处理建议**（`status-chip` `[data-fetch-word]`：正常 · n 条 / 地址有问题 · HTTP 404 · 连续 n 次运行 / …；`[data-hint]` V3 的怎么办；不是正常时「上次成功抓取：…」）· **主题**；每行 `[data-row][data-state][data-paused][data-consecutive]` 末尾一个「⋯」`[data-action="row-more"]`，点开 `[data-part="row-menu"]` 四项：**测试抓取**（结果写在这一行下 `[data-tried]`，什么都不写）· **暂停 / 恢复**（`setSourcePaused`）· **修改地址**（模板对话框 `edit-source`：`updateSource`）· **删除**（模板对话框 `remove-source`，取消什么都不变）。点了任一项菜单收起；点别处、Esc 也收起。
+- **来源 · n 个** `[data-part="sources"]`：**就地加来源，不弹对话框**——`search-field` `input[data-field="source"]` 贴了回车 → `guessSource`（认种类、取名字，重名加 -2）→ `trySource`（一次抓取，什么都不写）→ 一行，用的是**新建库表单同一个组件**（`screens/new-library.js SourceRow`，多了 `lead`「已识别为 RSS」与可替换的按钮）：名字、「已识别为 … · 地址」、状态（`FETCH_STATES`，正常带条数）与下面一句（正常：最新一条的标题；其余：V3 的「怎么办」`FETCH_HINTS`，**从不显示抓取器自己的报错**）+ **添加 · 取消**（`[data-part="adding"]`、`[data-action=add-source|cancel-add]`）。「添加」只在试抓到达来源之后可点（正常、无更新、暂时失败；地址无效、访问被拒不可点并说一句），`addSource`；同一地址再贴：「该来源已在列表中。」。来源表三列（`.st-src-table`）：**来源**（名字、种类 · 地址）· **状态与处理建议**（`status-chip` `[data-fetch-word]`：正常 · n 条 / 地址无效 · HTTP 404 · 连续 n 次运行 / …；`[data-hint]` V3 的怎么办；不是正常时「上次成功抓取：…」）· **主题**；每行 `[data-row][data-state][data-paused][data-consecutive]` 末尾一个「⋯」`[data-action="row-more"]`，点开 `[data-part="row-menu"]` 四项：**测试抓取**（结果写在这一行下 `[data-tried]`，什么都不写）· **暂停 / 恢复**（`setSourcePaused`）· **修改地址**（模板对话框 `edit-source`：`updateSource`）· **删除**（模板对话框 `remove-source`，取消什么都不变）。点了任一项菜单收起；点别处、Esc 也收起。
 - **主题 · n 个** `[data-part="topics"]`：一排标签 `[data-topic-row][data-kept]`「名字 · n 篇」；点一个才显示 `[data-part="topic-detail"]`：「「名字」的关键词（固定，系统不会自动修改）：」+ 关键词标签 `[data-keywords]` + **编辑关键词**（`updateTopic`）· **删除主题**（模板对话框 `remove-topic`）；加主题只要名字（输入框 `[data-field="topic-name"]` 回车，`addTopic` 不带关键词，关键词以后补）。
 - **定时与上限** `[data-part="run"]`：一行「☐ 每天 [08:30] 自动运行 · 单次运行最多 [120] 次模型调用 ［保存］」（`setLibrarySchedule`、`setRoundCap`，一个 `[data-action="save-run"]`，改了的才写，各记一行 by `you`；时刻、上限不对在页面就说 `[data-part="run-note"][data-kind=saved|bad]`），下面一行：下次运行：… / 未开启定时运行。+「需保持流息运行（窗口或托盘）；错过的运行将在下次启动时补上一次，不累加。达到上限后停止，剩余内容留待下次运行处理。」（`[data-next-run]`）。
 - 最底下 `document-link`「高级设置：评分环节与提示词 · 变更记录 · 库文件夹 →」`[data-action="go-advanced"]` → 路由 `sources` + `params.view = 'advanced'`。
@@ -882,10 +883,10 @@ frame-ancestors 'none'
 | | 完整卡（对话里：主 Agent 页、问库） | 紧凑卡（右栏「待确认」） |
 |---|---|---|
 | 谁 | 主 Agent 提议（`agentItem(card)`：`listProposals` 的卡，形状同 `listToConfirm` 的条目） | 主 Agent 提议与系统检测（`listToConfirm().items`，全部库） |
-| 头 | 标题 = 动作 + 对象（`PROPOSALS.card.titles`：创建库：<库名> · 添加来源：<名> · 移除来源 · 暂停 / 恢复来源 · 修改主题 · 修改追踪要求 · 修改严格程度 · 修改定时运行 · 修改单次运行上限 · 立即运行）；小字「主 Agent 提议 · 确认后生效」；`confirm-number` = 库名（新库是它的名字） | 来处行「主 Agent 提议 · <库名>」或「系统检测 · <库名>」；标题（系统检测的五种 + ① 的「地址有问题」由 `PROPOSALS.kinds` 按证据说：次数、来源名、对方库名、重合比例、放弃原因的快选字）；一行说明（主 Agent 提议：「修改后：…」，建库「n 个来源 · n 个主题 · 每天 08:00 自动运行」；系统检测：证据的界面说法 `PROPOSALS.evidence`，③ 带命中的原句） |
+| 头 | 标题 = 动作 + 对象（`PROPOSALS.card.titles`：创建库：<库名> · 添加来源：<名> · 移除来源 · 暂停 / 恢复来源 · 修改主题 · 修改追踪要求 · 修改严格程度 · 修改定时运行 · 修改单次运行上限 · 立即运行）；小字「主 Agent 提议 · 确认后生效」；`confirm-number` = 库名（新库是它的名字） | 来处行「主 Agent 提议 · <库名>」或「系统检测 · <库名>」；标题（系统检测的五种 + ① 的「地址无效」由 `PROPOSALS.kinds` 按证据说：次数、来源名、对方库名、重合比例、放弃原因的快选字）；一行说明（主 Agent 提议：「修改后：…」，建库「n 个来源 · n 个主题 · 每天 08:00 自动运行」；系统检测：证据的界面说法 `PROPOSALS.evidence`，③ 带命中的原句） |
 | 正文 | `decision-points`：建库 = 01 追踪要求 · 02 严格程度（档名 + 一句意思，`PROPOSALS.card.levels`，**不写阈值数字**；档由 `lib/strictness.js levelOf` 判，表与核心 `STRICTNESS` 相同、测试核。两道阈值都对不上三档时「自定义 · <它相对三档的位置>」——预检第 1 条：主 Agent 的提议没人手动改过，不再说「已在「高级设置」中手动修改」（那句留在来源与要求里真改过的库上）；位置由 `placeOf` 按两道阈值一起判，见下表；修改前后读出来一样时，修改后再接一句哪一道变严 / 变宽） · 03 主题与来源（主题带关键词；每个来源一行试抓：名字、状态 · 条数，没勾的写「不添加」） · 04 定时与上限；修改类 = 01 修改前 · 02 修改后（来源与主题里新出现的标出，`[data-changed]`），加来源再一点「测试抓取」 | — |
 | 底 | 左「存储位置：<路径> · 确认后记入变更记录」，右按钮 | 按钮（预检第 8 条：每张都靠右、主按钮在最右，① 的四个折成两行也靠右；来处行不变大写，库名与「主 Agent」照写，预检第 7 条）；会调主 Agent 的动作上面一行「「交由主 Agent 分析」由主 Agent 处理，通常 1–4 次模型调用，需要重试或整理对话记录时最多 18 次模型调用」（`PROPOSALS.callsModelOf`，次数 = 主 Agent 一条消息，与主 Agent 页同一口径，见下）；系统检测的一行说明里时间写在冒号后（「最近一次：今天 09:33」「首次出现：…」，预检第 8 条，原「自 今天 09:33 起」） |
-| 按钮（次要在左、主按钮在最右） | 拒绝（quiet）· 提出修改 · 确认（建库叫「创建」，primary） | 主 Agent 提议同左；系统检测 = `listToConfirm` 给的动作表（主动作在前）**倒过来画**：忽略（quiet）在最左，主动作在最右（① 暂时失败 / 访问被拒：忽略 · 交由主 Agent 分析 · 修改地址 · 暂停该来源；① 地址有问题：忽略 · 交由主 Agent 分析 · 暂停该来源 · 修改地址；②：忽略 · 交由主 Agent 分析 · 将严格程度调整为「<档>」；③：忽略 · 交由主 Agent 分析 · 暂停该来源；④：忽略 · 交由主 Agent 分析；⑤：忽略 · 生成修改提议） |
+| 按钮（次要在左、主按钮在最右） | 拒绝（quiet）· 提出修改 · 确认（建库叫「创建」，primary） | 主 Agent 提议同左；系统检测 = `listToConfirm` 给的动作表（主动作在前）**倒过来画**：忽略（quiet）在最左，主动作在最右（① 暂时失败 / 访问被拒：忽略 · 交由主 Agent 分析 · 修改地址 · 暂停该来源；① 地址无效：忽略 · 交由主 Agent 分析 · 暂停该来源 · 修改地址；②：忽略 · 交由主 Agent 分析 · 将严格程度调整为「<档>」；③：忽略 · 交由主 Agent 分析 · 暂停该来源；④：忽略 · 交由主 Agent 分析；⑤：忽略 · 生成修改提议） |
 
 自定义的说法（`PROPOSALS.card.customLevel` / `customWhere` / `delta`，中英两张；`lo` = 两道阈值都不低于的最严一档，`hi` = 两道都不高于的最宽一档）：
 
@@ -919,119 +920,177 @@ frame-ancestors 'none'
 
 **测试**：`test/ui-r5b.test.mjs`（四个世界：卡的十种主 Agent 提议与 ①–⑤、状态、三处界面说法与诊断信息；主 Agent 页；右栏待确认；重新评分），`core/test/r5b.test.mjs`（`changedField`、主 Agent 一条消息的调用次数：1、4、18）；预检修正（11-13）补的：自定义的位置与修改前后同句、修改地址回来不再弹、调用次数上限、标题在整个窗口只出现一次、三处真画出来没有码、重新评分里新标准也没通过的条目并存、紧凑卡来处不变大写与按钮靠右、待确认空时只一句、HTTP 死代码；`r5b-*` 变异体在 `scripts/mutation-check.mjs`。因本包改的旧测试都注明「redesign R5b」与原因；验收草案 n06 的 UC1 / UC2 / UC3 / UC5 只改了定位与按钮的说法（文件头列了每一步改了什么，供 R6 给 维护者 看），草案标准原文与 `standards.mjs` 没动。
 
+### 4.22 §四补：重设计 R6b——界面文字收尾（11-13）
+
+契约 `docs/checks/2026-11-13-r6b/contract.md`。五部分：五种状态与处理建议（R6b-1）、中文按 05 收尾与死代码（R6b-2）、英文字典全量（R6b-3）、v2 草案跟改（R6b-4）、定时那条测试（R6b-5）。§五、§七、§九 随本包按现状重写。
+
+**五种状态与处理建议（R6b-1，V3）**：维护者 11-11 过目第 1 条——V3 原文不变，五个状态字换成 05 第三节的。内部键（`ok / empty / gap / failed / blocked`、四个提示码）不动。
+
+| 键 | 中文 | 英文 |
+|---|---|---|
+| ok | 正常 | OK |
+| empty | 无更新 | No updates |
+| gap | 地址无效 | Invalid address |
+| failed | 暂时失败 | Temporary failure |
+| blocked | 访问被拒 | Access denied |
+
+| 提示码 | 中文 | 英文 |
+|---|---|---|
+| none | 无需处理。 | No action needed. |
+| fix-address-or-remove | 该地址无效，重试无法解决。请修改地址，或移除该来源。 | This address is not valid, so retrying will not help. Change the address or remove this source. |
+| retry-next-round | 下次运行时将自动重试，无需修改地址。 | Streams tries again on the next run. There is no need to change the address. |
+| blocked-remove-source | 该网站拒绝程序访问，重试无法解决。请改用其他来源。 | This site does not allow programs to read it, so retrying will not help. Use a different source. |
+
+- 一处定义、处处一致：界面 `texts*/common.js` 的 `FETCH_STATES` / `FETCH_HINTS`、核心给主 Agent 的 `STATE_WORDS` / `ADVICE_WORDS`（`core/src/agent/words.mjs`）、词表 `wording/glossary.json` 的 `fetch_states`。谁核：`test/r6b-words.test.mjs`（两套字典与核心对契约的两张表逐字）、`test/services-r5a.test.mjs`（核心 = 字典）、`wording/test/glossary.test.mjs`（词表 = 字典 = 核心）、`core/test/r5a.test.mjs`（核心对两张表逐字）、V3 验收测试（中英状态字逐字、处理建议的必含片段、反向哨兵：暂时失败那句不得含「重试无法解决」「移除该来源」「改用其他来源」）。
+- 写死旧字的地方一并改了：`PIPELINE.about.fetch`、`PROPOSALS.kinds.source-failing-gap`、`PROPOSALS.evidence.source-failing` / `source-failing-gap`；`SOURCE_STATES.never` 是「尚未抓取」；连接出错码 `refused` 是「请求被拒」（英文仍是 the request was declined：`texts-en.test` 禁用 refuse 一族）。
+- `core/test/r5a.test.mjs` 的扫描不再先把处理建议拿掉（R5a 时旧句子自己带「不再用」的词）：四句现在和别的字一样过扫描。
+- `services-r5a` 那条「新字不许出现」反过来了：旧状态字与旧处理建议的片段不许出现（十三个模式，各带一个能命中的样本）。测试与变异体里凡要写出旧字的地方，都拆成两段或写成带方括号的模式——契约要求全仓搜旧字零命中。
+
+**中文按 05 收尾（R6b-2）**：
+
+- 122 行对照表：`docs/checks/2026-11-13-r6b/05-对照.md`，由 `docs/checks/2026-11-13-r6b/tools/gen-05.mjs` 生成（现值从字典读；键、状态、理由在 `tools/05-map.json`）。脚本对每行查两件事：对应键的现值含不含新说法、全字典里还有没有旧说法；`--check` 只核不写。
+- 改掉的旧口语句子 81 条（契约点名的，加上按规则 2 / 4 / 5 / 6 / 8 与统一用词查出的），清单在 `tools/r6b2-rewrites.json`，也是 `05-对照.md` 的附表一；查到没改的 9 条（设计稿原句、安装测试断言着的「没找到」等）是附表二。连接出错的十一个词与「提议未能生成」「连接出现问题」两句，核心 `words.mjs` 同改。`test/r6b-words.test.mjs` 拦这些旧口语回到字典。
+- 系统通知是「{library}：本次运行新增 {n} 条待看。」（05 第 173 行）；英文 `{library}: this run added {n} to the Inbox.`（主进程的 `fmt` 没有单复数写法）。
+- **死代码删了**：占位屏 `screens/placeholder.js`、`styles/screens/placeholder.css`（与 `app.css` 的那行 @import）、`texts/screens.js`、`texts-en/screens.js`——全仓没人 import（v2 起每个入口都有自己的页）。`protocol.test` 原来拿 `screens.js` 当样本，换成 `shell.js`；两个以它为锚的变异体（`banned-word`、`en-missing-key`）改锚到 `shell.js`。
+- **interim.css 还剩谁在用**：只被占位屏用的名字 `--st-text-3` 随它删了，现在 53 个名字、58 行取值。使用者：kit（`kit.css`：对话框、`Button`、标签、五种抓取状态的颜色对——`kit.test` 要求五对都在）、菜单（`menu.css`：资料库与右栏文件里的「更多」）、外框与右栏 R1 的残留（`screens/shell.css`、`screens/panel.css`）、开发时的组件一览（`screens/kit.css`，不进安装包）。真屏里还在用 kit 部件的：待看的「添加链接」对话框、两处菜单、库架的一个按钮、外框（`AppFrame` / `AppSidebar` / `Main` / `TopBar` / `LibrarySections`）。本包不迁；`app.css` 里说它「R2–R4 会删」的注释改对了。
+
+**定时那条测试靠时机（R6b-5）**：`test/ui-schedule.test.mjs` 加一条「R6b-5 a time typed and not saved stays …」：时间框显示已保存的值 → 填另一个值不保存 → 经桥 `window.streams.setSchedule` 写入第三个值（主进程发 `settings-changed { libraryId }`，页面真的重新读一次）→ 等 `[data-next-run]` 的 `dataset.nextRun` 变成第三个值的时刻、再等两帧加 200 ms（延后的 effect 跑完）→ 框里仍是没保存的值 → 点保存，`streams.json` 是框里的值；最后把原来的时刻存回去，所以它能单独跑。变异体 `r4b-draft-overwritten` 的 `--test-name-pattern` 指到它。原来「a new time」那条照留：它只在保存后约 40 ms 内填入才碰得到重新读取（重读回来的值与刚保存的相同，effect 不触发）。
+
+**变异体**：`scripts/mutation-check.mjs` 的 `r6b-*`（16 个：状态字中英、与核心不一致、处理建议说下一轮 / 把暂时失败说成要换来源 / 英文换句、证据句与环节说明里的旧状态字、还没抓过、两句旧口语、英文通知、通知说本轮、占位屏的 @import 与 interim 名字放回）；核心 `core/scripts/mutation-check.mjs` 的 `r6b-core-*`（4 个）。
+
+**英文字典全量（R6b-3）**：
+
+- **英文用词表**：定在 `wording/glossary.json` 的 `english` 一节，`docs/wording.md` §二印出来（词、不再用的旧英文与白名单、两处有意偏离）。待看 Inbox、库架 Shelf、资料库 Library、问库 Ask、来源与要求 Sources & Brief、追踪要求 Brief、主 Agent Main agent、收藏 / 放弃 / 稍后处理 Keep / Discard / Later、忽略 Dismiss、待确认 To confirm、系统检测 Detected by Streams、运行 run、核验 verification（不与 check 混用）、校验规则 Validation rules、单次运行上限 Per-run cap。**核验记录里的「第 n 轮」仍叫 round**（五个键，白名单），运行一律 run。两处有意偏离 05：「提示词」保持 Instructions（`texts-en.test.mjs` 禁 prompt），「设为当前连接」是 Set as current connection（05 第 167 行的 Use for scoring 没跟上中文）。
+- **05 英文列 15 处偏差**：采纳 12 处、不采纳 3 处（第 145、167 行如上；第 179 行「连接你电脑上的 Claude Code」的英文句子被 V7 的允许句逐字钉着，留给 维护者 定），逐条记在 `docs/checks/2026-11-13-r6b/05-对照.md`「英文列 15 处偏差」（脚本核对现值）。
+- **逐条对读**：两套字典现在 1405 对（R6b-2 删占位屏后 1399 对，本包加 6 对标点），逐条读过，改 94 条（其中 3 条是 11-15 预检后补的：未登录、全部库、核验规则条数），每条的键、改前、改后、为什么在 `docs/checks/2026-11-13-r6b/英文对读.md`（`tools/gen-english.mjs` 生成并核对现值；改动经 `tools/apply-english.mjs` 一次改进字典）。对读时查出一处中英都指错地方的句子（`LIBRARY.pending.notProposable` 说「在设置中点击重建索引」，实际在「来源与要求 → 高级设置」），中英一起改了。V6 横幅的英文「已保留」由 are kept 改成 retained（与收藏的 Kept 撞词），中文是 维护者 过目的句子，没有动。
+- **内置校验规则的英文**：core `verify/checklist.mjs` 的 11 条内置规则描述加了英文；运行、核对员、核验记录用的仍是中文那一份，**显示按界面语言**——`services/pipeline.mjs` 的 `getPipeline` / `savePipeline` 把配置交给页面前调 core 的 `describeChecklist(checklist, 界面语言)`（`shown`），高级设置「评分环节」和核验记录的规则名都从这份配置取字（做法与理由见 `docs/core-api.md`）。
+- **屏幕自己拼的标点**：`screens/pipeline.js`、`proposal.js`、`sources.js` 里写死的全角括号、冒号、顿号、分号、逗号改从字典取——`texts/common.js` 的 `PUNCT`（全角）与 `texts-en/common.js` 的 `PUNCT`（半角带空格）。代码里唯一留下的全角标点是 `sources.js` 写进 `data-keywords` 属性的顿号（不上屏，测试在读）。
+- **core 给主 Agent 的英文词**（`core/src/agent/words.mjs` 的 `UI_TERMS`）与 core 写进对话的英文句子（`suggest/act.mjs`）里的专名照用词表改了大小写（Inbox、To confirm、Sources & Brief）。
+- **测试**：`test/r6b-english.test.mjs`（不起窗口）——用词表对两套字典全量核（键上的词、中文有某词英文必须 / 不许有什么、旧英文零命中，白名单五个键）、core 的英文词、11 条内置规则的英文、代码里没有全角标点；每条都带放回旧词 / 放回标点的反向。`test/ui-english-screens.test.mjs`（真窗口）——英文界面下 `07-模板版/画面清单.json` 的 21 个画面逐个到达（到达方式照 R1–R6a 的截图脚本，对话框打开），取全部可见文字（渲染出来的文本节点、aria-label / title / placeholder / alt、输入框的值、窗口标题），断言没有汉字与全角标点。**用户内容的处理**：种子世界是中文的（库名、追踪要求、条目标题、模型写的摘要、笔记），这些是用户的字，任何语言下原样显示；判断办法不是列名单，而是看出处——屏幕上一段连续的汉字 / 全角标点，只有逐字出现在这个世界自己的文件里（各库文件夹、新库的目录、本测试给假模型写的脚本、登记库名与图标的 `libraries.json`）或本测试输入的字里，才算用户的；应用自己的数据目录其余部分不算。单独一个全角标点（哪篇中文里都有）要连同前后各三个字符一起在文件里找到才算；不足四个汉字的一段（「新」「追踪」这种短词，几乎一定藏在种子世界的某句中文里）要在文件里**单独成段**（前后不是汉字或全角标点，如主题名、关键词、库名、图标字）才算——预检发现只按子串找时，把「new」换回「新」、把「Tracking:」换回「追踪」测试仍是绿的。库在启动前设成英文库（英文界面下建的库就是英文库）。设置页语言选择里的「中文」是唯一按名字放行的字。测试自己输入和脚本里写的都是英文。对照：进程内——往某屏的文字里加一个中文字典词、一处英文旁的全角括号、一处用户词旁的全角括号，各自被报；变异体——把库架标题的英文键换回中文、把内置规则旁的括号换回全角、把交给页面的内置规则换回中文、把待看卡上的「new」换回「新」、把库架卡的「Tracking:」换回「追踪」，测试红；进程内另有一组对照：世界的句子里含着的短词（「新」「追踪」）单独出现、或挨着卡片标题出现，都被报。
+- **英文截图**：同一条测试顺手把 21 个画面各存一张（研究对话浅色，英文），设了 `STREAMS_EN_SHOTS_DIR` 就存到那里，否则存临时目录、跑完删；`docs/shots/2026-11-13-r6b/en/` 的 21 张是这样拍的（`<画面 id>.png`）。
+- **变异体**：desktop `r6b-en-*` 10 个（To read、round、Checking model、save、Sources & brief、代码里的全角逗号、英文标点表里的全角括号，以及上面三个真窗口的），core `r6b-core-rule-desc-*`、`r6b-core-run-desc-changed`、`r6b-core-inbox-case` 4 个。
+- **不做（已知缺口）**：安装程序界面的英文（Inno Setup 只有简体中文）；主 Agent 局面摘要给模型的英文版（`core/src/agent/situation.mjs`，不上屏）。
+
+**v2 草案跟改（R6b-4）**：
+
+- **标准原文未动**：`tests/acceptance/v2-draft/standards-draft.mjs`、`docs/design/v2/architecture.md` 第五节、各草案测试第 1 行（哨兵锁着三处逐字相同）与 `tests/acceptance/standards.mjs` 一字未改。
+- **测试名与夹具改用现在的界面词，断言未变**：n06 的 8 个测试名（主 Agent；进度 / 来源与要求；连续 3 次运行没有新内容进入待看；库内暂无相关内容。；已转交主 Agent；主 Agent 提议 · 已确认；检测到面向 AI 的指令，已忽略；系统检测的那句）与主 Agent 假回复里的状态字；n01 的测试名（拒绝 / 提出修改）与夹具的四句话（严格程度、单次运行上限、立即运行）——断言的提示文字与变异体的 `step` 必须逐字相同，所以没有动；n04 的测试名（立即运行）；`support/app.mjs` 的一处注释。每个文件头有一段带「redesign R6b」的说明。
+- **N6 的 23 张截图在新界面下重拍并纳入本包改动**（`docs/shots/acceptance-v2/`；此前提交的是 11-09 的旧界面）。R1–R6a 各契约的「跑完还原 `docs/shots/acceptance-v2/`」本包不适用，以后各包照旧还原。
+- **给 维护者 的清单**：`docs/checks/2026-11-13-r6b/草案对照清单.md`——UC1–UC5 共 21 步逐步写「J1 时核什么 → 现在核什么 → 哪个包、为什么 → 性质」（12 步核的东西变了、7 步只换定位或字、2 步没变）；摸底 26 条的逐条复核；两张「旧句 → 建议新句」表（`standards-draft.mjs` 的 N1 / N3 / N4 / N6 与 V1 / V3 / V6 / V7 / V8 / V9 / V10 的建议改字；`standards.mjs` 的 V1 / V4 / V12）；六件要 维护者 定的事。只建议，不改。
+
 ## 五、界面写法
 
-**选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。
+> 本节按重设计 R1–R6b 之后的样子重写（2026-11-14，R6b）。v1 / v2 时代的写法（概览、今日、运行状态、首次设置四步、K2 的三套 token、每块旁的操作来源标记等）已不存在，历史见 §4.1–§4.12 与 git 记录；各屏的细节在 §4.13–§4.22，本节只说现在的结构与规矩。
+
+**选型：Preact 10 + htm，原生 ES 模块，不构建**（理由照云织：离线、合严格 CSP、小、局部更新）。外观用设计目录的**模板**（`07-模板版`）：模板的样式表、图标数据原样放在 `src/renderer/template/`（`manifest.json` 是 sha256 清单，文件不改），应用自己只加一层 `styles/template-app.css`。
 
 ```
 src/renderer/
-  index.html        CSP <meta>、import map（preact、preact/hooks、htm）、styles/app.css、app.js
-  app.js            App：当前路由、navigate()（v1.0 的 id 经 `ALIASES` 换成现在的地方）、应用状态、库的列表（`useLibraries`）与待确认（重设计 R5b：`lib/agent.js useToConfirm`，原「等你定的事」`useWaiting`）、每个库记住的页面与滚动（`memory`）、切库（`openLibrary`）、「新建库」对话框；显示当前屏幕；没打开库时显示首次设置（screens/first-run.js），做完才回到入口
-  lib/              html.js · bridge.js（call、onEvent）· use-load.js · use-update.js · format.js（fmt、日期）· app-context.js（useApp）· use-events.js（useEvent、isOfLibrary；`useInboxCount` 留着、v2 不再用）· agent.js（v2 包 G：useProposals、useAgentBusy；重设计 R5b：useToConfirm，useSuggestions 与 suggestionsChanged 删了）· strictness.js（重设计 R5b：三档的表、levelOf、placeOf——自定义相对三档的位置）· libraries.js（v2 包 F：useLibraries、tracking「在追」、firstSentence、joinRows、withInboxCount；包 L 的 useWaitingItems / useWaiting 已由重设计 R5b 的 agent.js useToConfirm 取代）· action.js（Act：带 data-action 的按钮）· markdown.js（renderMarkdown：笔记的 Markdown 切成 Preact 元素，不经 HTML 字符串）
-  kit/              组件（下表），从 kit/index.js 引
-  screens/          index.js（SCREENS：id → 组件；ALIASES；FIRST_SCREEN；LIBRARY_FIRST_SCREEN）· first-run.js（S1 四步）· shelf.js（P1 库架）· chat.js（P03 主 Agent 页，重设计 R5b：模板对话部件 thread / user-message / assistant-message / composer、页头「n 项待确认」、对话里一种提议的完整卡；包 G 的「等你定的事」与 AgentBubble 已去掉；Notice、NoConnection、Compose、FirstGuide）· proposal.js（重设计 R5b：一种提议的卡，完整 / 紧凑两种尺寸；取代包 G 的 proposal-card.js 与 suggestion-card.js）· new-library.js（「新建库」对话框）· library-frame.js（库页外壳：库头 + 五个标签 + 屏；ViewSwitch）· overview.js（P3 概览 = v1.0 今日 S2 + S13 出错卡片 + 运行状态）· status.js（概览里「运行状态」那一块 RunStatus）· run-dialog.js（S12，概览上的对话框）· inbox.js（S3 / P4）· library.js（S6 / P5）· graph.js（S9，资料库的图谱视图）· edit-dialog.js（S7）· verdict-dialog.js（S15）· ask.js（S10 / P6）· sources.js（S5 + 要求 + 本库定时与上限 + 谁定的 = P7 来源与要求）· pipeline.js（S4 的部件 = 来源与要求里的「关卡」GatesSection）· settings.js（S14 / P9；连接行的零件也从这里导出）· settings-update.js · placeholder.js（没人用的占位工厂）· kit.js（开发时）
-  texts/            页面自己写的所有字：common.js（品牌、侧栏的两个入口与「设置」、五种状态、日期、三种连接与登录回路的词、节点名、阶段名）· shell.js（v2 包 F：我的库、角标、五个标签、库头、库架、新建库、谁定的、要求、关卡、定时一览、用量合计）· first-run.js · today.js（概览）· inbox.js · run.js · settings.js · library.js（含编辑与核验记录两个对话框的字）· sources.js · pipeline.js · status.js · ask.js · graph.js · screens.js（占位页）· kit.js；common.js 末尾加了界面 B 共用的：五态的「怎么办」句 `FETCH_HINTS`、`SOURCE_STATES`（已暂停 / 还没抓过）、`SOURCE_KINDS`、`NOTE_STATUS`、`NO_CONNECTION`
+  index.html        CSP <meta>、import map（preact、preact/hooks、htm）、styles/app.css、app.js；主题的模板样式表由主进程在发出时写进 <head>（main/theme.mjs withTheme）
+  app.js            App：当前路由、navigate()（v1.0 的 id 经 ALIASES 换成现在的位置）、应用状态、库的列表（useLibraries）、待确认（lib/agent.js useToConfirm）、每个库记住的页面与滚动、切库（openLibrary）；登记表里没有库时显示首次打开（screens/first-run.js）；组件一览只在开发时加（#kit）
+  lib/              html.js · bridge.js（call、onEvent）· use-load.js · use-update.js · use-events.js · format.js（fmt、日期）· app-context.js（useApp）· libraries.js（useLibraries）· agent.js（useProposals、useAgentBusy、useToConfirm）· queue.js（useQueue）· quota.js · phase.js（运行环节的说法）· strictness.js（严格程度三档）· theme.js（applyLook）· template-icons.js（各主题的图标）· brand-mark.js（品牌记号）· markdown.js（笔记的 Markdown 切成 Preact 元素，不经 HTML 字符串）· header-text.js（文件头的文本形式）· action.js（Act：带 data-action 的按钮）
+  kit/              v2 的组件，现在只剩外框、菜单、对话框、按钮与标签还在用（见下「kit 与 interim.css」）
+  screens/          index.js（SCREENS、ALIASES、FIRST_SCREEN）· 各屏（下表）· 共用部件：library-frame.js（库页外壳）· right-panel.js（右栏）· proposal.js（一种提议的卡）· problem-card.js（运行未能开始的横幅）· run-funnel.js（上次运行的漏斗）· run-steps.js（运行中的环节）· t-dialog.js（模板对话框）· edit-dialog.js · verdict-dialog.js · settings-update.js · kit.js（组件一览，仅开发）
+  texts/            页面上的全部文字（下「文字」）
   texts-en/         英文字典，与 texts/ 同名同键（§六）
-  styles/           app.css（@import 列表）· interim.css（重设计 R1：旧 --st- 名指到模板变量，过渡）· base.css · kit.css · menu.css · screens/<屏幕>.css · template-app.css（应用对模板的一层覆盖）
-  template/         重设计 R1：设计目录里模板的样式表、图标数据、流息的标，原样（manifest.json 是 sha256 清单）
+  styles/           app.css（@import 列表）· interim.css · base.css · kit.css · menu.css · screens/shell.css · screens/panel.css · template-app.css · reader.css
+  template/         模板文件，原样
+  fonts/            Noto Sans SC、Noto Serif SC（可变字体）与各自的 OFL
 ```
 
-> **重设计 R1（11-11）**：左栏、右栏、库页头与标签（四个，概览已删）、库架改用模板部件，见 §4.13；下面是 v2 包 F 的原写法。
+**屏幕**（`screens/index.js` 的 `SCREENS`；设计的 21 个画面 = 这些屏加上它们的对话框与状态，清单在 `docs/design/redesign/source/07-模板版/画面清单.json`）：
 
-**界面结构（v2 包 F，11-05：方案 B；设计稿 `docs/design/v2/streams-v2-design.html` 的导航、P1、P3–P7、P9）**
+| 路由 id | 文件 | 是什么 | 细节 |
+|---|---|---|---|
+| `first-run` | `first-run.js` | 首次打开：一屏，连接由流息先选好；含连接选择 | §4.16 |
+| `shelf` | `shelf.js` | 库架：每个库一张卡，搜索，新建库 | §4.13 |
+| `chat` | `chat.js` | 主 Agent：模板对话部件，页头「n 项待确认」，对话里是完整的提议卡 | §4.20 |
+| `inbox` | `inbox.js` | 待看：卡片、待评分、稍后处理、未通过筛选、添加链接、放弃后的理由小条；空的时候显示上次运行的漏斗 | §4.14 |
+| `library` · `graph` | `library.js` · `graph.js` | 资料库（只列库里的文件；编辑笔记、缺少文件头、核验记录）与它的图谱视图 | §4.15 |
+| `ask` | `ask.js` | 问库：只基于库内内容回答；修改要求转交主 Agent | §4.15、§4.20 |
+| `sources` | `sources.js` · `pipeline.js` | 来源与要求：追踪要求、主题、来源、定时与上限；「高级设置」里是评分环节、变更记录、库文件夹、移除该库 | §4.17 |
+| `settings` | `settings.js` | 设置：连接 · 外观与语言 · 库与用量 · 关于；输入 API key、许可证与致谢两个对话框 | §4.17 |
+| `new-library` | `new-library.js` | 新建库：一页表单（预设来源包、仅创建不运行） | §4.16 |
 
-- **左栏不随库变**（`kit/sidebar.js AppSidebar`）：品牌「流 · 流息 · STREAMS」→「库架」`a[data-nav="shelf"]` →「主 Agent」`a[data-nav="chat"]`（重设计 R1 改名；**不带数字**——重设计 R5b（F10）去掉了包 F 的角标 `[data-badge="chat"]` 与 `lib/libraries.js useWaiting`：待确认的条数只在右栏「待确认」的标签与主 Agent 页头的「n 项待确认」上，见 §4.20）→ 小标题「我的库」→ 每个登记的库一行 `a[data-library-row=<id>]`（库的图标方块 `LibraryMark`、名字、待看数 `[data-library-badge]`、有问题时一个琥珀小点 `[data-problem=missing|sources|no-output]`；`data-active` = 是不是当前库；在它的库页上时 `aria-current="page"`，画成白卡片）→「+ 新建库」`[data-action="add-library"]` →（v2 包 M）当前连接的套餐余量或 API 余额 `[data-part="quota"]`（§4.11；没有就整块不画）→ 底部「设置」。v1.0 的九个入口（今日、待看、资料库、图谱、问库、流水线、来源与主题、运行状态）没有了，全在库页里。
-- **库的列表**（`lib/libraries.js useLibraries`，`app.js` 放进 `useApp().libraries`）：`listLibraries` 与 `getLibrariesOverview` 按 id 合成一行；`libraries-changed`、`library-changed` 与一轮结束（`round-progress` 带 `done: true`，哪个库的都算；包 J1 补：否则库架卡片的「上次更新」与琥珀小点要等别的事件才变，`test/ui-shelf-after-round.test.mjs`）时整份重读；`inbox-changed { libraryId, count }` **只改那一行的 `inbox`**（别的库的事件不碰这一行；没带 libraryId 的事件 → 整份重读）。左栏、库架、库头都读它。
-- **点一个库**（`app.js openLibrary`）：不是当前库 → `setActiveLibrary(id)`（失败 = 文件夹不在：留在原处、列表重读）→ 回到这个库上次停的那一页；第一次开 → 它的「待看」（`LIBRARY_FIRST_SCREEN`，设计稿 UC2）。应用启动停在当前库的「概览」（`FIRST_SCREEN`；v1.0 启动在今日）。
-- **每个库各自记住**（内存，`app.js memory`）：`routes`：库 id → 最后停的路由（标签与参数，例如资料库的图谱视图）；`scroll`：「库 id:屏」→ 主体（`.st-main__body`）滚到哪。回到那一屏、它有了数据之后放回去；之后才长出来的部分（来源与要求的「要求」「关卡」各自读数据）每 100 ms 再放一次，直到放到、且主体里没有 `data-state="loading"` 的部分（最多 3 秒），这期间的滚动不算你的。换库时库页整个重新挂（`key` 带库 id），上一个库的东西不会留在页面上。
-- **库页**（`screens/library-frame.js LibraryFrame`）：一张卡片——库头 `[data-part="library-head"]`（图标方块、名字 `h1#lib-head-name`、「在追：…」`[data-part="tracking"]` = 要求的第一句，没有要求就是主题名，都没有就「还没写要求，也还没有主题」；右边是这一屏的按钮，如概览的「下次运行 · 连接」与「现在跑一轮」、来源与要求的「贴一个链接进待看」「加来源」、资料库的「编辑」「用 Obsidian 打开」「打开原文」）→ 五个标签（`kit/library-sections.js LibrarySections layout="tabs"`：`nav.st-lib-tabs button[data-tab=<id>][aria-current]`，待看带这个库的数 `[data-tab-badge="inbox"]`，问库是对话气泡图标）→ 屏本身（`Main` 照旧带 `data-screen` / `data-state`）。**v2 包 L**：右栏不在卡片里了，是整个窗口的第三栏（四个标签，§4.12）；屏原来的右栏内容是它的「详情」。各屏原来的顶栏留作库页里的一行小标题（`h2`），按钮挪到库头。
-- **组件的 A / B 两种排法**（方案 A 保留）：`LibrarySections` 的 `layout` 是 `'tabs'`（方案 B：库页顶部的标签）或 `'sidebar'`（方案 A：同五项画成左栏入口 `a[data-nav=<id>]`，用侧栏零件 `SidebarNav`）；`current` 认路由 id（图谱算资料库，`TAB_OF`）、`badges` 给角标、`onSelect(id)`。换方案 A = 进库后左栏用 `Sidebar` + 「‹ 库架」+ `LibrarySections layout="sidebar"`，库页不画标签；屏本身不用改。本包只用 B。
-- **各标签的数据**（都作用于当前库，包 A 的「当前库」）：
-  - 概览 `overview`（`screens/overview.js`，P3）：v1.0 今日的全部（`getHome`：横幅——来源出问题、连续 N 轮没有产出、上一次「现在跑一轮」的问题卡含登录过期；四个数；上一轮各步的数 = 流水线的「上一轮」；正在跑的进度；最近收藏）+「现在跑一轮」与下次定时（库头）+「运行状态」一块（`screens/status.js RunStatus`，`getStatus`：上次运行 · 上次你拍板 · 本月调用次数 `[data-stat]`，来源状态一览 `[data-part="source-status"] [data-row]`，「复制诊断信息」「打开运行记录文件夹」）+「主 Agent 给这个库的建议」（桥上有 `listSuggestions` 才列标题，否则不画；卡片是包 G 的）。v1.0 运行状态里的三条连接不再在库页里（连接不是哪个库的），在设置。
-  - 待看 `inbox`、问库 `ask`：v1.0 的屏原样搬进库页（`getInbox` … / 问库自包 G 起经 `sendLibraryMessage` 分流，§4.8）。待看右栏的「去调提示词」到来源与要求的「关卡」。
-  - 资料库 `library` 与它的图谱视图 `graph`：v1.0 两屏，小标题行右边「列表 / 图谱」切换（`ViewSwitch`，`[data-mode=list|graph][aria-pressed]`）；图谱的 `Main` 仍是 `data-screen="graph"`，标签算资料库。
-  - 来源与要求 `sources`（`screens/sources.js`，P7）：左列「要求」`[data-part="brief"]`（`getBrief`；「改要求」→ 文本框 → 「保存」`setBrief`：streams.json 的 `brief`、`changes.jsonl` 记 `by: 'you'`；空的或过 2000 字在页面就拒）、主题、本库的「定时与每轮上限」`[data-part="run"]`（`getLibrarySchedule` / `setLibrarySchedule` 用当前库的 id，开关与时刻改了就存；上限 `getPipelineSettings` / `setRoundCap`）；右列来源（v1.0 来源与主题的行与对话框）；下面「关卡」`[data-part="gates"]`（`screens/pipeline.js GatesSection`：v1.0 流水线的节点条、关卡的要求、过关线、材料、核对单、试一条、保存 / 恢复默认，右边是上一轮各节点、最近的放弃理由、没通过核验的原因）。每块旁边「谁定的」`[data-who=brief|topics|sources|schedule|cap|thresholds][data-by=you|agent-confirmed|setup]`（`getWhoDecided`：你改的 · 日期 / 主 Agent 提的 · 你确认的 · 日期 / 没有记录 =「首次设置」）。
-- **库架** `shelf`（`screens/shelf.js`，P1）：每个库一张卡 `[data-shelf-card=<id>]`（图标、名字、「在追」、上次更新 `lastRoundAt` · 来源数、待看数大字、问题一行：文件夹不在 / 来源出问题 / 连续 N 轮没有产出，或「来源都正常」）；最后一张「+ 新建库 · 和主 Agent 聊着建」`[data-action="new-card"]` → 和主 Agent 聊；点卡片 = 点左栏那一行。一个库都没有：一句引导 + 「和主 Agent 聊」「手动新建」两个按钮 `[data-part="shelf-empty"]`。
-- **和主 Agent 聊** `chat`（`screens/chat.js`）：v2 包 G，见 §4.8（等你定的事、对话流、提议卡与建议卡、输入框）。**重设计 R5b**：「主 Agent」页，模板对话部件，见 §4.20。
-- **新建库**（**v2 包 I 起**是 `screens/new-library.js NewLibraryScreen`，路由 `new-library`，见 §4.10；包 F 时是对话框 `NewLibraryDialog`：库名 + 「选一个空文件夹新建」/「打开已有文件夹」）：左栏「+ 新建库」、库架「新建库」「手动新建」、首次打开引导的「也可以手动新建」。
-- **设置**（P9 的最小改动，包 I 再改）：定时与每轮上限不在设置里改了；「定时一览」`[data-part="schedules"]`（每个库一行 `[data-schedule-row=<id>][data-schedule=on|off]`：名字、每天几点或「关」、下次运行；只读；点名字 `[data-action="go-library"]` → 切到那个库的来源与要求、滚到「定时与每轮上限」）与「全部库本月用量合计」`[data-part="usage"]`（`getUsageTotal`：调用次数、输入 / 输出 token、每个库各几次）。其余设置项不动。**v2 包 I 起**分五组（连接 · 主 Agent · 库 · 外观与语言 · 软件），加主 Agent 状态与「新建库默认放在」，当前库的项搬到来源与要求的「这个库」，见 §4.10。
-- v1.0 的 id 仍然能用（`screens/index.js ALIASES`：`today` → 概览、`status` → 概览并滚到「运行状态」、`pipeline` → 来源与要求并滚到「关卡」），所以开发钩子 `--screen today`、通知的 `open-screen`、首次设置的「去今日」都有去处。
+- **应用打开在当前库的待看**（`FIRST_SCREEN` = `inbox`）；第一次打开一个库也是它的待看。概览已删除（维护者 11-11 第 1 题）。
+- **v1.0 的 id 仍然能用**（`ALIASES`）：`today`、`status` → 该库的待看；`pipeline` → 来源与要求的高级设置「评分环节」。开发钩子 `--screen <id>` 与通知的 `open-screen` 因此都有去处。
+- **三栏**：左栏（`kit/sidebar.js AppSidebar`：品牌记号、库架、主 Agent、「我的库」每库一行、新建库、当前连接的余量或余额、设置）· 主区 · 右栏（`screens/right-panel.js`：进度 · 待确认 · 详情 · 文件，可折成 52px 的窄条；首次打开与新建库时，右栏的「详情」是「流息怎样工作」）。
+- **库页**（`screens/library-frame.js`）：模板的工作区——页头（库名、一行追踪范围、该屏自己的按钮、状态条「下次运行 … · 预计 a–b 次模型调用」、运行按钮）→ 四个标签（`kit/library-sections.js`：待看 · 资料库 · 问库 ｜ 来源与要求，`nav.st-lib-tabs button[data-tab]`）→ 运行未能开始时的横幅（每个标签上方都有，V6）→ 屏本身。
+- **一种提议**（`screens/proposal.js`）：主 Agent 提议与系统检测共用一个部件，两种尺寸——对话里的完整卡、右栏「待确认」里的紧凑卡；按钮次要在左、主按钮在右。待确认是全部库的一个列表（`lib/agent.js useToConfirm`），随事件即时更新（§4.19、§4.20）。
+- **运行与排队**：页头的「立即运行」直接开始，不弹对话框；同一时间只有一次运行，其余排队（`lib/queue.js useQueue`，§4.13）。
+- **每个库各自记住**停在哪个标签与滚动位置（`app.js memory`）；换库时库页整个重新挂载。
+- **数据一律经桥**（§四）：页面不算数字，条数、状态、分数都是主进程给的；改了库之后听 `library-changed` 等事件重读。
 
-**加一屏**：1. `screens/<id>.js` 导出组件；库外的屏外面套 `AppFrame`（`sidebar=${html\`<${AppSidebar} current=${id} />\`}`）、`Main screen=${id} state=${…}`，库页的一个标签套 `LibraryFrame tab=<标签> state=${…} actions=${…} panel=${…}`（再在 `kit/library-sections.js` 的 `LIBRARY_SECTIONS` / `TAB_OF` 加一行）；2. `screens/index.js` 的 `SCREENS` 加它；3. 字写进 `texts/<id>.js` 并给 `texts-en/<id>.js`；4. 样式写进 `styles/screens/<id>.css`（类名用屏幕前缀），在 `styles/app.css` 加 `@import`；5. 数据走 §四 的桥。
+**加一屏**：1. `screens/<id>.js` 导出组件——库外的屏套 `AppFrame` 与 `Main screen=${id} state=${…}`，库页的一个标签套 `LibraryFrame tab=<标签>`（并在 `kit/library-sections.js` 的 `LIBRARY_SECTIONS` / `TAB_OF` 加一行）；2. `screens/index.js` 的 `SCREENS` 加它；3. 文字写进 `texts/<名>.js` 并给 `texts-en/<名>.js`；4. 用模板的部件与类名画，模板没有的小部件写进 `styles/template-app.css`（不另开样式文件，不写颜色）；5. 数据走 §四 的桥。
 
-> **重设计 R1（11-11）起，下面这段 K2 的主题写法已被取代**：主题直接用模板的样式表，四套、默认研究对话、tokens.css 已删，见 §4.13。
+**主题**（R1 起；§4.13）：四套——精密国际主义 `precision` · 澄明玻璃 `glass` · 研究对话 `research`（默认）· 单线黑白 `monoline`，每套有浅色、深色；外观设置 浅色 · 深色 · 跟随系统（默认）。id、外观、各组窗口底色与每套要加载的模板文件在 `src/shared/themes.mjs`；两个默认只在 `src/main/theme.mjs`（`DEFAULT_THEME`、`DEFAULT_APPEARANCE`）。第一帧就是生效的那一组（主进程发出 index.html 时写好样式表、`data-theme`、`data-appearance`，窗口底色同步）；之后的切换由 `lib/theme.js applyLook` 换样式表。颜色全部来自模板的变量，应用的样式文件里不写颜色。
 
-**主题**（**v2 包 K2，11-10 起**；维护者 11-10 #6「定」与「K1 设计稿的四件事」；契约 `docs/checks/2026-11-10-wp-k2/contract.md`；token 表 `docs/tokens.md`）：三套主题——**精密国际主义 `precision`（默认）· 澄明玻璃 `glass` · 研究对话 `research`**（英文版：Precision · Clear Glass · Research），每套有浅色、深色——加一个**外观**设置：浅色 `light` · 深色 `dark` · 跟随系统 `system`（默认）。v1.0 的河蓝 · 素灰 · 夜间换掉了。设计依据是 K1 设计稿 `docs/design/next/themes/`（第五节 token 映射、第六节对比度、第九节 K2 清单）；本包只换外观，界面的结构没动（右栏四个标签、资料库两栏、排队的说法是包 L）。
-- **设置**：`settings.json` 的 `theme`（三个 id 之一，别的 = 默认）和 `appearance`（三个之一，别的 = 默认）；两个默认只在 `src/main/theme.mjs` 的 `DEFAULT_THEME` / `DEFAULT_APPEARANCE` 各一处。id、外观、六组的窗口底色（`THEME_PAGE`，= 各组 `--st-page`）在 `src/shared/themes.mjs`（主进程和设置页都读）。
-- **旧设置的迁移**（维护者 定的表；读设置时做，`theme.mjs migrateLook`，`settings.mjs readSettings` 调它）：没有 `theme` / `river` / 别的值 → `precision` + `system`；`paper` → `precision` + `light`；`night` → `precision` + `dark`。只动这两个字段，别的设置原样；下一次写设置（任何一项）就把新的两个字段存进文件。新的 id 照读，外观照它写的（不对就默认）。
-- **生效的那组** = 主题 + 现在的浅 / 深：外观选浅色、深色就是它；选跟随系统就是 Windows 现在用的（`nativeTheme.themeSource = 'system'` 后的 `nativeTheme.shouldUseDarkColors`；`theme.mjs resolveAppearance`）。主进程 `main.mjs currentLook()` 给出 `{ theme, appearance, scheme }`，主窗口、阅读窗口、发出的 index.html 都从它取。
-- **第一帧就是生效的那组**：开窗口时 `backgroundColor` 取那一组的 `--st-page`（`windowColour(theme, scheme)`）；`app://ui/index.html` 由 `protocol.mjs` 每次在 `<html>` 上加 `data-theme="<id>" data-appearance="light|dark"` 再发出（`theme.mjs withTheme`，两个值都先过名单，别的写不进页面）；`nativeTheme.themeSource` 在开窗口前就设好（= 外观设置：`light` / `dark` / `system`）。阅读窗口的两张页（`reader.mjs`）也带这两个属性，窗口底色同理。
-- **换**：设置「外观与语言」一组——「主题」三张卡（`[data-part="theme"] [data-theme-card=<id>][data-checked]`，卡里一张用那一套自己的 token 画的小缩略图——卡本身带 `data-theme` 和生效的 `data-appearance`；默认那张标「默认」，名字照字典）、「外观」三段（`[data-part="appearance"] [data-appearance-choice=light|dark|system][data-checked]`）。点了 → `setTheme(id)` / `setAppearance(a)` 写设置、主进程改 `themeSource`、每个窗口的底色、阅读窗口的页（`reader.restyle()`），发 `settings-changed`；回答是 `{ theme, appearance, scheme }`，页面马上把 `<html data-theme>`、`data-appearance` 换掉，`app.js` 之后按 `getAppState()` 的 `theme` / `scheme` 保持一致。
-- **跟随系统实时变**：`main.mjs` 听 `nativeTheme` 的 `updated`：生效的浅 / 深变了 → 每个窗口的底色、阅读窗口的页重画，发 `settings-changed`（页面重读应用状态，`scheme` 变了，`<html data-appearance>` 跟着换）。外观固定为浅色 / 深色时这个信号不改任何东西。测试（`test/ui-theme.test.mjs`）不碰 Windows 的设置，在主进程里给 `shouldUseDarkColors` 一个值再发 `updated`，和 Electron 通知应用的方式一样。
-- **样式**：`tokens.css` 由 `scripts/gen-tokens.mjs` 从 K1 的 `tools/tokens-data.mjs` **生成**（别手改；`--check` 核一致），七块：`:root` 是六组共用的值，然后每套主题的浅色 `[data-theme="<id>"]`（精密国际主义的也是 `:root`）与深色 `[data-theme="<id>"][data-appearance="dark"]`，每块写全、写 `color-scheme`。组件只有一套（`styles/kit.css` 与各屏的样式），照 K1 设计稿的 `css/app.css` 改：主区直接铺在 `--st-page` 上（不再有带边框的白框，左栏右边没有 12px 间距），卡片 = `--st-surface` + `--st-shadow-card`、不描边，按钮 = `--st-surface-2` 不描边、主按钮强调色，当前的东西 = `--st-selected`；三套的差别全在 token（颜色、圆角、阴影、字重、图标线头）上，只有各套自己的选中记号（精密国际主义左边 3px 定位条与虚线焦点框、澄明玻璃的渐变光与胶囊次要按钮、研究对话右上角的书签与下划线安静按钮）写在 `kit.css` 最后一节，颜色也只用 token。
-- **字体**（维护者 11-10：Noto Sans SC，取代 11-02 的 Microsoft YaHei UI）：`src/renderer/fonts/NotoSansSC-VF.ttf`（可变字体 17.8 MB，从 K1 的原样副本复制、逐字节相同）+ `OFL-NotoSansSC.txt`；`styles/fonts.css` 的 `@font-face` 经 app://（`protocol.mjs` 发 `font/ttf`，CSP 的 `font-src 'self'`）加载，族名照 K1 叫 `'Streams Noto Sans SC'`；数字走本机等宽字（`'Streams Numerals'`，只 `local()`），`--st-font` 依次是这两个、`sans-serif`。许可证页多一行「Noto Sans SC · <版本，读字体文件自己的 name 表> · OFL-1.1」并在表下贴 OFL 全文（`licenses.mjs`）；安装包带字体与 OFL（`installer/build-installer.mjs` 核两个文件都在、`installer/notices.mjs` 的第 6 节写进 `THIRD-PARTY-NOTICES.txt`）。阅读窗口的页是不加载任何东西的 data: 页，字体退到系统的无衬线字。
-- **标题字体 Noto Serif SC**（重设计 R6a，维护者 11-11：研究对话主题的 `--display-chinese`）：`src/renderer/fonts/NotoSerifSC-VF.ttf`（可变字体 25,125,232 字节，字重 200–900，version 2.003，sha256 `5326cfb0…352a09`）+ `OFL-NotoSerifSC.txt`，取自 GitHub `notofonts/noto-cjk` 官方发布 `Serif2.003` 的 `03_NotoSerifCJK-TTF-VF.zip`（2026-11-13 取，来源、清单与复核脚本在 `docs/design/fonts/noto-serif-sc/`）。`styles/base.css` 的 `@font-face` 用模板写的族名 `'Noto Serif SC'`，经 `app://ui/fonts/NotoSerifSC-VF.ttf` 加载（`font/ttf`，CSP 没改）；只有研究对话主题用到它。许可证页一行「标题字体 · Noto Serif SC」与部件表一行 `Noto Serif SC · 2.003 · OFL-1.1`、OFL 全文；安装包与通知见 `installer/fonts.mjs`。细节在 §4.21。（上一条里 K2 的 `styles/fonts.css` 与族名 `'Streams Noto Sans SC'` 在 R1 已换成模板自己的 `'Yunzhi Noto'`，见 §4.13。）
-- 左下角余量（包 M）照 K1 画成小卡：标题与「截至 …」、每个窗口一行（多长 · 一条进度 · 百分比，下面「… 重置」），余额一行大数字；读不到 / 没有接口都**整块不画**（维护者 11-10「K1 设计稿的四件事」4，包 M 本来就这样）。
-- 截图：`node scripts/shots-k2.mjs`（真窗口，主题与外观先写进 settings.json 再起，拍库架、和主 Agent 聊（带提议卡）、待看、资料库、问库、设置六个画面与阅读窗口，每张都核字体已加载）→ `docs/shots/2026-11-10-k2/<画面>-<主题>-<外观>.png`（36 张）与 `reader-<主题>-<外观>.png`（6 张）。v1.0 的 `npm run shots:themes`（`docs/shots/themes/`）是旧三套的记录，不再更新。
+**字体**：正文 Noto Sans SC（随包，模板的 `design.css` 声明，经 `app://` 提供）；研究对话主题的标题用 Noto Serif SC（R6a，§4.21）。两份 OFL 全文在许可证页与安装包的第三方声明里。
 
-**首次设置**（`screens/first-run.js`，S1；**v2 包 I 起是「首次打开」**：触发改为 `libraryCount === 0`，只有连接一步，然后进和主 Agent 聊；下面库放哪 / 主题与来源 / 试跑 / 定时几步现在是新建库 `screens/new-library.js` 的，见 §4.10）：不是入口里的一屏，`app.js` 在应用状态第一次回来、`library` 为 null 时显示它（`setup` 状态），直到它调 `onDone(screen)`；开发时也可以按 id 打开（`npm start -- --screen first-run`）。它用侧栏零件（`Sidebar`）自己摆四步（`[data-step][data-step-state=current|done|todo]`），每步一个组件：库放哪（`chooseLibraryFolder` → `useChosenFolder('')`）、连接方式（三张卡 `[data-connection][data-selected]`，「用这一条」= `setActiveConnection` + `probeConnection`，未登录的卡带登录回路，可跳过）、主题与来源（`getStarterPacks` → 删来源 / 加 RSS → `applyStarterPack`，每个来源的试抓状态用 `st-fetch`）、试跑一轮（`estimateRound` → `startRound`，`round-progress` 画在 `[data-part="round-progress"][data-phase][data-done]`，跑完「去待看」「去今日」）。「谁定的」11-04 起每步走完写进库的 `streams.json` 的 `setup`（`recordSetupStep`，见 §4.1「首次设置记『谁定的』」）。连接行的零件（检测词 `detectWords`、`connectionState`、登录回路 `LoginLoop`、试调结果 `ProbeLine`、key 对话框 `ApiKeyDialog`）在 `screens/settings.js` 里，首次设置和今日的出错卡片共用。
+**品牌记号**：赞妮定稿的「五流」，单色、跟随主题的墨色（`lib/brand-mark.js`，§4.18）。
 
-**界面 B 的屏**（11-03，§4.2 的要点；数据一律经桥，改了库之后听 `library-changed` 重读；页面不算数字，条数、状态、分数都是桥给的）：
-- `library`（S6）：主区里两栏（列表 300px · 正文），右栏 `Panel` 是「这一条」。列表：搜索框（停 250 ms 后 `searchLibrary`，≤ 200 字）、四个分页（`getLibrary(view, filter).counts`，`[data-view][data-count]`）、主题与「最近 30 天」筛选（`[data-filter-topic]` `[data-filter-days]`，主题名来自 `getSources().topics`）、行 `[data-row=<id | url | 文件名>]`。正文：`lib/markdown.js` 画，`[[链接]]` 按核心的规则（先 id、再标题）在已收藏 + 我写的里找，找到的可点（`[data-wiki-id]`）、找不到的只画成灰字（`[data-wiki-missing]`）；正文里的普通网址只显示、不跳（页面离不开 `app://ui/`）。右栏：主题、来源、各关分数、文件名、「这一条的核验记录」、链到这里的、同一来源的。「抓到的」行带各关分数与停在哪一步（`[data-stopped]`，词在 `texts/library.js`），点开可看核验记录；「待规范」只读列出文件与问题码的说法。顶栏「编辑」「用 Obsidian 打开」（`openInObsidian`）「打开原文」（`openItemUrl`，只给 http(s) 来源）——**v2 包 H 起改了**：按钮只对选中的条目出现，「用 Obsidian 打开」进了「更多」、只对有文件的条目，「打开原文」开阅读窗口（`openReader`），见 §4.9。`navigate('library', { id })` 直接打开那一条（图谱、问库的出处用它）。
-- `edit-dialog`（S7）：`Dialog name="edit"`，只有标题、主题（标签 × 去掉；「+ 加主题」选项来自 streams.json 的主题）、正文三个字段；「插入 [[链接]]…」用 `searchLibrary` 找一条，把 `[[标题]]` 插在光标处；没有主题时「保存」不能按；保存只送改了的键（`editNote`），`bad_arguments` 说「这样改不合规范，文件没有动」。
-- `verdict-dialog`（S15）：`Dialog name="verdicts"`，导出 `VerdictDialog({ url, title, onClose })`；按核心 `verdictsFor` 的组（同一步再跑一次是新的一组，按写入顺序）逐轮列每项：过 / 没过、规则 / 判定、证据；`claimedNotDone` 单独一行「说做了其实没做」；核对项的说法取 `getPipeline` 的核对单 `desc`，没有就显示 id；结果行 = 这一步最后一组全过与否 + 轮数。待看卡片的入口由 PM 集成时接。
-- `sources`（S5；v2 包 F 起是「来源与要求」的来源与主题两块，见上「界面结构」）：来源行 `[data-row=<name>][data-state]`（五态 / `paused` / `never`）、`[data-hint]`（`FETCH_HINTS`）、「试抓」（`trySource`，结果 `[data-tried]`）、「暂停 / 恢复」、「改地址 / 改检索词」（`[data-dialog="edit-source"]`）、「删除」（`[data-dialog="remove-source"]` 先问）。「加来源」（`[data-dialog="add-source"]`）：识别（`guessSource`）→ 可改种类、地址、名字（核心建议的 `name` 预填）、默认主题 →「试抓」→ 只有对现在这份填写试抓过、且结果是正常 / 没新内容 / 暂时失败时「加入」才能按（改了地址要重试）。「贴一个链接进待看」（`[data-dialog="add-link"]`，`addManualLink`，见过的说「已经见过」）。主题表 `[data-topic-row]`：关键词可改（逗号或顿号隔开）、加、删（先问）。
-- `pipeline`（S4；v2 包 F 起不是一屏，是来源与要求里的「关卡」`[data-part="gates"]`，右栏挪到编辑区右边）：节点条 `[data-flow-node][data-kind][data-locked]`；选中模型关卡或摘要：要求、输出格式（只读，`JSON.stringify(output)`）、过关线（0–1 之外在页面就拒、不发送）、材料、工具（没有）、核对单（`origin: 'streams'` 标「底线」、没有删除钮；自己的项至少 6 个字才加）、「试一条看结果」（从 `getLibrary('caught')` 选一条 → `previewNode`；没选连接 → `NO_CONNECTION` +「去设置」）。保存把 `getPipeline().config` 改过的整份交给 `savePipeline`。右栏：上一轮各节点（`lastRound`）、最近的放弃理由、各步最近没通过核验的原因。
-- `status`（S11；v2 包 F 起不是一屏，是概览里的「运行状态」`[data-part="run"]`：三格 `[data-stat]`、来源 `[data-part="source-status"]`，连接三行留在设置；下面是 v1.0 的写法）：四格 `[data-num=last-run|last-decision|month-calls|next-run][data-value]`（`statusView` 的 `lastRound.startedAt` · `lastDecisionAt` · `monthUsage.calls` · 定时未接时 `none`）；连接三行用设置页导出的零件拼（`connectionState` · `detectWords` · `LoginLoop` · `ProbeLine` · `probeView`），未登录的行是第四处「去登录」+ 副句 +「我登录好了，再试一次」；来源行五态词 + 连续轮数 + 「软件已经做了什么 / 需要你做什么」，地址有问题 / 被拒绝的行有「去处理」→ 来源与主题。顶栏「复制诊断信息」「打开运行记录文件夹」。
-- `ask`（S10）：顶栏范围（`getLibrary` 的 `counts`）；每轮问答 `[data-turn][data-state]`，每句后面的出处编号 `[data-cite]` 可点、在下方出处表 `[data-source-n][data-highlight]` 里标出，「打开」→ 资料库那一条；`removedCites` / `removedSentences` 非零各一行提示；`notInLibrary` 画成正式答案「库里没有。」；有 `notInLibrary` 或 `missing` 时给「记到想补的主题」（预填 `missing`）；「这个回答哪里不对」。问着时输入框禁用、显示「正在查库……」；`no_connection` →「去设置」。右栏：这次用了什么（命中 / 用了 / 调用 / 连接名 / 没给工具不联网 / 核对几轮）、想补的主题（`getDemands`，`suggest` 标「建议加成主题」）。`Answer` 组件导出给页面内的测试画一条给定的答案。
-- `graph`（S9）：节点位置 = `PAD_X + col × COL_GAP`、`PAD_Y + row × ROW_GAP`（`screens/graph.js` 导出这几个常数与 `place`），大小随 `count`；实线 topic / source → item，虚线（弧线）link；`svg[data-part="graph"]` 带着这份数据的 `data-days` / `data-status` / `data-links`（核心回显的 `filters`），测试据此等新数据画好。点条目开右下的框（`readNote` 补来源、日期、状态）。多于 60 条只画日期最近的 60 条（日期从 `getLibrary` 的条目取：图谱的节点不带日期），保持核心的列序。
+**文字**：
 
-**设置的「软件」部分**（S14 的「软件」一块拆成几节：语言 · 主题 · 高级 · 关于）：「主题」一节见上；「关于」一节在「由 Starry Digital 开发」下面加按钮「许可证与致谢」（`[data-action="licenses"]`）→ 对话框 `[data-dialog="licenses"]`（`getLicenses`）：流息本身（`[data-part="own"][data-license]`，MIT，`LICENSE` 全文在可滚动的 `[data-part="license-text"]` 里，下面「由 Starry Digital 开发」= `openMakerPage`）；随软件带的组件表（`[data-part="components"]`，每行 `[data-component]`：名字、版本、许可证——Electron · Chromium · Node.js 的版本取运行时，Preact · htm · @mozilla/readability 取应用里的 `package.json`）；「打开完整的第三方声明」（`[data-action="open-notices"]` → `openNotices`）：装好的应用里可点、打开安装目录的 `THIRD-PARTY-NOTICES.txt`；开发时这个文件没有，按钮不可点，旁边一句为什么（`[data-notices-why]`）。组件名、版本、许可证、LICENSE 全文是数据，不在字典里；对话框自己的字在 `texts/settings.js` 的 `licenses`。
+- 页面上的每一个字都在 `texts/` 里：`common.js`（品牌、五种抓取状态 `FETCH_STATES` 与处理建议 `FETCH_HINTS`、来源的其它状态、日期、连接与登录的说法、节点名、运行环节名、标点 `PUNCT`）· `shell.js`（左栏、库页头与标签、库架、运行按钮）· `panel.js`（右栏）· `agent.js` · `proposals.js`（提议与系统检测）· `inbox.js` · `run.js`（运行、漏斗）· `today.js`（运行未能开始的横幅；文件名是历史）· `library.js` · `graph.js` · `ask.js` · `sources.js`（来源与要求、高级设置）· `pipeline.js`（评分环节）· `settings.js` · `first-run.js`（首次打开、新建库）· `kit.js`（组件一览，仅开发，没有英文）。主进程自己的字在 `src/main/texts/`（`app.js`、`notify.js`）。
+- 说法以 `05-措辞规范`（入库副本 `docs/design/redesign/source/05-措辞规范.md`）为准；词表在 `wording/glossary.json`，说明在 `docs/wording.md`。五种抓取状态与四句处理建议一处定义、处处一致（界面两套字典、core `words.mjs`、词表），见 §4.22。
+- 两处不经字典的字也按界面语言：屏幕自己拼的标点（`PUNCT`）与 core 内置校验规则的描述（`describeChecklist`），见 §4.22。
 
-**规矩**（测试会核）：页面写的每一个字都在 `texts/` 里（别处的字符串里出现汉字就红，`test/wording.test.mjs`）；`texts/` 里的每个字串过用词扫描器 0 命中（V7 禁词：Bronze / Silver / Gold / judge / keeper / gate / Medallion / pending / ledger；品牌词只许在「连接你电脑上的 …」里，`wording/banned-terms.json`）；汉字旁一律全角标点；英文表与中文表键一一对应、没有汉字、没有禁词（`test/texts-en.test.mjs`）；**颜色只用 `tokens.css` 的变量**，别的样式文件里写 `#xxxxxx`、`rgb()` 就红，每个 token 都在 `docs/tokens.md` 的名单里（`test/kit.test.mjs`）；不用行内样式字符串、不用 `innerHTML`；源文件只用 LF、不放看不见的字符。测试用的挂钩：`main[data-screen][data-state]`（`ready` 表示数据到了）、`[data-nav=<id>]`、`[data-part=<id>]`、`[data-action=<id>]`（按钮外的一层，`lib/action.js Act`）、`[data-num=inbox|caught|passed|kept][data-value]`（概览的四个数字，v1.0 的今日）、`[data-dialog=run|dismiss|api-key]`、`[data-card][data-url][data-current]`（待看的卡）、`[data-connection=<kind>][data-conn-state]`（连接行）。页面不算数字：概览（v1.0 今日）的四个数字直接是 `getHome` 的 `numbers.inbox` · `numbers.caught` · `lastRound.counts.inbox` · `numbers.kept`。
+**kit 与 interim.css**：`kit/` 是 v2 的组件。R2–R5b 把各屏重画在模板的部件上之后，真屏里还在用 kit 的只有：外框（`AppFrame` / `AppSidebar` / `Main` / `TopBar` / `LibrarySections`）、两处菜单（资料库与右栏「文件」里的「更多」）、待看的「添加链接」对话框、库架的一个按钮。`styles/interim.css` 把 v2 的 `--st-*` 变量名指到模板的变量上（不定义颜色），现在 53 个名字，使用者是 `kit.css`、`menu.css`、`screens/shell.css`、`screens/panel.css` 与开发时的组件一览（`screens/kit.css`，不进安装包）。占位屏（`screens/placeholder.js`、`texts/screens.js` 等）是死代码，R6b 已删除。kit 与 interim.css 整体迁到模板部件是以后的事（§九）。
 
-**组件**（`kit/index.js`；`npm start -- --screen kit` 看全部）：`AppFrame` / `Main` / `Panel`（232 · 主区 · 404，间距 12）、`AppSidebar` 与侧栏零件（v2 加 `SidebarLibraryItem`、`SidebarAdd`）、`LibrarySections`（库的五个分区，`layout` = `tabs` | `sidebar`）/ `LibraryMark`（库的图标方块，颜色 `--st-lib-<名>`）、`TopBar`、`Button` / `LinkButton`、`PanelTabs`、`CardFrame`（`waiting` · `answered` · `plain`）、`Steps` / `StageProgress` / `stepClass`（小方块）、`Tag` / `Notice`（`wait` · `done` · `recommend` / `plain`）、`Icon`（线条图标；新增 `inbox` · `graph` · `flow` · `rss`；v2 加 `chat` · `chart` · `gear` · `play`）、`Popover`、`Menu`、`Dialog`；五种抓取状态的小标签是 CSS 类 `st-fetch st-fetch--<state>`（`kit.css`，颜色 `--st-fetch-*`）。文字样式类 `st-t-heading` · `st-t-title` · `st-t-body` · `st-t-small` · `st-t-tiny` · `st-t-sub` · `st-t-muted` · `st-t-strong` · `st-t-wait` · `st-t-done` · `st-t-num`。
+**规矩**（测试会核）：
+
+- 页面写的每一个字都在 `texts/` 里：别处的字符串里出现汉字就红（`test/wording.test.mjs`）；`texts/` 的每个字串过用词扫描器 0 命中（V7 禁词；品牌词只许在「连接你电脑上的 …」、型号表和许可证页）；汉字旁一律全角标点。
+- 英文表与中文表键一一对应、占位符一致、没有汉字、没有禁词（`test/texts-en.test.mjs`）；英文用词照用词表、旧英文零命中、代码里不写全角标点（`test/r6b-english.test.mjs`）；英文界面下 21 个画面的可见文字没有汉字与全角标点（`test/ui-english-screens.test.mjs`，真窗口）。
+- 旧状态字、旧处理建议、已改掉的旧口语句子不许回到字典（`test/r6b-words.test.mjs`、`test/services-r5a.test.mjs`）。
+- 应用的样式文件里不写颜色（`#xxxxxx`、`rgb()` 等）；用到的每个 `--st-*` 都在 `interim.css` 里有定义；五种抓取状态各有一对颜色（`test/kit.test.mjs`）。模板文件与清单逐字节一致（`test/theme.test.mjs`）。
+- 不用行内样式字符串、不用 `innerHTML`（CSP 与 Trusted Types 会拒）；源文件只用 LF、不放看不见的字符。
+- 测试用的挂钩：`main[data-screen][data-state]`（`ready` 表示数据到了）、`[data-nav=<id>]`、`[data-tab=<id>]`、`[data-part=…]`、`[data-action=…]`、`[data-dialog=…]`、`[data-library-row=<id>]`、`[data-proposal]` / `[data-suggestion]` 等。
+
+**截图**：各包的截图脚本在 `scripts/shots-*.mjs`（真窗口，主题与外观先写进设置再启动），成果在 `docs/shots/<日期>-<包>/`。英文 21 个画面的截图由英文逐屏测试顺手保存（`docs/shots/2026-11-13-r6b/en/`）。21 个画面 × 四套主题 × 浅深的对照截图是 R6d。
 
 ## 六、语言
 
-照云织：`settings.json` 的 `language`（`auto` · `zh-CN` · `en`，`locale.mjs`），`auto` 跟系统（系统显示语言里有中文就是中文）；页面在英文下由 `app://ui/` 用 `texts-en/<name>.js` 代替同名 `texts/<name>.js` 发出，`<html lang>` 与窗口标题跟着 `BRAND`；设置页切换后页面自己重新载入。开发时 `npm start -- --lang en`，测试钉中文（`STREAMS_DEV_SYSTEM_LANGUAGES=zh-CN`）。英文版叫 Streams，侧栏（v2）：Shelf · Chat with the main Agent · My libraries · New library · Settings；库页五个标签：Overview · Inbox · Library · Ask · Sources & Brief。
+照云织：`settings.json` 的 `language`（`auto` · `zh-CN` · `en`，`locale.mjs`），`auto` 跟系统（系统显示语言里有中文就是中文）；页面在英文下由 `app://ui/` 用 `texts-en/<name>.js` 代替同名 `texts/<name>.js` 发出，`<html lang>` 与窗口标题跟着 `BRAND`；设置页切换后页面自己重新载入。开发时 `npm start -- --lang en`，测试钉中文（`STREAMS_DEV_SYSTEM_LANGUAGES=zh-CN`）。英文版叫 Streams，侧栏：Shelf · Main agent · My libraries · New library · Settings；库页四个标签：Inbox · Library · Ask · Sources & Brief（redesign R1 起；R6b-3 起英文用词照 `docs/wording.md` §二的英文用词表）。两处不经字典的字也按界面语言：屏幕自己拼的标点（`PUNCT`）和 core 内置校验规则的描述（`describeChecklist`），见 §4.22。库自己的语言（提示词、摘要、兜底主题、问库的校验项）在建库时按当时的界面语言定下，之后切界面语言不变。
 
 ## 七、测试
 
-`npm test`（node:test，`--test-concurrency=1`）。带 Electron 的测试每个文件起一次应用：系统临时目录下一个空世界（`scripts/lib/world.mjs`）、Playwright 启动钉死的 Electron 44.0.0、窗口不显示，跑完关应用（超时就结束整棵进程树，`scripts/lib/close-app.mjs`）再删文件夹。
+> 本节按 R6b 之后的样子重写（2026-11-14）。旧表里 v1 / v2 时代的条目（今日、概览、首次设置六步、tokens.css、三套主题等）对应的测试已随各包重写或删除，历史见 §4.x 各节的「测」与 git 记录。
 
-| 文件 | 核什么 | 起 Electron |
-|---|---|---|
-| `security.test.mjs` | 页面里没有 Node；外部地址在页面里被 CSP 拒、在会话里被拒（本机测试服务器一个请求也没收到）；桥只回应本应用的页面；权限一律拒；下载被拒；WebRTC 不发 UDP；CSP 头与 `<meta>`；不能写 HTML、不能 eval；`app://` 不越界；桥上恰好是 §四 的方法；Electron 自己的数据在受保护目录、本地数据在外面、真的 `%APPDATA%\Streams` 没被建 | 是 |
-| `events.test.mjs` | `emit` 只发表里的主题、只发给开着的本应用页面；`onEvent` 只收表里的主题与函数、只交 `payload`、能取消；`setShowDeveloperInfo` → `settings-changed` → 页面重读状态、不重载；`open-screen` 让页面去那一屏；侧栏 232px、主区从 244 起、页面不横向溢出 | 是 |
-| `language.test.mjs` | 英文界面：侧栏九个词、窗口标题、`<html lang>`；设置页切中文重载、切跟随系统不重载；没设置时系统无中文 → 英文 | 是 |
-| `single-instance.test.mjs` | 第二次启动立刻退出、第一个把窗口提到前面 | 是 |
-| `tray.test.mjs` · `ui-schedule.test.mjs` | 定时开时关窗口进程还在、关时退出；`STREAMS_DEV_NOW` 下错过 → 启动补跑一轮且只一轮、`notifications.jsonl` 一条，没错过 → 不补；设置「运行」改时刻 / 关定时写 settings.json、25:00 被拒；今日顶栏；首次设置「定时」屏。测试世界的 `settings.json` 默认 `schedule.enabled: false`（`test/support/app.mjs`），要定时的测试自己打开 | 是 |
-| `services-schedule.test.mjs` | 假时钟下补跑判定、只补一轮、定时器到点只跑一次、提示 0 条不发、托盘菜单 | 否 |
-| `services-route.test.mjs`（v2 包 E） | 库内对话分流（§4.7）：`question` 只调问库、`change` 只调主 Agent 且带当前库 id、`unsure` 两个都不调；`resolveLibraryMessage` 照选的走、不调分流模型；`routes.jsonl` 只追加；一次一句（与 `askLibrary` 共用）；三张方法表；`main.mjs` 接线 | 否 |
-| `services-quota.test.mjs`（v2 包 M） | 左下角余量服务（§4.11）：`getQuota` 只给当前连接的、过白名单；Claude Code 每次调用带来的（连接服务的 `onQuota`）记下并发 `quota-changed`；Codex 启动时、每 10 分钟、每轮后读，API 启动时与每轮后读，只在它是当前连接时读；没有余额接口的厂商、换了厂商 → `null`；读失败 → 清掉并发事件；开发文件；不写盘（服务里没有写文件的调用，跑完应用数据文件夹一个文件都没多）；`main.mjs` 接线、桥与事件表 | 否 |
-| `ui-quota.test.mjs`（v2 包 M） | 真窗口里左下角「设置」上面那块：有数（Claude Code 两个窗口两行、Codex 一行；API 余额那一行在 `quotaView` 上核；字照中文表）、读不到（没选连接 / 没读到）与没有接口（API 选了 Anthropic）整块不画；`quota-changed` 后重读；可见字过 wording 的 `scanStrings`、没有品牌词；给了 `STREAMS_QUOTA_SHOTS=<绝对路径的文件夹>` 时窗口显示出来（隐藏的窗口不出帧），每种状态把左栏截一张图存在那里（平常跑测试不开窗口、不截图） | 是 |
-| `protocol.test.mjs` | 不起 Electron：页面文件 200；指向别的机器的写法 1 秒内 404；路径规则逐条；中文文件名；英文下 `texts/` 换 `texts-en/`；组件一览只在开发时发 | 否 |
-| `bridge.test.mjs` | 预加载、主进程表、本文 §四 表三者一致；事件主题三处一致；预加载只交出一个对象；信封与错误码 | 否 |
-| `layout.test.mjs` · `settings.test.mjs` · `locale.test.mjs` | 布局；settings.json 的每个字段；语言的判定与状态 | 否 |
-| `kit.test.mjs` | tokens.css 与 docs/tokens.md 名单一致；三套主题的块（`:root` 定义全部、另两套只覆写 `:root` 有的名字）；别处不写颜色；五种状态各有一对 token；字体与主色是 维护者 定的 | 否 |
-| `theme.test.mjs` · `licenses.test.mjs` | 三个主题 id、`DEFAULT_THEME` 只定义一处；三套的 `color-scheme`、窗口底色与 `--st-page` 一致；契约的十二组字 / 底对比度（素灰、夜间 ≥ 4.5；河蓝两组照旧不到，列在 `RIVER_BELOW`）；index.html 发出时带 `data-theme`；docs/tokens.md 三栏值与 tokens.css 一致。许可证：开发时读仓库的 LICENSE、装好的布局读应用里那份、五个组件、第三方声明只在装好的应用里有 | 否 |
-| `ui-theme.test.mjs` | 设置里是夜间时第一帧：发出的 index.html 带 `data-theme="night"`、页面底色、窗口底色、`nativeTheme`；选素灰马上换、写进设置、原生一侧跟着；不认识的 id → `bad_arguments` 不写盘；关掉再开还是素灰 | 是 |
-| `ui-setup-record.test.mjs` · `ui-first-run.test.mjs` | 首次设置六步的记录（读 `streams.json`）：选的 / 写的（删了来源、加了 RSS）/ 默认（空白包原样、定时照显示）/ 跳过（连接、试跑）；往回退再走只替换那一步；没有记录的库「没有记录」。**v2 包 I 起**：首次打开 = 登记表空才进（两步侧栏）；连接一步记进 `settings.json` 的 `setupConnection` → 和主 Agent 聊的引导（三个示例只填不发：正本没多一行；跳过连接时「还没有连接」+「去设置」只说一次）→「也可以手动新建」→ 新建库四步，库登记且成为当前库，`setup` 六条、连接那条从 `setupConnection` 抄来（时间不变）；反向：有库但没有当前库（在主进程里替换 `getAppState` 的回答）→ 库架、不是首次打开；记录显示在来源与要求的「这个库」。**重设计 R4a**：首次打开是一屏、新建库是一页表单（§4.16）：两个文件按它们重写，首次打开两步、引导作第 2 步、新建库四步的检查随之去掉；记录在建库时写（不再有「往回退」） | 是 |
-| `services-new-library.test.mjs` · `ui-new-library.test.mjs`（重设计 R4a） | 新建库表单（§4.16）：默认值、文件夹、追踪要求必填、仅创建不运行、创建并运行排进运行（原因 first）、三档阈值、.md 文件夹逐字节不变、已有库原样打开、与主 Agent 建库同一份设置、六条记录；真窗口：一页与左右栏、五种抓取状态的字与「怎么办」不漏原始报错、预设来源包逐个移除、创建后去待看 | 部分 |
-| `services-library-root.test.mjs` · `ui-settings-i.test.mjs`（v2 包 I） | 不起 Electron：`getLibraryRoot` 默认 / 设过；`setLibraryRoot` 拒相对路径、应用数据文件夹本身与里面（大小写不论）、不写盘；`chooseLibraryRoot` 取消 = null、钩子代替对话框；没有库时 `recordSetupStep('connection')` 写 `setupConnection`、别的步 `no_library`、坏的 `bad_arguments`；新建库抄 `setupConnection`、打开已有的库不抄。真窗口：设置五组的顺序与各自的部分、没有当前库的项；主 Agent 状态（一轮之后变 1 轮）、打开和主 Agent 聊；新建库默认放在：默认 → 换 → 写进设置 → 恢复默认；桥上拒的路径不写盘、对话框选了应用数据里的文件夹页面说「不能用」；来源与要求「这个库」：路径、首次设置记录、重建索引、在资源管理器中显示（只记日志）、移除先问、取消不动、确认后登记没了而文件夹每个文件逐字节还在、去库架 | 部分 |
-| `ui-today.test.mjs` | （加）rounds.jsonl 末尾两轮没有产出不出横幅、三轮出琥珀横幅带「看运行状态」、中间有产出就从头数 | 是（**重设计 R2 删了这个文件**：今日的四个数、来源横幅、连续无产出横幅都不存在了；漏斗与横幅的测试见 §4.14） |
-| `ui-shell.test.mjs`（v2 包 F） | 三个登记的库（`seedShelf`）+ 一张待定的提议卡：左栏方案 B 的结构、每行的图标 / 名字 / 待看数（核心 `homeNumbers` 重算）/ 问题小点 / 当前库高亮、和主 Agent 聊的角标；`inbox-changed` 带 libraryId 只改那一行（另两行不动）；点库 → `libraries.json` 的当前库变、进它的待看、库头「在追」是要求的第一句；五个标签都在当前库上、资料库的图谱视图；切库再切回标签与滚动各自记住、第一次开的库停在待看；库架的卡片（与 `getLibrariesOverview` 对照）、问题一行、点卡片进库、新建卡进和主 Agent 聊、一个库都没有时的空状态（登记移除、文件不动）；来源与要求：确认提议卡后「谁定的」= 主 Agent 提的 · 你确认的，自己保存要求 → `streams.json` 与 `changes.jsonl`（`you`）、空的要求在页面就拒；本库定时与上限在这里改（`streams.json`、谁定的 = 你）、关卡在这一页；设置没有定时与上限的编辑、定时一览三行、用量合计等于核心 `usageTotal`、点名字进那个库的来源与要求 | 是 |
-| `ui-agent.test.mjs`（v2 包 G） | 三个库 + 五张开发钩子出的卡 + 两张建议卡 + 113 行的旧对话 + 脚本化的主 Agent：等你定的事的数与左栏角标一致、可折叠；正本一页 100 行、加载更早的，lookup / note / summary 只一行淡字不露原文；UC1 一个问题带快捷回答（发出的是选项原文）→ 建库卡（试抓、没勾）→ 建库后左栏多一个库；四种 notice 各一句、连接问题带去设置；一轮进行中不可再发（主进程那一个方法加延迟）；建议卡交给主 Agent / 不要；提议卡不要 = declineProposal、确认连点只调一次、stale、failed、改一下；卡上没有任何开关；问库 unsure 两个按钮带对的 route、change 的「这句转给主 Agent」+ 卡 → 确认后「谁定的」、question 的回答；在页面里画出每种状态与四种建议卡 | 是 |
-| `ui-r5b.test.mjs`（重设计 R5b） | 一种提议的卡：十种主 Agent 提议（完整 / 紧凑）与 ①–⑤（真 `listToConfirm`）的标题、来处、按钮次序与文字、状态的一行，扫 05「不再用」、阈值小数、kind 名、JSON、原始报错；三处界面说法与诊断信息里的原文；主 Agent 页的模板部件、无「等你定的事」、小标签 = 清单、右栏默认待确认、创建后落到新库待看；右栏待确认一张清单各一次、后台新出（放弃 ×3 → ⑤）不重载即时更新、对话与右栏同步、非当前库就地暂停、修改地址打开对话框；重新评分的提示与预计次数、点了只评旧的、没有旧条目不出 | 是（四个世界） |
-| `ui-licenses.test.mjs` | 许可证与致谢：全文与仓库 LICENSE 逐字一致、「由 Starry Digital 开发」、五个组件的版本、开发时「打开完整的第三方声明」不可点并写原因、桥回 `open_failed` | 是 |
-| `wording.test.mjs` · `texts-en.test.mjs` | 字典过扫描器 0 命中、全角标点、别处无汉字、LF；英文表与中文表对齐、无禁词 | 否 |
-| `app-id.test.mjs` · `icon.test.mjs` · `deps.test.mjs` · `start.test.mjs` | 身份值；streams.ico 的五个尺寸；五个 SVG 来源与 `docs/design/logo/source/流息/` 逐字节相同（新 logo）；重建对比要 sharp：没有就跳过并说明，**设了 `STREAMS_SHARP_DIR` 却找不到 sharp 就是失败、不跳过**；依赖钉死；`npm start` 的文件夹规矩 | 否 |
-| `ui-brand.test.mjs`（新 logo） | 真窗口里左栏品牌记号的 viewBox、transform、路径数据与 `mark-black.svg` 一致、fill 是 `currentColor`、不是模板图标；四套主题 × 浅 / 深色：记号算出的 fill 与 color = 该主题的 `--ink11`（也是正文的颜色）、显示出来、13 : 9、后面没有底块 / 渐变 / 图片 / 倾斜、与左栏底色对比 ≥ 4.5 | 是 |
+**怎么跑**：`npm test`（`scripts/run-tests.mjs`：node:test，`--test-concurrency=1`，一个文件一个文件跑；后面可以跟文件名或 `--test-name-pattern`）。全量约 20 分钟。带 Electron 的测试每个文件起一次应用：系统临时目录下一个测试世界（`scripts/lib/world.mjs`，`STREAMS_APP_DATA` / `STREAMS_LOCAL_DATA` / `STREAMS_DEV_LIBRARY_ROOT` 指到它；文件夹用 `mkdirSync` 建，不用 `mkdtemp`）、Playwright 启动钉死版本的 Electron、窗口不显示，跑完关应用（超时就结束整棵进程树，`scripts/lib/close-app.mjs`）再删文件夹。测试钉中文（`STREAMS_DEV_SYSTEM_LANGUAGES=zh-CN`），英文的测试自己写 `language: 'en'`。**任何测试都不读写真的 `%APPDATA%\Streams` 与真的文档文件夹**（`security.test`、`layout.test` 核）。`icon.test` 的重建对比要 sharp：没有就跳过并说明；设了 `STREAMS_SHARP_DIR` 却找不到 sharp 就是失败。
 
-**每项检查都能失败**：`npm run mutants` 在临时副本上逐个故意改坏、跑对应的那条测试，要求「没改坏的副本通过、改坏的副本失败」，并核原文件字节没变：`no-node` · `csp-off` · `session-open` · `bridge-extra` · `banned-word` · `d2-unc` · `d3-emit-any-topic` · `d3-any-topic` · `d4-any-sender` · `d4-permissions-open` · `d10-any-root` · `tokens-undocumented` · `colour-outside-tokens` · `en-missing-key`。11-02 首跑：14 项里 13 项 CAUGHT；`d2-unc` 只在「冷」的时候抓得到——Windows 会把连不上的 SMB 主机 `\\192.0.2.1` 记进否定缓存几分钟，缓存热时 realpath 2 毫秒就回来，改坏的副本也过了「1 秒内 404」这条（冷时 21 秒，抓到）。这是测试判据的盲区，不是改坏项的问题；跑它前别碰那个地址。v2 包 F 加五项（11-09 跑：5 / 5 CAUGHT，原文件字节没变）：`f-sidebar-any-library`（inbox-changed 不看 libraryId，每一行都改）· `f-brief-not-yours` 与 `f-brief-not-yours-ui`（保存要求不记 you：服务层测试与界面测试各抓一次）· `f-tabs-one-memory`（停在哪个标签不按库记）· `f-scroll-one-memory`（滚动不按库记）。v2 包 G 加四项（11-09 跑：4 / 4 CAUGHT，原文件字节没变）：`g-decline-confirms`（提议卡的「不要」调 confirmProposal）· `g-send-while-busy`（一轮进行中仍可发送）· `g-unsure-yes-question`（「是，改这个库」传 question）· `g-card-press-twice`（卡上的按钮到桥回话前还能再按）；都跑 `test/ui-agent.test.mjs` 的对应一条（这几条单独跑也成立，不靠前面几条用掉的脚本回答）。副本里另加了 `core` 的联接（`scripts/lib/mirror.mjs`：主进程与测试都从仓库引核心，没有它副本起不来）。
+**不起 Electron 的（纯 Node）**
 
-**每项检查都能失败**：`npm run mutants` 在临时副本上逐个故意改坏、跑对应的那条测试，要求「没改坏的副本通过、改坏的副本失败」，并核原文件字节没变：`no-node` · `csp-off` · `session-open` · `bridge-extra` · `banned-word` · `d2-unc` · `d3-emit-any-topic` · `d3-any-topic` · `d4-any-sender` · `d4-permissions-open` · `d10-any-root` · `tokens-undocumented` · `colour-outside-tokens` · `en-missing-key`。11-02 首跑：14 项里 13 项 CAUGHT；`d2-unc` 只在「冷」的时候抓得到——Windows 会把连不上的 SMB 主机 `\\192.0.2.1` 记进否定缓存几分钟，缓存热时 realpath 2 毫秒就回来，改坏的副本也过了「1 秒内 404」这条（冷时 21 秒，抓到）。这是测试判据的盲区，不是改坏项的问题；跑它前别碰那个地址。v2 包 F 加五项（11-09 跑：5 / 5 CAUGHT，原文件字节没变）：`f-sidebar-any-library`（inbox-changed 不看 libraryId，每一行都改）· `f-brief-not-yours` 与 `f-brief-not-yours-ui`（保存要求不记 you：服务层测试与界面测试各抓一次）· `f-tabs-one-memory`（停在哪个标签不按库记）· `f-scroll-one-memory`（滚动不按库记）。副本里另加了 `core` 的联接（`scripts/lib/mirror.mjs`：主进程与测试都从仓库引核心，没有它副本起不来）。v2 包 H 加六项（11-09 跑：6 / 6 CAUGHT，原文件字节没变；副本的 `node_modules` 多联一个 `@mozilla/readability`）：`h-obsidian-for-caught`（抓到的条目「更多」里也有用 Obsidian 打开）· `h-default-kept`（空收藏也默认已收藏）· `h-reader-preload`（阅读窗口的正文加上应用的 preload）· `h-reader-node`（阅读窗口开 `nodeIntegration`）· `h-no-fallback`（抽不出正文时不退回原网页）· `h-ai-mark-on-all`（每张待看卡片都带「写给 AI 的话」标记）。
+| 文件 | 核什么 |
+|---|---|
+| `bridge.test` · `events.test`（部分）· `protocol.test` | 预加载、主进程方法表、本文 §四 的表三者一致，事件主题三处一致，信封与错误码；`app://ui/` 的路径规则、英文下 `texts/` 换 `texts-en/`、组件一览只在开发时发 |
+| `layout.test` · `settings.test` · `locale.test` · `library-root.test` · `app-id.test` · `deps.test` · `start.test` · `icon.test` · `licenses.test` | 应用数据布局；settings.json 每个字段；语言判定；新建库默认位置；身份值；依赖钉死；`npm start` 的文件夹规矩；图标五个尺寸与来源；许可证页的数据 |
+| `theme.test` · `kit.test` | 四套主题的 id、两个默认、旧设置的迁移；每套加载的模板样式表与设计目录逐字节一致；应用的样式文件不写颜色、用到的 `--st-*` 都有定义、五种抓取状态各有一对颜色 |
+| `wording.test` · `texts-en.test` | 字典过扫描器 0 命中、全角标点、别处无汉字、LF；英文表与中文表键对齐、占位符一致、无汉字、无禁词 |
+| `r6a.test` | 验收标准 V6 / V8 / V9 / V10 的句子与 维护者 过目的逐字相同、其余未动；衬线字体文件与来源记录的字节一致 |
+| `r6b-words.test`（R6b-1 / R6b-2） | 五种状态字与四句处理建议在两套字典、core 与契约的表逐字相同；写死旧字的几处已改；旧口语句子不在字典里；占位屏与它的字典、样式已删且没人引用 |
+| `r6b-english.test`（R6b-3） | 英文用词表对两套字典全量核（旧英文零命中，核验轮次的五个键是白名单）；core 的英文词；11 条内置校验规则有英文；三个屏的代码里没有全角标点 |
+| `reader.test` | 阅读窗口的规则：没有 preload、没有 Node、自己的内存分区、只放行 http(s)、不给权限、不下载 |
+| `services-*.test` | 主进程各服务，在核心自己写出来的库上：`agent`（主 Agent）· `ask` · `route`（问库的分流）· `browse`（资料库与阅读）· `connections` · `library` · `library-root` · `registry`（库登记）· `new-library` · `pipeline` · `r2`（待看与运行）· `proposals` · `r5a`（一种提议的后台、系统检测的动作、重新评分；core 的词 = 字典）· `queue` · `schedule`（假时钟：定时、补运行、排队、托盘菜单）· `sources` · `status` · `quota` · `update` |
+
+**起 Electron 的（真窗口）**
+
+| 文件 | 核什么 |
+|---|---|
+| `security.test` | 页面里没有 Node；外部地址被 CSP 与会话拒绝；桥只回应本应用的页面；权限、下载一律拒；不能写 HTML、不能 eval；`app://` 不越界；真的 `%APPDATA%\Streams` 没被建 |
+| `events.test` · `single-instance.test` · `tray.test` · `language.test` | 事件只发表里的主题；第二次启动立刻退出；托盘与定时运行；英文界面的左栏、窗口标题、`<html lang>`、切换语言 |
+| `ui-shell.test` · `ui-panel.test` · `ui-shelf-after-round.test` · `ui-brand.test` · `ui-quota.test` | 左栏、库页头与四个标签、每库记住的标签与滚动；右栏四个标签与排队的说法；一次运行结束后库架与左栏更新；品牌记号在四套主题浅深下的样子；左下角余量 |
+| `ui-first-run.test` · `ui-new-library.test` · `ui-setup-record.test` | 首次打开一屏与连接选择；新建库一页表单；创建库的记录显示在高级设置的变更记录里 |
+| `ui-inbox.test` · `ui-run.test` · `ui-error.test` · `ui-import.test` | 待看（卡片、收藏、放弃与理由小条、稍后处理、未通过筛选、添加链接）；立即运行与运行中的环节；运行未能开始的横幅；导入已有文件夹 |
+| `ui-library.test` · `ui-library-reader.test` · `ui-reader.test` · `ui-graph.test` | 资料库、编辑笔记、缺少文件头、核验记录；没有收藏时的资料库与待看；阅读窗口与阅读模式；图谱 |
+| `ui-ask.test` · `ui-ask-r3.test` | 问库：范围、回答与出处、库内暂无相关内容、转交主 Agent |
+| `ui-agent.test` · `ui-r5b.test` · `proposals-app.test` | 主 Agent 页；一种提议的卡（十种主 Agent 提议与五种系统检测，完整与紧凑）；右栏待确认即时更新；重新评分 |
+| `ui-sources.test` · `ui-advanced.test` · `ui-pipeline.test` · `ui-schedule.test` · `ui-status.test` | 来源与要求；高级设置（变更记录、移除该库）；评分环节；定时与上限（含 R6b-5 那条「填了没保存的时刻不被重新读取冲掉」）；设置页三条连接的状态与登录回路（v1 运行状态页留下来的检查） |
+| `ui-settings.test` · `ui-settings-i.test` · `ui-theme.test` · `ui-licenses.test` · `ui-r6a.test` | 设置四个部分与两个对话框；主题与外观（第一帧、切换、跟随系统）；许可证与致谢；衬线字体与库架被选中的卡 |
+| `ui-english-screens.test`（R6b-3） | 英文界面下 21 个画面逐个到达，取全部可见文字，断言没有汉字与全角标点（用户内容按出处排除，办法见 §4.22）；设了 `STREAMS_EN_SHOTS_DIR` 时每个画面存一张截图 |
+
+**每项检查都能失败**：`npm run mutants`（`scripts/mutation-check.mjs`；后面可以跟 id 或带 `*` 的前缀，如 `node scripts/mutation-check.mjs "r6b-*"`）在临时副本上逐个故意改坏、跑对应的那条测试，要求「没改坏的副本通过（对照组，能单独跑）、改坏的副本失败」，并核原文件字节没变。变异体用**恰好出现一次**的原文做锚。现在 desktop 190 个：v1 的 13 个（`no-node` · `csp-off` · `session-open` · `bridge-extra` · `banned-word` · `d2-unc` · `d3-*` 2 · `d4-*` 2 · `d10-any-root` · `colour-in-app-styles` · `en-missing-key`），v2 的 `f-*` 5 · `g-*` 4 · `h-*` 4 · `l-*` 3，新 logo 的 `logo-*` 6，重设计的 `r1-*` 7 · `r2-*` 12 · `r3-*` 8 · `r4a-*` 8 · `r4b-*` 11 · `r5a-*` 23 · `r5b-*` 37 · `r6a-*` 20 · `r6b-*` 29。core 另有自己的一份（`core/scripts/mutation-check.mjs`，54 个，其中 `r6b-core-*` 8 个）。已知的一处盲区：`d2-unc` 只在「冷」的时候抓得到（Windows 会把连不上的 SMB 主机记进否定缓存几分钟），跑它之前不要碰那个地址。
+
+**验收**（仓库根，不在 `desktop/` 里）：`node tests/acceptance/run.mjs` 跑 V1–V12 并打表；`node tests/acceptance/v2-draft/run-draft.mjs` 跑 v2 草案 N1–N6（N6 在真窗口里走五个 Use Case，截图存 `docs/shots/acceptance-v2/`）。除了明说要重拍并保留截图的包（R6b），跑完验收后用 `git checkout -- docs/shots/acceptance-v2/` 还原。安装包的测试在 `installer/test/`，见 `docs/installer.md`。
 
 ## 八、从云织拿了什么、没拿什么、改了什么
 
@@ -1043,22 +1102,27 @@ src/renderer/
 
 ## 九、已知缺口与要定的事
 
-1. 11-03 界面 A 落地：首次设置、今日（含 S13 出错卡片与 S12 对话框）、待看、设置的连接方式 / 运行 / 库三块。同日界面 B 的六屏与两个对话框落地（§五「界面 B 的屏」），九个入口没有占位页了；待看的「去调提示词」落到流水线；待看卡片「这一条的记录」（`VerdictDialog`）由 PM 集成时接。
-2. `release.json` 的 `version` 写成 `1.0.0`、`pre_release: dev.0`、`app_ver_name: 流息 1.0.0-dev.0`：`version.mjs` / 更新比较只认 `major.minor.patch` 数字，`1.0.0-dev.0` 填进 `version` 会让应用显示 0.0.0、安装包构建拒绝。要不要改 `VERSION_RE` 以认预发布号，归 PM。
-3. ~~图标是 15 分钟内的记号（三条白色波浪 + river 圆角方块）；小尺寸由大图缩下来，没有像素级手画版~~ 11-12 换成赞妮的定稿「五流」（§4.18、`assets/icon/README.md`）：16 / 24 / 32 / 48 是手调的 SVG 1:1 渲染，256 由 512 缩。重建仍要 sharp（不是本仓依赖）。
-4. `services/update.mjs` 的更新状态里还有 `turnRunning`（云织的「研究回合在跑」）：现在永远是 false，以后由流水线的「这一轮在跑」接上。
-5. ~~`services/notify.mjs` 建了没用~~ 11-04 接上：每一轮跑完、写进待看的条数 n > 0 时，`services/schedule.mjs` 经它发「这一轮进来 n 条待看」（窗口在最前面时不发；测试世界写 `logs/notifications.jsonl`）。
-6. 侧栏底色选了 river（方案主色）而不是 ink，理由在 `docs/tokens.md`；要改只动 `--st-sidebar` 一行。
-7. ~~托盘与定时 11-06~~ 11-04 落地（§4.3）：`services/schedule.mjs`（定时器、补跑、跑完的提示）、`tray.mjs`、设置「运行」、首次设置第 5 屏「定时」、今日顶栏。运行状态页（S11）的「下次运行」11-04 集成时也接上了：`getStatus().nextRun`（定时开着时 = 下一个定时时刻）。
-8. 安装包 11-06 按流息的安装包重写（§八）；界面 A 的六张截图在 `docs/shots/2026-11-03-<screen>.png`，由 `npm run shots -- --world seeded --screen <id>` 在播种世界上拍。
-9. ~~`getAppState` 没有 `recentLibraries`~~ 已解决（11-03 PM 集成）：`getAppState().recentLibraries = [{ path, name }]`，设置「库 · 其他」就用它。~~首次设置每步「谁定的」没有桥方法~~ 11-04 已实装：`recordSetupStep` / `getSetup`（§4.1「首次设置记『谁定的』」）。
-10. ~~「没有连接也能抓」做不到~~ 已解决（11-03 PM 集成）：核心 `runRound({ scoreless: true })`，主进程没选连接时走它（见 §4.2「实做差别（界面 B 主进程）」）；待看卡片对这种条目标「没有打分」并显示来源自带的摘要。
-11. 界面 B 的取舍与缺口（11-03）：
-    - ~~资料库右栏只有分数没有理由~~ 已解决（11-03 PM 集成）：核心 `readNote` 多返回 `scores`（文件头里的分数与理由），页面右栏照它显示。
-    - ~~「试一条看结果」只能试已保存的配置~~ 已解决（11-03 PM 集成）：桥 `previewNode(nodeId, url, draft)`，页面有未保存改动时把正在改的节点作 `draft` 传过去，核心按保存时同一套校验检查后只用这一次、不写盘（方案 C3「改要求 → 试一条 → 保存」）。
-    - ~~「恢复默认」没有默认配置~~ 已解决（11-03 PM 集成）：`getPipeline().defaults`。样机的「加一个关卡」「删除这个关卡」不在 §4.2 要点里，这次没做（v1.1）。
-    - 图谱的条目节点不带日期，「只画最近的 60 条」靠 `getLibrary` 的条目日期挑；三行直线布局下，主题 → 条目的线可能正好穿过中间那行的某个来源点（样机同样），没另走线。
-    - 核验记录的「n 次调用」：`verdictsFor` 不给调用次数，结果行只写「通过 / 未通过 · n 轮」。
-    - 正文里的普通网址 `[字](地址)` 只显示、不能点（页面不能导航；`openItemUrl` 只认库里条目的来源）。
-    - 界面 B 的七张截图在 `docs/shots/2026-11-03-{library,edit,sources,pipeline,status,ask,graph}.png`：`npm run shots -- --world seeded --screen <id>`（播种世界 + `test/support/seed.mjs seedPlanB`，假连接）。
-12. 11-04 三套主题、首次设置的记录、今日「连续三轮没有产出」、许可证与致谢落地（§4.1、§五「主题」「设置的『软件』部分」）。拿不准的：河蓝原来的琥珀 / 绿在各自浅底上是 4.42 / 4.45 : 1，不到契约要的 4.5，而契约又要河蓝「值一个不改」——素灰用加深一档的两个值过线；维护者 11-04 定河蓝保持原样，这两组列为已知例外（`docs/tokens.md`「对比度」）。新画面的截图：`docs/shots/2026-11-04-{settings-theme,settings-setup,no-output,licenses}.png`（`npm run shots -- --world seeded --screen <id>`），三套并排：`docs/shots/themes/index.html`。
+> 本节按 R6b 之后的样子重写（2026-11-14）。v1 / v2 时代列在这里的条目（界面 A / B 的取舍、河蓝的对比度、托盘与定时、首次设置的记录等）都已解决或随重设计不再存在，历史见 git 记录。
+
+**等 维护者 定的**
+
+1. **v2 验收草案的句子**：N1 / N3 / N4 / N6 的标准原文、对 V1–V12 的建议改字，以及 `standards.mjs` 里 V1 / V4 / V12 的旧词，建议稿在 `docs/checks/2026-11-13-r6b/草案对照清单.md` 第三节；N6「与设计稿对照」对照哪一份、UC1–UC5 的步骤原文是否重写、N1 / N2 是否扩大到 R5a 新增的路径，见同一文件第五节。标准原文只有 维护者 能改，本仓未动。
+2. **05 英文列三处没有采纳的**：第 145 行「提示词」（英文保持 Instructions，`texts-en.test` 禁用 prompt）、第 167 行「设为当前连接」（Set as current connection，05 的 Use for scoring 没跟上中文）、第 179 行「连接你电脑上的 Claude Code」的英文句子（被 V7 的允许句逐字钉着）。理由在 `docs/checks/2026-11-13-r6b/05-对照.md`。
+3. **四句处理建议**是玄翎照 05 第三节拟的（05 只说「按正式口气重写」，没有给定稿），句子在 §4.22 的表里，等 维护者 过目。
+4. **V1 的人工项怎么走**：`standards.mjs` 的 V1 写的是「用例 A 第 6 步」，首次设置的六步已不存在；维护者 亲手走哪几步需要定（与第 1 条的 V1 建议句一起）。
+5. **词表里 §1.7 的四个旧说法**（打分、过关线、这是什么、抓到的）：`wording/glossary.json` 的 `entries` 还是 维护者 11-02 定的对照，界面已按 05 改成 评分、通过阈值、内容概述；要不要把词表这四个也改掉，见 `docs/wording.md` §二、§六。
+
+**留给后面的包**
+
+6. **R6c**（并行，独立工作区）：版本号 `1.0.0-dev.1`（维护者 11-13 定；`desktop/package.json` 现在还是 `1.0.0-dev.0`，`version.mjs` 的 `VERSION_RE` 只认 `major.minor.patch`）、重打安装包、安装测试按重设计后的界面重写。见 `docs/installer.md`。
+7. **R6d**：21 个画面 × 四套主题 × 浅深的对照截图，以及 R6b、R6c 合并后的总验收。
+
+**没有做、也没有排期的**
+
+8. **kit 与 `interim.css` 没有迁到模板部件**：真屏里还在用 kit 的是外框、两处菜单、「添加链接」对话框、库架的一个按钮（§五「kit 与 interim.css」）。迁完之后 `kit.css`、`menu.css`、`interim.css` 才能删除。
+9. **英文的两处缺口**：安装程序的界面只有简体中文（Inno Setup）；主 Agent 局面摘要给模型的英文版没有做（`core/src/agent/situation.mjs`，不上屏）。v2 验收草案也不核英文界面（英文由 `test/ui-english-screens.test.mjs` 核）。
+10. **精密国际主义浅色下，库页当前标签的图标发白**：是模板自己的样式（`shared/round9/precision.css` 写死的白色），模板文件不改；改了会和模板截图不一致（§4.16）。
+11. **品牌记号没有深色底的版本**：设计定稿只有白底黑标与红蓝 3D 两种，应用里用单色、跟随主题墨色的记号（§4.18）。
+12. **正文里的普通网址只显示、不能点**（`lib/markdown.js`：页面不能导航；`openItemUrl` 只认库里条目的来源）。
+13. **`mutation-check` 的一处盲区**：`d2-unc` 只在 Windows 的 SMB 否定缓存是冷的时候抓得到（§七）。
+14. **文件名里的历史**：`texts/today.js`（现在只有运行未能开始的横幅的字）、`ALIASES` 里 v1.0 的三个 id、`lib/use-events.js` 的 `useInboxCount`（v2 起不再使用）。不影响行为，没有清理。

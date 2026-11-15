@@ -139,7 +139,13 @@ describe('V6 desktop: login expired', () => {
     await s.page.waitForFunction(() => document.querySelector('.lib-page main[data-screen="inbox"][data-state="ready"]') !== null, null, POLL)
     // the English dictionary says the same three things (the page reads it while the app runs in English)
     const en = fmt(TODAY_EN.problem.connection['login-expired'], { name: 'X', n: caught })
-    assert.ok(/sign-in has expired/.test(en) && /this run did not start/.test(en) && en.includes(`All ${caught} fetched items are kept`), en)
+    // redesign R6b-3: the English of 「已抓取的 n 条内容已保留」 is 「The n fetched item(s) is / are retained.」 (was 「All n fetched items are
+    // kept」): in the English word list Kept is 已收藏, so 已保留 is retained (docs/checks/2026-11-13-r6b/英文对读.md). The Chinese
+    // sentence — the maintainer's, V6 — and what is checked (the three things are said, with the number) did not change.
+    const saysAll = t => /sign-in has expired/.test(t) && /this run did not start/.test(t) && t.includes(`The ${caught} fetched item`) && /\b(?:is|are) retained\./.test(t)
+    assert.ok(saysAll(en), en)
+    assert.equal(saysAll(en.replace(/ The \d+ fetched items? (?:is|are) retained\./, '')), false, 'control: without the third part the check is red')
+    assert.equal(saysAll(en.replace('this run did not start', 'this run stopped')), false, 'control: without 「did not start」 the check is red')
     assert.deepEqual(Object.keys(TODAY_EN.problem.connection), Object.keys(TODAY.problem.connection), 'the two dictionaries have the same sentences')
     const state = await s.page.evaluate(() => window.streams.getRoundState())
     assert.equal(state.ok, true)

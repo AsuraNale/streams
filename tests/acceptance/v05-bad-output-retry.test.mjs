@@ -6,6 +6,10 @@
 // scored. Always bad: exactly two attempts, then the ledger says unscored (bad-format), the item stays in the ledger at
 // 「抓到的」, the run records (rounds.jsonl, logs/<day>.md) name it, and later rounds neither lose it nor call again for it.
 // Reverse: with well-formed answers there is no retry at all, and the once-bad item is scored, not unscored.
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -63,7 +67,7 @@ test('V5 always bad: two attempts, then unscored bad-format; the item stays in t
   assert.equal(logs.length, 1)
   const md = readFileSync(join(dir, '_pipeline', 'logs', logs[0]), 'utf8')
   for (const it of items) assert.ok(md.includes(`unscored relevance bad-format ${it.url}`), md)
-  // the next round: no new call for them under the same configuration, and they are still there
+  // the next run: no new call for them under the same configuration, and they are still there
   const r2 = await core.runRound(dir, { connector: withProbeOk(conn), ctx: fetchCtx() })
   assert.equal(r2.calls, 0)
   assert.equal(conn.calls.length, 4)

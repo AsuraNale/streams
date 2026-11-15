@@ -5,6 +5,8 @@
 // default place, a folder that is not empty refused, a refused source unticked, the steps through the caller's hooks, a
 // step that fails undone. The record (proposals.jsonl) and 「谁定的」 (changes.jsonl). Each rule first gets the input made
 // to break it. No network: every source is on a local fake server.
+// redesign R6b-1: the text typed for 提出修改 in the N1 test is 「请改用其他来源」 — it used to be a fragment of the v1 处理建议, which the
+// contract wants gone from the repository; it is only a sample of what a user types, the checks are the same.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -197,8 +199,8 @@ test('N1: only a pending card\'s confirm changes anything — decline, revise, a
     const declined = declineProposal(card, { now });
     assert.equal(declined.status, 'declined');
     assert.deepEqual(tree(dir), t, `${kind}: decline wrote nothing`);
-    const revised = reviseProposal(card, '换一个来源', { now });
-    assert.deepEqual([revised.status, revised.reviseText], ['revise', '换一个来源']);
+    const revised = reviseProposal(card, '请改用其他来源', { now });
+    assert.deepEqual([revised.status, revised.reviseText], ['revise', '请改用其他来源']);
     assert.deepEqual(tree(dir), t, `${kind}: revise wrote nothing`);
     for (const c of [declined, revised]) {
       assert.throws(() => confirmProposal(c, { libraryDir: dir, now }), refused('not-pending'), `${kind}: ${c.status} then confirm`);

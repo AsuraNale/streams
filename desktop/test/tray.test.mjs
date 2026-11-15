@@ -5,8 +5,10 @@
 //            the tray's hint is 「流息 · n 条待看」 with the seed's count
 //   off      the schedule off: the same close ends the process (the control of the one above)
 //   missed   STREAMS_DEV_NOW tomorrow 09:00, the last round today (so before tomorrow's 08:30): one round at start, one
-//            notification 「这一轮进来 n 条待看」 in notifications.jsonl, and a wake from sleep after it starts none
+//            notification 「本次运行新增 n 条待看」 in notifications.jsonl, and a wake from sleep after it starts none
 //   covered  STREAMS_DEV_NOW today 12:00 with the time 00:00: the last round (the seed's, today) is after today's slot → none
+// redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
+// (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:http'

@@ -3,7 +3,7 @@
 //   ok        new items came
 //   empty     the fetch worked and nothing was new
 //   gap       the address is wrong or the feed is gone (needs the user)
-//   failed    a temporary failure (network, timeout): tried again next round
+//   failed    a temporary failure (network, timeout): tried again next run
 //   blocked   the site refused us (403, a bot wall): the user decides
 export const FETCH_STATES = Object.freeze(['ok', 'empty', 'gap', 'failed', 'blocked'])
 

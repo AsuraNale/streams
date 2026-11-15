@@ -10,7 +10,7 @@ export const LIBRARY = Object.freeze({
   searchLabel: '搜索资料库',
   searchPlaceholder: '搜索标题、主题、正文…',
   searchCount: '找到 {n} 条',
-  searchNone: '没有找到相关内容，请换个关键词。',
+  searchNone: '未找到相关内容，请更换关键词。',
   searching: '正在搜索…',
   // the three filters and their counts (core libraryCounts: all · kept · authored)
   views: Object.freeze({
@@ -25,7 +25,7 @@ export const LIBRARY = Object.freeze({
   empty: Object.freeze({
     all: '暂无已入库的内容。在待看中点击「收藏」后，内容会写成笔记出现在这里。',
     kept: '暂无已收藏的内容。在待看中点击「收藏」后会出现在这里。',
-    authored: '暂无你自己写的笔记。',
+    authored: '「我的笔记」暂无内容。',
   }),
   filteredEmpty: '当前筛选下没有内容。',
 
@@ -71,7 +71,7 @@ export const LIBRARY = Object.freeze({
     skippedLine: '已跳过 {n} 个：本次不写入，下次打开此页仍会列出。',
     showSkipped: '显示已跳过的文件',
     badName: '文件名「{name}」不能用作条目的 id：只能使用字母、数字、汉字、空格和 - _ .，并以字母、数字或汉字开头。流息不会修改文件名，请自行重命名后再回到此页。',
-    notProposable: '该文件的文件头存在其他问题（{problems}），流息无法给出建议。请在 Obsidian 或文本编辑器中修正文件头，然后在设置中点击「重建索引」。',
+    notProposable: '该文件的文件头存在其他问题（{problems}），流息无法给出建议。请在 Obsidian 或文本编辑器中修正文件头，然后在「来源与要求 → 高级设置」中点击「重建索引」。',
     parseFailed: '第 {line} 行无法识别。请按建议的写法修改：键、冒号、空格、值；主题放在方括号中，用逗号分隔。',
     failed: '未能写入：该文件头不符合文件规范（需要标题、来源、日期、状态和主题，日期写作 2026-10-20）。文件未改动。',
     failedOther: '未能写入，文件未改动。请重试。',
@@ -82,11 +82,11 @@ export const LIBRARY = Object.freeze({
   reader: Object.freeze({
     label: '正文',
     none: '在左侧选择一条内容。',
-    loadFailed: '未能读取这一条。',
+    loadFailed: '未能读取该条内容。',
     status: Object.freeze({ kept: '已收藏', authored: '我的笔记', archived: '已归档' }),
     published: '发布 {date}',
     kept: '收藏 {date}',
-    missingLink: '库内没有这一条',
+    missingLink: '库内无此内容',
   }),
 
   // the reading area's buttons: 编辑 · 查看原文 (Streams' reading window) · 更多 ▾
@@ -105,7 +105,7 @@ export const LIBRARY = Object.freeze({
   panel: Object.freeze({
     eyebrow: '当前笔记',
     reasons: '入选理由',
-    reasonsNone: '这篇笔记没有评分记录（你自己写的笔记不经评分）。',
+    reasonsNone: '该笔记无评分记录（「我的笔记」不经评分）。',
     score: '{name} {score}',
     freshness: Object.freeze({ new: '新', followup: '后续', duplicate: '重复' }),
     check: '核验',
@@ -134,7 +134,7 @@ export const EDIT = Object.freeze({
   insertLink: '插入链接',
   linkSearch: '搜索要链接的笔记',
   linkPlaceholder: '输入标题中的词',
-  linkNone: '没有找到。',
+  linkNone: '未找到。',
   linkPick: '插入 [[{title}]]',
   record: '仅可修改标题、主题、正文和链接；来源、日期、评分为记录字段，不可修改。',
   cancel: '取消',
@@ -148,28 +148,28 @@ export const EDIT = Object.freeze({
 export const VERDICTS = Object.freeze({
   title: '核验记录',
   subtitle: '{node} · {title}',
-  loading: '正在读记录……',
-  none: '这一条没有核验记录。',
-  failed: '没能读出这一条的记录。',
+  loading: '正在读取核验记录……',
+  none: '该条内容暂无核验记录。',
+  failed: '未能读取该条内容的核验记录。',
   nodes: Object.freeze({ ask: '问库' }),
   round: '第 {n} 轮 · {rules} 项规则 + {checks} 项判定',
-  passed: '过',
-  notPassed: '没过',
+  passed: '通过',
+  notPassed: '未通过',
   kinds: Object.freeze({ rule: '规则', judge: '判定 · 独立调用' }),
   saidNotDone: '自报做到了，实查没有 → 记为「说做了其实没做」',
-  sentBack: '退回第 {n} 轮没过的 {k} 项，模型只改这几处，不重写。',
+  sentBack: '退回第 {n} 轮未通过的 {k} 项，模型仅修改这些项，不重写全文。',
   result: '结果：{passed} · {rounds} 轮',
-  resultCalls: '结果：{passed} · {rounds} 轮 · {calls} 次调用',
+  resultCalls: '结果：{passed} · {rounds} 轮 · {calls} 次模型调用',
   resultPassed: '通过',
   resultFailed: '未通过',
   close: '关闭',
-  open: '这一条的记录',
+  open: '核验记录',
   // v2 package H: 「写给 AI 的话」 found in the material (core verify: the mark on the verdict lines)
   ai: Object.freeze({
-    title: '这一条里有写给 AI 的话，已忽略',
-    note: '材料里有写给 AI 的指令，没有照做：来源和库的设置都没有被改动。',
+    title: '检测到面向 AI 的指令，已忽略',
+    note: '材料中含有面向 AI 的指令，流息未执行：来源与库的设置均未被更改。',
     rule: '规则命中的原句',
     judge: '判定找到的',
-    none: '记录里没有留下原句。',
+    none: '记录中未保留原句。',
   }),
 })

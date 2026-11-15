@@ -3,8 +3,9 @@
 //
 // Each case goes through the desktop's 「试抓」 service (createSourcesService().trySource → the core's fetchSource) against a
 // server on 127.0.0.1; the status and hint codes it returns are turned into words with the page's own tables
-// (texts/common.js, texts-en/common.js FETCH_STATES / FETCH_HINTS), which are checked against the plan's words (§1.7 对照表,
-// 4.5, mockups S2 / S5). The proxy refusal is run twice: as the error text the toolkit's fetcher meets ("Tunnel connection
+// (texts/common.js, texts-en/common.js FETCH_STATES / FETCH_HINTS), which are checked against the words of 05-措辞规范 第三节
+// 「五种抓取状态」 (redesign R6b-1; 维护者 11-11 过目第 1 条: V3's sentence stays, the five words and the 处理建议 change — this comment
+// used to point at the plan's §1.7 对照表 and mockups S2 / S5). The proxy refusal is run twice: as the error text the toolkit's fetcher meets ("Tunnel connection
 // failed: 403"), injected as fetchImpl, and through a real proxy on 127.0.0.1 that refuses the CONNECT, with Node's own
 // proxy support switched on (NODE_USE_ENV_PROXY=1) in a child process.
 import { test } from 'node:test'
@@ -19,12 +20,21 @@ import { createSourcesService } from '../../desktop/src/main/services/sources.mj
 import * as ZH from '../../desktop/src/renderer/texts/common.js'
 import * as EN from '../../desktop/src/renderer/texts-en/common.js'
 
-// the plan's words for the five states (方案 §1.7 对照表 / 4.5 fetch_log) and the 「怎么办」 each must say
-const PLAN_WORDS = { ok: '正常', empty: '没新内容', gap: '地址有问题', failed: '暂时失败', blocked: '被拒绝' }
+// redesign R6b-1: the five states' words (05-措辞规范 第三节「五种抓取状态」: 正常 / 无更新 / 地址无效 / 暂时失败 / 访问被拒; English from
+// 05 and docs/checks/2026-11-13-r6b/contract.md R6b-1) and what the 处理建议 of each must say. The names PLAN_WORDS / PLAN_HINTS
+// stay; what they hold used to be the v1 plan's words (方案 §1.7) and fragments of the v1 mockups' sentences.
+const PLAN_WORDS = { ok: '正常', empty: '无更新', gap: '地址无效', failed: '暂时失败', blocked: '访问被拒' }
+const PLAN_WORDS_EN = { ok: 'OK', empty: 'No updates', gap: 'Invalid address', failed: 'Temporary failure', blocked: 'Access denied' }
 const PLAN_HINTS = {
-  // mockups S2 / S5: 「这不是临时故障，重试没用：改地址，或删掉这个来源」「下一轮会再试；不需要你改地址」「对方不让程序抓，重试没用；换一个来源」
-  'zh-CN': { none: ['不需要你做什么'], 'fix-address-or-remove': ['重试没用', '改地址', '删掉这个来源'], 'retry-next-round': ['下一轮', '不需要你改地址'], 'blocked-remove-source': ['对方不让程序抓', '重试没用', '换一个来源'] },
-  en: { none: ['Nothing for you to do'], 'fix-address-or-remove': ['retrying will not help', 'change the address', 'remove this source'], 'retry-next-round': ['next round', 'no need to change the address'], 'blocked-remove-source': ['does not let programs', 'retrying will not help', 'another source'] },
+  // the contract's four sentences (written to 05 第三节「处理建议一句按正式口气重写」): 「无需处理。」「该地址无效，重试无法解决。请修改地址，或移除该来源。」
+  // 「下次运行时将自动重试，无需修改地址。」「该网站拒绝程序访问，重试无法解决。请改用其他来源。」
+  'zh-CN': { none: ['无需处理'], 'fix-address-or-remove': ['地址无效', '重试无法解决', '修改地址', '移除该来源'], 'retry-next-round': ['下次运行', '自动重试', '无需修改地址'], 'blocked-remove-source': ['拒绝程序访问', '重试无法解决', '改用其他来源'] },
+  en: { none: ['No action needed'], 'fix-address-or-remove': ['not valid', 'retrying will not help', 'Change the address', 'remove this source'], 'retry-next-round': ['next run', 'no need to change the address'], 'blocked-remove-source': ['does not allow programs', 'retrying will not help', 'different source'] },
+}
+// the reverse sentinel: what only the sentences of 地址无效 / 访问被拒 say — a temporary failure must not be told any of it
+const NOT_FOR_FAILED = {
+  'zh-CN': ['重试无法解决', '移除该来源', '改用其他来源'],
+  en: ['retrying will not help', 'remove this source', 'different source'],
 }
 const BAD = ['gap', 'failed', 'blocked']
 
@@ -34,7 +44,8 @@ function dictionaryProblems({ FETCH_STATES, FETCH_HINTS }, lang) {
   for (const s of core.FETCH_STATES) {
     const word = FETCH_STATES[s]
     if (typeof word !== 'string' || word.trim() === '') { problems.push(`${lang}: no word for ${s}`); continue }
-    if (lang === 'zh-CN' && word !== PLAN_WORDS[s]) problems.push(`${lang}: ${s} is 「${word}」, the plan says 「${PLAN_WORDS[s]}」`)
+    const planned = (lang === 'zh-CN' ? PLAN_WORDS : PLAN_WORDS_EN)[s]
+    if (word !== planned) problems.push(`${lang}: ${s} is 「${word}」, the plan says 「${planned}」`)
     const hint = core.hintOf(s)
     const sentence = FETCH_HINTS[hint]
     if (typeof sentence !== 'string' || sentence.trim() === '') { problems.push(`${lang}: no 怎么办 for ${s} (${hint})`); continue }
@@ -44,7 +55,7 @@ function dictionaryProblems({ FETCH_STATES, FETCH_HINTS }, lang) {
   if (new Set(words).size !== words.length) problems.push(`${lang}: two states share a word`)
   const sentences = BAD.map(s => FETCH_HINTS[core.hintOf(s)])
   if (new Set(sentences).size !== BAD.length) problems.push(`${lang}: two of the bad states share one 怎么办`)
-  if (lang === 'zh-CN' && FETCH_HINTS[core.hintOf('failed')]?.includes('重试没用')) problems.push(`${lang}: a temporary failure is told retrying will not help`)
+  for (const not of NOT_FOR_FAILED[lang]) if (FETCH_HINTS[core.hintOf('failed')]?.includes(not)) problems.push(`${lang}: a temporary failure is told 「${not}」`)
   return problems
 }
 
@@ -71,6 +82,17 @@ test('V3 dictionaries, reverse: a table with gap called 暂时失败, or with th
   assert.ok(dictionaryProblems(swapped, 'zh-CN').length >= 2)
   const merged = { FETCH_STATES: EN.FETCH_STATES, FETCH_HINTS: { ...EN.FETCH_HINTS, 'blocked-remove-source': EN.FETCH_HINTS['fix-address-or-remove'] } }
   assert.ok(dictionaryProblems(merged, 'en').some(p => p.includes('share one')))
+  // redesign R6b-1, reverse: any state whose word is not 05's is reported, in both languages (the English words are compared
+  // word for word now; they used to be checked only for being there and differing), and so is a 处理建议 that says 下一轮 for 下次运行
+  for (const s of ['empty', 'gap', 'blocked']) assert.ok(dictionaryProblems({ FETCH_STATES: { ...ZH.FETCH_STATES, [s]: `${ZH.FETCH_STATES[s]}了` }, FETCH_HINTS: ZH.FETCH_HINTS }, 'zh-CN').some(p => p.includes(`${s} is 「`)), s)
+  for (const s of core.FETCH_STATES) assert.ok(dictionaryProblems({ FETCH_STATES: { ...EN.FETCH_STATES, [s]: EN.FETCH_STATES[s].toLowerCase() + '!' }, FETCH_HINTS: EN.FETCH_HINTS }, 'en').some(p => p.includes(`${s} is 「`)), s)
+  const otherHint = { FETCH_STATES: ZH.FETCH_STATES, FETCH_HINTS: { ...ZH.FETCH_HINTS, 'retry-next-round': ZH.FETCH_HINTS['retry-next-round'].replace('下次运行', '下一轮') } }
+  assert.ok(dictionaryProblems(otherHint, 'zh-CN').some(p => p.includes('does not say 「下次运行」')))
+  // reverse of the sentinel: a temporary failure told what only 地址无效 / 访问被拒 are told is reported (中英)
+  const wrongZh = { FETCH_STATES: ZH.FETCH_STATES, FETCH_HINTS: { ...ZH.FETCH_HINTS, 'retry-next-round': `${ZH.FETCH_HINTS['retry-next-round']}重试无法解决。` } }
+  assert.ok(dictionaryProblems(wrongZh, 'zh-CN').some(p => p.includes('a temporary failure is told 「重试无法解决」')))
+  const wrongEn = { FETCH_STATES: EN.FETCH_STATES, FETCH_HINTS: { ...EN.FETCH_HINTS, 'retry-next-round': `${EN.FETCH_HINTS['retry-next-round']} Use a different source.` } }
+  assert.ok(dictionaryProblems(wrongEn, 'en').some(p => p.includes('a temporary failure is told 「different source」')))
 })
 
 test('V3 server: 200 with items, 200 empty, 404, 503 (Retry-After), 429 (Retry-After), 403 each give their state, hint and words', async (t) => {
@@ -106,22 +128,23 @@ test('V3 server: 200 with items, 200 empty, 404, 503 (Retry-After), 429 (Retry-A
     seen.add(status)
   }
   assert.deepEqual([...seen].sort(), [...core.FETCH_STATES].sort(), 'all five states were produced')
-  // reverse: 「没新内容」 and 「没抓到」 are never merged — the empty feed and the 404 differ in state, word and hint
+  // reverse: 「无更新」 and 「没抓到」 are never merged — the empty feed and the 404 differ in state, word and hint
   const empty = await tryUrl(`${srv.base}/empty`)
   const missing = await tryUrl(`${srv.base}/missing`)
   assert.notEqual(empty.status, missing.status)
   assert.notEqual(ZH.FETCH_HINTS[empty.hint], ZH.FETCH_HINTS[missing.hint])
 })
 
-test('V3 proxy refusal, as the toolkit meets it ("Tunnel connection failed: 403"): blocked, 被拒绝, 换一个来源', async () => {
+test('V3 proxy refusal, as the toolkit meets it ("Tunnel connection failed: 403"): blocked, 访问被拒, 请改用其他来源', async () => {
   let calls = 0
   const fetchImpl = async () => { calls++; throw new TypeError('fetch failed', { cause: new Error('Tunnel connection failed: 403 Forbidden') }) }
   const r = await tryUrl('https://feed.example.test/feed', { fetchImpl, timeoutMs: 3000 })
   assert.equal(calls, 1)
   assert.equal(r.status, 'blocked', JSON.stringify(r))
   assert.equal(r.hint, 'blocked-remove-source')
-  assert.equal(ZH.FETCH_STATES[r.status], '被拒绝')
-  assert.ok(ZH.FETCH_HINTS[r.hint].includes('换一个来源'))
+  // redesign R6b-1: the word and the fragment of the new sentence (05 第三节) — the checks are the same two
+  assert.equal(ZH.FETCH_STATES[r.status], '访问被拒')
+  assert.ok(ZH.FETCH_HINTS[r.hint].includes('改用其他来源'))
   // reverse: a plain connection reset through the same path is a temporary failure, not a refusal
   const reset = await tryUrl('https://feed.example.test/feed', { fetchImpl: async () => { throw new TypeError('fetch failed', { cause: Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }) }) }, timeoutMs: 3000 })
   assert.equal(reset.status, 'failed')
@@ -167,7 +190,7 @@ test('V3 proxy refusal through a real proxy (Node\'s own proxy support): a refus
     results.push({ url, status: r.status, hint: r.hint, message: r.message })
   }
   for (const r of results) {
-    assert.equal(r.status, 'blocked', `a proxy refusing the request must be 被拒绝 (方案 4.5「403 和代理拒绝算被拒绝」); for ${r.url} fetchSource said ${r.status} (${ZH.FETCH_STATES[r.status]}, 「${ZH.FETCH_HINTS[r.hint]}」): ${r.message}`)
+    assert.equal(r.status, 'blocked', `a proxy refusing the request must be 访问被拒 (方案 4.5: a 403 and a proxy's refusal are the same state); for ${r.url} fetchSource said ${r.status} (${ZH.FETCH_STATES[r.status]}, 「${ZH.FETCH_HINTS[r.hint]}」): ${r.message}`)
     assert.equal(r.hint, 'blocked-remove-source')
   }
 })

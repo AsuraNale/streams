@@ -50,7 +50,7 @@ import { fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { TIcon } from '../lib/template-icons.js'
-import { ERRORS, FETCH_HINTS, FETCH_STATES, NEXT_WHEN, NODE_NAMES, SOURCE_KINDS, SOURCE_STATES, WHEN } from '../texts/common.js'
+import { ERRORS, FETCH_HINTS, FETCH_STATES, NEXT_WHEN, NODE_NAMES, PUNCT, SOURCE_KINDS, SOURCE_STATES, WHEN } from '../texts/common.js'
 import { PIPELINE } from '../texts/pipeline.js'
 import { ADVANCED as A, SOURCES as T } from '../texts/sources.js'
 import { SETTINGS } from '../texts/settings.js'
@@ -82,7 +82,7 @@ export function rowState(s) {
   return s.status
 }
 
-/** The state chip's words: 「正常 · 5 条」, 「地址有问题 · 连续 4 次运行」, 「已暂停」 … (redesign R5b precheck fix 11: never an HTTP code —
+/** The state chip's words: 「正常 · 5 条」, 「地址无效 · 连续 4 次运行」, 「已暂停」 … (redesign R5b precheck fix 11: never an HTTP code —
  * the page is not given one (O9), and the words that would say it are gone, so a code coming back is not shown either) */
 function stateLine(s) {
   const state = rowState(s)
@@ -305,7 +305,7 @@ function TopicsPart({ view, busy, reload, onDialog }) {
         <${Btn} name="save-keywords" kind="primary" disabled=${busy} onClick=${saveWords}>${T.topics.save}<//>
         <${Btn} name="cancel-keywords" kind="quiet" onClick=${() => setEditing(false)}>${T.topics.cancel}<//>`
       : html`<span class="filters st-src-kws" data-keywords=${keywords.join('、')}>${keywords.length ? keywords.map(k => html`<span key=${k} class="filter">${k}</span>`) : html`<small class="muted">${T.topics.noKeywords}</small>`}</span>
-        <${Btn} name="edit-keywords" disabled=${busy} onClick=${() => { setWords(keywords.join('，')); setEditing(true) }}>${T.topics.editKeywords}<//>
+        <${Btn} name="edit-keywords" disabled=${busy} onClick=${() => { setWords(keywords.join(PUNCT.comma)); setEditing(true) }}>${T.topics.editKeywords}<//>
         <${Btn} name="remove-topic" kind="quiet" disabled=${busy} onClick=${() => onDialog({ kind: 'remove-topic', topic: t })}>${T.topics.remove}<//>`}
     </div>` : null}
     ${error ? html`<p class="limit-note" role="alert" data-part="topic-error">${error}</p>` : null}

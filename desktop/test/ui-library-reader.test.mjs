@@ -11,6 +11,8 @@
 //   - 收藏 in 待看 → a file in notes/ (read back from the disk); 资料库 lists it (全部 and 已收藏); its reading area has 编辑 · 查看原文
 //     · 更多 (在 Obsidian 中打开 · 在资源管理器中显示 · 在浏览器中打开: each reaches the main process, a test run logs it); 查看原文
 //     opens Streams' reading window in 阅读模式 (not the browser: mutant r3-source-opens-browser is red here)
+// redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
+// (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -75,7 +77,7 @@ test('R3 nothing kept: 全部 0 · 已收藏 0 · 我的笔记 0, no caught item
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="item-actions"]')), null, 'nothing chosen: no button')
 })
 
-test('待看: the card with words for the AI carries the amber mark (the sentence on hover and in 「这一条的记录」); the others have none', async () => {
+test('待看: the card with words for the AI carries the amber mark (the sentence on hover and in 核验记录); the others have none', async () => {
   await toTab('inbox')
   await s.page.waitForFunction(() => document.querySelectorAll('[data-card]').length === 3, null, POLL)
   const marks = await s.page.evaluate(() => [...document.querySelectorAll('[data-card]')].map(c => {
@@ -91,7 +93,7 @@ test('待看: the card with words for the AI carries the amber mark (the sentenc
   }
   assert.equal(marks.filter(([, m]) => m).length, 1)
   assert.equal(INBOX.card.aiInstruction, '检测到面向 AI 的指令，已忽略')
-  // 「这一条的记录」 of the marked card (redesign R2: 详情's 核验记录, unfolded): the sentence; of another card: no such part
+  // 核验记录 of the marked card (redesign R2: 详情's 核验记录, unfolded): the sentence; of another card: no such part
   const openRecord = async url => {
     await s.page.click(`[data-card][data-url="${url}"] .card-body`)
     if (await s.page.evaluate(() => document.querySelector('[data-part="right-panel"]')?.dataset.tab !== 'detail')) await s.page.click('[data-panel-tab="detail"]')

@@ -7,6 +7,8 @@
 //     (a BOM and CRLF kept), and before 写入 the file is in no index, graph or search.
 //   - 编辑: only title / topics / body; the source or a date cannot be changed; a file that is not there or does not conform
 //     cannot be edited and nothing is created (V2: writeNoteFile by 'edit').
+// redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
+// (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -114,7 +116,7 @@ test('R3-3 编辑: only title / topics / body; no source or date; a file not the
   assert.equal(r.entry.title, 'Kept one, renamed');
 });
 
-test('R3-5 demandsAdded: only the clicks of 「记到想补的主题」 (by user), with their question; an asked line is not one', () => {
+test('R3-5 demandsAdded: only the clicks of 「加入待补充主题」 (by user), with their question; an asked line is not one', () => {
   const dir = world('r3-demand');
   appendDemandLine(dir, { question: '隔天回来哪种最好？', topic: '隔天回来的排名', notInLibrary: true, used: [] });
   assert.deepEqual(demandsAdded(dir), [], 'control: a question asked is not a click');

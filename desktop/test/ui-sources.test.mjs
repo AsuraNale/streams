@@ -18,6 +18,10 @@
 //   - 定时与上限: one 保存 → the schedule and the cap in streams.json, each one line by you; a bad cap said, nothing written.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
+// redesign R6b (PM): an HTTP code counts only as a number of its own; the fake server's port is random and a plain
+// includes('503') went red now and then on a port that merely contained the digits. The control keeps it able to fail.
+const hasCode = (text, code) => new RegExp(`(^|[^0-9A-Za-z])${code}($|[^0-9A-Za-z])`).test(text)
+assert.ok(hasCode('HTTP 503 upstream', '503') && !hasCode('127.0.0.1:65033/feed', '503'), 'control: a code on its own, not digits in a port')
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -164,7 +168,8 @@ test('R4b-1 就地加来源: five addresses typed, each tried where it was typed
     seen[state] = row
     assert.equal(row.state, state)
     assert.equal(row.lead, fmt(SOURCES.add.recognized, { kind: 'RSS' }))
-    for (const raw of ['HTTP 404', 'upstream busy', 'forbidden', '503', '403']) assert.equal(row.all.includes(raw), false, `「${raw}」 is not shown`)
+    for (const raw of ['HTTP 404', 'upstream busy', 'forbidden']) assert.equal(row.all.includes(raw), false, `「${raw}」 is not shown`)
+    for (const code of ['503', '403']) assert.equal(hasCode(row.all, code), false, `「${code}」 is not shown`)
     assert.equal(sha(file('streams.json')), before, 'a try writes nothing')
     if (state !== 'ok') {
       assert.equal(row.chip, FETCH_STATES[state], state)

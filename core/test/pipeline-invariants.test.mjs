@@ -1,3 +1,7 @@
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { allowedActions, assertAllowed } from '../src/pipeline/invariants.mjs';
@@ -116,7 +120,7 @@ test('invariant 3: a gate scored under the current cfg is not an allowed action 
   assert.deepEqual(allowedActions(stuck, cfg), []);
   assert.deepEqual(nextStep(stuck, cfg), { kind: 'done', why: 'stuck:relevance' });
   const conn = state({ unscored: { relevance: 'connection:login-expired' }, cfg: { relevance: cfgOf(REL) } });
-  assert.deepEqual(allowedActions(conn, cfg), ['gate:relevance'], 'no answer came back: try again next round');
+  assert.deepEqual(allowedActions(conn, cfg), ['gate:relevance'], 'no answer came back: try again next run');
   const stuckSummary = state({ scores: { relevance: { score: 0.8 }, substance: { score: 0.7 } }, unscored: { summary: 'bad-format' }, cfg: { relevance: cfgOf(REL), substance: cfgOf(SUB), summary: cfgOf(SUM) } });
   assert.deepEqual(nextStep(stuckSummary, cfg), { kind: 'done', why: 'stuck:summary' });
   assert.deepEqual(allowedActions(stuckSummary, cfg), []);

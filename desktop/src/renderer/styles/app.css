@@ -1,14 +1,16 @@
 /* The app's own styles, in order (redesign R1): before this file index.html has loaded the theme's template sheets
-   (src/shared/themes.mjs THEME_TEMPLATE; main/theme.mjs puts them in <head>, lib/theme.js swaps them). Then: the variables
-   the screens not yet rebuilt on the template still name (interim.css, removed by R2–R4), base and text styles, the kit,
-   one file per screen, and last the app's layer over the template (template-app.css).
+   (src/shared/themes.mjs THEME_TEMPLATE; main/theme.mjs puts them in <head>, lib/theme.js swaps them). Then: interim.css —
+   v2's --st- names pointed at the template's variables, for the parts still drawn with the kit (kit.css: the dialog, the
+   Button, the tags; menu.css; the frame and the right panel's leftovers in screens/shell.css and screens/panel.css). Redesign
+   R6b: it stays (R2–R5b took out what the rebuilt screens used; what is left is in use, see its own comment and
+   docs/desktop.md). Then base and text styles, the kit, the two screen files that are left, and last the app's layer over
+   the template (template-app.css).
    A new screen adds its own file under screens/ and one @import line here (docs/desktop.md §五).
    (The gallery's screens/kit.css is not here: screens/kit.js links it, in development only.) */
 @import url('./interim.css');
 @import url('./base.css');
 @import url('./kit.css');
 @import url('./menu.css');
-@import url('./screens/placeholder.css');
 @import url('./screens/shell.css');
 /* v2 package L: the right panel's 详情 parts */
 @import url('./screens/panel.css');

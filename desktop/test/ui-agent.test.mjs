@@ -73,7 +73,7 @@ const s = worldSession({
     // the main Agent's answers, one per call, in the order the tests below make them
     writeFileSync(scriptFile, JSON.stringify([
       /* 0 UC1 step 1 */ { reply: '好。先问一件事。', ask: { question: '港股上市的公司要算进来吗？', options: ['要', '不要'] } },
-      /* 1 UC1 step 2 */ { reply: '按你说的拟了一个库，被拒绝的那个没勾：', proposals: [{ kind: 'create_library', why: '你要追新能源电池，港股上市的也算', params: {
+      /* 1 UC1 step 2 */ { reply: '已按你的要求生成建库提议，状态为「访问被拒」的来源未勾选：', proposals: [{ kind: 'create_library', why: '你要追新能源电池，港股上市的也算', params: {
         name: NEW_LIBRARY, brief: '追踪新能源电池：装机量、价格、技术路线。', topics: [{ name: '电池', keywords: ['装机量', '固态电池'] }],
         sources: [{ name: 'battery-weekly', kind: 'rss', url: feed('battery', 4), topic: '电池' }, { name: 'battery-forum', kind: 'rss', url: `${BASE}/blocked`, topic: '电池' }],
         thresholds: { relevance: 0.7, substance: 0.6 }, schedule: { enabled: true, time: '08:30' } } }] },
@@ -242,8 +242,9 @@ test('UC1: a sentence → one question with quick answers; a quick answer is sen
   // the core's test fetches: the refused one is not ticked and says so
   assert.deepEqual(card.trial.map(t => [t.name, t.status, t.include, t.count]), [['battery-weekly', 'ok', true, 4], ['battery-forum', 'blocked', false, 0]], 'control: what the core found')
   // redesign R5a (O9): a card's trials reach the page without the HTTP code (public-data.mjs publicCard), so the refused one
-  // reads as its state and its count — this line used to expect 「被拒绝 · HTTP 403」
-  assert.deepEqual(shown.trials, [['battery-weekly', 'ok', 'true', '正常 · 4 条', null], ['battery-forum', 'blocked', 'false', '被拒绝 · 0 条', PROPOSALS.card.unticked]])
+  // reads as its state and its count — this line used to expect the state's word and 「HTTP 403」
+  // redesign R6b-1: the state's word is 「访问被拒」 now (05 第三节; it was the v1 word) — only the expected word changed
+  assert.deepEqual(shown.trials, [['battery-weekly', 'ok', 'true', '正常 · 4 条', null], ['battery-forum', 'blocked', 'false', '访问被拒 · 0 条', PROPOSALS.card.unticked]])
   // redesign R5b (precheck fix 1): 自定义 says where the pair stands (no one edited a proposal by hand) — this line used to expect
   // 「自定义（通过阈值已在「高级设置」中手动修改）」
   const C = PROPOSALS.card
@@ -285,7 +286,7 @@ test('a lookup is one faint line; the four notices each have their words; the co
   // a notice is said once (the turn's answer and the record say the same)
   for (const c of ['not-understood', 'proposals-dropped', 'session-rebuilt', 'connection']) assert.equal((await notice(c)).length, 1, c)
 })
-test('a turn in progress: 「主 Agent 在想…」, the input and 发送 disabled, a second sentence not sent; the same for a turn started elsewhere', async () => {
+test('a turn in progress: 「主 Agent 正在处理…」, the input and 发送 disabled, a second sentence not sent; the same for a turn started elsewhere', async () => {
   await slow('agentSend', 1500)
   try {
     await s.page.fill('textarea[data-field="message"]', '慢一点')
@@ -462,7 +463,7 @@ test('问库 · unsure: 「这是要改这个库吗？」 — 是 → resolveLib
   await s.page.click(`[data-turn="${j}"] [data-action="route-question"] button`)
   await until(n => !['unsure', 'asking'].includes(document.querySelector(`[data-turn="${n}"]`)?.dataset.state), j)
   assert.deepEqual(routes().at(-1), ['随便看看', 'question', 'you', 'you'], '不是，问问题 = question')
-  // a question with no connection chosen: v1.0's line and 去设置
+  // a question with no connection chosen: the line and 前往设置 (texts/common.js NO_CONNECTION)
   assert.notEqual(await s.page.evaluate(n => document.querySelector(`[data-turn="${n}"] [data-part="no-connection"] [data-action="go-settings"]`), j), null)
 })
 

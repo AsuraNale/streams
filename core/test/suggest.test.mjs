@@ -1,4 +1,8 @@
 // v2 package D2 · rule-based suggestion cards: the four rules and their boundaries, the records, and no auto-action.
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed. The comment on gap / empty uses the new state words too (R6b-1).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -54,7 +58,7 @@ test('source-failing: 2 failing rounds in a row -> nothing; 3 -> a card; failed 
     evidence: { rounds: 3, failed: 2, blocked: 1, since: at(1), last: { ts: at(3), status: 'blocked', message: '' } },
     createdAt: at(10),
   });
-  // gap (地址有问题) and empty are not 「暂时失败 / 被拒绝」
+  // gap (地址无效) and empty are not 「暂时失败 / 访问被拒」
   const d2 = library('sg-fail-gap');
   fetchRows(d2, 'feed-a', ['failed', 'gap', 'failed', 'failed']);
   fetchRows(d2, 'feed-b', ['failed', 'empty', 'blocked', 'blocked']);
@@ -169,7 +173,7 @@ test('records: after dismiss / accept a key leaves open and the same evidence do
   assert.throws(() => dismissSuggestion(dir, 'ai-instruction:feed-b'), { code: 'not-open' });
   assert.throws(() => acceptSuggestion(dir, 'nothing:here'), { code: 'not-open' });
 
-  // the next round's check: same evidence -> not suggested, nothing written, still not open
+  // the next run's check: same evidence -> not suggested, nothing written, still not open
   assert.deepEqual(suggestFor(dir, { now: clock(7) }), []);
   assert.equal(recordSuggestions(dir, suggestFor(dir, { now: clock(7) }), { now: clock(7) }).written.length, 0);
   assert.deepEqual(openSuggestions(dir), []);

@@ -101,7 +101,7 @@ export function createAskService({ library, connections, log, agentSend = null, 
         return { route, by: 'you', confidence: 1, result }
       })
     },
-    // redesign R3 (问库 「已加入待补充主题」): each topic also says for which questions you pressed 「记到想补的主题」 (`added`: the
+    // redesign R3 (问库 「已加入待补充主题」): each topic also says for which questions you pressed 「加入待补充主题」 (`added`: the
     // questions, null for one without), so an answer drawn again — the page opened again — still says it was added
     getDemands() {
       const dir = library.require()

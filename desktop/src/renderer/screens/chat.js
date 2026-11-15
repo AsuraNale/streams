@@ -17,8 +17,8 @@
 //   The box (composer): P03's placeholder, 「主 Agent」 and 「Shift + Enter 换行」, send; under it the calls one message takes
 //   (screens/proposal.js AGENT_CALLS: usually one for the answer and one more for each round of lookups — core agent/turn.mjs, at
 //   most 3 rounds — and at most 18 with the retries and the summary: core TURN_CALLS, precheck fix 3). While a turn
-//   runs (this page's or another's: 问库's change, 交由主 Agent 分析) 「主 Agent 在想…」 shows at the end of the conversation and
-//   nothing can be sent. No connection chosen → 「还没选连接方式」 with 「去设置」.
+//   runs (this page's or another's: 问库's change, 交由主 Agent 分析) 「主 Agent 正在处理…」 shows at the end of the conversation and
+//   nothing can be sent. No connection chosen → 「尚未选择连接方式…」 with 「前往设置」.
 //   - redesign R4a: params.send (首次打开's 发送) — that sentence is sent once when the page opens.
 //   - v2 package I (contract I1, 首次打开's second step): while the app knows no library and you have said nothing yet, a guide
 //     above the conversation — what to track, three example sentences (a click puts one in the input and nothing is sent) and
@@ -120,7 +120,7 @@ export function NoConnection({ onSettings }) {
  * The box at the foot of the page (the template's composer; exported for the page-level test that draws it in each state).
  * @param {object} p
  * @param {boolean} p.busy - a turn of the main Agent runs: nothing can be sent
- * @param {boolean} p.noConnection - v1.0's 「还没选连接方式」 with 「去设置」
+ * @param {boolean} p.noConnection - the line 「尚未选择连接方式…」 with 「前往设置」 (texts/common.js NO_CONNECTION)
  */
 export function Compose({ text, onText, onSend, busy, noConnection, note, onSettings }) {
   const empty = !String(text ?? '').trim()

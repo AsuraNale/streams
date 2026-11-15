@@ -55,7 +55,7 @@ export async function runSummary({ libraryDir, cfg, node, state, item, body, mat
         connection = r;
         throw new StreamsError('connection', r.detail ?? r.code, { connectionCode: r.code });
       }
-      return { output: {}, claimed: [], calls: 0 }; // unreadable twice: the rules fail and the loop's next round is the second chance
+      return { output: {}, claimed: [], calls: 0 }; // unreadable twice: the rules fail and the verification loop's following round is the second chance (a round of the loop, not a run: redesign R6b)
     }
     return { output: r.json, claimed: Array.isArray(r.json?.claimed) ? r.json.claimed : [], calls: 0 };
   };

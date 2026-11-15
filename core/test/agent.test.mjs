@@ -206,13 +206,15 @@ test('situation: every item of C1 for each library, the month\'s use with the ag
   assert.match(t, /追踪要求：追踪 AI 编程工具。+…/, 'the brief, cut');
   assert.equal(/追踪要求：(.*)/.exec(t)[1].length, 201, 'its first 200 characters and the ellipsis');
   assert.match(t, /主题：agent 框架（2 个关键词）/);
-  assert.match(t, /来源：3 个（正常 1 · 没新内容 0 · 地址有问题 0 · 暂时失败 0 · 被拒绝 1 · 已暂停 1 · 还没抓过 0）/);
+  // redesign R6b-1: the states and the 处理建议 are expected in 05 第三节's words (无更新 · 地址无效 · 访问被拒 · 尚未抓取; the contract's four
+  // sentences) on this line, the two 处理建议 lines below and in the runLookup test — they held the v1 words; what is checked is the same
+  assert.match(t, /来源：3 个（正常 1 · 无更新 0 · 地址无效 0 · 暂时失败 0 · 访问被拒 1 · 已暂停 1 · 尚未抓取 0）/);
   assert.match(t, /待看：0 条/);
   assert.match(t, /上次运行：2026-11-04T08:30:00.000Z，进入待看 0 条/);
   assert.match(t, /问题：来源异常、连续 3 次以上运行没有新内容进入待看/);
-  assert.match(t, /未处理的系统检测：来源「feed-a」连续 3 次运行未能抓取（「暂时失败」0 次、「被拒绝」3 次）。处理建议：对方不让程序抓，重试没用；换一个来源。；连续 3 次运行没有新内容进入待看。当前严格程度：「自定义」。/, 'redesign R5a (precheck fix 10): the 处理建议 is the page\'s own FETCH_HINTS sentence');
+  assert.match(t, /未处理的系统检测：来源「feed-a」连续 3 次运行未能抓取（「暂时失败」0 次、「访问被拒」3 次）。处理建议：该网站拒绝程序访问，重试无法解决。请改用其他来源。；连续 3 次运行没有新内容进入待看。当前严格程度：「自定义」。/, 'redesign R5a (precheck fix 10): the 处理建议 is the page\'s own FETCH_HINTS sentence');
   assert.match(t, /待确认的主 Agent 提议：p-1（修改单次运行上限）\n/, 'only the pending one');
-  assert.match(t, /## 库「读书」（id bbbbbbbb）[\s\S]*来源：1 个（正常 0 · 没新内容 0 · 地址有问题 0 · 暂时失败 0 · 被拒绝 0 · 已暂停 0 · 还没抓过 1）/);
+  assert.match(t, /## 库「读书」（id bbbbbbbb）[\s\S]*来源：1 个（正常 0 · 无更新 0 · 地址无效 0 · 暂时失败 0 · 访问被拒 0 · 已暂停 0 · 尚未抓取 1）/);
   assert.match(t, /待确认的创建库提议：p-3（新库）/);
   assert.doesNotMatch(t, /\b(ok|empty|gap|failed|blocked)\b|建议卡|提议卡|轮/, 'none of the words the interface no longer uses');
   assert.match(t, /全部库本月用量合计：6 次调用（其中主 Agent 2 次）/);
@@ -361,7 +363,8 @@ test('turn: a card that is not { kind, params, why } or that package B refuses i
   assert.equal(readProposals(w.proposalsFile).cards[0].status, 'pending');
   // redesign R5a (precheck fix 2): the sentence names each one's action and kind of failure in the interface's words (it said
   // 「没出（格式不对）」 for every one, and the note row carried the kind names and the refusals' own texts — bad-proposal, shape)
-  assert.ok(r.reply.endsWith('有 3 张提议没能生成：修改单次运行上限 · 格式不对；修改追踪要求 · 格式不对；暂停或恢复来源 · 找不到这个库'), r.reply);
+  // redesign R6b-2: the sentence is in 05's tone now (项 · 未能 · 格式不符 · 未找到该库 · 网络无法连接; words.mjs) — only the expected words changed
+  assert.ok(r.reply.endsWith('有 3 项提议未能生成：修改单次运行上限 · 格式不符；修改追踪要求 · 格式不符；暂停或恢复来源 · 未找到该库'), r.reply);
   assert.deepEqual(r.notice, [{ code: 'proposals-dropped', count: 3 }]);
   const note = readTranscript(w.agentDir).rows.find((x) => x.role === 'note');
   assert.equal(note.data.dropped.length, 3);
@@ -418,11 +421,11 @@ test('runLookup: each kind read only; notes_search gives only titles and dates o
   const lib = runLookup({ what: 'library', libraryId: 'aaaaaaaa' }, ctx);
   assert.equal(lib.ok, true);
   // redesign R5a (precheck fix 10): the 处理建议 is the page's own FETCH_HINTS sentence
-  assert.deepEqual(lib.result.sources.map((s) => [s.name, s.last?.state, s.last?.advice]), [['feed-a', '暂时失败', '下一轮会自动再试，不需要你改地址。']]);
+  assert.deepEqual(lib.result.sources.map((s) => [s.name, s.last?.state, s.last?.advice]), [['feed-a', '暂时失败', '下次运行时将自动重试，无需修改地址。']]);
   assert.deepEqual(lib.result.topics, [{ name: 'agent 框架', keywords: ['agent framework', 'MCP'] }]);
   assert.deepEqual(lib.result.pendingProposals, [{ id: 'p-1', kind: 'edit_cap', what: '修改单次运行上限' }]);
   const log = runLookup({ what: 'source_log', libraryId: 'aaaaaaaa', name: 'feed-a' }, ctx);
-  assert.deepEqual(log.result.lines.map((l) => [l.state, l.advice, l.status, l.http, l.message]), [['暂时失败', '下一轮会自动再试，不需要你改地址。', undefined, undefined, undefined]]);
+  assert.deepEqual(log.result.lines.map((l) => [l.state, l.advice, l.status, l.http, l.message]), [['暂时失败', '下次运行时将自动重试，无需修改地址。', undefined, undefined, undefined]]);
   assert.ok(!JSON.stringify([lib, log]).includes('HTTP 503') && !JSON.stringify([lib, log]).includes('503'), 'no raw message, no HTTP code');
   assert.equal(runLookup({ what: 'proposals' }, ctx).result.cards.length, 1);
   assert.deepEqual(runLookup({ what: 'suggestions', libraryId: 'aaaaaaaa' }, ctx).result.suggestions, []);

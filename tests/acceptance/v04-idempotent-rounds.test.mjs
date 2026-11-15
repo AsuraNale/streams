@@ -4,8 +4,12 @@
 // A library on a local feed: round 1 takes two items through every gate into the inbox, the user keeps one (so the index
 // has a line and notes/ a file), then two more rounds run with nothing new on the feed. The sha256 of the ledger
 // (_pipeline/ledger.jsonl), the index (index.jsonl) and every file in _pipeline/inbox/ is compared before and after each of
-// them: unchanged, and no model call. Reverse: a third item on the feed makes the next round change the ledger and the
+// them: unchanged, and no model call. Reverse: a third item on the feed makes the next run change the ledger and the
 // inbox and cost calls — the same comparison sees it.
+// redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
+// fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
+// run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
+// Nothing else that is checked changed.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

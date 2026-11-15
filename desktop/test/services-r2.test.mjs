@@ -218,12 +218,13 @@ test('without a library the R2 methods are no_library', async () => {
   }
 })
 
-test('R2-7 why a run starts, the four said as they are: 建库后的第一轮 (a library that never ran, asked for) · 手动触发 · 定时 · 补跑', async () => {
+test('R2-7 why a run starts, the four said as they are: 创建库后的首次运行 (a library that never ran, asked for) · 手动触发 · 定时 · 补跑', async () => {
   const { whyOf, QUEUE_WHY } = await import('../src/main/services/schedule.mjs')
   const { QUEUE } = await import('../src/renderer/texts/panel.js')
   const { QUEUE: QUEUE_EN } = await import('../src/renderer/texts-en/panel.js')
   assert.deepEqual([...QUEUE_WHY].sort(), ['catch-up', 'first', 'manual', 'schedule'])
-  assert.deepEqual(QUEUE.why, { first: '建库后的第一轮', manual: '手动触发', schedule: '定时', 'catch-up': '补跑' })
+  // redesign R6b-2: 'first' reads 「创建库后的首次运行」 (05 统一用词: 创建 · 运行; it said 建库 and 第一轮) — only the expected words changed
+  assert.deepEqual(QUEUE.why, { first: '创建库后的首次运行', manual: '手动触发', schedule: '定时', 'catch-up': '补跑' })
   assert.deepEqual(Object.keys(QUEUE_EN.why).sort(), Object.keys(QUEUE.why).sort())
   const s = await setup({ items: 1 })
   // B has never run: a run asked for is its first; A once it has run: manual; a slot and a catch-up stay what they are

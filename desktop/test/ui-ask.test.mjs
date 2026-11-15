@@ -1,6 +1,6 @@
 // 问库 (screens/ask.js) on the seeded world plus plan B's extras, with the fake connection. The scope in the top bar is the
 // core's counts; with no connection chosen a question says so and offers 设置; with the fake one (it answers nothing usable)
-// the core falls back to 「库里没有」, which the page shows as a real answer, with 「记到想补的主题」: noting the same topic
+// the core falls back to 「库里没有」, which the page shows as a real answer, with 「加入待补充主题」: noting the same topic
 // until it has 3 asks turns on 「建议加成主题」 (control: not before); the right panel says what was used. The page's half of
 // V9 — the notice when the core took sources or sentences out, the numbered superscripts that mark their source — is
 // checked by drawing, in the real page, the Answer component with what the core's own applyFallback makes of an answer that
@@ -8,7 +8,7 @@
 // Redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-5; design P13): the page is the template's conversation; where a check read
 // a place that moved it reads it where it is now — the scope is the line on top ([data-part="scope"], 「我写的」 is 「我的笔记」 and
 // 「不联网」 is said), what the answer used is 详情's line ([data-part="detail-lead"]: 命中 · 引用 · 模型调用 · 核验), the topics wanted
-// are 详情's 待补充主题 ([data-demand]); the words of the check's notices are 05-措辞规范's. 「记到想补的主题」 with a topic written
+// are 详情's 待补充主题 ([data-demand]); the words of the check's notices are 05-措辞规范's. 「加入待补充主题」 with a topic written
 // is unchanged (an answer that names none); one that names it, 已加入待补充主题 kept on reopening, 转交主 Agent's card shared with
 // 待确认: test/ui-ask-r3.test.mjs.
 import assert from 'node:assert/strict'
@@ -71,7 +71,7 @@ test('with the fake connection: 库里没有 is the answer; the right panel says
   assert.equal(await s.page.evaluate(() => document.querySelector('textarea[data-field="question"]').disabled), false)
 })
 
-test('记到想补的主题: the same topic noted until 3 asks turns on 建议加成主题 (control: not at 2)', async () => {
+test('加入待补充主题: the same topic noted until 3 asks turns on 建议加成主题 (control: not at 2)', async () => {
   const topic = s.world.planB.demandTopic
   assert.deepEqual(await demand(topic), [1, 'false'])
   for (const [count, suggest] of [[2, 'false'], [3, 'true']]) {
@@ -123,7 +123,8 @@ test('V9 on the page: what the core\'s fallback took out is said; each superscri
     return { cites, removed, marked, opened }
   }, result)
   assert.deepEqual(out.cites, [[1], [2]])
-  assert.deepEqual(out.removed, ['有 1 处引用不在库内，已删除。', '有 1 句没有引用，已删除。'])
+  // redesign R6b-2: the second sentence says 未标注引用 (05 规则 4; it said 没有引用) — only the expected words changed
+  assert.deepEqual(out.removed, ['有 1 处引用不在库内，已删除。', '有 1 句未标注引用，已删除。'])
   assert.deepEqual(out.marked, [2])
   assert.deepEqual(out.opened, [cands[1].id])
 })

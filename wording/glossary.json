@@ -1,7 +1,7 @@
 {
   "schema": "streams.glossary/1",
   "version": "1.0.0-dev.0",
-  "updated": "2026-11-02",
+  "updated": "2026-11-14",
   "about": "用户可见用词的单一来源：内部词 → 对用户的说法（产品方案 §1.7 的对照表）。内部文件、脚本、规格里的原词保留不动；只换对用户说的话。扫描器（banned-terms.json）从这里取建议；界面字典（desktop/src/renderer/texts）照这里的词写。机制沿用外壳来源的词表（致谢见 docs/wording.md）；内容是流息的。",
   "source": {
     "entries": "流息产品方案 §1.7 对照表（2026-11-02）",
@@ -30,19 +30,29 @@
     {
       "date": "2026-11-02",
       "by": "维护者（方案 §1.7、V7）",
-      "what": "Bronze / Silver / Gold 对用户叫：抓到的 / 待看 / 已收藏；judge / relevance / threshold 叫：打分 / 相关度 / 过关线；promote / dismiss 叫：收藏 / 放弃；五种抓取状态叫：正常 / 没新内容 / 地址有问题 / 暂时失败 / 被拒绝；one_line 叫「这是什么」；keeper、Intake Gate、Preflight、selftest、pending.json、judgments.json、ledger 不出现"
+      "what": "Bronze / Silver / Gold 对用户叫：抓到的 / 待看 / 已收藏；judge / relevance / threshold 叫：打分 / 相关度 / 过关线；promote / dismiss 叫：收藏 / 放弃；五种抓取状态叫：正常 / 没新内容 / 地址有问题 / 暂时失败 / 被拒绝；one_line 叫「这是什么」；keeper、Intake Gate、Preflight、selftest、pending.json、judgments.json、ledger 不出现（redesign R6b：此条照原文保留，五种抓取状态现行的词见 2026-11-13 一条）"
     },
     {
       "date": "2026-11-02",
       "by": "维护者（V7）",
       "what": "品牌词 Claude / Anthropic / OpenAI / ChatGPT 只出现在「连接你电脑上的 Claude Code」「连接你电脑上的 Codex」这类措辞、型号表和许可证页"
+    },
+    {
+      "date": "2026-11-13",
+      "by": "维护者（2026-11-11 过目第 1 条；05-措辞规范 第三节；redesign R6b-1）",
+      "what": "五种抓取状态改叫：正常 / 无更新 / 地址无效 / 暂时失败 / 访问被拒（英文 OK / No updates / Invalid address / Temporary failure / Access denied）；界面中英字典、core 给主 Agent 的词（STATE_WORDS）与本表三处逐字相同，由测试核对"
+    },
+    {
+      "date": "2026-11-14",
+      "by": "玄翎（redesign R6b-3；契约 2026-11-13）",
+      "what": "英文用词表写进本表 english 一节：待看 Inbox、库架 Shelf、资料库 Library、问库 Ask、来源与要求 Sources & Brief、追踪要求 Brief、主 Agent Main agent、收藏 / 放弃 / 稍后处理 Keep / Discard / Later、忽略 Dismiss、待确认 To confirm、系统检测 Detected by Streams、运行 run（核验的第 n 轮仍叫 round）、核验 verification；放弃的英文由 Let go 改为 Discard；对 05 英文建议稿的两处有意偏离（第 145、167 行）记在 english.deviations"
     }
   ],
   "principles": [
     "不出现英文内部词、文件名和带下划线的字段名：Silver、pending.json、one_line 这类。",
     "库里的东西只有一套名字：抓到的、待看、已收藏；一条过没过关说「相关度」和「过关线」。",
     "流水线的动作说成它对用户的意思：收藏、放弃；不说 promote、dismiss、judge。",
-    "一个来源出了什么事只说五种之一：正常、没新内容、地址有问题、暂时失败、被拒绝。",
+    "一个来源出了什么事只说五种之一：正常、无更新、地址无效、暂时失败、访问被拒。",
     "品牌只在说「连接你电脑上的 …」、型号表和许可证页时出现。"
   ],
   "fetch_states_about": "id 是 desktop/src/shared/fetch-states.mjs 的五个状态键（由测试核对）；zh / en 是界面上的词（desktop/src/renderer/texts/common.js FETCH_STATES 与 texts-en 同名表照此）。",
@@ -54,23 +64,23 @@
     },
     {
       "id": "empty",
-      "zh": "没新内容",
-      "en": "Nothing new"
+      "zh": "无更新",
+      "en": "No updates"
     },
     {
       "id": "gap",
-      "zh": "地址有问题",
-      "en": "Address problem"
+      "zh": "地址无效",
+      "en": "Invalid address"
     },
     {
       "id": "failed",
       "zh": "暂时失败",
-      "en": "Failed for now"
+      "en": "Temporary failure"
     },
     {
       "id": "blocked",
-      "zh": "被拒绝",
-      "en": "Blocked by the site"
+      "zh": "访问被拒",
+      "en": "Access denied"
     }
   ],
   "entries": [
@@ -218,7 +228,7 @@
           ],
           "action": "rename",
           "zh": "放弃",
-          "en": "Let go",
+          "en": "Discard",
           "gloss": "不进库，也不再出现"
         }
       ]
@@ -242,16 +252,16 @@
             "empty"
           ],
           "action": "rename",
-          "zh": "没新内容",
-          "en": "Nothing new"
+          "zh": "无更新",
+          "en": "No updates"
         },
         {
           "internal": [
             "gap"
           ],
           "action": "rename",
-          "zh": "地址有问题",
-          "en": "Address problem"
+          "zh": "地址无效",
+          "en": "Invalid address"
         },
         {
           "internal": [
@@ -259,15 +269,15 @@
           ],
           "action": "rename",
           "zh": "暂时失败",
-          "en": "Failed for now"
+          "en": "Temporary failure"
         },
         {
           "internal": [
             "blocked"
           ],
           "action": "rename",
-          "zh": "被拒绝",
-          "en": "Blocked by the site"
+          "zh": "访问被拒",
+          "en": "Access denied"
         }
       ],
       "note": "五种之外不再发明状态。"
@@ -436,5 +446,436 @@
         }
       ]
     }
-  ]
+  ],
+  "english": {
+    "about": "英文界面（Streams）的用词表（redesign R6b-3）：一个中文界面词对一个英文词，大小写在这里定、处处一致。terms 是词；keys 是字典里整句必须逐字等于 en 的键（只列整句就是这个词的键）（desktop/src/renderer/texts-en，main/ 开头的是 desktop/src/main/texts-en）；pairs 是「中文里有这个词，英文就必须 / 不许有什么」；banned 是不再用的旧英文（allow_keys 是按白名单留下的键）；deviations 是对 05-措辞规范 英文建议稿的有意偏离。desktop/test/r6b-english.test.mjs 按这一节核两套字典，wording/test/glossary.test.mjs 核这一节自己。",
+    "source": "05-措辞规范 第二节英文列（docs/design/redesign/source/05-措辞规范.md）、core/src/agent/words.mjs UI_TERMS、契约 docs/checks/2026-11-13-r6b/contract.md R6b-3",
+    "terms": [
+      {
+        "id": "inbox",
+        "zh": "待看",
+        "en": "Inbox",
+        "note": "指这个地方时一律 Inbox，首字母大写，前面带 the（in the Inbox）；说一条内容的状态或数量时可以说 to review（{n} to review、Nothing to review）。不用 To read。",
+        "keys": [
+          "shell.js:SHELL.tabs.inbox",
+          "inbox.js:INBOX.title"
+        ]
+      },
+      {
+        "id": "shelf",
+        "zh": "库架",
+        "en": "Shelf",
+        "note": "首字母大写。",
+        "keys": [
+          "common.js:SIDEBAR.entries.shelf",
+          "shell.js:SHELL.shelf.title"
+        ]
+      },
+      {
+        "id": "library",
+        "zh": "资料库",
+        "en": "Library",
+        "note": "作标签名时首字母大写（the Library tab）；泛指一个库时小写 library。",
+        "keys": [
+          "shell.js:SHELL.tabs.library",
+          "library.js:LIBRARY.title"
+        ]
+      },
+      {
+        "id": "ask",
+        "zh": "问库",
+        "en": "Ask",
+        "note": "标签名与说话人都叫 Ask。",
+        "keys": [
+          "shell.js:SHELL.tabs.ask",
+          "ask.js:ASK.who",
+          "ask.js:ASK.speaker"
+        ]
+      },
+      {
+        "id": "sources-brief",
+        "zh": "来源与要求",
+        "en": "Sources & Brief",
+        "note": "专名，两个词都大写，用 &；不写 Sources & brief、Sources and brief。",
+        "keys": [
+          "shell.js:SHELL.tabs.sources",
+          "sources.js:SOURCES.titlePlain"
+        ]
+      },
+      {
+        "id": "brief",
+        "zh": "追踪要求",
+        "en": "Brief",
+        "note": "作标签时 Brief；句子里小写 the brief。",
+        "keys": [
+          "sources.js:SOURCES.brief.heading",
+          "first-run.js:NEW_LIBRARY.brief",
+          "proposals.js:PROPOSALS.card.points.brief"
+        ]
+      },
+      {
+        "id": "main-agent",
+        "zh": "主 Agent",
+        "en": "Main agent",
+        "note": "只有 M 大写；句子里 the main agent。不写 Main Agent。",
+        "keys": [
+          "agent.js:AGENT.name",
+          "common.js:SIDEBAR.entries.chat"
+        ]
+      },
+      {
+        "id": "keep",
+        "zh": "收藏",
+        "en": "Keep",
+        "note": "动作 Keep，状态 Kept；不用 save（save 只指保存设置）。",
+        "keys": [
+          "inbox.js:INBOX.card.keep"
+        ]
+      },
+      {
+        "id": "discard",
+        "zh": "放弃",
+        "en": "Discard",
+        "note": "不用 let go，也不用 dismiss（dismiss 是「忽略」）。",
+        "keys": [
+          "inbox.js:INBOX.card.dismiss"
+        ]
+      },
+      {
+        "id": "later",
+        "zh": "稍后处理",
+        "en": "Later",
+        "note": "",
+        "keys": [
+          "inbox.js:INBOX.card.later",
+          "inbox.js:INBOX.later.title"
+        ]
+      },
+      {
+        "id": "dismiss",
+        "zh": "忽略",
+        "en": "Dismiss",
+        "note": "只用于系统检测的「忽略」；状态 Dismissed。",
+        "keys": [
+          "proposals.js:PROPOSALS.actions.dismiss"
+        ]
+      },
+      {
+        "id": "to-confirm",
+        "zh": "待确认",
+        "en": "To confirm",
+        "note": "",
+        "keys": [
+          "panel.js:PANEL.tabs.decide",
+          "proposals.js:PROPOSALS.statuses.pending"
+        ]
+      },
+      {
+        "id": "detected",
+        "zh": "系统检测",
+        "en": "Detected by Streams",
+        "note": "动词用 detect（Streams detected …）。",
+        "keys": [
+          "proposals.js:PROPOSALS.from.system"
+        ]
+      },
+      {
+        "id": "run",
+        "zh": "运行",
+        "en": "run",
+        "note": "抓取 → 评分 → 摘要的一次完整过程叫 run（Run now、Last run、this run、per-run cap）；不用 round。",
+        "keys": []
+      },
+      {
+        "id": "verification-round",
+        "zh": "核验的第 n 轮",
+        "en": "round",
+        "note": "只有核验记录里的「第 n 轮」叫 round（Round 2、verified in 2 rounds）：它是一次运行内部核验与退回修改的回合，不是一次运行。只出现在 banned 里 round 一条的 allow_keys 列出的键里。",
+        "keys": []
+      },
+      {
+        "id": "verification",
+        "zh": "核验",
+        "en": "verification",
+        "note": "名词 verification，动词 verify，结果 Verified / Verification failed / Not verified；不与 check 混用（check 只用于「重新检测」「检查更新」这类普通动词，以及「判定」= model check）。",
+        "keys": [
+          "library.js:LIBRARY.panel.check",
+          "panel.js:PANEL.detail.inbox.check"
+        ]
+      },
+      {
+        "id": "validation-rules",
+        "zh": "校验规则",
+        "en": "Validation rules",
+        "note": "评分环节的规则叫 rule（Built-in rule、Delete this rule），校验叫 validation；由模型判的一项叫 model check（判定）。",
+        "keys": [
+          "pipeline.js:PIPELINE.editor.checklist"
+        ]
+      },
+      {
+        "id": "strictness",
+        "zh": "严格程度",
+        "en": "Strictness",
+        "note": "三档 Loose / Standard / Strict，另有 Custom。",
+        "keys": [
+          "sources.js:SOURCES.brief.strictness",
+          "first-run.js:NEW_LIBRARY.strictness"
+        ]
+      },
+      {
+        "id": "per-run-cap",
+        "zh": "单次运行上限",
+        "en": "Per-run cap",
+        "note": "05 第 152 行。不写 per-run limit。",
+        "keys": [
+          "sources.js:ADVANCED.log.fieldNames.cap"
+        ]
+      },
+      {
+        "id": "missing-header",
+        "zh": "缺少文件头",
+        "en": "Missing a header",
+        "note": "",
+        "keys": [
+          "library.js:LIBRARY.pending.missingTag"
+        ]
+      },
+      {
+        "id": "not-in-library",
+        "zh": "库内暂无相关内容。",
+        "en": "Nothing in this library on that.",
+        "note": "V9 的句子（维护者 11-11 过目的中文；英文照 05 第 178 行）。",
+        "keys": [
+          "ask.js:ASK.answer.notInLibrary"
+        ]
+      },
+      {
+        "id": "instructions",
+        "zh": "提示词",
+        "en": "Instructions",
+        "note": "有意偏离 05 第 145 行，见 deviations。",
+        "keys": []
+      },
+      {
+        "id": "set-current",
+        "zh": "设为当前连接",
+        "en": "Set as current connection",
+        "note": "有意偏离 05 第 167 行，见 deviations。",
+        "keys": [
+          "settings.js:SETTINGS.conn.use"
+        ]
+      },
+      {
+        "id": "scoring",
+        "zh": "评分",
+        "en": "scoring",
+        "note": "动词 score，重新评分 Re-score；评分环节 Scoring step。",
+        "keys": []
+      },
+      {
+        "id": "overview",
+        "zh": "内容概述",
+        "en": "Overview",
+        "note": "摘要是 Summary；「内容概述」一句是 Overview，两个词不混。",
+        "keys": []
+      },
+      {
+        "id": "proposal",
+        "zh": "提议",
+        "en": "proposal",
+        "note": "主 Agent 提议 = Proposed by the main agent。",
+        "keys": []
+      }
+    ],
+    "pairs": [
+      {
+        "zh": "核验",
+        "must": "verif",
+        "must_not": "\\bcheck",
+        "flags": "i",
+        "why": "核验 = verification，不与 check 混用"
+      },
+      {
+        "zh": "收藏",
+        "must": "\\bke(?:ep|pt)",
+        "must_not": "\\bsav(?:e|es|ed|ing)\\b",
+        "flags": "i",
+        "why": "收藏 = Keep / Kept，不用 save"
+      },
+      {
+        "zh": "放弃",
+        "must": "discard",
+        "must_not": "dismiss|\\blet(?:ting)? go\\b",
+        "flags": "i",
+        "why": "放弃 = Discard"
+      },
+      {
+        "zh": "来源与要求",
+        "must": "Sources & Brief",
+        "must_not": null,
+        "flags": "",
+        "why": "专名，大小写固定"
+      },
+      {
+        "zh": "待确认",
+        "must": "confirm",
+        "must_not": null,
+        "flags": "i",
+        "why": "待确认 = To confirm"
+      },
+      {
+        "zh": "系统检测",
+        "must": "detect",
+        "must_not": null,
+        "flags": "i",
+        "why": "系统检测 = Detected by Streams"
+      },
+      {
+        "zh": "主 Agent",
+        "must": "\\b[Mm]ain agent\\b",
+        "must_not": null,
+        "flags": "",
+        "why": "主 Agent = Main agent / the main agent"
+      },
+      {
+        "zh": "追踪要求",
+        "must": "brief",
+        "must_not": null,
+        "flags": "i",
+        "why": "追踪要求 = Brief"
+      },
+      {
+        "zh": "严格程度",
+        "must": "strictness",
+        "must_not": null,
+        "flags": "i",
+        "why": "严格程度 = Strictness"
+      },
+      {
+        "zh": "单次运行上限",
+        "must": "per-run cap",
+        "must_not": null,
+        "flags": "i",
+        "why": "单次运行上限 = Per-run cap"
+      },
+      {
+        "zh": "缺少文件头",
+        "must": "missing a header",
+        "must_not": null,
+        "flags": "i",
+        "why": "缺少文件头 = Missing a header"
+      },
+      {
+        "zh": "提示词",
+        "must": "instructions",
+        "must_not": null,
+        "flags": "i",
+        "why": "提示词 = Instructions（有意偏离 05 第 145 行）"
+      },
+      {
+        "zh": "待看",
+        "must": "Inbox|to review",
+        "must_not": null,
+        "flags": "",
+        "why": "待看 = Inbox；状态与数量可说 to review"
+      }
+    ],
+    "banned": [
+      {
+        "id": "to-read",
+        "re": "\\bTo read\\b",
+        "flags": "",
+        "instead": "Inbox",
+        "allow_keys": [],
+        "sample": "Click to go to To read"
+      },
+      {
+        "id": "let-go",
+        "re": "\\blet(?:ting)? go\\b",
+        "flags": "i",
+        "instead": "Discard",
+        "allow_keys": [],
+        "sample": "Recent reasons for letting go"
+      },
+      {
+        "id": "round",
+        "re": "\\brounds?\\b",
+        "flags": "i",
+        "instead": "run",
+        "allow_keys": [
+          "ask.js:ASK.panel.check",
+          "library.js:VERDICTS.round",
+          "library.js:VERDICTS.sentBack",
+          "library.js:VERDICTS.result",
+          "library.js:VERDICTS.resultCalls"
+        ],
+        "sample": "this round brought 3 into your Inbox",
+        "why_allowed": "这五个键说的是核验记录里的「第 n 轮」（verification-round 一条）"
+      },
+      {
+        "id": "sources-brief-case",
+        "re": "Sources (?:&|and) brief\\b",
+        "flags": "",
+        "instead": "Sources & Brief",
+        "allow_keys": [],
+        "sample": "Check Sources & brief"
+      },
+      {
+        "id": "inbox-case",
+        "re": "\\binbox\\b",
+        "flags": "",
+        "instead": "Inbox",
+        "allow_keys": [],
+        "sample": "goes to the inbox"
+      },
+      {
+        "id": "checks-title",
+        "re": "\\bChecks\\b|\\bChecking model\\b",
+        "flags": "",
+        "instead": "Verification record / Validation rules / Verification model",
+        "allow_keys": [],
+        "sample": "Checks: all passed"
+      },
+      {
+        "id": "main-agent-case",
+        "re": "\\b[Mm]ain Agent\\b",
+        "flags": "",
+        "instead": "Main agent",
+        "allow_keys": [],
+        "sample": "Chat with the Main Agent"
+      },
+      {
+        "id": "per-run-limit",
+        "re": "\\bper-run limit\\b",
+        "flags": "i",
+        "instead": "per-run cap",
+        "allow_keys": [],
+        "sample": "Reached the per-run limit"
+      },
+      {
+        "id": "dismiss-for-discard",
+        "re": "\\bsave or dismiss\\b",
+        "flags": "i",
+        "instead": "Keep or Discard",
+        "allow_keys": [],
+        "sample": "to save or dismiss"
+      }
+    ],
+    "deviations": [
+      {
+        "line": 145,
+        "zh": "提示词（可编辑）",
+        "draft": "Prompt (editable)",
+        "ours": "Instructions (editable)",
+        "reason": "desktop/test/texts-en.test.mjs 把 prompt 列为英文界面禁用的行话（同 json、yaml、hash 等），字典里八处「提示词」一直用 Instructions；保持，不改测试。"
+      },
+      {
+        "line": 167,
+        "zh": "设为当前连接",
+        "draft": "Use for scoring",
+        "ours": "Set as current connection",
+        "reason": "中文已从「打分用这一条」改成「设为当前连接」（当前连接不只用于评分，摘要、问库、主 Agent 都用它），05 的英文建议稿没有跟上；英文跟中文。"
+      }
+    ]
+  }
 }

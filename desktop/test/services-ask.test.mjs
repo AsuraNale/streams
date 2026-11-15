@@ -4,6 +4,8 @@
 // taken); the core's answer comes back as it is, a connection failure included; the model calls count in usage.jsonl under
 // `ask`; demands and feedback go through the core, empty ones refused. The real core's ask runs when it is there
 // (core/src/ask/), and is skipped otherwise.
+// redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
+// (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { existsSync, readFileSync } from 'node:fs'
@@ -99,7 +101,7 @@ test('demands and feedback through the core: trimmed, the clock passed; empty to
     answerFeedback: (dir, row, o) => { calls.push(['answerFeedback', row, typeof o.now]); if (!row.note) throw new realCore.StreamsError('bad-feedback', 'x'); return { ok: true } },
   }
   const { h } = await world({ core })
-  // redesign R3 (问库 「已加入待补充主题」): each topic with the questions 「记到想补的主题」 was pressed for (the core's topicKey folds 'T ')
+  // redesign R3 (问库 「已加入待补充主题」): each topic with the questions 「加入待补充主题」 was pressed for (the core's topicKey folds 'T ')
   assert.deepEqual(h.getDemands(), [{ topic: 't', count: 3, last: 'x', suggest: true, added: ['q1'] }])
   assert.deepEqual(h.addDemand('  agent 记忆 ', ' 问的是什么 '), { topic: 'agent 记忆', count: 1 })
   assert.equal(h.addDemand('MCP', '  ').topic, 'MCP')

@@ -68,6 +68,13 @@ const at = h => new Date(T0 + h * 3_600_000).toISOString()
 const CLOCK = new Date(T0 + 20 * 3_600_000)
 const now = () => CLOCK
 const sha = file => createHash('sha256').update(readFileSync(file)).digest('hex')
+
+// redesign R6b (PM): an HTTP code counts only as a number of its own. The temporary folders are named
+// <prefix><process id>-<8 random hex> and the fake server's port is random, so a plain includes('503') went red now and then
+// on a path or a port that merely contained the digits (seen 11-15: 1 run in the full suite). The control below keeps it able to fail.
+const hasCode = (text, code) => new RegExp(`(^|[^0-9A-Za-z])${code}($|[^0-9A-Za-z])`).test(text)
+assert.ok(hasCode('HTTP 503: upstream busy', '503') && hasCode('{"http":404}', '404') && hasCode('503', '503'), 'control: a code on its own is found')
+assert.ok(!hasCode('st-r5a-50312-a503f00d', '503') && !hasCode('127.0.0.1:64043/feed', '404'), 'control: digits inside a name or a port are not a code')
 const notesHash = dir => { const d = join(dir, 'notes'); return existsSync(d) ? readdirSync(d).sort().map(f => `${f}:${sha(join(d, f))}`).join('|') : '' }
 const get = (obj, path) => path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj)
 
@@ -167,8 +174,8 @@ test('R5a-1 listToConfirm: both places, every library (not only the current one)
   assert.deepEqual(of(ids.a, 'source-failing').evidence.last, { ts: at(2), status: 'gap', hint: 'fix-address-or-remove' }, 'a state and the key of what to do')
   // O9: no fetcher message, no HTTP code to the page — the diagnostics have them
   const page = JSON.stringify(v)
-  assert.ok(!page.includes('404') && !page.includes('check the address'), 'no raw error in the view')
-  assert.ok(!JSON.stringify(agent.handlers.listSuggestions()).includes('404'), 'nor in the old list')
+  assert.ok(!hasCode(page, '404') && !page.includes('check the address'), 'no raw error in the view')
+  assert.ok(!hasCode(JSON.stringify(agent.handlers.listSuggestions()), '404'), 'nor in the old list')
   assert.ok(s.raw.lines().some(l => l.includes('HTTP 404') && l.includes('check the address')), 'the raw text is in the diagnostics')
   // handled: the event says so, and the list is one shorter
   const n = w.eventsOf('suggestions-changed').length
@@ -274,7 +281,7 @@ test('R5a-2 交由主 Agent 分析: recorded as 已转交, the agent gets the ca
   const r = await agent.handlers.actOnSuggestion(ids.a, 'source-failing:feed-a', 'forward')
   assert.deepEqual([r.done, r.status, r.turn.reply], [true, 'accepted', '这个来源的地址失效了。'])
   const note = readTranscript(agent.agentDir).rows.find(x => x.role === 'note').text
-  assert.match(note, /点击了「交由主 Agent 分析」。系统检测：来源「feed-a」连续 2 次运行的抓取结果为「地址有问题」/)
+  assert.match(note, /点击了「交由主 Agent 分析」。系统检测：来源「feed-a」连续 2 次运行的抓取结果为「地址无效」/)
   assert.doesNotMatch(note, /source-failing|[{}]|404|check the address/, note)
   assert.ok(!agentConnector.calls[0].prompt.includes('check the address'), 'nor in the prompt')
   assert.ok(agent.handlers.listToConfirm().handled.some(h => h.key === 'source-failing:feed-a' && h.status === 'accepted' && h.action === 'forward'))
@@ -399,7 +406,7 @@ test('R5a-6 trySource, a failed proposal, a run\'s problems: no raw text, no HTT
   const r = await s.sources.handlers.trySource({ name: 'gone', kind: 'rss', url: gone })
   assert.deepEqual(Object.keys(r).sort(), ['count', 'hint', 'sample', 'status'])
   assert.deepEqual([r.status, r.hint], ['gap', 'fix-address-or-remove'])
-  assert.ok(!JSON.stringify(r).includes('404'))
+  assert.ok(!hasCode(JSON.stringify(r), '404'))
   assert.ok(s.raw.lines().some(l => l.includes('trySource gone') && l.includes('HTTP 404')), 'the raw text is kept for the diagnostics')
   // a 主 Agent 提议's own try, as listProposals and listToConfirm hand it to the page
   const made = await s.proposals.createProposal('add_source', { libraryId: s.ids.b, source: { name: 'gone-too', kind: 'rss', url: gone } }, '试一下')
@@ -408,7 +415,7 @@ test('R5a-6 trySource, a failed proposal, a run\'s problems: no raw text, no HTT
   const viewed = s.agent.handlers.listToConfirm().items.find(i => i.proposalId === made.id).card
   for (const c of [listed, viewed]) {
     assert.deepEqual([c.trial].flat().map(t => [t.status, t.hint]), [['gap', 'fix-address-or-remove']])
-    assert.ok(!JSON.stringify(c).includes('404'), JSON.stringify(c.trial))
+    assert.ok(!hasCode(JSON.stringify(c), '404'), JSON.stringify(c.trial))
   }
   // a failed card: its step, whether it was undone, a kind of failure and the key of what to do
   const card = publicCard({ id: 'p-1', kind: 'add_source', status: 'failed', failure: { step: 'add', done: [], code: 'EPERM', message: 'EPERM: operation not permitted, rename C:\\x', rolledBack: true }, trial: [{ name: 'x', status: 'gap', hint: 'fix-address-or-remove', http: 404, message: 'HTTP 404: check the address', count: 0 }] }, { raw: s.raw })
@@ -437,7 +444,8 @@ test('R5a-6 the sources\' rows (来源与要求, the status page) and the last r
   assert.deepEqual(st.sources.map(r => r.status), ['gap', 'failed'])
   const home = pipeline.handlers.getHome()
   const shown = JSON.stringify([rows, st, home, pipeline.handlers.getPipeline().lastRound])
-  for (const bit of ['404', '503', 'check the address', 'upstream busy', 'ENOTFOUND']) assert.ok(!shown.includes(bit), bit)
+  for (const code of ['404', '503']) assert.ok(!hasCode(shown, code), code)
+  for (const bit of ['check the address', 'upstream busy', 'ENOTFOUND']) assert.ok(!shown.includes(bit), bit)
   assert.deepEqual(home.lastRound.problems, [{ code: 'connection', connectionCode: 'network', node: 'relevance' }])
   for (const bit of ['HTTP 404: check the address', 'HTTP 503: upstream busy', 'getaddrinfo ENOTFOUND']) assert.ok(raw.lines().some(l => l.includes(bit)), bit)
 })
@@ -566,7 +574,8 @@ test('R5a getAgentTranscript: a proposal not made and a connection that failed �
   appendTranscript(agent.agentDir, { turn: 3, role: 'note', text: '连接出了问题（network），这条消息没有回答', data: { error: 'network', detail: 'fake: network (an old row)' } }, { now })
   const rows = agent.handlers.getAgentTranscript().entries
   const notes = rows.filter(x => x.role === 'note')
-  assert.deepEqual(notes.map(x => x.text), ['有 1 张提议没能生成：暂停或恢复来源 · 找不到这个库', '连接出了问题：网络连不上，这条消息没有回答。', '连接出了问题：网络连不上，这条消息没有回答。'])
+  // redesign R6b-2: the sentence is in 05's tone now (项 · 未能 · 格式不符 · 未找到该库 · 网络无法连接; words.mjs) — only the expected words changed
+  assert.deepEqual(notes.map(x => x.text), ['有 1 项提议未能生成：暂停或恢复来源 · 未找到该库', '连接出现问题：网络无法连接，该消息未获得回答。', '连接出现问题：网络无法连接，该消息未获得回答。'])
   assert.deepEqual(notes.map(x => x.data), [{ dropped: [{ index: 0, category: 'no-library' }] }, { error: 'network' }, { error: 'network' }])
   const shown = JSON.stringify(rows.filter(x => x.role !== 'you').map(x => ({ ...x, data: x.data ? { ...x.data, error: undefined } : x.data })))
   for (const bit of ['pause_source', 'bad-proposal', 'unknown-library', 'fake: network', 'zzzzzzzz', 'network']) assert.ok(!shown.includes(bit), `${bit} in ${shown}`)
@@ -587,7 +596,7 @@ test('R5a words: every action\'s key is in both dictionaries; the core\'s state,
     assert.equal(typeof get(PROPOSALS_EN, l), 'string', `en ${l}`)
   }
   for (const i of v.items.filter(x => x.from === 'system')) assert.ok(PROPOSALS.from.system && PROPOSALS.kinds[i.kind], i.kind)
-  // the words the main agent is given are the page's (until R6 changes them in both places)
+  // the words the main agent is given are the page's (redesign R6b-1 changed them in both places at once)
   assert.deepEqual(Object.fromEntries(Object.keys(FETCH_STATES).map(k => [k, STATE_WORDS.zh[k]])), { ...FETCH_STATES })
   assert.deepEqual(Object.fromEntries(Object.keys(FETCH_STATES_EN).map(k => [k, STATE_WORDS.en[k]])), { ...FETCH_STATES_EN })
   assert.deepEqual([STATE_WORDS.zh.paused, STATE_WORDS.zh.never], [SOURCE_STATES.paused, SOURCE_STATES.never])
@@ -598,7 +607,10 @@ test('R5a words: every action\'s key is in both dictionaries; the core\'s state,
 })
 
 // precheck fix 10: the 处理建议 the model is given is the page's own (FETCH_HINTS), the connection's failure words too; the new
-// dictionaries name a source's state with the five states' words of now (R6 changes those, not R5a) and have the same keys
+// dictionaries name a source's state with the five states' words of now and have the same keys.
+// redesign R6b-1: the last check of this test is turned round. It used to say 「the words R6 brings in (无更新 / 地址无效 / 访问被拒)
+// are not used before R6」; R6b brought them in (05 第三节), so now the v1 words and the v1 处理建议's fragments must be gone —
+// from PROPOSALS, the page's state and hint tables and the core's words, in both languages.
 test('R5a words (precheck fix 10): 处理建议 and connection words are the page\'s own; texts/proposals.js names states with FETCH_STATES; zh / en keys the same', () => {
   assert.deepEqual({ ...ADVICE_WORDS.zh }, { ...FETCH_HINTS })
   assert.deepEqual({ ...ADVICE_WORDS.en }, { ...FETCH_HINTS_EN })
@@ -612,10 +624,19 @@ test('R5a words (precheck fix 10): 处理建议 and connection words are the pag
     assert.ok(states.includes(FETCH_STATES[k]), `zh ${FETCH_STATES[k]}`)
     assert.ok(statesEn.includes(FETCH_STATES_EN[k]), `en ${FETCH_STATES_EN[k]}`)
   }
-  // the words R6 brings in (05 第三节: 无更新 / 地址无效 / 访问被拒) are not used before R6
-  const all = JSON.stringify([PROPOSALS, PROPOSALS_EN])
-  for (const w of ['地址无效', '访问被拒', '无更新', 'invalid address', 'access denied', 'Access denied', 'Invalid address']) assert.ok(!all.includes(w), w)
+  const all = JSON.stringify([PROPOSALS, PROPOSALS_EN, FETCH_STATES, FETCH_STATES_EN, FETCH_HINTS, FETCH_HINTS_EN, SOURCE_STATES, STATE_WORDS, ADVICE_WORDS])
+  assert.deepEqual(OLD_STATE_WORDS.filter(re => re.test(all)).map(String), [])
+  // control: the same list finds each of them in a sentence that has it (each pattern is written so that this file does not
+  // contain the old word itself: the repository is searched for them too)
+  const samples = ['没新' + '内容', '地址有' + '问题', '被' + '拒绝', 'nothing' + ' new', 'Address' + ' problem', 'failed for' + ' now', 'Blocked by the' + ' site', '重试' + '没用', '删掉这个' + '来源', '换一个' + '来源', '不需要' + '你改地址', 'next' + ' round', '还没' + '抓过']
+  assert.equal(samples.length, OLD_STATE_WORDS.length)
+  for (const [i, sample] of samples.entries()) assert.ok(OLD_STATE_WORDS[i].test(`来源 x：${sample}。`), `${OLD_STATE_WORDS[i]} sees ${sample}`)
+  // and the words that are in use now are all there
+  for (const w of ['无更新', '地址无效', '访问被拒', '尚未抓取', 'No updates', 'Invalid address', 'Temporary failure', 'Access denied']) assert.ok(all.includes(w), w)
 })
+
+// redesign R6b-1: the five states' v1 words and the fragments of the v1 处理建议 (contract R6b-1's list), as patterns
+const OLD_STATE_WORDS = [/没新[内]容/, /地址有[问]题/, /被[拒]绝/, /nothing[ ]new/i, /address[ ]problem/i, /failed for[ ]now/i, /blocked by the[ ]site/i, /重试[没]用/, /删掉这个[来]源/, /换一个[来]源/, /不需要[你]/, /next[ ]round/i, /还没[抓]过/]
 
 function findKey(obj, key) {
   if (!obj || typeof obj !== 'object') return undefined
