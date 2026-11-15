@@ -459,8 +459,8 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     // redesign R6c: what this build has since the redesign (packages R1–R6: 丽芙's template in four themes, the sidebar and the
     // shelf, a library's four tabs, the right panel's tabs of now, one kind of proposal and the main agent's page, 首次打开 as one
     // screen and 新建库 as one page, the new icon, the serif heading font), in the words of the design's 05-措辞规范 — the earlier
-    // text was v2 package N's (K2, L, M). Nothing about the version number or a release date, which are not decided; nothing
-    // yet about the wording having been made one throughout (redesign R6b does that: its line goes in with the build after R6b)
+    // text was v2 package N's (K2, L, M). Nothing about the version number or a release date, which are not decided. The wording
+    // line is redesign R6b's (merged before this build): the five source states are its words, as in wording/glossary.json
     '## 这一版有什么 / What is new in this build',
     '',
     '- **四套主题**：研究对话（默认）、精密国际主义、澄明玻璃、单线黑白，各有浅色与深色；外观可选浅色、深色或跟随系统（默认跟随系统）。此前的主题设置自动换算：v1.0 测试版的河蓝、素灰、夜间分别变为研究对话 + 跟随系统、浅色、深色；已选择的精密国际主义、澄明玻璃、研究对话保持不变，其他设置不受影响。',
@@ -470,6 +470,7 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     '- **一种提议与主 Agent**：主 Agent 提议与系统检测统一为一种提议，均需确认后才会执行；主 Agent 提议可确认、拒绝或提出修改。主 Agent 页用于管理全部库：创建库、修改来源与追踪要求。',
     '- **首次打开与新建库**：首次打开为一屏，流息自动选用已登录的连接，仅在需要时显示连接选择；输入一句想追踪的内容，由主 Agent 生成建库提议，也可手动创建。新建库为一页表单：库名称、追踪要求、严格程度（宽松、标准、严格）、来源（添加后立即测试抓取）、预设来源包、存储位置与定时，可选择「仅创建」或「创建并运行」。',
     '- **新应用图标与衬线字体**：应用图标更换为新标志。研究对话主题的标题使用衬线字体 Noto Serif SC，与界面字体 Noto Sans SC 一同随安装包提供（均为 SIL Open Font License 1.1，全文见「设置 → 许可证与致谢」与安装目录的 `THIRD-PARTY-NOTICES.txt`）。',
+    '- **界面文字统一**：中文界面按统一的措辞规范改写；来源的五种状态为正常、无更新、地址无效、暂时失败、访问被拒，各附处理建议。英文界面已逐条重新校对。',
     '',
     '- **Four themes**: Research (the default), Precision, Clear Glass and Monoline, each light and dark; the appearance is Light, Dark or Follow system (the default). Earlier theme settings carry over: the v1.0 test version\'s River, Paper and Night become Research with Follow system, Light and Dark; Precision, Clear Glass and Research stay as chosen, and no other setting changes.',
     '- **Sidebar and Shelf**: the sidebar lists New library, Shelf, Main agent and My libraries — one row per library with its state (running, queued, source issues, or the number of items to review) — and, at the foot, the current connection\'s plan usage or API balance (hidden when it cannot be read). The Shelf shows one card per library: what it tracks, its last run, items to review and the state of its sources. The app opens on the current library\'s Inbox.',
@@ -478,6 +479,7 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     '- **One kind of proposal, and the main agent**: proposals by the main agent and items detected by Streams are one kind of proposal, and nothing is applied until you confirm it; a proposal by the main agent can be confirmed, declined or sent back with a change request. The Main agent page manages all libraries: creating one, changing its sources and its brief.',
     '- **First run and New library**: the first run is one screen — Streams picks a signed-in connection by itself and shows the connection choice only when needed; say in one sentence what to track and the main agent drafts a proposal for the library, or set it up manually. New library is one form: name, brief, strictness (loose, standard, strict), sources (fetched once as a test when added), a starter pack, location and schedule, with Create only or Create and run.',
     '- **A new app icon and a serif font**: the app has a new icon. Headings of the Research theme use the serif font Noto Serif SC, which ships with the installer beside the interface font Noto Sans SC (both SIL Open Font License 1.1, in full under Settings → Licenses and credits and in `THIRD-PARTY-NOTICES.txt`).',
+    '- **Consistent wording**: the Chinese interface follows one wording guide throughout; a source is OK, No updates, Invalid address, Temporary failure or Access denied, each with what to do next. The English interface has been reviewed line by line.',
     '',
     '## 这一版没有代码签名 / This version is not code-signed',
     '',
