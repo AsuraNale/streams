@@ -1,0 +1,196 @@
+流息
+个人资料库
+新建库
+库架
+3
+主 Agent
+我的库
+A
+AI Agent 记忆
+来源异常
+4
+车
+中国电动车行业
+暂无待看
+衣
+中国时尚上市公司
+连续 3 次运行无新内容
+套餐用量
+截至 今天 14:06
+5 小时
+8%
+7 天
+26%
+设置
+设置
+以下设置对本机的流息及全部库生效。各库的来源、要求与定时，请在该库的「来源与要求」中设置。
+流息 1.0.0 开发版（Windows 版）
+连接
+外观与语言
+库与用量
+关于
+连接
+连接你电脑上的 Claude Code
+已找到 · 版本 2.1.287 · 已登录
+主模型
+默认
+Fable 5.1
+Opus 5.5
+Sonnet 5.5
+Haiku 5.5
+核验模型
+同主模型
+Fable 5.1
+Opus 5.5
+Sonnet 5.5
+Haiku 5.5
+当前使用
+测试连接
+连接你电脑上的 Codex
+已找到 · 版本 0.44 · 已登录 · 可用
+主模型
+默认
+GPT-6.1 Sol
+GPT-6 Astra
+GPT-6.1 Terra
+GPT-6 Sol
+GPT-6 Luna
+GPT-5.6 Sol
+核验模型
+同主模型
+GPT-6.1 Sol
+GPT-6 Astra
+GPT-6.1 Terra
+GPT-6 Sol
+GPT-6 Luna
+GPT-5.6 Sol
+设为当前连接
+测试连接
+输入 API key
+未设置
+支持任意厂商；厂商与接口地址在「配置」中设置
+主模型
+默认
+Opus 5.5
+Sonnet 5.5
+Haiku 5.5
+Fable 5.1
+核验模型
+同主模型
+Opus 5.5
+Sonnet 5.5
+Haiku 5.5
+Fable 5.1
+设为当前连接
+配置
+测试连接
+
+评分、摘要、问库与主 Agent 均使用当前连接的主模型；核验使用核验模型。
+
+外观与语言
+主题
+界面的配色与形状
+精密国际主义
+澄明玻璃
+研究对话
+默认
+单线黑白
+外观
+跟随系统
+浅色
+深色
+跟随系统：Windows 切换深色时，流息随之切换
+
+选择后立即生效，主窗口与阅读窗口同时切换；下次打开保持所选。
+
+语言
+跟随系统
+（当前：中文）
+中文
+English
+
+仅切换流息自身的界面文字；库中的文件和模型生成的内容不受影响。切换后页面将重新载入。
+
+库与用量
+新建库默认存储位置
+C:\streams-shots\20780-9664e300\w-20780-ebe37c57\new-libs · 默认位置
+更改…
+恢复默认
+
+本月用量合计：28 次模型调用
+输入 10 · 输出 5
+
+= AI Agent 记忆 27 + 中国电动车行业 0 + 中国时尚上市公司 0 + 主 Agent 1
+
+关于
+流息 1.0.0 开发版（Windows 版）
+检查更新
+由 Starry Digital 开发
+许可证与致谢
+高级
+许可证与致谢
+
+流息本身 · MIT
+
+MIT License
+
+Copyright (c) 2026 Starry Data & Technology Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+由 Starry Digital 开发
+
+界面字体 · Noto Sans SC（SIL Open Font License 1.1）
+
+查看字体许可证全文
+
+标题字体 · Noto Serif SC（SIL Open Font License 1.1）
+
+查看字体许可证全文
+随附的第三方组件
+名称	版本	许可证
+Electron	44.0.0	MIT
+Chromium	152.0.7977.54	BSD-3-Clause
+Node.js	24.18.1	MIT
+Preact	10.29.8	MIT
+htm	3.1.1	Apache-2.0
+@mozilla/readability	0.6.0	Apache-2.0
+Noto Serif SC	2.003	OFL-1.1
+查看完整第三方声明
+开发版没有该文件：安装后的流息在安装目录中附带 THIRD-PARTY-NOTICES.txt。
+关闭
+进度
+待确认
+详情
+文件
+运行进度 / 全部库
+当前无运行任务
+
+同一时间仅运行一个库，其余按顺序自动执行。
+
+截至 14:07
+
+队列中没有库。
+
+下次运行时间
+
+没有开启定时运行的库。
+
+需保持流息运行（窗口或托盘）。错过的运行将在下次启动时补上一次。

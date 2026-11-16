@@ -111,7 +111,7 @@ export function EditDialog({ note, topics, onClose, onSaved }) {
     onCancel=${ev => { ev.preventDefault(); close.current() }}>
     <div class="dialog-head">
       <h2 id="edit-title-h">${T.heading}</h2>
-      <span class="st-act" data-action="close-edit"><button type="button" class="icon-btn" aria-label=${T.close} title=${T.close} onClick=${onClose}><${TIcon} name="close" fallback="down" /></button></span>
+      <span class="st-act" data-action="close-edit"><button type="button" class="icon-btn" aria-label=${T.close} title=${T.close} onClick=${onClose}><${TIcon} name="close" /></button></span>
     </div>
     <div class="dialog-body">
       <form class="new-content" onSubmit=${ev => ev.preventDefault()}>

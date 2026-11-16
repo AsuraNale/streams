@@ -571,8 +571,19 @@ export function SourcesScreen({ params = {} }) {
     navigate('sources', rest)
   }, [d, params.editAddress])
   const state = advanced ? (library ? 'ready' : appState?.status ?? 'loading') : d ? 'ready' : view.status
+  // redesign R6d (found by the v2 draft's UC3 step 4 picture, retaken in R6d's total acceptance): 来源与要求 and 高级设置 are one
+  // scrolling body, so 高级设置 opened from the link at the bottom of 来源与要求 kept that scroll and showed its own middle (which
+  // part of it depended on how long 来源与要求 happened to be). A change of view starts at the top; the scroll event this makes is
+  // remembered by the frame like the user's own, so the library's remembered place is the top too.
+  const body = useRef(null)
+  const shownView = useRef(advanced)
+  useEffect(() => {
+    if (shownView.current === advanced) return
+    shownView.current = advanced
+    if (body.current) body.current.scrollTop = 0
+  }, [advanced])
   return html`<${LibraryFrame} tab="sources" state=${state} labelledby="sources-title" section=${params.section}>
-      <div class="st-main__body thread-scroll st-src-body" data-view=${advanced ? 'advanced' : 'main'}>
+      <div class="st-main__body thread-scroll st-src-body" ref=${body} data-view=${advanced ? 'advanced' : 'main'}>
         ${advanced ? html`<${AdvancedView} library=${library} onRemove=${() => setDialog({ kind: 'remove-library' })} />` : html`<div class="new-content st-src">
           <span class="eyebrow">${T.eyebrow}</span>
           <h2 id="sources-title">${T.heading}</h2>

@@ -118,7 +118,7 @@ function ConnectPick({ data, busy, onUse, onSkip, onRedetect, onState }) {
         else if (usable) tail = html`<span class="st-act" data-action="use"><button type="button" class="btn" disabled=${busy} onClick=${() => onUse(kind)}>${C.use}</button></span>`
         else tail = null
         return html`<div key=${kind} class="file-row" data-connection=${kind} data-conn-state=${state} data-recommended=${String(recommended)} data-selected=${String(selected)}>
-            <span class="file-icon"><${TIcon} name="spark" fallback="note" /></span>
+            <span class="file-icon"><${TIcon} name="spark" /></span>
             <span class="file-text">${CONNECTIONS.names[kind]}<small data-detect>${pickLine(kind, k, recommended)}</small></span>
             ${tail}
           </div>
@@ -159,13 +159,13 @@ function TrackHome({ data, onChange }) {
     <p>${T.lead}</p>
     ${usable
       ? html`<div class="file-row st-first-current" data-part="current-connection" data-kind=${kind}>
-          <span class="file-icon"><${TIcon} name="spark" fallback="note" /></span>
+          <span class="file-icon"><${TIcon} name="spark" /></span>
           <span class="file-text">${fmt(T.current, { name: CONNECTIONS.names[kind] })}<small>${connectionLine(kind, k)}</small></span>
           <span class="status-chip" data-part="connected"><span class="dot"></span> ${T.connected}</span>
           <span class="st-act" data-action="change-connection"><button type="button" class="btn" onClick=${onChange}>${T.change}</button></span>
         </div>`
       : html`<div class="file-row st-first-current" data-part="no-connection">
-          <span class="file-icon"><${TIcon} name="spark" fallback="note" /></span>
+          <span class="file-icon"><${TIcon} name="spark" /></span>
           <span class="file-text">${T.none}<small>${T.noneLine}</small></span>
           <span class="st-act" data-action="pick-connection"><button type="button" class="btn" onClick=${onChange}>${T.pick}</button></span>
         </div>`}

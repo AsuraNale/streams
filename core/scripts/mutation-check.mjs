@@ -358,6 +358,31 @@ const MUTANTS = [
     edits: [['src/suggest/rules.mjs', '  return topicOverlap(r.config, otherLibraries, handledTimes(libraryDir)).map(asCard(clockOf(now).toISOString()));', '  return topicOverlap(r.config, otherLibraries, new Map()).map(asCard(clockOf(now).toISOString()));']],
     test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 3'],
   },
+  // redesign R6d-4 (docs/checks/2026-11-15-r6d/contract.md 「三处应用小问题」): the two fixes in the core, each put back
+  {
+    id: 'r6d-core-collected-utc',
+    what: 'a note\'s collected is the UTC day of the first-seen instant again (an Eastern-time evening: collected one day after kept)',
+    edits: [['src/pipeline/decide.mjs', '    collected: collectedDay(state.firstSeen, now),', "    collected: typeof state.firstSeen === 'string' ? state.firstSeen.slice(0, 10) : localIsoDate(now()),"]],
+    test: ['test/r6d.test.mjs', '--test-name-pattern=R6d-4 collected'],
+  },
+  {
+    id: 'r6d-core-fallback-topic-unknown',
+    what: 'validateNote does not know the core\'s own fallback topic again (a note kept in a library without topics carries unknown-topic:未分类)',
+    edits: [['src/library/validate.mjs', '    const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC)]);', '    const topics = new Set(topicNames(config));']],
+    test: ['test/r6d.test.mjs', '--test-name-pattern=R6d-4 fallback topic'],
+  },
+  {
+    id: 'r6d-core-fallback-topic-zh-only',
+    what: 'validateNote knows the fallback topic under its Chinese name only (uncategorized still warns)',
+    edits: [['src/library/validate.mjs', '    const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC)]);', "    const topics = new Set([...topicNames(config), FALLBACK_TOPIC['zh-CN']]);"]],
+    test: ['test/r6d.test.mjs', '--test-name-pattern=R6d-4 validateNote'],
+  },
+  {
+    id: 'r6d-core-fallback-topic-all-known',
+    what: 'validateNote takes every topic of the note as known (no unknown-topic warning at all any more)',
+    edits: [['src/library/validate.mjs', '    const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC)]);', '    const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC), ...meta.topics]);']],
+    test: ['test/r6d.test.mjs', '--test-name-pattern=R6d-4 validateNote'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

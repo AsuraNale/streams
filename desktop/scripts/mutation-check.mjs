@@ -1245,6 +1245,238 @@ const MUTANTS = [
     edits: [['src/renderer/texts/common.js', "export const PUNCT = Object.freeze({\n  open: '（',", "export const PUNCT = ({\n  open: '（',"]],
     test: ['test/texts-en.test.mjs', '--test-name-pattern=key parity'],
   },
+  // redesign R6d-4 (docs/checks/2026-11-15-r6d/contract.md 「试评分失败项显示裸 id」): the fix put back, seen in each language
+  // (redesign R6d precheck: the anchors follow pipeline.js, where the list's description now comes before a desc the failed
+  // item carries itself — checkDesc(id, f.desc); the broken line each mutant puts back is the same as before)
+  {
+    id: 'r6d-preview-bare-id-zh',
+    what: '单条测试 shows a failed check by its bare id again (quote-in-source), Chinese interface',
+    edits: [['src/renderer/screens/pipeline.js', "{ item: checkDesc(f.id ?? f.item ?? '', f.desc), evidence: f.evidence ?? '' }", "{ item: f.desc ?? f.item ?? f.id ?? '', evidence: f.evidence ?? '' }"]],
+    test: ['test/ui-r6d.test.mjs', '--test-name-pattern=R6d-4 单条测试 .zh-CN.: a built-in rule'],
+  },
+  {
+    id: 'r6d-preview-bare-id-en',
+    what: '单条测试 shows a failed check by its bare id again (quote-in-source), English interface',
+    edits: [['src/renderer/screens/pipeline.js', "{ item: checkDesc(f.id ?? f.item ?? '', f.desc), evidence: f.evidence ?? '' }", "{ item: f.desc ?? f.item ?? f.id ?? '', evidence: f.evidence ?? '' }"]],
+    test: ['test/ui-r6d.test.mjs', '--test-name-pattern=R6d-4 单条测试 .en.: a built-in rule'],
+  },
+  {
+    id: 'r6d-preview-builtin-only',
+    what: '单条测试 names only the built-in rules by their description; a failed rule of the user\'s own shows its id',
+    edits: [['src/renderer/screens/pipeline.js', ".find(c => c.id === id)?.desc ?? own ?? id\n", ".find(c => c.id === id && c.origin === 'streams')?.desc ?? own ?? id\n"]],
+    test: ['test/ui-r6d.test.mjs', '--test-name-pattern=R6d-4 单条测试 .zh-CN. control'],
+  },
+  // redesign R6d-6 (total acceptance; found by the v2 draft's UC3 step 4 picture): 来源与要求 ⇄ 高级设置 no longer resets the
+  // scroll of their one body — 高级设置 opened from the link at the bottom shows its middle (test/ui-r6d-scroll.test.mjs)
+  {
+    id: 'r6d-advanced-scroll',
+    what: 'a change of view between 来源与要求 and 高级设置 keeps the body\'s scroll (高级设置 opens in its middle)',
+    edits: [['src/renderer/screens/sources.js', '    if (body.current) body.current.scrollTop = 0\n', '']],
+    test: ['test/ui-r6d-scroll.test.mjs', '--test-name-pattern=R6d 高级设置 opened'],
+  },
+  // redesign R6d-3 / R6d-2 (docs/checks/2026-11-15-r6d/contract.md): each rule of styles/template-app.css §12 (and the graph's pressed
+  // node, §7) taken out again — the screen and the look where it was found is under the contrast bar again (test/ui-r6d-looks.test.mjs)
+  {
+    id: 'r6d-contrast-light-notes',
+    what: 'light: the small notes of round 6 (.panel-summary p, .confirm-footer .muted, .after-card, .speaker small, .compose-help) are left in its fixed greys again',
+    edits: [['src/renderer/styles/template-app.css', '.r11:not([data-appearance="dark"]) :is(.panel-summary p, .confirm-footer .muted, .after-card, .speaker small, .compose-help) { color: var(--sub11); }\n', '']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 问库 in the four light looks'],
+  },
+  {
+    id: 'r6d-contrast-light-rows',
+    what: '精密国际主义 and 研究对话, light: .chart-row and .step-line are left in round 6\'s #777 again',
+    edits: [['src/renderer/styles/template-app.css', '.r11:not([data-appearance="dark"]):is(.r11-research, .r11-precision:not(.r12-line)) :is(.chart-row, .chart-row b, .step-line) { color: var(--sub11); }\n', '']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 待看 in 精密国际主义 and 研究对话, light'],
+  },
+  {
+    id: 'r6d-contrast-pack-line',
+    what: '研究对话, light: the second line of a document-link is left in round 9\'s #5b708a again',
+    edits: [['src/renderer/styles/template-app.css', '.r11-research:not([data-appearance="dark"]) .document-link small { color: var(--sub11); }\n', '']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 新建库 in 研究对话, light'],
+  },
+  {
+    id: 'r6d-contrast-activity-row',
+    what: 'dark: .activity-row is left in round 6\'s #666 again',
+    edits: [['src/renderer/styles/template-app.css', '.r11[data-appearance="dark"] .activity-row { color: var(--sub11); }\n', '']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 待看 in the four dark looks'],
+  },
+  {
+    id: 'r6d-contrast-section-button',
+    what: '研究对话, dark: a section-label\'s buttons are left in the light theme\'s blue again',
+    edits: [['src/renderer/styles/template-app.css', '.r11.r11-research[data-appearance="dark"] .section-label button { color: var(--sub11); }\n', '']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 待看 in 研究对话, dark'],
+  },
+  {
+    id: 'r6d-contrast-glass-chosen',
+    what: '澄明玻璃, dark: the chosen row\'s small lines are left in the second ink again',
+    edits: [['src/renderer/styles/template-app.css', '.r11.r11-glass[data-appearance="dark"] :is(.project-item.active .project-meta, .source-card.selected p, .source-card.selected .eyebrow) { color: var(--ink11); }\n', '']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 (待看|资料库) in 澄明玻璃'],
+  },
+  {
+    id: 'r6d-contrast-card-body',
+    what: '精密国际主义, dark: a card\'s body is left white again',
+    edits: [['src/renderer/styles/template-app.css', '.r11-precision[data-appearance="dark"]:not(.r12-line) .card-body { background: transparent; }\n', '']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 待看 in 精密国际主义, dark'],
+  },
+  {
+    id: 'r6d-contrast-new-current',
+    what: '新建库 in the sidebar keeps the solid button\'s inverse ink while it is the current screen again',
+    edits: [['src/renderer/styles/template-app.css', '.r11.r11 .sidebar .navitem.new.active { color: var(--ink11); }\n', '']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 新建库 in 单线黑白 and the dark looks'],
+  },
+  {
+    id: 'r6d-contrast-lib-mark',
+    what: 'the library\'s mark in the sidebar is at opacity .7 again',
+    edits: [['src/renderer/styles/template-app.css', '.st-lib-mark { opacity: .85; }\n', '.st-lib-mark { opacity: .7; }\n']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 待看 in 澄明玻璃 dark and 研究对话 light'],
+  },
+  {
+    id: 'r6d-graph-press',
+    what: 'a pressed node of 图谱 takes the theme\'s pressed transform again (it jumps from under the pointer)',
+    edits: [['src/renderer/styles/template-app.css', '.st-graph .st-node, .st-graph .st-node:hover, .st-graph .st-node:active { transform: translate(-50%, -50%) !important; }\n', '']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d 图谱 in 单线黑白'],
+  },
+  // redesign R6d: the app no longer draws again once a new look is on the page — a theme chosen in 设置 keeps the icons of the theme before it
+  {
+    id: 'r6d-look-icons',
+    what: 'after a change of theme the page is not drawn again: the icons stay those of the theme before',
+    edits: [['src/renderer/app.js', 'applyLook({ theme, scheme }).then(() => setLookDrawn(n => n + 1))', 'applyLook({ theme, scheme })']],
+    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d a theme chosen while the app runs'],
+  },
+  // redesign R6d-2 (docs/checks/2026-11-15-r6d/对照.md): each defect the comparison with the design's pictures found, put back
+  // (test/ui-r6d-compare.test.mjs sees it in the real window; 阅读窗口's icons: test/reader.test.mjs)
+  {
+    id: 'r6d-cmp-step-dots',
+    what: 'the running library\'s step dots are in its details again, not beside its state',
+    edits: [['src/renderer/screens/right-panel.js', '${SEP}${P.here}` : \'\'}${dots}</small></span>', '${SEP}${P.here}` : \'\'}</small></span>'], ['src/renderer/screens/right-panel.js', '    <div class="phase-details">\n', '    <div class="phase-details">\n      ${running ? dots : null}\n']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 进度'],
+  },
+  {
+    id: 'r6d-cmp-node-meta',
+    what: 'the node\'s line of 图谱\'s 详情 is below the head block again',
+    edits: [['src/renderer/screens/graph.js', ' lead=${meta ? html`<span data-part="node-meta">${meta}</span>` : null}>\n    <div class="st-rp-detail" data-part="node-detail" data-node-id=${node.id} data-kind=${node.kind}>\n', '>\n    <div class="st-rp-detail" data-part="node-detail" data-node-id=${node.id} data-kind=${node.kind}>\n      ${meta ? html`<p class="limit-note" data-part="node-meta">${meta}</p>` : null}\n']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 图谱'],
+  },
+  {
+    id: 'r6d-cmp-node-rows',
+    what: 'the rows of 图谱\'s 详情 keep a section\'s distance from their label again',
+    edits: [['src/renderer/styles/template-app.css', '.st-rp-detail [data-part^="node-"].panel-section { margin-top: 0; }\n', '']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 图谱'],
+  },
+  {
+    id: 'r6d-cmp-note-icon',
+    what: '我的笔记 in 图谱\'s 详情 falls back to the file\'s icon again',
+    edits: [['src/renderer/screens/graph.js', '<${TIcon} name=${it.status === \'authored\' ? \'note\' : \'file\'} /></span>', '<${TIcon} name=${it.status === \'authored\' ? \'note\' : \'file\'} fallback="file" /></span>']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 图谱'],
+  },
+  {
+    id: 'r6d-cmp-edit-padding',
+    what: '编辑笔记\'s dialog body has no padding again',
+    edits: [['src/renderer/styles/template-app.css', '.st-edit .new-content { padding: 16px 20px 20px; max-width: none; }', '.st-edit .dialog-body { padding: 0; }\n.st-edit .new-content { padding: 16px 20px 20px; max-width: none; }']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 编辑笔记'],
+  },
+  {
+    id: 'r6d-cmp-edit-close',
+    what: '编辑笔记\'s close button falls back to the down arrow again',
+    edits: [['src/renderer/screens/edit-dialog.js', '<${TIcon} name="close" /></button></span>', '<${TIcon} name="close" fallback="down" /></button></span>']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 编辑笔记'],
+  },
+  {
+    id: 'r6d-cmp-tdialog-padding',
+    what: 'the template dialog\'s body has no padding again',
+    edits: [['src/renderer/styles/template-app.css', '.st-tdialog .new-content { flex: 1 1 auto;', '.st-tdialog .dialog-body { padding: 0; }\n.st-tdialog .new-content { flex: 1 1 auto;']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 来源与要求'],
+  },
+  {
+    id: 'r6d-cmp-tdialog-plain',
+    what: 'a dialog with no field keeps the form\'s panel over the dialog\'s own surface again',
+    edits: [['src/renderer/styles/template-app.css', '.r11.r11 .st-tdialog .new-content:not(:has(.field)) { padding: 0; background: transparent; }\n', '']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 来源与要求'],
+  },
+  {
+    id: 'r6d-cmp-tdialog-close',
+    what: 'the template dialog\'s close button falls back to the down arrow again',
+    edits: [['src/renderer/screens/t-dialog.js', '<${TIcon} name="close" /></button></span>', '<${TIcon} name="close" fallback="down" /></button></span>']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 来源与要求'],
+  },
+  {
+    id: 'r6d-cmp-brief-twice',
+    what: '来源与要求\'s first block shows its name over 库名称 again (追踪要求 twice)',
+    edits: [['src/renderer/styles/template-app.css', '.st-src [data-part="brief"] > .section-label:first-child { display: none; }\n', '']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 来源与要求'],
+  },
+  {
+    id: 'r6d-cmp-licenses-scroll',
+    what: '许可证与致谢 scrolls as a whole again (its head and buttons go with the text)',
+    edits: [['src/renderer/styles/template-app.css', '.dialog.st-tdialog { width: min(560px, 92vw); max-width: 92vw; overflow: hidden; }\n.dialog.st-tdialog[open] { display: flex; flex-direction: column; }', '.dialog.st-tdialog { width: min(560px, 92vw); max-width: 92vw; overflow: auto; }']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 许可证与致谢'],
+  },
+  {
+    id: 'r6d-cmp-form-panel',
+    what: '输入 API key\'s form panel is taken away too (every dialog shows the bare surface)',
+    edits: [['src/renderer/styles/template-app.css', '.r11.r11 .st-tdialog .new-content:not(:has(.field)) { padding: 0; background: transparent; }', '.r11.r11 .st-tdialog .new-content { padding: 0; background: transparent; }']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 许可证与致谢'],
+  },
+  {
+    id: 'r6d-cmp-header-gap',
+    what: '缺少文件头\'s label touches the card\'s head again',
+    edits: [['src/renderer/styles/template-app.css', '.lib-missing .field { margin: 14px 0 8px; }', '.lib-missing .field { margin: 0; }']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 缺少文件头'],
+  },
+  {
+    id: 'r6d-cmp-hint-row',
+    what: 'the hint of a file without a header puts its sentence and its button in one row again',
+    edits: [['src/renderer/styles/template-app.css', '.st-lib-hint { margin: 0; display: grid; justify-items: start; gap: 8px; }', '.st-lib-hint { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 资料库'],
+  },
+  {
+    id: 'r6d-cmp-alert-button',
+    what: 'dark: a plain button on a notice has the notice\'s own surface again',
+    edits: [['src/renderer/styles/template-app.css', '.r11[data-appearance="dark"] :is(.lib-page, .context-panel) .progress-alert .btn:not(.primary) { background: var(--paper); }\n', '']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 资料库'],
+  },
+  {
+    id: 'r6d-cmp-card-title',
+    what: 'a small card\'s title in 待确认 is 13px again, under its 14px text',
+    edits: [['src/renderer/styles/template-app.css', '.st-rp-decide h3 { margin: 4px 0 0; font-size: 15px; line-height: 1.6; }', '.st-rp-decide h3 { margin: 4px 0 0; font-size: 13px; line-height: 1.6; }']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 待确认'],
+  },
+  {
+    id: 'r6d-cmp-chip-font',
+    what: '「n 项待确认」 takes the page\'s font over the chip\'s size again',
+    edits: [['src/renderer/styles/template-app.css', '.st-chip-button { cursor: pointer; }', '.st-chip-button { cursor: pointer; font: inherit; }']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 待确认'],
+  },
+  {
+    id: 'r6d-cmp-conn-grid',
+    what: '设置\'s connections are three grids of their own again, the icon column 22px',
+    edits: [['src/renderer/styles/template-app.css', '.st-set-conn.file-row { display: grid; grid-template-columns: subgrid; gap: 12px; align-items: center; }', '.st-set-conn.file-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 220px) auto; gap: 12px; align-items: center; }']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 设置'],
+  },
+  {
+    id: 'r6d-cmp-conn-icon',
+    what: '设置\'s icon column is 22px again (单线黑白\'s box is squeezed); the rows stay one grid',
+    edits: [['src/renderer/styles/template-app.css', '.st-set-conns { display: grid; grid-template-columns: auto minmax(0, 1fr)', '.st-set-conns { display: grid; grid-template-columns: 22px minmax(0, 1fr)']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 设置'],
+  },
+  {
+    id: 'r6d-cmp-inbox-title',
+    what: 'a 待看 card\'s title is in the body face of a link again',
+    edits: [['src/renderer/styles/template-app.css', '.r9.r9 .confirm-title h2 .st-card__title { font-family: inherit; }\n', '']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 待看'],
+  },
+  {
+    id: 'r6d-cmp-spark',
+    what: '首次打开\'s connection icon falls back to the note again',
+    edits: [['src/renderer/screens/first-run.js', '<${TIcon} name="spark" /></span>\n          <span class="file-text">${fmt(T.current,', '<${TIcon} name="spark" fallback="note" /></span>\n          <span class="file-text">${fmt(T.current,']],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 首次打开'],
+  },
+  {
+    id: 'r6d-cmp-reader-back',
+    what: '阅读窗口\'s bar draws 研究对话\'s back for 精密国际主义 too (the themes share one shape again)',
+    edits: [['src/main/reader.mjs', "  precision: Object.freeze({ back: [['M22 12H6m6-6-6 6 6 6 M3 5v14']], layered: true,", "  precision: Object.freeze({ back: [['M21 6v4q0 4-4 4H4m6-6-6 6 6 6']], layered: true,"]],
+    test: ['test/reader.test.mjs', '--test-name-pattern=redesign R6d'],
+  },
 ]
 
 function runTest(desktop, test) {

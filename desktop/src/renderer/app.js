@@ -78,10 +78,15 @@ function App() {
   // the look (docs/desktop.md §五「主题」; redesign R1): the first frame already has it (the main process serves index.html with
   // the theme's template sheets and <body> class); a change in 设置 — or Windows turning dark under 跟随系统 (settings-changed,
   // below: the state comes back with the new scheme) — swaps the sheets and the classes (lib/theme.js)
+  // Redesign R6d: the icons are each theme's own (lib/template-icons.js draws from the theme in force on the page), and the
+  // page has the new theme only once its sheets have loaded — after the render that the change of state caused. So when the
+  // look is on the page the app draws once more: before, a theme chosen in 设置 kept the icons of the theme before it until
+  // something else made the page draw (found by scripts/shots-r6d.mjs: the light pictures had the wrong theme's icons).
+  const [, setLookDrawn] = useState(0)
   useEffect(() => {
     const theme = appState.data?.theme
     const scheme = appState.data?.scheme
-    if (typeof theme === 'string' && (scheme === 'light' || scheme === 'dark')) applyLook({ theme, scheme })
+    if (typeof theme === 'string' && (scheme === 'light' || scheme === 'dark')) applyLook({ theme, scheme }).then(() => setLookDrawn(n => n + 1))
   }, [appState.data?.theme, appState.data?.scheme])
   useEvent('settings-changed', () => appState.reload())
   useEvent('library-changed', () => appState.reload())

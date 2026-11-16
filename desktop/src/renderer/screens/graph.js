@@ -120,7 +120,7 @@ function NodeDetail({ node, lines, nodes, entries, keywords, onOpen }) {
   const itemsOf = ids => ids.map(id => entries.get(id.replace(/^item:/, '')) ?? { id: id.replace(/^item:/, ''), title: byId.get(id)?.label ?? id })
   const rows = (list, part) => html`<div class="panel-section" data-part=${part}>
     ${list.length ? list.map(it => html`<button type="button" key=${it.id} class="file-row" data-node-item=${it.id} onClick=${() => onOpen(it.id)}>
-      <span class="file-icon"><${TIcon} name=${it.status === 'authored' ? 'note' : 'file'} fallback="file" /></span>
+      <span class="file-icon"><${TIcon} name=${it.status === 'authored' ? 'note' : 'file'} /></span>
       <span class="file-text">${it.title}<small>${it.status === 'authored' ? D.authored : [it.date ?? '', it.source_name ?? ''].filter(Boolean).join(SEP)}</small></span><${TIcon} name="arrow" /></button>`)
       : html`<p class="limit-note">${D.itemsNone}</p>`}
   </div>`
@@ -148,9 +148,10 @@ function NodeDetail({ node, lines, nodes, entries, keywords, onOpen }) {
       <div class="section-label"><span>${D.backlinks}</span></div>${rows(itemsOf(back), 'node-backlinks')}
       <span class="st-act st-rp-reveal" data-action="open-node"><button type="button" class="btn" onClick=${() => onOpen(node.id.replace(/^item:/, ''))}><${TIcon} name="arrow" /> ${D.open}</button></span>`
   }
-  return html`<${DetailBlock} where=${PANEL.detail.where.graph} title=${title} part="detail-graph">
+  // redesign R6d (对照.md, 图谱): the node's line (「n 篇 · 关键词 n 个」) is in the head block under the title, as the design's
+  // picture has it (DetailBlock's lead) — it was a line of its own below the block
+  return html`<${DetailBlock} where=${PANEL.detail.where.graph} title=${title} part="detail-graph" lead=${meta ? html`<span data-part="node-meta">${meta}</span>` : null}>
     <div class="st-rp-detail" data-part="node-detail" data-node-id=${node.id} data-kind=${node.kind}>
-      ${meta ? html`<p class="limit-note" data-part="node-meta">${meta}</p>` : null}
       ${body}
     </div>
   <//>`

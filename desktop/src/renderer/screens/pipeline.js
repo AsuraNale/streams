@@ -15,7 +15,7 @@
 // [data-part=editor|locked|preview|preview-result|round|reasons|failures|output|tools], [data-tools="none"], textarea[data-field="requirement"],
 // input[data-field="threshold"], input[data-field="material"][value], [data-check=<id>][data-origin] with
 // [data-action="remove-check"], input[data-field="check-desc"], select[data-field="preview-url"],
-// [data-action=save|reset|add-check|preview|go-settings], [data-part="save-note"][data-kind], dialog[data-dialog="reset-pipeline"].
+// [data-part="preview-result"] li[data-failed-item=<check id>] (redesign R6d-4), [data-action=save|reset|add-check|preview|go-settings], [data-part="save-note"][data-kind], dialog[data-dialog="reset-pipeline"].
 import { html, useEffect, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
@@ -115,6 +115,13 @@ function PreviewResult({ result, node, onSettings }) {
   const v = r.verification ?? {}
   const failedItems = (Array.isArray(v.items) ? v.items : Array.isArray(v.failed) ? v.failed : []).filter(i => i && i.passed !== true)
   const passed = v.passed === true
+  // redesign R6d-4: a check that did not pass is named by its description, as the checklist above names it — the step's
+  // own list (the built-in rules already in the language of the interface: getPipeline's describeChecklist, R6b-3; the
+  // user's own items as they wrote them; an unsaved item of the draft is in it too). The verification itself carries
+  // ids only: before, the bare id stood here (quote-in-source). The list's description comes first, before a desc the
+  // failed item may carry itself (the core's feedback form { id, desc, evidence } holds the stored, Chinese one — not the
+  // interface's language; redesign R6d precheck); then that desc; an id neither has stays as it is.
+  const checkDesc = (id, own) => (Array.isArray(node?.checklist) ? node.checklist : []).find(c => c.id === id)?.desc ?? own ?? id
   return html`<div class="st-gate-result" data-part="preview-result" data-state="done" data-passed=${String(passed)} role="status">
     ${key && typeof out[key] === 'number' ? html`<b data-preview-score=${out[key]}>${fmt(T.preview.score, { name: nodeName(key), score: out[key].toFixed(2) })}</b>` : null}
     ${enumKeysOf(node).filter(k => out[k] !== undefined).map(k => html`<span key=${k}>${fmt(T.preview.score, { name: nodeName(k), score: out[k] })}</span>`)}
@@ -122,7 +129,7 @@ function PreviewResult({ result, node, onSettings }) {
     ${Array.isArray(out.points) ? html`<ul>${out.points.map((p, i) => html`<li key=${i}>${p}</li>`)}</ul>` : null}
     ${typeof out.reason === 'string' ? html`<span>${fmt(T.preview.reason, { reason: out.reason })}</span>` : null}
     <span data-part="preview-check">${passed ? T.preview.passed : fmt(T.preview.failed, { n: failedItems.length })}</span>
-    ${failedItems.length ? html`<ul>${failedItems.map((f, i) => html`<li key=${i}>${fmt(T.preview.failedItem, { item: f.desc ?? f.item ?? f.id ?? '', evidence: f.evidence ?? '' })}</li>`)}</ul>` : null}
+    ${failedItems.length ? html`<ul>${failedItems.map((f, i) => html`<li key=${i} data-failed-item=${f.id ?? ''}>${fmt(T.preview.failedItem, { item: checkDesc(f.id ?? f.item ?? '', f.desc), evidence: f.evidence ?? '' })}</li>`)}</ul>` : null}
     <small class="muted">${fmt(T.preview.calls, { n: r.calls ?? 0 })}</small>
   </div>`
 }

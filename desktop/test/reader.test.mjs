@@ -8,7 +8,9 @@
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { EventEmitter } from 'node:events'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import vm from 'node:vm'
 import {
   ACTION_ORIGIN, EXTRACT_PARTITION, EXTRACT_WEB_PREFERENCES, READER_PAGE_CSP, READER_PARTITION, READER_WEB_PREFERENCES,
   barPage, charsetOf, dataUrl, decodePage, escapeHtml, extractionScript, guardReaderContents, hardenReaderSession, isReaderSession,
@@ -19,6 +21,7 @@ import * as realCore from '../src/main/core.mjs'
 import { DESKTOP_DIR } from '../scripts/lib/paths.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { tempDir } from '../scripts/lib/temp.mjs'
+import { THEME_IDS, TEMPLATE_SCRIPTS } from '../src/shared/themes.mjs'
 
 const made = []
 after(() => { for (const d of made) removeTree(d, { waitMs: 3000 }) })
@@ -295,4 +298,32 @@ test('openReader: only an http(s) item of the library (its record or a note\'s s
   const none = createReaderService({ library: { require: () => { throw Object.assign(new Error('x'), { code: 'no_library' }) } }, reader, log: () => {} }).handlers
   await assert.rejects(async () => none.openReader('https://example.org/caught', 'reader'), err => err.code === 'no_library')
   void dir
+})
+
+// redesign R6d (docs/checks/2026-11-15-r6d/对照.md, 阅读窗口): the bar's 返回条目 was one bent arrow in all four themes; the design's
+// pictures show each theme's own back (精密国际主义 |←, 澄明玻璃 a chevron in a disc, 研究对话 the return key's arrow, 单线黑白 ←).
+// The bar's page runs no script, so reader.mjs holds the paths; here they are held to the template's own icon data, read
+// the way index.html loads it (shared/themes.mjs TEMPLATE_SCRIPTS) and drawn the way the template draws an icon (the layered
+// control symbol when the edition has one, else the edition's path — lib/template-icons.js TIcon).
+test("redesign R6d: the bar draws the look's own back and external — the paths of the theme's edition of the template, not one shape for all four", () => {
+  const window = {}
+  const ctx = vm.createContext({ window, document: { body: { dataset: { theme: 'research11' }, classList: { add() {}, contains: () => false } }, documentElement: { dataset: {} }, querySelector: () => null, querySelectorAll: () => [], addEventListener() {} } })
+  for (const file of TEMPLATE_SCRIPTS) vm.runInContext(readFileSync(join(DESKTOP_DIR, 'src', 'renderer', 'template', ...file.split('/')), 'utf8'), ctx, { filename: file })
+  const line = window.yunzhiVisualEdition
+  const edition = theme => (theme === 'monoline' ? line : window.yunzhiRound11Edition(`${theme}11`))
+  // the last script leaves 单线黑白's edition; the round 11 line above set it first for the stub's body — it must be the line edition now
+  assert.equal(line?.controlArt?.back ?? null, null, "单线黑白's edition has no layered back")
+  const backs = new Map()
+  for (const theme of THEME_IDS) {
+    const e = edition(theme)
+    assert.ok(e?.icons?.back && e?.icons?.external, `${theme}: the template's edition was read`)
+    const html = barPage({ url: 'https://example.org/a', mode: 'reading', canRead: true, fallback: false, words: readerWords('zh-CN'), look: { theme, scheme: 'light' }, css: '' })
+    const back = /data-reader-action="back"[^>]*>(<svg.*?<\/svg>)/.exec(html)?.[1] ?? ''
+    const layers = e.controlArt?.back ?? [{ d: e.icons.back }]
+    assert.deepEqual([...back.matchAll(/<path(?: class="([^"]*)")? d="([^"]*)"/g)].map(m => [m[2], m[1] ?? null]), [...layers].map(l => [l.d, l.tone ? `symbol-${l.tone}` : null]), `${theme}: 返回条目's icon`)
+    assert.equal(/class="ico control-symbol"/.test(back), Boolean(e.controlArt?.back), `${theme}: a layered symbol is marked as one`)
+    assert.equal(html.split(`d="${e.icons.external}"`).length - 1, 2, `${theme}: the address and 在浏览器中打开 draw the theme's external`)
+    backs.set(theme, back)
+  }
+  assert.equal(new Set(backs.values()).size, THEME_IDS.length, 'the four themes do not share one back')
 })

@@ -86,16 +86,20 @@ function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
     : [['clock', fmt(P.waitingDetail, { why, since: whenText(o.since, WHEN) ?? '' })]]
   const state = running ? queueWords({ state: 'running' }, r?.phase) : queueWords({ state: 'queued', position: i + 1 })
   const at = running ? stepOf(r?.phase) : -1
+  // redesign R6d (对照.md, 运行与排队): the step dots sit beside the state, in the heading's small line — the design's
+  // streams/app.js moves them there (「把进度点放到阶段状态旁」) and the template styles them only there (round11/workbench.css
+  // .phase-label .step-dots; 单线黑白's line.css .phase-heading .step-dots). They were left in the details, where they lay
+  // across the lower edge of the heading. The one waiting has its dots too, none marked, as the design's picture has.
+  const dots = html`<span class="step-dots" aria-hidden="true">${RUN_STEPS.map((id, k) => html`<i key=${id} class=${k < at ? 'complete' : k === at ? 'wait' : ''}></i>`)}</span>`
   return html`<details class=${`phase-row${running ? ' current' : ''}`} open=${running} data-part=${running ? 'running' : undefined}
     data-library=${o.libraryId ?? ''} data-phase=${running ? r?.phase ?? '' : undefined}
     data-queue-row=${o.libraryId ?? ''} data-position=${i + 1} data-here=${String(o.libraryId === here)} data-why=${o.why ?? ''}>
     <summary class="phase-heading">
       <span class="phase-index">${pad(i + 1)}</span>
-      <span class="phase-label">${running ? fmt(P.runningTitle, { name }) : name}<small>${state}${o.libraryId === here ? `${SEP}${P.here}` : ''}</small></span>
+      <span class="phase-label">${running ? fmt(P.runningTitle, { name }) : name}<small>${state}${o.libraryId === here ? `${SEP}${P.here}` : ''}${dots}</small></span>
       <${TIcon} name="down" />
     </summary>
     <div class="phase-details">
-      ${running ? html`<span class="step-dots" aria-hidden="true">${RUN_STEPS.map((id, k) => html`<i key=${id} class=${k < at ? 'complete' : k === at ? 'wait' : ''}></i>`)}</span>` : null}
       ${steps.map(([ic, t], k) => html`<div key=${k} class="step-line" data-part=${running && k === 0 ? 'running-phase' : undefined}><${TIcon} name=${ic} /><span>${t}</span></div>`)}
       ${running ? html`<div class="mini-chart" data-part="running-calls"><div class="chart-row"><span>${P.calls}</span><div class="chart-track"><div class="chart-bar" style=${{ '--value': `${r && r.cap > 0 ? Math.min(100, Math.floor(((r.calls ?? 0) / r.cap) * 100)) : 0}%` }}></div></div>
         <b data-calls=${r?.calls ?? 0} data-cap=${r?.cap ?? ''}>${r?.cap ? fmt(P.callsValue, { calls: r.calls ?? 0, cap: r.cap }) : fmt(P.callsNoCap, { calls: r?.calls ?? 0 })}</b></div></div>

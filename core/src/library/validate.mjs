@@ -4,11 +4,12 @@
 //   { ok, meta, body, problems: [{ code, message, line? }], warnings: [{ code, message }] }
 //
 // problems  = not conforming: the note is refused from the index and listed as pending.
-// warnings  = still indexed, but flagged (unknown-topic:<name>, unknown-score:<key>).
+// warnings  = still indexed, but flagged (unknown-topic:<name>, unknown-score:<key>). The core's own fallback topic
+//             (FALLBACK_TOPIC: 未分类 / uncategorized) is never an unknown topic (redesign R6d-4).
 // `config` may be null; then no warnings are computed.
 import { basename } from 'node:path';
 import { parseFrontmatter, isPlainObject } from './frontmatter.mjs';
-import { topicNames, nodeIds } from './config.mjs';
+import { topicNames, nodeIds, FALLBACK_TOPIC } from './config.mjs';
 
 export const NOTE_STATUSES = ['kept', 'authored', 'archived'];
 export const REQUIRED_FIELDS = ['id', 'title', 'source', 'date', 'status', 'topics'];
@@ -80,7 +81,9 @@ export function validateNote({ fileName, text, config = null }) {
   }
 
   if (config && problems.length === 0) {
-    const topics = new Set(topicNames(config));
+    // redesign R6d-4: the core's own fallback topic (未分类 / uncategorized — what keep and 导入写头 give a note when the
+    // library names no topic for it) is known under both its names, whatever the library's language: no warning for it
+    const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC)]);
     for (const t of meta.topics) {
       if (!topics.has(t)) warnings.push({ code: `unknown-topic:${t}`, message: `topic "${t}" is not defined in streams.json` });
     }

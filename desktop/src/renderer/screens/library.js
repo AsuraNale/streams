@@ -161,7 +161,7 @@ function NoteDetail({ note, onSelect }) {
       <div class="panel-section" data-part="backlinks">
         <div class="section-label"><span>${P.backlinks}</span></div>
         ${backlinks.length ? backlinks.map(b => html`<button type="button" key=${b.id} class="file-row" data-link=${b.id} onClick=${() => onSelect(b.id)}>
-          <span class="file-icon"><${TIcon} name="note" fallback="file" /></span><span class="file-text">${b.title}</span><${TIcon} name="arrow" /></button>`)
+          <span class="file-icon"><${TIcon} name="note" /></span><span class="file-text">${b.title}</span><${TIcon} name="arrow" /></button>`)
           : html`<p class="limit-note">${P.backlinksNone}</p>`}
       </div>
       <div class="panel-section" data-part="same-source">

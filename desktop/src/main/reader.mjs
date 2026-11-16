@@ -217,11 +217,23 @@ function page({ words, look, css, title, bodyClass, lang, dir, body }) {
 
 // the two glyphs the bar shows (the template's back and external), drawn as the template draws an icon (svg.ico: a stroke of the
 // theme's ink); written out here because the bar's page runs no script
+// Redesign R6d (docs/checks/2026-11-15-r6d/对照.md, 阅读窗口): each theme's own back and external — the design's pictures of the
+// reading window show 精密国际主义's |←, 澄明玻璃's chevron in a disc, 研究对话's return arrow and 单线黑白's ←; one bent arrow
+// was written here for all four. The paths are the template's (template/shared/round9/edition.js, round12/edition.js: the
+// edition's layered control symbol for back where it has one — a layer is [path, tone] —, its icon otherwise; external is the
+// edition's icon); test/reader.test.mjs holds this table to those files.
 const GLYPH = Object.freeze({
-  back: 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11',
-  external: 'M14 4h6v6M10 14 20 4M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5',
+  precision: Object.freeze({ back: [['M22 12H6m6-6-6 6 6 6 M3 5v14']], layered: true, external: 'M13 4h7v7 M20 4 10 14 M9 5H4v15h15v-5' }),
+  glass: Object.freeze({ back: [['M2 12a10 10 0 1 0 20 0 10 10 0 1 0-20 0Z', 'wash'], ['m14 7-5 5 5 5']], layered: true, external: 'M13 4h7v7 M20 4l-9 9 M8 5H4v15h15v-4' }),
+  research: Object.freeze({ back: [['M21 6v4q0 4-4 4H4m6-6-6 6 6 6']], layered: true, external: 'M13 4h7v7 M20 4l-9 9 M8 5H4v15h15v-4' }),
+  monoline: Object.freeze({ back: [['M21 12H5 M11 6l-6 6 6 6']], layered: false, external: 'M13 4h7v7 M20 4 10 14 M10 6H4v14h14v-6' }),
 })
-const glyph = name => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${GLYPH[name]}"/></svg>`
+/** An icon of the bar in the look's theme: 'back' (the template's control symbol, layer by layer) or 'external'. */
+function glyph(name, look) {
+  const g = GLYPH[themeOf(look?.theme)]
+  if (name === 'external') return `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${g.external}"/></svg>`
+  return `<svg class="${g.layered ? 'ico control-symbol' : 'ico'}" viewBox="0 0 24 24" aria-hidden="true">${g.back.map(([d, tone]) => `<path${tone ? ` class="symbol-${tone}"` : ''} d="${d}"/>`).join('')}</svg>`
+}
 
 /**
  * The bar's page (the template's reader-header). `mode`: 'loading' | 'reading' | 'original'; `canRead`: the text was taken out
@@ -236,11 +248,11 @@ export function barPage({ url, mode, canRead, fallback, words, look, css }) {
     return `<a class="filter rd-seg__item" data-reader-action="${name}" href="${action(name)}">${escapeHtml(label)}</a>`
   }
   const body = `<nav class="reader-header rd-bar" data-reader-bar data-mode="${mode}" data-fallback="${String(Boolean(fallback))}">`
-    + `<a class="btn quiet rd-btn" data-reader-action="back" href="${action('back')}">${glyph('back')} ${escapeHtml(words.back)}</a>`
-    + `<span class="search-field rd-url" role="group" aria-label="${escapeHtml(words.address)}">${glyph('external')}<span class="rd-url__text" data-reader-url title="${escapeHtml(url)}">${escapeHtml(url)}</span></span>`
+    + `<a class="btn quiet rd-btn" data-reader-action="back" href="${action('back')}">${glyph('back', look)} ${escapeHtml(words.back)}</a>`
+    + `<span class="search-field rd-url" role="group" aria-label="${escapeHtml(words.address)}">${glyph('external', look)}<span class="rd-url__text" data-reader-url title="${escapeHtml(url)}">${escapeHtml(url)}</span></span>`
     + (fallback ? `<span class="rd-note" data-reader-note role="status">${escapeHtml(words.fallback)}</span>` : '')
     + `<span class="filters rd-seg" role="group" aria-label="${escapeHtml(words.modes)}">${seg('reading', words.reading, canRead)}${seg('original', words.original, mode !== 'loading')}</span>`
-    + `<a class="btn quiet rd-btn" data-reader-action="browser" href="${action('browser')}">${glyph('external')} ${escapeHtml(words.browser)}</a>`
+    + `<a class="btn quiet rd-btn" data-reader-action="browser" href="${action('browser')}">${glyph('external', look)} ${escapeHtml(words.browser)}</a>`
     + '</nav>'
   return page({ words, look, css, title: words.windowTitle, bodyClass: 'rd-bar-body', body })
 }

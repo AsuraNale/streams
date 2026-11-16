@@ -978,6 +978,138 @@ frame-ancestors 'none'
 - **N6 的 23 张截图在新界面下重拍并纳入本包改动**（`docs/shots/acceptance-v2/`；此前提交的是 11-09 的旧界面）。R1–R6a 各契约的「跑完还原 `docs/shots/acceptance-v2/`」本包不适用，以后各包照旧还原。
 - **给 维护者 的清单**：`docs/checks/2026-11-13-r6b/草案对照清单.md`——UC1–UC5 共 21 步逐步写「J1 时核什么 → 现在核什么 → 哪个包、为什么 → 性质」（12 步核的东西变了、7 步只换定位或字、2 步没变）；摸底 26 条的逐条复核；两张「旧句 → 建议新句」表（`standards-draft.mjs` 的 N1 / N3 / N4 / N6 与 V1 / V3 / V6 / V7 / V8 / V9 / V10 的建议改字；`standards.mjs` 的 V1 / V4 / V12）；六件要 维护者 定的事。只建议，不改。
 
+### 4.23 §四补：重设计 R6d——21 画面 × 8 外观的截图、并排对照页、对比度检查（11-15）
+
+契约 `docs/checks/2026-11-15-r6d/contract.md`（R6d-1 一个脚本拍全、R6d-2 并排对照页、R6d-3 深色与对比度自查）。本节写脚本、对照页、对比度检查，以及检查查出来、在应用自己的样式里改掉的几处。
+
+**怎么跑**（在 `desktop/` 里；要先有钉住的 Electron，见 §〇）：
+
+| 命令 | 做什么 |
+|---|---|
+| `node scripts/shots-r6d.mjs` | 拍全 168 张 → `docs/shots/2026-11-15-r6d/<主题 id>-<light\|dark>/<画面 id>.png`，同名 `.txt` 是拍照那一刻窗口的可见文字；对比度记录 → `docs/checks/2026-11-15-r6d/对比度.json`；并排对照页 → `docs/shots/2026-11-15-r6d/index.html` |
+| `--only <画面,…>` · `--looks <主题-外观,…>` | 只拍这些画面 / 这些外观（重拍几张时用；对比度记录里只换掉重拍的那几张，其余保留）。不带这两个选项的一次（全量，带不带 `--skip` 都算）重写对比度记录，不并入旧条目 |
+| `--skip <画面,…>` | 故意不拍这些画面（对照试验用：这一次该拍、没拍的每张都算缺，盘上之前拍的那张不顶替，退出码 1） |
+| `--out <文件夹>` · `--contrast <文件>` | 截图与对比度记录放别处（对照试验用；给了 `--out` 而没给 `--contrast` 时记录是 `<文件夹>/对比度.json`） |
+| `--app <文件夹>` | 跑另一份应用（一个像 `desktop/` 的文件夹，旁边要有 `core/`）：对比度检查的对照试验在临时副本里改墨色时用 |
+| `--rules` | 不到要求的每处文字另外列出给它上色的样式规则（查原因时用） |
+| `--verify` | 不拍，只数 `--out` 里的张数、读每张 PNG 的宽高、核 `.txt` |
+| `--index` | 不拍，只按现有文件重写 `index.html` |
+
+结尾打印「这次拍了 n 张」与「21 画面 × 8 外观 = 168 张，缺 n」。拍照的一次里，要拍的每一张（`--only` 的画面，不带就是 21 个；`--looks` 的外观，不带就是 8 种；`--skip` 不把画面从里面去掉）都必须是这一次拍到的，否则记「缺 …：这次要拍、没有拍」——R6d 预检查出：以前只看盘上有没有图，`--only reader --skip reader` 一张没拍也报「缺 0」、退出码 0。退出码：0 = 168 张都在、每张 1440 × 906、每张有文字、文字里没有本机用户名 / 维护者 / 邮箱样式的字、对比度没有不计入之外的违规；1 = 缺图、尺寸不对、缺文字或文字里有上述字样；2 = 只有对比度违规。
+
+**要多久（实测，11-15 跑了四次全量，11-16 修完逐张对照的缺陷后重拍一次 197 秒、预检之后在最终代码上又重拍一次 254 秒）**：全量一次 191 – 320 秒（机器忙时慢），起 14 次应用；每张 1 – 2 秒（切外观、等图标与字体、700 ms、量对比度、取文字、拍）。运行与排队那一屏从开始运行到八张拍完 8 – 29 秒，慢 feed 压住约 152 秒（8 个来源 × 19 秒，一个接一个；核心的抓取超时是 20 秒），余量足够；每张之前都重核「一个库运行中、一个库排队中」。
+
+**尺寸**：设计稿 84 张都是 1440 × 906（设计侧 1440 × 940 视口去掉演示条后裁 `.app`；脚本开头读过 PNG 头）。应用窗口默认内容区 1440 × 960，脚本启动后把内容区设成 1440 × 906（`BrowserWindow.setContentSize`，不改应用代码），阅读窗口也设成 1440 × 906（顶上 60 px 的栏 + 下面的页，拼成一张）。拍照期间窗口不能最大化，每张之前再核一次尺寸（窗口在真桌面上，实测被碰成过 2560 × 1351）。
+
+**世界与安全**：世界一律由 `tempDir`（`mkdirSync`）建；本脚本把本进程和它起的应用的临时目录改到 `C:\streams-shots\<进程号-随机>`（`mkdirSync` 建，拍完删；`C:\` 写不进时用 `%ProgramData%\streams-shots\…`），所以画面里出现的文件夹（高级设置的库文件夹、移除该库、设置的新建库默认存储位置、右栏文件）不含本机用户名。实测用的是 `C:\streams-shots`，记在 `对比度.json` 的 `meta.worldRoot`。应用的数据目录经 `appEnv`（剥掉父进程全部 `STREAMS_*`，再给世界里的 `STREAMS_APP_DATA` / `STREAMS_LOCAL_DATA`）；`STREAMS_DEV_CONNECTION=fake`（连接出问题那一屏是 `login-expired`），`STREAMS_DEV_LIBRARY_ROOT` 指到世界里；更新关、定时关。真的 `%APPDATA%\Streams` 与 Documents 不读不写。
+
+**设计稿与应用截图怎么对应**：`画面清单.json` 每条的 `theme`（中文名）与 `screen`（id）定一张设计稿 `docs/design/redesign/source/07-模板版/截图/<主题中文名>/<画面中文名>.png`；应用这边是 `docs/shots/2026-11-15-r6d/<主题 id>-light/<画面 id>.png`（浅色，与设计稿并排）和 `…-dark/…`（深色，设计侧没有截图）。
+
+| 设计稿主题 | 应用主题 id |
+|---|---|
+| 精密国际主义 | `precision` |
+| 澄明玻璃 | `glass` |
+| 研究对话 | `research` |
+| 单线黑白 | `monoline` |
+
+**到达方式**（脚本里的 `ARRIVAL` 表与各段注释是正本；到达的步骤取自 `shots-r2 … r6a`、`shots-r5b` 与 `test/ui-english-screens.test.mjs`）。每个画面到达一次，然后八种外观各拍一张；每张拍之前核「到了」的定位与右栏停在哪个标签。右栏标签照设计稿那一张（`07-模板版/streams/app.js` 的 `DEFAULT_TAB`）；带 * 的三屏设计稿右栏显示的是「流息怎样工作」而亮着的是「进度」，应用里这段话在「详情」下（R4a），所以停在「详情」，显示的内容与设计稿相同。指针不停在任何部件上（设计稿是无指针截的，库架的卡也不悬停）。
+
+| # | 画面 id | 设计稿文件 | 右栏 | 哪一次启动、怎么到 | 「到了」的定位（每张之前核） |
+|---|---|---|---|---|---|
+| 1 | `firstrun` | 首次打开.png | 详情* | 空世界；检测到 Claude Code 已登录 | `[data-part="first-run"][data-view="home"]` 里有 `[data-part="current-connection"][data-kind="claude-code"]`；右栏有 `[data-part="how-it-works"]` |
+| 2 | `connect` | 连接选择.png | 详情* | 空世界；Claude Code 未登录、Codex 未装 | `[data-view="pick"] [data-connection="claude-code"][data-conn-state="not-logged-in"]` |
+| 3 | `shelf` | 库架.png | 进度 | 三个库，从库架开始 | `main[data-screen="shelf"]`、三张 `[data-shelf-card]`；没有 `[data-shelf-card]:hover` |
+| 4 | `agent` | 主Agent.png | 待确认 | 从主 Agent 开始，说一句，脚本连接回建库提议；滚到底 | 对话里 `[data-proposal][data-kind="create_library"][data-status="pending"]`；右栏 `[data-pane="decide"]` 里主 Agent 提议与系统检测各至少一条 |
+| 5 | `new` | 新建库.png | 详情* | 从新建库开始，填名称、要求、两个本机来源（一个正常、一个 503）、一个主题；滚到顶 | `main[data-screen="new-library"]`，来源两行 `data-fetch-state` 为 `ok` 与 `failed` |
+| 6 | `inbox` | 待看.png | 详情 | 种子库 4 张卡，点第一张 | `[data-card][data-current="true"]`；右栏 `[data-part="detail-inbox"]`；没有 `[data-part="empty"]` |
+| 7 | `empty` | 待看空着时.png | 进度 | 启动前把 4 张都定了（收藏 2、放弃 2） | `main [data-part="empty"]` 与上次运行的漏斗；右栏 `[data-part="last-run"]`；没有 `[data-card]` |
+| 8 | `run` | 运行与排队.png | 进度 | `STREAMS_DEV_NOW` 让两个库补跑，慢 feed 压住第一个；打开运行中的库 | 该库页有 `[data-part="run-steps"]` 与 `[data-part="running-chip"]`；左栏一行 `[data-library-queue="running"]`、另一行 `[data-library-queue="queued"]`；右栏 `[data-part="running"]` |
+| 9 | `expired` | 连接出问题.png | 待确认 | 连接 `login-expired`，点立即运行 | `.lib-page [data-part="problem"]`；右栏 `[data-pane="decide"] [data-decide]` |
+| 10 | `library` | 资料库.png | 详情 | plan B 的笔记，点评测那篇 | `[data-reader="<id>"]`；右栏 `[data-part="note-panel"][data-id="<id>"]`；没有开着的对话框 |
+| 11 | `edit` | 编辑笔记.png | 详情 | 接 10，点编辑 | `dialog[data-dialog="edit"][open]`，底下是资料库 |
+| 12 | `header` | 缺少文件头.png | 文件 | 接 11（关掉对话框），点提示里的去处理 | `[data-part="missing-header"] [data-card]` |
+| 13 | `graph` | 图谱.png | 详情 | 接 12（返回资料库），切图谱，点第一个主题 | `main[data-screen="graph"] [data-part="graph"] [data-node]`；右栏 `[data-part="detail-graph"] [data-part="node-items"] [data-node-item]` |
+| 14 | `ask` | 问库.png | 详情 | 从问库开始，问一句（脚本回答带出处）、加入待补充主题、再说一句转交主 Agent；滚到底 | `[data-turn="1"][data-state="done"] [data-proposal]`；右栏 `[data-part="detail-ask"] [data-detail-cite]` |
+| 15 | `sources` | 来源与要求.png | 文件 | 从来源与要求开始；滚到顶 | `main[data-screen="sources"] [data-part="brief"][data-state="ready"]`、来源表有行；没有 `[data-part="gates"]` |
+| 16 | `advanced` | 高级设置.png | 详情 | 接 15，经桥写三条变更，点高级设置；滚到顶 | `[data-part="gates"][data-state="ready"]`、`[data-part="changes"][data-state="ready"]`；没有开着的对话框 |
+| 17 | `remove` | 移除该库.png | 详情 | 接 16，点移除该库 | `dialog[data-dialog="remove-library"][open]`，底下是高级设置 |
+| 18 | `settings` | 设置.png | 进度 | 从设置开始，主 Agent 走一轮（用量有数）；滚到顶 | `main[data-screen="settings"] [data-part="connections"] [data-connection="api"]`、`[data-part="usage-sum"]`；没有开着的对话框 |
+| 19 | `apikey` | 输入API-key.png | 进度 | 接 18，点 API key 那一行的配置 | `dialog[data-dialog="api-key"][open]`，底下是设置 |
+| 20 | `licenses` | 许可证与致谢.png | 进度 | 接 19（取消），点许可证与致谢 | `dialog[data-dialog="licenses"][open] [data-part="components"]` |
+| 21 | `reader` | 阅读窗口.png | （无右栏） | 本机站点的一篇文章，`openReader`；阅读窗口设成 1440 × 906 | 阅读窗口的栏 `[data-reader-bar][data-mode="reading"]`、页里有 `.reader-title`，两者的主题与外观都是这一张要的 |
+
+**并排对照页**：`docs/shots/2026-11-15-r6d/index.html`，在仓库里双击就能看；只用相对路径，不联网，没有外部样式、字体或脚本（页内一小段脚本只做「只看某一套主题」的显示切换）。84 组（21 画面 × 4 主题），每组三张：设计稿浅色 | 应用浅色 | 应用深色；顶上按画面跳（21 个）、按主题看（四套都看 / 只看某一套）、以及一张 84 个链接的「主题 × 画面」表。脚本写完页面会核它指到的每个文件都在。
+
+**对比度检查**（`scripts/lib/contrast.mjs`，在页面里跑，每张拍之前一次；阅读窗口的栏与页各跑一次）：
+
+- 量什么：窗口里看得见的每一处文字——自己有非空文字节点的元素（一个元素一处）、输入框 / 下拉框显示的值、空输入框的占位提示。看得见 = 元素在渲染（`checkVisibility`，含透明度与 `visibility`）、文字有框、被窗口和每一层裁剪溢出的祖先裁过之后还剩 2 × 2 px 以上、剩下部分的中点没有被别的会上色的东西盖住（`elementFromPoint`）。打开的对话框后面的文字是 inert 的，不问遮挡，按它自己的前景与背景量（遮罩同时盖在字和底上），记 `inert`。
+- 背景怎么定：从 `<html>` 一层层到该元素，从白色起，每层的 `background-color` 按透明度叠上去；渐变的每个色标各算一种情形，取比值最低的；模态对话框的 `::backdrop` 垫在对话框下面；`opacity < 1` 的祖先是一组，组里的背景和字一起按该透明度与组外原来的颜色混合。文字颜色（`-webkit-text-fill-color` 有设就用它，否则 `color`；SVG 文字用 `fill`）再按自己的透明度叠上去。比值按 WCAG 2 的相对亮度算，向下取两位。
+- 要求：正文 4.5 : 1；大字 3 : 1（≥ 24 px，或 ≥ 18.66 px 且字重 ≥ 700）。
+- 不计入（`exempt`，各带理由）只有两种：禁用的控件（`:disabled` 或 `aria-disabled="true"`）、空输入框的占位提示。
+- 看不到的：`::before` / `::after` 画的背景、文字阴影、混合模式、背景图片（遇到会计数 `pictures`，本次为 0）。
+- 记录 `docs/checks/2026-11-15-r6d/对比度.json`：`shots` 168 条（每张量了几处、不到要求几处、违规几处、不计入几处、通过里比值最低的一处），`entries` 是不到要求的每一处（外观、画面、选择器、文字前 20 字、前景、背景、比值、要求、字号、字重、`exempt` 与理由）。
+- **结果（11-16 预检之后在最终代码上重拍的这一次全量，254 秒；仓库里的 168 张与 `对比度.json` 是这一次的）**：168 张，量了 12,656 处文字；不到要求 130 处，全部不计入（禁用控件 60、占位提示 70）；**违规 0**。（前一次，逐张对照的缺陷修完之后的全量：197 秒，12,654 处，其余相同。）（修之前的一次是 12,696 处、不到要求 124 处、禁用控件 54：多出的 6 处禁用控件是许可证与致谢底栏不可点的「查看完整第三方声明」，对话框改成只滚正文之后它在可视区里了。）占位提示用的是浏览器默认的灰（浅色约 4.5 : 1，深色 3.3 – 3.9 : 1），按契约不计入。
+
+**检查与拍图查出来、本包改掉的**（修之前 168 张里对比度违规 499 处，都出在下表前九行；样式的改动只在 `src/renderer/styles/template-app.css`，§12 与 §7 各有注释写明原因；模板文件没动；颜色只用模板自己的变量 `--sub11` / `--ink11`。最后两行不是对比度问题）：
+
+| 哪里 | 现象 | 改法 |
+|---|---|---|
+| 四套浅色：右栏概要下的小字、卡片底部的备注、问库回答下的备注、说话人旁的小字、输入框下的提示 | 模板第六轮写死的四种灰，9 – 12 px 上 2.6 – 4.4 : 1 | 用主题的次要墨色 `--sub11`（模板在深色下本来就这样做） |
+| 精密国际主义、研究对话浅色：左下角用量行、漏斗行、各环节行 | 同一种写死的灰，3.9 – 4.4 : 1 | 同上 |
+| 研究对话浅色：预设来源包那一行的第二行字 | 4.28 : 1 | `--sub11` |
+| 四套深色：下次运行时间、最近的放弃原因（`.activity-row`） | 写死的灰，2.6 – 3.1 : 1 | `--sub11` |
+| 研究对话深色：添加链接、全部写入、停止 | 留着浅色主题的蓝，2.5 : 1 | `--sub11` |
+| 澄明玻璃深色：左栏当前库与资料库里选中那一行的小字 | 3.73 : 1 | 选中行的小字用 `--ink11` |
+| 精密国际主义深色：待看卡片与提议卡的正文 | 卡片正文底是白的（模板第八轮写死、深色没收回），浅色字，1.26 : 1，读不了 | 正文底透明，露出卡片自己的深色底 |
+| 新建库这一屏时左栏的「新建库」 | 单线黑白浅色白字白底 1.09 : 1；四套深色深字深底 1.02 – 1.55 : 1（设计稿单线黑白那一张也是白字白底） | 用 `--ink11`，与左栏别的当前项一样 |
+| 左栏库名前的一字标记 | 透明度 .7，研究对话与澄明玻璃下 4.2 – 4.4 : 1 | 透明度 .85 |
+| 切主题后的图标（不是对比度，是拍图时发现的） | 在设置里换主题后，图标仍是上一套主题的，直到别的事让页面重画（图标按页面上生效的主题取，而新主题的样式表加载完之前页面还是旧主题）。脚本连着切外观，最初拍的浅色 84 张图标都是上一套主题的 | `src/renderer/app.js`：外观落到页面之后再画一次；脚本切外观后另核左栏「新建库」的图标就是该主题模板里的那一个 |
+| 图谱的节点（不是对比度，是拍图时发现的） | 精密国际主义的按下样式把节点的居中位移换掉，节点跳开半个身位；单线黑白没有过渡，松手时指针已不在节点上，点不中任何节点 | 节点在悬停与按下时都保持居中位移 |
+
+**测**：`test/ui-r6d-looks.test.mjs`（真窗口，12 条）——上表对比度的每一处在查出它的那一屏、那一种外观里重新量（同一个检查），加一条图谱按下不跳、点得中，加一条换主题后图标立刻是新主题自己的（对着模板的图标数据核，换回去与第一次相同），加一条检查本身的对照（往页面放一行灰字必须报出、放进禁用按钮必须记为不计入、拿掉后为 0）。窗口是隐藏的、不出帧，颜色过渡不会自己走完，所以测试在量之前把过渡推到终点（脚本里同样做了一次，防窗口被别的窗口盖住）。变异体 `r6d-contrast-*`（9 个，逐条拿掉 §12 的规则）、`r6d-graph-press`、`r6d-look-icons`，全部 CAUGHT。
+
+**对照试验**（契约「测」：每条先构造让它失败的输入；都在临时副本里做）：
+
+- 少拍一张或尺寸不对：把 168 张拷到临时夹，删一张 → 「缺 1」退出码 1；换进一张 1440 × 960 的旧图 → 「尺寸不对」退出码 1；删掉连接选择的 8 张后真跑一次 `--only firstrun,connect --skip connect` → 「缺 8」退出码 1；不带 `--skip` 再跑 → 「缺 0」退出码 0。R6d 预检查出这条对照要先删图才红：图都在时 `--only reader --skip reader` 一张没拍也是「缺 0」退出码 0；改了之后（这一次要拍的每张必须这一次拍到）同一条命令在 168 张都在的副本上报「缺 8：这次要拍、没有拍」退出码 1，不用先删图。
+- 对比度：把应用拷到临时夹，在副本的样式末尾把研究对话深色的 `--ink11` 改成接近底色，`--app <副本>/desktop --only inbox --looks research-light,research-dark` → 深色那张报 40 处（1.09 – 1.31 : 1），没碰的浅色 0；没改的副本两张都是 0。
+
+**逐张对照查出来、本包改掉的**（R6d-2；记录是 `docs/checks/2026-11-15-r6d/对照.md`，84 行浅色加「深色」一节；修只限样式与部件结构，没有改界面文字；模板文件没动，样式的改动都在 `styles/template-app.css`，§13 的注释逐条写了原因）：
+
+| 哪里 | 现象 | 改法 |
+|---|---|---|
+| 右栏进度，运行中的那一行 | 进度点留在展开的详情里，压在标题条下沿（设计稿与模板都把它放在状态小字旁） | `screens/right-panel.js`：点画进 `.phase-label small`；排队的那一行也有点（都不亮） |
+| 图谱的右栏详情 | 「n 篇 · 关键词 n 个」在头块外面，下面还空一段 | `screens/graph.js`：作为 `DetailBlock` 的 `lead` 放进头块；各节的行不再留 `panel-section` 的上边距 |
+| 编辑笔记、移除该库、输入 API key、许可证与致谢等对话框 | 正文区内边距被清成 0，标题条、表单面板、对话框的底连成一片 | 恢复模板 `dialog-body` 的内边距；没有输入框的对话框露出对话框自己的纸色（`:not(:has(.field))`） |
+| 许可证与致谢 | 整个对话框一起滚，标题与底栏按钮被滚走 | `screens/t-dialog.js` 正文包一层 `st-tdialog__scroll`；对话框是一列，只有正文滚 |
+| 缺少文件头的卡片 | 「建议的文件头」贴着卡头 | `.lib-missing .field` 留出上下间距 |
+| 资料库列表上方的缺少文件头提示 | 句子和按钮挤一行，句子折两行 | `.st-lib-hint` 改成句子在上、按钮在下 |
+| 来源与要求第一块 | 小节标题「追踪要求」与隔一行的字段名相同，出现两次 | 小节标题不显示（仍留给 `aria-labelledby`）；字没改 |
+| 待确认的小卡 | 标题 13px，小于 14px 的说明 | 标题 15px |
+| 主 Agent 页头的「n 项待确认」 | `font: inherit` 盖掉了小标的 11px | 去掉 |
+| 设置的三条连接 | 各行各自的网格，模型一列不对齐；图标列写死 22px，单线黑白的图标框被压扁 | 三行放进一个网格（`st-set-conns`，各行 `subgrid`），图标列随图标框 |
+| 待看卡片标题 | 标题里的链接被模板设回正文字体，丢了主题的标题字（研究对话的衬线） | 链接跟随标题的字体 |
+| 单线黑白的关闭键、连接图标、我的笔记图标 | `TIcon` 带的 `fallback` 在没有分层图标的主题里被当成要画的图标（✕ 画成 ⌄，菱形画成气泡，笔记画成文件） | 这几处去掉 `fallback`（四套主题的图标数据里都有这几个名字） |
+| 阅读窗口的「返回条目」 | 四套主题同一个回转箭头 | `src/main/reader.mjs` 按主题写模板自己的返回与外链图标（顶栏页不跑脚本） |
+| 深色下通知框里的次按钮 | 按钮与通知框同一种底，看不出是按钮 | 按钮用 `--paper` |
+
+测试 `test/ui-r6d-compare.test.mjs`（真窗口，11 条：每处在查出它的那一屏、那一套主题里量位置、字号、字体、底色或图标路径）与 `test/reader.test.mjs` 的一条（顶栏页的图标逐主题对着模板的图标数据核）；每条都先在没修的代码上跑成红的。变异体 `r6d-cmp-*`（22 个，逐个把一处修复退回去）。拍照脚本同时改了一处：窗口在真桌面上，本机指针停在窗口上会让它下面的部件变成悬停的样子（第一次全量时首次打开的第一条示例行是灰的），所以每张拍之前把指针挪到左栏角上，并核主区、右栏、对话框里没有悬停的部件。`docs/checks/2026-11-15-r6d/tools/check-compare.mjs` 核 `对照.md` 的行数、列数、空格子、归类取值与文件是否存在（删一行或填一个不在四种里的归类时退出码 1）。
+
+**三处应用小问题**（R6d-4；R6c 安装测试时看到的两处与 R6b 留下的 `pipeline.js` 一处）：
+
+- **笔记的收藏日期**：`keep` 写的 `collected` 改成「第一次见到它」那一刻的**本地**日期（`core/src/pipeline/decide.mjs` 的 `collectedDay`：把账本里的 UTC 时刻交给 `localIsoDate`，与 `kept`、`date` 的兜底同一个算法）。以前是截账本时间戳的前十个字符（UTC 日期），东部时间晚上抓到并收藏的笔记会写成 `collected` 比 `kept` 晚一天。文件格式没变（`YYYY-MM-DD`）；已经写下的笔记不回改。
+- **「未分类」不再报提醒**：`validateNote` 认得核心自己的兜底主题（`FALLBACK_TOPIC`：`未分类` / `uncategorized`，两个名字在任何语言的库里都认），不再报 `unknown-topic:未分类`；别的不在 `streams.json` 里的主题照旧报。用新建库表单建的库（没有主题）里收藏的笔记、导入写头时拟的 `topics`，索引里的 `warnings` 现在是空的。常量挪到了 `core/src/library/config.mjs`（`validate.mjs` 要读它，而 `decide → write-note → validate` 会成环；`pipeline/decide.mjs` 照旧以同名导出，`pending.mjs` 等不用改）。见 `docs/core-api.md` `keep` 与 `validateNote` 两处。
+- **单条测试里没过的校验项显示描述**：`screens/pipeline.js` 的试评分结果，没过的项以前显示内部 id（`quote-in-source：quote is empty`），现在显示该项的描述——就是同一屏上方校验清单里那一行的字：内置规则按界面语言（`getPipeline` 经核心 `describeChecklist` 给的，R6b-3），用户自己加的规则按他写的原话，正在编辑、还没保存的规则也认。清单里的描述优先于失败项自己带的 desc（核心反馈形式 `{ id, desc, evidence }` 里的 desc 是存下的中文原句，不随界面语言；R6d 预检后改），清单里没有、自己也不带 desc 的 id（只有 `streams.ai-instruction`，判定时附带的那一项）照旧显示 id。每个 `<li>` 带 `data-failed-item=<校验项 id>`。冒号后面的说明仍是核心给的原文（英文，原有行为）。
+
+测试：`core/test/r6d.test.mjs`（新，3 条；文件开头把本进程设成 `America/Toronto`，每条先核时区真的生效——`node --test` 每个文件一个进程，不影响别的文件）；`test/ui-r6d.test.mjs`（新，真窗口，中英各一个世界、各 2 条：一条没有标题的抓取内容让内置规则 `quote-in-source` 失败，用户自己的一条规则 `not_regex:scripted answer` 必然失败；对照是有标题的那条只失败用户规则；整个文件约 12 秒）。变异体 `node core/scripts/mutation-check.mjs "r6d-*"`：`r6d-core-collected-utc` · `r6d-core-fallback-topic-unknown` · `r6d-core-fallback-topic-zh-only` · `r6d-core-fallback-topic-all-known`；`node scripts/mutation-check.mjs "r6d-preview-*"`：`r6d-preview-bare-id-zh` · `r6d-preview-bare-id-en` · `r6d-preview-builtin-only`。
+
+**截图里的本机路径与名字**（R6d-5，公开之前查）：`node tools/publish/scan-shots.mjs`（在仓库根跑；`--files <夹或 PNG>` 只扫给的）。它扫 168 张新截图旁的 `.txt`，并用 Windows 自带的文字识别（`Windows.Media.Ocr`，经 `tools/publish/scan-shots-ocr.ps1` 调，不联网、不装东西；中英两个识别器 × 原大 / 2 倍 / 3 倍）逐张认 `git ls-files 'docs/shots/*.png' 'docs/design/*.png'` 的全部 PNG 与还没入库的新截图，找本机用户夹名（字母间容许空格，o 认成 0 或 c、l 认成 1、m 认成 rn 的也算——R6d 预检用浅灰 12px 小字造的图里 o 被认成 c，以前只靠前面的 Users 兜住）、登录名（运行时取，脚本里不写死）、`维护者`、`Users\` / `Users/`、用户夹下的常见子夹与邮箱样式的字。每次开扫前先现画三张哨兵图（`scan-shots-draw.ps1`，只往系统临时夹写）：写着用户夹路径的、深色小字登录名的必须中，干净的必须不中，不符就停。退出码 0 = 没有命中，1 = 有命中，2 = 没扫完（哨兵不符、张数对不上、有图认字出错）。全量 721 张约 16 – 18 分钟。报告 `docs/checks/2026-11-15-r6d/截图扫描.md`（脚本生成；人写的判断在旁边的 `截图扫描.判断.md`、`截图扫描.对照.txt`，重跑时收进报告）。结果：新的 168 张干净；已入库的有 35 张带本机用户夹名的真路径、19 张设计稿的示意路径 `C:\Users\you\…`，列给 维护者 定，旧截图一张没删没改。它放在 `tools/publish/` 而不是 `desktop/scripts/`：与 `mirror.mjs` 是公开前的同一件事（一个查文字、一个查像素），不起应用。
+
+**总验收里查出、改掉的一处**：v2 草案 N6 重拍的 `uc3-4.png`（UC3 第 4 步，从来源与要求点「高级设置」）显示的是高级设置的中段。来源与要求与高级设置是同一个滚动的正文（`screens/sources.js`，`data-view` 为 `main` / `advanced`），高级设置的入口在来源与要求最底下，于是滚到底的那个位置被带进了高级设置。以前没露出来；R6d 藏掉第一块重复的块名（`template-app.css` §13）之后来源与要求短了一截，就露出来了（对照：临时副本里把 `template-app.css` 退回 HEAD，或只去掉藏块名那一条，N6 拍出来都是顶上）。改法：换视图（来源与要求 ⇄ 高级设置）时正文回到顶上，这次滚动照常记进该库的位置记忆。测试 `test/ui-r6d-scroll.test.mjs`（真窗口：先把来源与要求滚到底并核它确实滚下去了，点入口，等框架自己摆放滚动的 3 秒过去，高级设置的 `scrollTop` 是 0、标题在视野里；返回来源与要求同样）；变异体 `r6d-advanced-scroll`（去掉回到顶上的那一行）CAUGHT。
+
+**总验收**（R6d-6，R6 之后的一次）：给 维护者 的一页是 `docs/checks/2026-11-15-r6d/总验收.md`，由 `docs/checks/2026-11-15-r6d/tools/gen-acceptance.mjs` 生成（V1–V12 原文从 `tests/acceptance/standards.mjs` 读、R1–R6 的每一项从施工计划拆；`--check` 逐字核）。11-16 在主工作区 main（ad958f3 加 R6d 未提交的改动，安装包除外）跑的：core 645 / 645、wording 19 / 19、desktop 596 / 596（30 分钟）、验收 `tests/acceptance/run.mjs` 12 / 12、v2 草案 6 / 6（重拍的 23 张里 21 张像素有变，留着随本包提交）、变异体 core 58 / 58 与 desktop 227 / 227 全部 CAUGHT（desktop 全量 75 分钟）；168 张截图旁的 `.txt` 过一遍用词扫描器，九个禁词 0 处。安装包的重打与重测记在 `docs/installer.md` §10.6（玄翎提交后做）。
+
+**预检之后**（11-16 下午）：两位预检员查出拍照脚本的少拍检查在平常的用法下不会失败（上面「结尾打印」一段与对照试验已改写）、`对照.md` 的核对脚本不核「已修」的文件是否真改过（已加，见 `对照.md`「怎么读这张表」末条）、深色人眼自查的说法不实（`对照.md`「深色」一节已改成如实的说法，并在最终这一批上逐张看过）、`screens/pipeline.js` 的失败项让项自带的 desc 压过清单里按界面语言的描述（已改，见上面「三处应用小问题」第三条）、截图扫描认用户名漏 o→c（已加）。改完在最终代码上重拍 168 张（254 秒）、重扫截图（721 张）、重跑 core / wording / desktop 全量 / 验收 / core 变异体全量；`总验收.md` 由同一个生成脚本按这次的日志重写。
+
 ## 五、界面写法
 
 > 本节按重设计 R1–R6b 之后的样子重写（2026-11-14，R6b）。v1 / v2 时代的写法（概览、今日、运行状态、首次设置四步、K2 的三套 token、每块旁的操作来源标记等）已不存在，历史见 §4.1–§4.12 与 git 记录；各屏的细节在 §4.13–§4.22，本节只说现在的结构与规矩。
@@ -1046,7 +1178,7 @@ src/renderer/
 - 不用行内样式字符串、不用 `innerHTML`（CSP 与 Trusted Types 会拒）；源文件只用 LF、不放看不见的字符。
 - 测试用的挂钩：`main[data-screen][data-state]`（`ready` 表示数据到了）、`[data-nav=<id>]`、`[data-tab=<id>]`、`[data-part=…]`、`[data-action=…]`、`[data-dialog=…]`、`[data-library-row=<id>]`、`[data-proposal]` / `[data-suggestion]` 等。
 
-**截图**：各包的截图脚本在 `scripts/shots-*.mjs`（真窗口，主题与外观先写进设置再启动），成果在 `docs/shots/<日期>-<包>/`。英文 21 个画面的截图由英文逐屏测试顺手保存（`docs/shots/2026-11-13-r6b/en/`）。21 个画面 × 四套主题 × 浅深的对照截图是 R6d。
+**截图**：各包的截图脚本在 `scripts/shots-*.mjs`（真窗口，主题与外观先写进设置再启动），成果在 `docs/shots/<日期>-<包>/`。英文 21 个画面的截图由英文逐屏测试顺手保存（`docs/shots/2026-11-13-r6b/en/`）。21 个画面 × 四套主题 × 浅深的对照截图由 `scripts/shots-r6d.mjs` 一次拍全（R6d，§4.23）。
 
 ## 六、语言
 
@@ -1087,8 +1219,10 @@ src/renderer/
 | `ui-sources.test` · `ui-advanced.test` · `ui-pipeline.test` · `ui-schedule.test` · `ui-status.test` | 来源与要求；高级设置（变更记录、移除该库）；评分环节；定时与上限（含 R6b-5 那条「填了没保存的时刻不被重新读取冲掉」）；设置页三条连接的状态与登录回路（v1 运行状态页留下来的检查） |
 | `ui-settings.test` · `ui-settings-i.test` · `ui-theme.test` · `ui-licenses.test` · `ui-r6a.test` | 设置四个部分与两个对话框；主题与外观（第一帧、切换、跟随系统）；许可证与致谢；衬线字体与库架被选中的卡 |
 | `ui-english-screens.test`（R6b-3） | 英文界面下 21 个画面逐个到达，取全部可见文字，断言没有汉字与全角标点（用户内容按出处排除，办法见 §4.22）；设了 `STREAMS_EN_SHOTS_DIR` 时每个画面存一张截图 |
+| `ui-r6d-compare.test`（R6d-2） | 逐张对照查出的每处应用缺陷在查出它的那一屏、那一套主题里重新量：进度点的位置、图谱详情的头块、对话框的内边距与底色、许可证与致谢只滚正文、缺少文件头的间距与提示的排法、「追踪要求」只出现一次、小卡标题与页头小标的字号、设置三行对齐与图标框、待看卡片标题的字体、单线黑白的关闭键 / 连接图标 / 笔记图标、深色通知框里的按钮（见 §4.23） |
+| `ui-r6d-looks.test`（R6d-3） | 对比度检查查出的几处在查出它的那一屏、那一种外观里重新量（待看、资料库、新建库、问库；精密国际主义深色的卡片正文、深色的 `.activity-row`、新建库时左栏的「新建库」等，见 §4.23），没有不计入之外的违规；图谱的节点按下不跳、点得中；换主题后图标立刻是新主题自己的；检查本身的对照（放一行灰字必须报出） |
 
-**每项检查都能失败**：`npm run mutants`（`scripts/mutation-check.mjs`；后面可以跟 id 或带 `*` 的前缀，如 `node scripts/mutation-check.mjs "r6b-*"`）在临时副本上逐个故意改坏、跑对应的那条测试，要求「没改坏的副本通过（对照组，能单独跑）、改坏的副本失败」，并核原文件字节没变。变异体用**恰好出现一次**的原文做锚。现在 desktop 190 个：v1 的 13 个（`no-node` · `csp-off` · `session-open` · `bridge-extra` · `banned-word` · `d2-unc` · `d3-*` 2 · `d4-*` 2 · `d10-any-root` · `colour-in-app-styles` · `en-missing-key`），v2 的 `f-*` 5 · `g-*` 4 · `h-*` 4 · `l-*` 3，新 logo 的 `logo-*` 6，重设计的 `r1-*` 7 · `r2-*` 12 · `r3-*` 8 · `r4a-*` 8 · `r4b-*` 11 · `r5a-*` 23 · `r5b-*` 37 · `r6a-*` 20 · `r6b-*` 29。core 另有自己的一份（`core/scripts/mutation-check.mjs`，54 个，其中 `r6b-core-*` 8 个）。已知的一处盲区：`d2-unc` 只在「冷」的时候抓得到（Windows 会把连不上的 SMB 主机记进否定缓存几分钟），跑它之前不要碰那个地址。
+**每项检查都能失败**：`npm run mutants`（`scripts/mutation-check.mjs`；后面可以跟 id 或带 `*` 的前缀，如 `node scripts/mutation-check.mjs "r6b-*"`）在临时副本上逐个故意改坏、跑对应的那条测试，要求「没改坏的副本通过（对照组，能单独跑）、改坏的副本失败」，并核原文件字节没变。变异体用**恰好出现一次**的原文做锚。现在 desktop 227 个：v1 的 13 个（`no-node` · `csp-off` · `session-open` · `bridge-extra` · `banned-word` · `d2-unc` · `d3-*` 2 · `d4-*` 2 · `d10-any-root` · `colour-in-app-styles` · `en-missing-key`），v2 的 `f-*` 5 · `g-*` 4 · `h-*` 4 · `l-*` 3，新 logo 的 `logo-*` 6，重设计的 `r1-*` 7 · `r2-*` 12 · `r3-*` 8 · `r4a-*` 8 · `r4b-*` 11 · `r5a-*` 23 · `r5b-*` 37 · `r6a-*` 20 · `r6b-*` 29 · `r6d-*` 37（试评分 3、对比度 9、图谱按下与换主题后的图标 2、逐张对照 `r6d-cmp-*` 22、高级设置回到顶上 1）。core 另有自己的一份（`core/scripts/mutation-check.mjs`，58 个，其中 `r6b-core-*` 8 个、`r6d-core-*` 4 个）。已知的一处盲区：`d2-unc` 只在「冷」的时候抓得到（Windows 会把连不上的 SMB 主机记进否定缓存几分钟），跑它之前不要碰那个地址。
 
 **验收**（仓库根，不在 `desktop/` 里）：`node tests/acceptance/run.mjs` 跑 V1–V12 并打表；`node tests/acceptance/v2-draft/run-draft.mjs` 跑 v2 草案 N1–N6（N6 在真窗口里走五个 Use Case，截图存 `docs/shots/acceptance-v2/`）。除了明说要重拍并保留截图的包（R6b），跑完验收后用 `git checkout -- docs/shots/acceptance-v2/` 还原。安装包的测试在 `installer/test/`，见 `docs/installer.md`。
 

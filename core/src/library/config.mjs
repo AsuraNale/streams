@@ -11,6 +11,10 @@ import { join, posix, win32 } from 'node:path';
 import { isPlainObject } from './frontmatter.mjs';
 
 export const CONFIG_FILE = 'streams.json';
+// The topic a note gets when nothing else names one (keep without a source topic, an imported file without a header):
+// spec v0 wants topics non-empty. Redesign R6d-4: defined here so validateNote can know it (pipeline/decide.mjs
+// re-exports it under the name it always had).
+export const FALLBACK_TOPIC = Object.freeze({ 'zh-CN': '未分类', en: 'uncategorized' });
 
 export function readConfig(libraryDir) {
   const path = join(libraryDir, CONFIG_FILE);

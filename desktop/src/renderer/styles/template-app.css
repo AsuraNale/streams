@@ -86,9 +86,11 @@
 .st-empty-actions { justify-content: center; margin-top: 12px; }
 .shelf-body .document-link { margin-top: 4px; }
 .st-rp-decide .card-body { padding: 12px 16px; }
-.st-rp-decide h3 { margin: 4px 0 0; font-size: 13px; line-height: 1.6; }
+.st-rp-decide h3 { margin: 4px 0 0; font-size: 15px; line-height: 1.6; }
 .st-rp-decide .confirm-footer { padding: 8px 16px; }
 .st-rp-fold { width: 100%; margin: 16px 0 4px; text-align: left; }
+.r11.r11 .phase-label .step-dots { margin-left: 6px; }
+.st-rp-detail [data-part^="node-"].panel-section { margin-top: 0; }
 .st-rp-tree__leaf { display: flex; align-items: center; gap: 4px; }
 .st-rp-tree__leaf .file-row { flex: 1; min-width: 0; }
 .st-rp-reveal .btn, .st-rp-tree__records .btn { width: 100%; margin-top: 14px; }
@@ -106,6 +108,7 @@
 .st-card .confirm-title { min-width: 0; }
 .st-card .confirm-title h2 { margin: 0; line-height: 1.45; }
 .st-card__title { color: inherit; text-decoration: none; }
+.r9.r9 .confirm-title h2 .st-card__title { font-family: inherit; }
 .st-card__title:hover { text-decoration: underline; }
 .st-card__marks { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 46%; }
 .st-mark { white-space: nowrap; }
@@ -148,7 +151,7 @@
 .st-list .source-card { margin: 0; cursor: pointer; }
 .st-list .source-card .eyebrow { align-items: center; gap: 8px; }
 .st-list .source-card p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.st-lib-hint { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.st-lib-hint { margin: 0; display: grid; justify-items: start; gap: 8px; }
 .st-split .reader-header { gap: 8px; }
 .st-split .reader-header .st-act { display: inline-flex; }
 .st-split .reader-scroll { min-height: 0; }
@@ -158,7 +161,7 @@
 .lib-missing .section-label b { font-weight: 650; }
 .lib-missing .confirm-title { min-width: 0; }
 .lib-missing .confirm-title h2 { margin: 0; overflow-wrap: anywhere; }
-.lib-missing .field { margin: 0; }
+.lib-missing .field { margin: 14px 0 8px; }
 .lib-missing .field textarea { font-family: inherit; min-height: 120px; }
 .lib-missing .confirm-footer .row { display: flex; gap: 8px; }
 /* a note's Markdown (lib/markdown.js), in the reading paper */
@@ -202,12 +205,19 @@
 .st-graph-scroll .st-graph { flex: none; min-height: 0; }
 .st-graph .st-node { font-size: 11px; max-width: 168px; overflow: hidden; text-overflow: ellipsis; }
 .st-graph .filter.st-node { cursor: pointer; }
+/* redesign R6d: a node of the picture keeps its place while it is pressed. streams.css centres a node on its point with
+   transform: translate(-50%, -50%); 精密国际主义's pressed state (template/shared/round9/precision.css: every button, :active →
+   transform: translate(1px, 2px); 单线黑白 is built on the same sheets) replaces that transform, so a pressed node jumped half
+   its own size to the right and down, away from the pointer. In 单线黑白, whose line.css leaves no transition on transform, the
+   jump is immediate: the button was released outside the node and the click was lost — no node could be chosen (found by
+   scripts/shots-r6d.mjs; test/ui-r6d-looks.test.mjs). The centring is kept in every state. (The template's files are the
+   design's and are not edited.) */
+.st-graph .st-node, .st-graph .st-node:hover, .st-graph .st-node:active { transform: translate(-50%, -50%) !important; }
 .st-graph__row { transform: translate(0, -50%); }
 .st-graph__legend { margin: 0 32px; padding-top: 0; }
 /* 编辑笔记 (the template's <dialog>) */
 .dialog.st-edit { width: min(640px, 92vw); max-width: 92vw; overflow: auto; }
-.st-edit .dialog-body { padding: 0; }
-.st-edit .new-content { padding: 20px 24px 24px; max-width: none; }
+.st-edit .new-content { padding: 16px 20px 20px; max-width: none; }
 .st-edit .field { margin: 12px 0; }
 .st-edit .section-label { margin: 14px 0 6px; }
 .st-edit__topics { margin: 0 0 6px; align-items: center; }
@@ -250,6 +260,7 @@
 /* the template's progress-alert keeps its light tint under dark (its text turns light: unreadable); on every page of a library —
    R2's 待看 (the bar after 放弃, the banner, the run's notes), R3's pages and the right panel's alike — it takes the dark well instead */
 .r11[data-appearance="dark"] :is(.lib-page, .context-panel) .progress-alert { background: var(--well); color: var(--ink11); }
+.r11[data-appearance="dark"] :is(.lib-page, .context-panel) .progress-alert .btn:not(.primary) { background: var(--paper); }
 .r11[data-appearance="dark"] [data-part="detail-ask"] [data-part="demands"] .activity-row { color: var(--ink11); }
 
 /* 8 — Redesign R4a: 首次打开 · 连接选择 · 新建库 on the template's parts (screens/first-run.js, new-library.js). R1's interim
@@ -293,10 +304,14 @@
    pipeline.js, settings.js, settings-update.js, t-dialog.js). R1's interim styles/screens/sources.css, pipeline.css and settings.css
    are deleted (and shell.css's 来源与要求 / 关卡 / 定时一览 lines). Sizes, places and the template's own variables only. */
 /* the template's dialog (t-dialog.js): 修改地址 · 删除来源 · 删除主题 · 移除该库 · 恢复默认 · 输入 API key · 许可证与致谢 */
-.dialog.st-tdialog { width: min(560px, 92vw); max-width: 92vw; overflow: auto; }
+.dialog.st-tdialog { width: min(560px, 92vw); max-width: 92vw; overflow: hidden; }
+.dialog.st-tdialog[open] { display: flex; flex-direction: column; }
+.st-tdialog .dialog-head { flex: none; }
+.st-tdialog .dialog-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.st-tdialog__scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 2px; margin: -2px; }
 .dialog.st-tdialog.st-licenses { width: min(640px, 92vw); }
-.st-tdialog .dialog-body { padding: 0; }
-.st-tdialog .new-content { padding: 18px 24px 22px; max-width: none; overflow: visible; }
+.st-tdialog .new-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin: 0; padding: 16px 20px 18px; max-width: none; overflow: hidden; }
+.r11.r11 .st-tdialog .new-content:not(:has(.field)) { padding: 0; background: transparent; }
 .st-tdialog .field { margin: 12px 0; }
 .st-tdialog .readable p { margin: 0 0 10px; line-height: 1.7; }
 .st-tdialog .form-footer.st-tdialog__footer { flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; padding-top: 16px; }
@@ -321,6 +336,7 @@
 .st-src-body { flex: 1 1 auto; min-height: 0; }
 .st-src.new-content { overflow: visible; flex: none; padding-top: 28px; }
 .st-src .section-label { margin-top: 24px; }
+.st-src [data-part="brief"] > .section-label:first-child { display: none; }
 .st-src .field { margin: 12px 0 0; }
 .st-src .field textarea { min-height: 96px; }
 .st-src .filters { margin: 8px 0 0; }
@@ -407,7 +423,9 @@
 .st-set-jumps { margin: 0 0 6px; }
 .st-set-jumps .filter { cursor: pointer; }
 .st-set-group { margin-top: 26px; scroll-margin-top: 12px; }
-.st-set-conn.file-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 220px) auto; gap: 12px; align-items: center; }
+.st-set-conns { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 220px) auto; column-gap: 12px; }
+.st-set-conns > * { grid-column: 1 / -1; }
+.st-set-conn.file-row { display: grid; grid-template-columns: subgrid; gap: 12px; align-items: center; }
 .st-set-conn__name b { font-weight: 650; }
 .st-set-conn__name small { overflow-wrap: anywhere; }
 .st-set-slots { display: flex; flex-direction: column; gap: 6px; }
@@ -472,7 +490,7 @@
 .st-notice { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
 .st-guide { margin-bottom: 18px; }
 .st-guide .file-row { width: 100%; text-align: left; cursor: pointer; }
-.st-chip-button { cursor: pointer; font: inherit; }
+.st-chip-button { cursor: pointer; }
 .st-proposal .confirm-title { min-width: 0; }
 .st-proposal .confirm-title h2 { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
 .st-proposal .confirm-number { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -505,3 +523,65 @@
 /* precheck fix 8: every small card's buttons on the right, the main one last — one row or two (①'s four wrap), the same as the
    full card's footer */
 .st-rp-decide .confirm-footer .row { margin-left: auto; }
+
+/* 12 — Redesign R6d-3: contrast (docs/checks/2026-11-15-r6d/contract.md; scripts/shots-r6d.mjs measures every piece of text of the
+   21 screens in the 8 looks before its picture: 4.5 : 1, large text 3 : 1; the record is docs/checks/2026-11-15-r6d/对比度.json).
+   The template's files are the design's and are not edited, so what was under the bar is set right here, with the template's own
+   variables only (--sub11: the theme's second ink, --ink11: its ink). What was found, and why each is the app's to fix:
+
+   (No colour is written in this file, in a comment either — test/kit.test.mjs reads every line; the measured colours of each
+   finding are in the record.)
+
+   a. Light, all four themes: the small notes that round 6 (template/shared/round6/design.css) draws in four fixed greys —
+      .panel-summary p, .chart-row, .step-line; .confirm-footer .muted, .after-card; .speaker small; .compose-help
+      — are 2.6 – 4.4 : 1 on the themes' surfaces at 9 – 12 px. In dark the template itself gives the same parts --sub11
+      (round11/workbench.css); light gets it here. (.chart-row and .step-line only where round 6's grey is what is drawn: 精密国际主义 and
+      研究对话; 澄明玻璃 and 单线黑白 have their own, which pass.) */
+.r11:not([data-appearance="dark"]) :is(.panel-summary p, .confirm-footer .muted, .after-card, .speaker small, .compose-help) { color: var(--sub11); }
+.r11:not([data-appearance="dark"]):is(.r11-research, .r11-precision:not(.r12-line)) :is(.chart-row, .chart-row b, .step-line) { color: var(--sub11); }
+/* b. 研究对话, light: the second line of a document-link (新建库's 预设来源包) is round 9's blue-grey on the well, 4.28 : 1. */
+.r11-research:not([data-appearance="dark"]) .document-link small { color: var(--sub11); }
+/* c. Dark, all four themes: .activity-row keeps round 6's mid grey (2.6 – 3.1 : 1 on the dark surfaces: 下次运行时间, 放弃原因). */
+.r11[data-appearance="dark"] .activity-row { color: var(--sub11); }
+/* d. 研究对话, dark: the buttons of a section-label (添加链接, 全部写入, 停止) keep the light theme's blue, 2.5 : 1 on the dark
+      page; the template's own dark rule for them (--sub11) loses to round 9's. */
+.r11.r11-research[data-appearance="dark"] .section-label button { color: var(--sub11); }
+/* e. 澄明玻璃, dark: on a chosen row (the current library in the sidebar, the note open in 资料库) the second ink is 3.73 : 1 on the
+      row's own surface; the chosen row's small lines take the ink. */
+.r11.r11-glass[data-appearance="dark"] :is(.project-item.active .project-meta, .source-card.selected p, .source-card.selected .eyebrow) { color: var(--ink11); }
+/* f. 精密国际主义, dark: a card's body stays white (round8/common.css: .theme-swiss .card-body { background: white }, never taken
+      back in dark) under the dark theme's light ink — 1.26 : 1, the text of a 待看 card and of a 提议 could not be read. The body
+      shows the card's own dark surface. (单线黑白, built on the same sheets, sets its own paper and is not touched.) */
+.r11-precision[data-appearance="dark"]:not(.r12-line) .card-body { background: transparent; }
+/* g. 新建库 in the sidebar while 新建库 is the screen (.navitem.new.active): the template gives it the current item's surface but
+      keeps the solid button's inverse ink — white on white in 单线黑白 light (1.09 : 1), dark on dark in the four dark looks
+      (1.02 – 1.55 : 1). It takes the ink, as every current item of the sidebar does. (The design's own picture of 新建库 in 单线黑白
+      shows the same white on white.) */
+.r11.r11 .sidebar .navitem.new.active { color: var(--ink11); }
+/* h. The library's one-character mark in the sidebar (5, above): its opacity .7 left it 4.2 – 4.4 : 1 at 10 px in 研究对话 and 澄明玻璃. */
+.st-lib-mark { opacity: .85; }
+
+/* 13 — Redesign R6d-2: what reading the app's 84 light pictures beside the design's found to be the app's own defects
+   (docs/checks/2026-11-15-r6d/对照.md; test/ui-r6d-compare.test.mjs sees each again in the real window). The rules are where
+   their parts are, above; why each is as it is now:
+   - .st-rp-decide h3 (5): a small card's title was set smaller than the text under it; it is the larger of the two again.
+   - .phase-label .step-dots (5): the step dots are in the heading's state line (screens/right-panel.js), a little after the words.
+   - [data-part^="node-"].panel-section (5): the rows of 图谱's 详情 follow their label (the template's panel-section keeps a
+     section's distance above itself, here an empty band between a label and its rows).
+   - .st-card__title (6): the title of a 待看 card is a link; round 9 gives every link the body face (system.css), so the
+     heading's display face — 研究对话's serif — was lost. The link takes its heading's face.
+   - .st-lib-hint (7): in the narrow list column the hint's sentence and its button shared a row and the sentence broke in two;
+     the sentence is a line, the button below it (the design's picture).
+   - .lib-missing .field (7): the template's distance above a field was taken away, so the card's label touched the card's head.
+   - .st-edit / .st-tdialog (7, 9): the template's dialog-body keeps its padding (it was set to nothing, so the form's panel
+     filled the dialog and the head, the panel and the dialog's own surface could not be told apart); a dialog with no field
+     (移除该库, 许可证与致谢, 删除…) shows the dialog's own surface, as the design's do; the dialog is a column whose text scrolls
+     inside (.st-tdialog__scroll) while its head and its buttons stay — the whole dialog scrolled, 许可证与致谢 lost its buttons.
+   - .progress-alert .btn (7), dark: a notice takes the well (above) and so does the template's plain button: a button on a
+     notice was words only. It takes the paper.
+   - [data-part="brief"] > .section-label:first-child (9): the block's name is the words of the field two lines below it
+     (「追踪要求」 twice, the first one over 「库名称」); the design has no such line. It stays in the page for aria-labelledby.
+   - .st-set-conns (9): the three connections are rows of one grid (subgrid), so their model boxes start at the same place
+     whatever the last column holds; the icon's column is as wide as the theme's icon box (it was a fixed width narrower
+     than 单线黑白's box, which was squeezed and its icon cut).
+   - .st-chip-button (11): 「n 项待确认」 is a chip that is a button; it no longer takes the page's font over the chip's own size. */

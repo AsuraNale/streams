@@ -28,7 +28,7 @@ import { StreamsError } from '../errors.mjs';
 import { appendEvent, replayLedger, ledgerPath } from '../library/ledger.mjs';
 import { writeNoteFile } from '../library/write-note.mjs';
 import { rebuildIndex } from '../library/index.mjs';
-import { readConfig } from '../library/config.mjs';
+import { readConfig, FALLBACK_TOPIC } from '../library/config.mjs';
 import { localIsoDate } from '../fetch/dates.mjs';
 import { readInboxItem, removeInboxItem, writeInboxItem } from './inbox.mjs';
 import { assertAllowed } from './invariants.mjs';
@@ -39,7 +39,7 @@ import { MANUAL_SOURCE } from '../fetch/manual.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 
 export const SLUG_MAX = 60;
-export const FALLBACK_TOPIC = { 'zh-CN': '未分类', en: 'uncategorized' };
+export { FALLBACK_TOPIC }; // redesign R6d-4: the constant itself is in library/config.mjs (validateNote reads it too)
 const WHAT_LABEL = { 'zh-CN': '**这是什么：**', en: '**What it is:** ' };
 
 export function slugOf(title, url) {
@@ -91,6 +91,14 @@ function bodyFor(item, language) {
   return lines.join('\n') + '\n';
 }
 
+// redesign R6d-4: the day the item was first seen, as a LOCAL calendar day like `kept` and the `date` fallback (the
+// ledger's ts is a UTC instant: cutting its first ten characters gave the next day for an evening west of Greenwich,
+// so a note collected and kept in one evening said collected 11-15, kept 11-14).
+function collectedDay(firstSeen, now) {
+  const t = typeof firstSeen === 'string' ? Date.parse(firstSeen) : NaN;
+  return localIsoDate(Number.isNaN(t) ? now() : new Date(t));
+}
+
 export function keep(libraryDir, url, { topics, now = () => new Date() } = {}) {
   const config = loadConfig(libraryDir);
   const cfg = pipelineFrom(config);
@@ -105,7 +113,7 @@ export function keep(libraryDir, url, { topics, now = () => new Date() } = {}) {
     source: url,
     source_name: item?.source ?? state.source ?? '',
     date,
-    collected: typeof state.firstSeen === 'string' ? state.firstSeen.slice(0, 10) : localIsoDate(now()),
+    collected: collectedDay(state.firstSeen, now),
     kept: localIsoDate(now()),
     status: 'kept',
     topics: topicsFor(config, item, state, topics),

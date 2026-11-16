@@ -16,7 +16,7 @@
 | `rebuildIndex(libraryDir)` | 全量重建 `index.jsonl` + `index.meta.json`；不碰 notes/ | `{entries, pending, meta}` |
 | `readIndex(libraryDir)` | 只读索引（列表、搜索、图谱、问库候选都从这读） | `entries[]` |
 | `listPending(libraryDir)` | 待规范清单，附拟好的文件头（不写盘） | `[{file, codes, messages, proposedHeader?}]` |
-| `validateNote({fileName, text, config})` | 规范 v0 校验 | `{ok, meta, body, problems, warnings}` |
+| `validateNote({fileName, text, config})` | 规范 v0 校验 | `{ok, meta, body, problems, warnings}`（`warnings`：`unknown-topic:<name>` / `unknown-score:<key>`；核心的兜底主题 `未分类` / `uncategorized` 不算未知主题，R6d-4） |
 | `parseFrontmatter(text)` / `serializeFrontmatter(meta)` | 文件头读写（固定键序） | |
 | `writeNoteFile(libraryDir, {id, header, body}, {by})` | **唯一写 notes/ 的函数**；`by` 只收 `'keep'` / `'import-header'` / `'edit'`（V2；`edit` 是 维护者 11-03 定的「编辑一条」：只改 notes/ 里已存在且合规范的文件，不能新建） | 抛 `bad-by` / `id-conflict` / `invalid-note` |
 | `appendEvent(libraryDir, ev)` / `replayLedger(libraryDir)` / `recordSeen(libraryDir, item)` / `isSeen(libraryDir, url)` | 账本只追加；重放得到每个 url 的当前状态 | |
@@ -106,7 +106,7 @@
 | `runRound(libraryDir, {connector, cap?, ctx?, signal?, onProgress?, now?})` | 自检 → 抓取（`fetchRound`）→ 队列 → 关卡① → 取正文入 cache → 关卡② → 摘要（经核验循环）→ 写 inbox（文件 + 账本 inbox 事件）→ `_pipeline/rounds.jsonl` 一行 + `_pipeline/logs/YYYY-MM-DD.md` 一段。**计数**：每次 `connector.complete`（含核验判定调用）计 1；`calls ≥ cap` 时做完当前条目就停，`stoppedAt:'cap'`；`signal.aborted` → 当前条目后停，`stoppedAt:'aborted'`；连接错误（login-expired 等）→ 当前条目记 `unscored connection:<code>` 后停，`stoppedAt:'connection'`。剩余条目保持原状态，下次运行接着处理。自检失败 → `{ok:false, started:false, problems}`，什么都不写 | `{ok, started, round:{id, startedAt, finishedAt}, counts:{fetched, new, maybeDuplicates, gate1:{passed, failed, unscored}, gate2:{passed, failed, unscored}, summarized, inbox, verifyRejected}, calls, stoppedAt?, problems:[], warnings:[]}` |
 | `previewNode(libraryDir, {connector, nodeId, url? \| item?})` | 「试一条看结果」：对一条跑该关卡（或摘要），**不写账本、不写 inbox、不写 verdicts** | `{ok, output, verification, calls}` / `{ok:false, code}` |
 | `listInbox(libraryDir, {now?})` | 待看：按 relevance 分数降序再 substance；`waitingDays` 从 inbox 事件的 ts 算（`now` 可注入） | `[{url, title, source, date, scores:{relevance:{score,reason}, substance:{…}, freshness:{value,reason}}, summary:{what, points}, verification:{passed, rounds, failed:[]}, waitingDays, maybeDuplicateOf?, inboxAt}]` |
-| `keep(libraryDir, url, {topics?, now?})` | 收藏：前提 stage=inbox；id = `<date>-<slug(title)>`；**唯一**调用 `writeNoteFile(…, {by:'keep'})` 的地方；文件头 source / source_name / date / collected / kept / status:kept / topics / scores（带 reason）；正文 = 「**这是什么：**」一句 + 三行要点；账本 `kept`；删 inbox 文件；`rebuildIndex` | `{id, file}`；抛 `not-in-inbox` / `id-conflict`（notes/ 已有同 id，不覆盖）/ `invalid-note` |
+| `keep(libraryDir, url, {topics?, now?})` | 收藏：前提 stage=inbox；id = `<date>-<slug(title)>`；**唯一**调用 `writeNoteFile(…, {by:'keep'})` 的地方；文件头 source / source_name / date / collected / kept / status:kept / topics / scores（带 reason）；`collected` = 第一次见到它那一刻（账本 `firstSeen`）的**本地**日期，与 `kept` 同一个算法（重设计 R6d-4；以前截 UTC 时间戳的前十位，东部时间晚上收藏时会比 `kept` 晚一天；已写下的笔记不回改）；正文 = 「**这是什么：**」一句 + 三行要点；账本 `kept`；删 inbox 文件；`rebuildIndex` | `{id, file}`；抛 `not-in-inbox` / `id-conflict`（notes/ 已有同 id，不覆盖）/ `invalid-note` |
 | `dismiss(libraryDir, url, reason?, {quick?, now?})` | 放弃：前提 stage=inbox；账本 `dismissed`；删 inbox 文件。**重设计 R2（N03）**：理由可不写（undefined / null / 空白 → 事件里没有 `reason` 字段）；`quick` 是 `DISMISS_QUICK`（`marketing` · `irrelevant` · `shallow` · `duplicate`）之一，另记一个字段；终态规矩不变 | `{url}`；抛 `not-in-inbox` / `bad-argument`（理由不是字符串、`quick` 不在表里） |
 | `later(libraryDir, url, {now?})` | 稍后处理。**重设计 R2（F27）**：stage=inbox 的条目记进 `_pipeline/later.json`（`later.mjs markLater`；不写账本、不碰 `notes/`）；别的阶段什么都不写 | `{url, stage, at?}` |
 | `markLater` / `readLater` / `releaseLater(libraryDir)`（`later.mjs`） | 重设计 R2：稍后处理的记录 `_pipeline/later.json` = `{ items: [{ url, at }] }`；`readLater` 只返回仍在 stage inbox 的；`releaseLater` 删掉这个文件 = 全部回到待看（桌面层在**本库**一轮运行结束时调）；坏文件读作空 | `Map<url, at>` / `{released}` |
@@ -165,7 +165,7 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 - `callGapMs` 在一轮内所有模型调用（关卡、摘要、判定）之间生效。
 - `estimateRound` 多返回 `queued`（账本里已在队列的条目数），`expectedCalls = [(lo+queued)×1, (hi+queued)×4]`。
 - 返回值是契约的超集：`runRound` 多 `gates:{[id]:{passed, failed, unscored}}`（`counts.gate1 / gate2` 仍是前两个关卡）；`listInbox` 卡片多 `materials`，`verification` 多 `claimsNotFound` / `forgot`；`previewNode` 多 `status` / `nextStep`，不写账本 / inbox / verdicts，但取正文会写 `_pipeline/cache/`。
-- `keep` 的 topics：参数 `{topics}` > 来源在 streams.json 里的 `topic` > `未分类`（en `uncategorized`），因为规范 v0 要求 topics 非空。`later` 对未知 url 返回 `{url, stage:null}`，不抛错。
+- `keep` 的 topics：参数 `{topics}` > 来源在 streams.json 里的 `topic` > `未分类`（en `uncategorized`），因为规范 v0 要求 topics 非空。`validateNote` 认得这两个名字（任何语言的库里都认），不报 `unknown-topic`（重设计 R6d-4：以前用新建库表单建的、没有主题的库里收藏的笔记都带一条 `unknown-topic:未分类`）；别的不在 streams.json 里的主题照旧报。`later` 对未知 url 返回 `{url, stage:null}`，不抛错。
 - **内置规则的语言（redesign R6b-3）**：流水线运行、发给核对员、写进核验记录的内置规则描述一律是 `gateBaseline(node)` / `summaryBaseline()` 不带语言时的中文（核对员提示词只有中文，描述是流水线行为的一部分，不随界面变）。**显示**照界面语言：桌面的 `getPipeline` / `savePipeline` 在把配置交给页面前，对每个环节的 checklist 调 `describeChecklist(checklist, 界面语言)`（`desktop/src/main/services/pipeline.mjs` 的 `shown`）；高级设置「评分环节」的校验规则与核验记录里的规则名都从这份配置取字，所以英文界面下 11 条内置描述是英文。页面存回的配置里内置项带着这些显示用的字，core 不读（内置项每次由代码重新生成，按 id 核对是否齐全）。是「按界面语言」不是「按库的语言」：库的语言只管提示词、摘要和问库的校验项（`askChecklist(language)`）。
 - `savePipelineConfig`：提交的 checklist 必须保留全部 `origin:'streams'` 底线项（少一项 → `locked-node`）；整个省略 `checklist` 则沿用盘上的用户项；写盘只存用户项。固定节点改 kind、新增 fixed / script 节点、改 output → `locked-node`；gate > 5、summary ≠ 1、threshold / kind / material / 数值 / language 坏 → `bad-config`。
 - `logs/YYYY-MM-DD.md` 用内部码写（如 `unscored relevance bad-format <url>`），桌面层翻译；日期取 `ctx.now` 的本地日。
@@ -290,7 +290,7 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 ### 5.9 实做差别（11-04）
 
-- **拟的 `topics`**：没有文件头的文件，`proposedHeader.topics` 从 `[]` 改为 `['未分类']`（英文库 `['uncategorized']`；与收藏的兜底主题同一个常量 `pipeline/decide.mjs FALLBACK_TOPIC`）。原因：spec v0 要求 `topics` 非空，`[]` 写不进去（`invalid-note`），「全部按拟的写入」会一个也写不成。
+- **拟的 `topics`**：没有文件头的文件，`proposedHeader.topics` 从 `[]` 改为 `['未分类']`（英文库 `['uncategorized']`；与收藏的兜底主题同一个常量 `FALLBACK_TOPIC`：重设计 R6d-4 起定义在 `library/config.mjs`，`pipeline/decide.mjs` 以同名导出）。原因：spec v0 要求 `topics` 非空，`[]` 写不进去（`invalid-note`），「全部按拟的写入」会一个也写不成。
 - **`notesDir(libraryDir)`**：库文件夹里没有 `streams.json` 时给默认 `notes`（不抛）；`streams.json` 读不出 → `config:invalid-json`。同一规则的纯函数 `notesDirOf(libraryDir, config)`；`ensureNotesDir(libraryDir)` 建条目文件夹（`createLibrary` 用，只建文件夹、不写文件）。不合法的还包括：空串、含 `:`（`C:x` 这类盘符相对路径）、含换行。
 - **`skippedDirs`**：相对库文件夹、用 `/`（默认库是 `notes/<子文件夹>`，导入库是 `<子文件夹>`），只列条目文件夹第一层的子文件夹。`listLibrary(dir, {view:'pending'})` 多返回 `skippedDirs`（新函数 `pendingView(dir)`：一次扫描给 `{items, skippedDirs}`）；桌面 `getLibrary('pending', …)` 原样带出。
 - **`importFolder`** 另两种拒绝：文件夹不存在 → `not-found`；`_pipeline`、`index.jsonl`、`index.meta.json` 已在 → `exists`。新写的文件一律 create-only。另导出 `countFirstLevelMd(dir)`（桌面 `folderState` 用）。

@@ -128,7 +128,7 @@ function DismissBar({ held, busy, onReason, onUndo, onClose }) {
     </div>` : null}
     <div class="row st-bar__end">
       <span class="st-act" data-action="undo"><button type="button" class="btn quiet" disabled=${busy} onClick=${onUndo}>${T.bar.undo}</button></span>
-      <span class="st-act" data-action="close-bar"><button type="button" class="icon-btn" aria-label=${T.bar.close} title=${T.bar.close} disabled=${busy} onClick=${onClose}><${TIcon} name="close" fallback="down" /></button></span>
+      <span class="st-act" data-action="close-bar"><button type="button" class="icon-btn" aria-label=${T.bar.close} title=${T.bar.close} disabled=${busy} onClick=${onClose}><${TIcon} name="close" /></button></span>
     </div>
   </div>`
 }

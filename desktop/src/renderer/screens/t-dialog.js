@@ -6,6 +6,9 @@
 //   html`<${TDialog} name="remove-library" title=${…} closeLabel=${…} onClose=${…} footer=${html`…buttons…`}>…<//>`
 // The focus goes to the element with data-dialog-initial when there is one, else to the dialog's first control; it goes back to
 // where it was when the dialog goes. Test hooks: dialog[data-dialog=<name>], [data-action="close-dialog"], .dialog-head h2.
+// Redesign R6d (docs/checks/2026-11-15-r6d/对照.md): what the dialog says is inside .st-tdialog__scroll — when it is longer
+// than the window allows, only that part scrolls and the head and the footer's buttons stay (许可证与致谢 scrolled as a whole
+// and lost its buttons); the close button draws the theme's own close (no fallback: 单线黑白 drew the fallback instead).
 import { html, useLayoutEffect, useRef } from '../lib/html.js'
 import { TIcon } from '../lib/template-icons.js'
 
@@ -39,11 +42,11 @@ export function TDialog({ name, title, closeLabel, onClose, footer = null, class
     onCancel=${ev => { ev.preventDefault(); close.current() }}>
     <div class="dialog-head">
       <h2 id=${id.current}>${title}</h2>
-      <span class="st-act" data-action="close-dialog"><button type="button" class="icon-btn" aria-label=${closeLabel} title=${closeLabel} onClick=${() => close.current()}><${TIcon} name="close" fallback="down" /></button></span>
+      <span class="st-act" data-action="close-dialog"><button type="button" class="icon-btn" aria-label=${closeLabel} title=${closeLabel} onClick=${() => close.current()}><${TIcon} name="close" /></button></span>
     </div>
     <div class="dialog-body">
       <form class="new-content" onSubmit=${ev => ev.preventDefault()}>
-        ${children}
+        <div class="st-tdialog__scroll">${children}</div>
         ${footer ? html`<div class="form-footer st-tdialog__footer">${footer}</div>` : null}
       </form>
     </div>

@@ -190,7 +190,7 @@ function ConnectionsPart() {
     try { const r = await call('probeConnection', kind); setProbes(p => ({ ...p, [kind]: { status: r.ok ? 'ok' : 'failed', result: r } })) } catch { setProbes(p => ({ ...p, [kind]: { status: 'failed', result: { code: 'unknown' } } })) }
   }
   const setModels = (kind, k, patch) => act(() => call('setConnectionModels', kind, { model: k.model ?? null, verifyModel: k.verifyModel ?? null, ...patch }))
-  return html`<div data-part="connections">
+  return html`<div class="st-set-conns" data-part="connections">
     ${!data && conns.status === 'error' ? html`<p class="progress-alert" role="alert">${T.connectionsFailed}</p>` : null}
     ${data ? KINDS.map(kind => {
       const k = data.kinds?.[kind] ?? {}
