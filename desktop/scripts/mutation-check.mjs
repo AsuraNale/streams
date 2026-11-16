@@ -431,7 +431,13 @@ const MUTANTS = [
   {
     id: 'r4a-raw-fetch-message',
     what: 'a source row says the fetcher\'s own message instead of V3\'s 怎么办',
-    edits: [['src/renderer/screens/new-library.js', ': hintWords(r.hint)', ': (r.message || hintWords(r.hint))']],
+    // redesign R6d (PM's check, 11-16): since R5a trySource does not hand the page the fetcher's message at all
+    // (services/sources.mjs), so the page's edit alone changed nothing — an equivalent mutant, whose earlier CAUGHT came from
+    // the test timing out. Both halves go back now: the main process hands the message over and the page shows it.
+    edits: [
+      ['src/main/services/sources.mjs', 'status: r.status, hint: r.hint ?? null, count: items.length,', 'status: r.status, hint: r.hint ?? null, count: items.length, message: r.message,'],
+      ['src/renderer/screens/new-library.js', ': hintWords(r.hint)', ': (r.message || hintWords(r.hint))'],
+    ],
     test: ['test/ui-new-library.test.mjs', '--test-name-pattern=来源: typed'],
   },
   {
