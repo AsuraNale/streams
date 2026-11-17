@@ -101,16 +101,16 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 
 ## 四、安装与卸载
 
-**给测试员**：双击 `Streams-1.0.0-setup.exe`。这一版**未签名**，Windows 会弹蓝色的「Windows 已保护你的电脑」（SmartScreen，「未知发布者」）：
+**给测试员**：双击 `Streams-1.0.1-setup.exe`（1.0.1 起，§10.8；1.0.0 是 `Streams-1.0.0-setup.exe`）。这一版**未签名**，Windows 会弹蓝色的「Windows 已保护你的电脑」（SmartScreen，「未知发布者」）：
 
 1. 点「**更多信息**」；
 2. 再点「**仍要运行**」。
 
-安装不要管理员权限，安装本身不联网。装完开始菜单和桌面上有「流息」。卸载：「设置 → 应用 → 已安装的应用」里找「流息 1.0.0」（`release.json` 的 `app_ver_name`；发版 1.0.0 起不带开发轮次，维护者 11-16 定，§10.7；开发时的包叫「流息 1.0.0-dev.0 / dev.1」）→ 卸载。下载后可以先核 sha256（发布说明里有）：`Get-FileHash .\Streams-1.0.0-setup.exe -Algorithm SHA256`。
+安装不要管理员权限，安装本身不联网。装完开始菜单和桌面上有「流息」。卸载：「设置 → 应用 → 已安装的应用」里找「流息 1.0.1」（`release.json` 的 `app_ver_name`，跟着版本走：1.0.0 时是「流息 1.0.0」；发版 1.0.0 起不带开发轮次，维护者 11-16 定，§10.7；开发时的包叫「流息 1.0.0-dev.0 / dev.1」）→ 卸载。下载后可以先核 sha256（发布说明里有）：`Get-FileHash .\Streams-1.0.1-setup.exe -Algorithm SHA256`。
 
 - 安装：按用户装，默认 `%LOCALAPPDATA%\Programs\Streams`，可以改；开始菜单「流息」，桌面「流息」（可以不勾）；装完可以直接打开。只装 x64（Windows 10 1809 及以上）。
 - 卸载：只删安装时放进去的文件、两个快捷方式、卸载项、通知激活器的注册表键。**不删库**。最后问一句「是否同时删除流息的应用数据？」（API key、设置、库的登记、主 Agent 的对话记录、日志和缓存），**默认「否」**（这句话的全文在 `streams.iss` 的 `chs.DeleteAppData`。**重设计 R6c 对照设计 05-措辞规范核过并改了三处**：「应用数据包括你填的 API key、设置、缓存。」→「应用数据包括 API key、设置、库的登记、主 Agent 的对话记录、日志和缓存。」—— 第 6 条，人称能省则省；第 8 条，范围写全（选「是」删的是 `%APPDATA%\Streams` 与 `%LOCALAPPDATA%\Streams` 整个：设置、库的登记 `libraries.json`、主 Agent 的对话记录、加密的 key、日志、Chromium 自己的数据与缓存，`desktop/src/main/layout.mjs`；原句只列了三样，与发布说明的那一行也对不上）；「选「否」保留应用数据（以后重新安装流息可以接着用）。」→「选择「否」将保留应用数据，重新安装流息后可继续使用。」—— 第 5 条，提示先说结果、不用口头说法。第一句问句与「你的库（Markdown 文件夹）不会被删除。」没有冲突，没动。测试读的是 `.iss` 里的这句（`dialogs.mjs uninstallTexts`），跟着走）；选「是」才删 `%APPDATA%\Streams` 与 `%LOCALAPPDATA%\Streams`（`DelTree`：遇到链接只删链接本身，不跟进 —— `installer/test/deltree.test.mjs` 用钉死的 Inno Setup 实测）。应用开着时，安装 / 卸载程序会提示先关（Restart Manager）。
-- 静默（测试 / 管理员）：`Streams-1.0.0-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART [/DIR=…] [/MERGETASKS="!desktopicon"]`；卸载 `"%LOCALAPPDATA%\Programs\Streams\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`（静默卸载取默认：保留应用数据；卸载程序先把自己拷到 TEMP 再运行，命令会先返回）。
+- 静默（测试 / 管理员）：`Streams-1.0.1-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART [/DIR=…] [/MERGETASKS="!desktopicon"]`；卸载 `"%LOCALAPPDATA%\Programs\Streams\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART`（静默卸载取默认：保留应用数据；卸载程序先把自己拷到 TEMP 再运行，命令会先返回）。
 - **有界面的卸载**（v2 包 N）：双击 `unins000.exe`，或「设置 → 应用」里点卸载 —— 三个对话框：「您确认要完全移除 流息 及其所有组件吗？」（是）→ 进度窗口 → 「是否同时删除流息的应用数据？…」（是 / 否，默认否）→「已顺利从您的计算机中移除 流息。」（确定）。卸载项在第一个「是」之后、问数据之前就删了（日志 `Deleting registry key: …\Uninstall\{DF025A05-…}_is1` 在 `User chose No.` 之前）。`packaged.test.mjs` 第 5 步与 `uninstall-ui.test.mjs` 照这样跑（§五「有界面的卸载」）。
 - **给 维护者 装、卸，都要从资源管理器起**（v2 包 N，§十一）：Claude 桌面版的工具 shell（Bash、PowerShell）读写 `HKCU` 经的是 Claude 包的私有注册表视图；在那里 `Start-Process` 的安装包，卸载项只写进那个视图 ——「设置 → 应用」看不见它，维护者 双击 `unins000.exe` 卸完它也还在（2026-11-10 就是这样）。要给 维护者 装：让他自己双击安装包，或 `explorer.exe <安装包的完整路径>`（由资源管理器起，在包外）。要查真注册表里有没有流息：`node installer/real-registry.mjs`（同时报工具 shell 看到的与资源管理器起的进程看到的）。
 
@@ -239,7 +239,7 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 ## 八、已知限制
 
 1. **没有签名**：安装包与 `Streams.exe` 都是「未知发布者」，SmartScreen 会拦（§四 的两步）。应用自己下载的更新包没有「来自网络」标记、经 `CreateProcess` 启动，SmartScreen 不拦；用户从浏览器下载时照旧会拦。没有签名也意味着：更新包是否可信全靠 GitHub API 经 HTTPS 给的 `digest`（能改发布的人也能改 digest）。
-2. **只有 Windows x64**。现在（发版 1.0.0，2026-11-16 实测，§10.7）：安装包 136,173,094 字节（约 136.2 MB / 129.9 MiB），装好 550 个文件、430,314,990 字节（约 410.4 MiB；另加卸载程序的 2 个文件），其中 Electron 的 72 个文件与通知文件共 383,551,001 字节，两款字体 42,898,476 字节。历次的数字见第 11 条。
+2. **只有 Windows x64**。现在（1.0.1，2026-11-17 实测，§10.8）：安装包 136,176,191 字节（约 136.2 MB / 129.9 MiB），装好 550 个文件、430,327,133 字节（约 410.4 MiB；另加卸载程序的 2 个文件），其中 Electron 的 72 个文件与通知文件共 383,551,001 字节，两款字体 42,898,476 字节。历次的数字见第 11 条。
 3. **会安装的两个测试要一台没有真安装的机器（或 Windows 用户）**：守门见到流息的卸载项、快捷方式或通知激活器的键就拒跑，也不许为了跑测试去动真安装。`install-delete`、`uninstall-entry`、`wait-pid` 用测试自己的身份，不受这一条限制。
 4. **测试写真 `HKCU`**：卸载项与通知激活器的键是真的两个（Windows 不让环境变量挪 `HKCU`）；每个会安装的测试结束时卸载、`after` 里无论成败再补一次。测试被强行中断在收尾之前，这两个键可能留下：下一次守门会因此拒跑；跑那一轮临时文件夹里的 `unins000.exe`，或手动删这两个键（v2 包 N 起：中断时安装目录还在，所以守门照旧拒跑；目录也没了的话，守门认作残留、下一轮的装卸会清掉）。另：从某些桌面应用（如 Claude 桌面版）的工具 shell 里跑时，进程看到的是该应用的私有注册表视图（云织 `docs/installer.md` 11.6 查到过；流息 11-10 又查到一次，§十一）—— 测试的写与读在同一个视图里，自身一致；要确认真注册表要从资源管理器起的进程去读（`node installer/real-registry.mjs`）。**这也是给 维护者 装的时候要避开的**：§四最后一条。
 5. **真更新测试里，被安装程序重新打开的流息没有 harness**：它的窗口与托盘图标会出现在屏幕上几秒（测试随即结束它）；Windows 可能把这个托盘图标记在通知区域的设置里（`HKCU\Control Panel\NotifyIconSettings`，按程序路径，指向已删的测试文件夹）。
@@ -248,10 +248,11 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 8. `[InstallDelete]` 只认**新版** stage 顶层的名字：旧版独有、新版已经不发的顶层文件会留在程序目录里（云织 `docs/installer.md` 11.5 第 6 条）。
 9. **握手只有一个方向、有上限**（11-04 补）：应用把自己的进程号交给安装程序，安装程序在 Restart Manager 动手之前最多等 60 秒；超过 60 秒还没退（机器极忙、进程挂住），安装照常往下走，仍由 Restart Manager 去关它 —— 那时的行为与握手之前一样，可能再卡在关程序那一步。等待的这段时间里安装程序的界面不处理消息（`/SILENT` 的进度窗口可能显示「未响应」，最多 60 秒）。进程号在应用退出后可能被系统分给别的进程：极少见的情况下安装程序会等一个无关的进程，最多 60 秒。安装程序不回报应用：安装中途失败（用户取消、磁盘满）时旧版本仍在，不会自动重新打开。
 10. **（11-09 v2 包 J2 查出并修了）打包后的 v2 曾在 Windows 给不出「文档」文件夹时起不来**：`desktop/src/main/main.mjs` 原来在启动时就算 `join(app.getPath('documents'), 'Streams')`（新建库的默认位置），`getPath` 抛错 → `start failed`，应用退出、没有窗口。安装测试的用户文件夹原来没有 `Documents`，v2 第一次在装好的样子下跑就撞上了。玄翎 11-09 定修法，现在：默认位置由 `desktop/src/main/library-root.mjs` 在**第一次用到时**才算，`documents` 取不到退到 `<用户主目录>Streams`（`getPath('home')`），再取不到退到 `<应用数据>libraries`，退的时候 `main.log` 记一行 `library: the default place for a new library is … (no documents folder: …)`，应用照常启动；什么文件夹都不建。核法：`desktop/test/library-root.test.mjs`（`getPath` 换成替身：`documents` 抛错 → 主目录；两个都不行 → 应用数据；建服务时不问；开发运行不问；`main.mjs` 里不再有自己的 `getPath('documents')` —— 旧代码下这几条是红的）与 `packaged.test.mjs` 第 4b 步（装好的应用、测试用户的 `Documents` 删掉再起：对照先核 `getPath('documents')` 在这里确实抛错，应用照样起来，默认位置是 `<home>Streams`，`main.log` 有那一行、没有 `start failed`）。测试用户平时仍有 `Documents`（`world.mjs appEnv`，真的用户文件夹都有）。
-11. **（v2 包 J2）stage 与安装目录的大小**：v2 的 stage 是 512 个文件、386,899,036 字节（多了 `@mozilla/readability` 14 个文件与 v2 的源码）；上面第 2 条的数字是 11-04 的。**v2 包 N（下一版）**：stage 525 个文件、404,855,643 字节，其中界面字体 `NotoSansSC-VF.ttf` 17,773,244 字节（加它的 OFL 4,434 字节）；安装包 124,407,717 字节（约 124.4 MB / 118.6 MiB），比 J2 的 116,163,537 字节大约 8.2 MB —— 字体压缩后的大小。 **重设计 R6c（现在，合并 R6b 之后）**：stage 550 个文件、430,300,381 字节 —— 比包 N 多 25 个文件、25,444,738 字节：标题字体 `NotoSerifSC-VF.ttf` 25,125,232 字节与它的 OFL 4,301 字节，模板 `renderer/template/` 24 个文件 156,523 字节，其余是 R1–R6b 的源码增减（R6b 删了占位屏 4 个文件；拷进去的：Electron 72、desktop 175（其中 4 个是两款字体与各自的 OFL —— 构建记录的 `copied.font: 4` 是这 4 个再数一次，不另加）、核心 112、`@mozilla/readability` 14、preact 131、htm 41、图标 1、LICENSE 1，共 547 个；构建自己写的 3 个：`resources\app\package.json`、`resources\core\package.json`、`THIRD-PARTY-NOTICES.txt`；合计 550。合并 R6b 之前那一版是 554 个文件、430,296,707 字节、安装包 136,167,840 字节，作废）；安装包 136,169,338 字节，比包 N 的 124,407,717 字节大 11,761,621 字节（约 11.8 MB），几乎都是 Serif 字体压缩后的大小。发布说明的大小那一行写着两款字体各自的字节数。**重设计 R6d**：stage 仍是 550 个文件（各类拷进去的个数与 R6c 相同），430,314,974 字节，比 R6c 多 14,593 字节，都是 R6d 改的源码；安装包 136,172,747 字节（§10.6）。**发版 1.0.0（现在）**：stage 550 个文件、430,314,990 字节（版本号字符串多 16 字节）；安装包 136,173,094 字节（§10.7）。
+11. **（v2 包 J2）stage 与安装目录的大小**：v2 的 stage 是 512 个文件、386,899,036 字节（多了 `@mozilla/readability` 14 个文件与 v2 的源码）；上面第 2 条的数字是 11-04 的。**v2 包 N（下一版）**：stage 525 个文件、404,855,643 字节，其中界面字体 `NotoSansSC-VF.ttf` 17,773,244 字节（加它的 OFL 4,434 字节）；安装包 124,407,717 字节（约 124.4 MB / 118.6 MiB），比 J2 的 116,163,537 字节大约 8.2 MB —— 字体压缩后的大小。 **重设计 R6c（现在，合并 R6b 之后）**：stage 550 个文件、430,300,381 字节 —— 比包 N 多 25 个文件、25,444,738 字节：标题字体 `NotoSerifSC-VF.ttf` 25,125,232 字节与它的 OFL 4,301 字节，模板 `renderer/template/` 24 个文件 156,523 字节，其余是 R1–R6b 的源码增减（R6b 删了占位屏 4 个文件；拷进去的：Electron 72、desktop 175（其中 4 个是两款字体与各自的 OFL —— 构建记录的 `copied.font: 4` 是这 4 个再数一次，不另加）、核心 112、`@mozilla/readability` 14、preact 131、htm 41、图标 1、LICENSE 1，共 547 个；构建自己写的 3 个：`resources\app\package.json`、`resources\core\package.json`、`THIRD-PARTY-NOTICES.txt`；合计 550。合并 R6b 之前那一版是 554 个文件、430,296,707 字节、安装包 136,167,840 字节，作废）；安装包 136,169,338 字节，比包 N 的 124,407,717 字节大 11,761,621 字节（约 11.8 MB），几乎都是 Serif 字体压缩后的大小。发布说明的大小那一行写着两款字体各自的字节数。**重设计 R6d**：stage 仍是 550 个文件（各类拷进去的个数与 R6c 相同），430,314,974 字节，比 R6c 多 14,593 字节，都是 R6d 改的源码；安装包 136,172,747 字节（§10.6）。**发版 1.0.0**：stage 550 个文件、430,314,990 字节（版本号字符串多 16 字节）；安装包 136,173,094 字节（§10.7）。**1.0.1（现在）**：stage 550 个文件、430,327,133 字节（多 12,143 字节，都是 1.0.1 改的源码）；安装包 136,176,191 字节（§10.8）。
 12. **（v2 包 N）有界面的卸载测试会在屏幕上弹框**：`packaged.test.mjs` 第 5 步与 `uninstall-ui.test.mjs` 起的卸载程序是可见的（与用户双击一样），三个对话框各停约 0.3–1 秒、由测试点掉；跑测试时别去点它们（点了「是」的话 —— 只会删测试自己用户文件夹里的数据，测试随即因对话框的答案不对而红）。
 13. **（v2 包 N）工具 shell 的注册表视图**：从 Claude 桌面版的工具 shell 里装的东西，卸载项只在那个视图里（§十一）。测试自身一致（同一视图里装、同一视图里卸），但给 维护者 的安装不能这样起（§四最后一条）。
 14. **（重设计 R6c）不安装的演练不是安装测试**：`docs/checks/2026-11-13-r6c/rehearsal/rehearse.mjs` 把构建的 stage 拷到临时文件夹、用同一个 harness 起那份 `Streams.exe`，原样跑 `packaged.test.mjs` 的第 3、4、4b 步或 `upgrade.test.mjs` 的第 6 步（不装、不卸、不写注册表与快捷方式；本机装着流息、守门拒跑时也能跑），并能先在副本里做一处变异。它核的是页面那几步与变异能不能被抓到；安装、快捷方式、卸载、真更新（第 1、2、5 步，更新测试的第 1–5、7 步）只有真的测试文件核。更新那一步的演练里，「v1.0 留下的数据」是由现在的应用建库后改写出来的，不是真的 v1.0 写的。
+15. **（1.0.1，2026-11-17）有界面的卸载测试偶尔读不到问数据那个框的正文**：`dialogs.mjs` 的监视程序用 `GetDlgItemTextW(框, 0xFFFF)` 读正文；当天 `uninstall-ui` 跑了七次（整套里三次、单独四次），有两次读成空（按钮在）：一次照「不认识、有是 / 否的框答否」答了否（`uninstall-ui` 2 红），一次（试过「等正文再答」）180 秒都没有正文、超时红。改等待的办法撤了，答法与以前相同 —— 读不到时测试照样红，不会悄悄过；那一行另记框里每个子窗口的类、id、文字（`children`），下次出现时据此查。原因还没查明；它只影响测试的监视程序，用户双击卸载看到的框不受影响（读正文的是测试，不是安装包）。重跑就过了（§10.8：两次红之后，单独四次、整套一次都过）。
 
 ## 九、改了哪些文件（11-04）
 
@@ -467,6 +468,31 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
   - 匿名 `GET https://api.github.com/repos/AsuraNale/streams/releases/latest`（与应用同样的 Accept 与 User-Agent）返回 `tag_name: v1.0.0`，不是草稿、不是预发布。附件恰好一个：`Streams-1.0.0-setup.exe`，136,173,094 字节，`digest: sha256:2c104917…`，与本地文件相同。
   - 把这个返回交给应用自己的 `parseRelease`（`desktop/src/main/services/update.mjs`）：当前 1.0.0 → `not_newer`；当前当作 0.9.0 → `newer`，版本 1.0.0，附件的地址在 `DOWNLOAD_PREFIX` 下，sha256 与大小同上。
   - 没有真的从应用里点「检查更新」下载安装：本机这时装着的是 R6d 包，它也是 1.0.0，所以只会说已是最新。
+
+### 10.8 2026-11-17 1.0.1（主工作区 main，安装包打在 1.0.1 的提交 `286ace7` 上；时间都是东部时间 EST）
+
+- **版本号**：`installer/setup/release.json` 的 `version` 1.0.1、`app_ver_name`「流息 1.0.1」、`output_base_filename` `Streams-1.0.1-setup`，没有 `pre_release`；四个 `package.json` 与 `desktop/package-lock.json` 的两处为 1.0.1。发布说明「这一版有什么」是 1.0.1 的五处修复（中英各一份），另写一句：升级前出的、还没确认的来源提议，升级后显示已失效。
+- **构建**（13:32–13:35）：在 `286ace7` 上 `node installer/build-installer.mjs` 连跑两次（编译 52 秒、45 秒；第二次全程 67 秒）。
+  - 两次都是 `installer/dist/Streams-1.0.1-setup.exe` **136,176,191 字节（约 136.2 MB / 129.9 MiB），SHA256 `033ce68d7cad50cec1a0f1cf650e5498c6690dc0c9fe511599a44142fdb8f75a`**（构建自己算，交付前又用 `sha256sum` 实算一次）。
+  - 第二次记 `previous.same_installer: true`、`same_stage: true`；`build-record.json` 记 `from.head: 286ace7`，`from.uncommitted` 只有未跟踪的 `.claude/worktrees/` 与 `rel.json`，不进 stage。
+  - stage 550 个文件、430,327,133 字节（`tree_sha256` `a822737d…`），比 1.0.0 多 12,143 字节：1.0.1 改的源码（第一次构建记的变动：`Streams.exe`、两个 `package.json`、`THIRD-PARTY-NOTICES.txt`、`agent.mjs`、`chat.js`、`proposal.js`、两份 `proposals.js` 字典、`protocol.mjs` 等 13 个文件）。安装包比 1.0.0 大 3,097 字节。
+  - 发布说明 `release-notes-1.0.1.md` 的 SHA256 是 `de910601…`，里面的大小与 sha256 就是上面这两个数。
+- **同一提交上的其他套**：核心 655 / 655、措辞表 19 / 19、桌面端全套 611 / 611（设了 `STREAMS_SHARP_DIR`，1,713 秒）；v2 草案 6 / 6；变异体核心 66 / 66、桌面端 238 / 238（分三批同时跑）。
+- **安装测试**（15:22–15:30，维护者 先卸掉了本机的流息，应用数据选「否」）：
+  - 前：`node installer/real-registry.mjs` 退出码 0（工具 shell 与资源管理器起的进程两个视图里都没有卸载项与通知键）。
+  - `node --test --test-concurrency=1 "installer/test/*.test.mjs"`：**38 / 38 通过**（464 秒）。这一次补上了 1.0.0 没实测的真装、快捷方式、有界面的卸载、真更新（0.9.0 → 1.0.1，`packaged` 第 1–5 步、`upgrade` 第 1–7 步）。
+  - `node tests/acceptance/run.mjs`：**12 / 12 通过**（2026-11-17T20:31:23Z），V1 读的是这个安装包与它的发布说明。
+  - 后：`real-registry.mjs` 退出码 0。
+  - `installer/dist/packaged-test-result.json` 与 `upgrade-test-result.json` 是这一轮写的。
+- **这之前的两轮没有全过，都改的是测试，不是安装包**（安装包仍是上面那一个；改的两个文件 `installer/test/upgrade.test.mjs`、`installer/test/dialogs.mjs` 不进 stage）：
+  1. 第一轮（14:53–15:01）36 / 38。
+     - `upgrade` 第 5 步红：安装日志那一行的版本在 11-04 写死成了 `1.0.0`（那时造的就是 1.0.0），版本一变就红；同一步里读卸载项的几条（`DisplayVersion`、`DisplayName` 跟 `release.json`）是过的。改成跟 `release.json` 的版本走，先用六个样本核过（1.0.1 两种写法认、1.0.0 / 1.0.10 / 1x0x1 / 写失败 都不认）。
+     - `uninstall-ui` 第 2 步（答「是」）红：问应用数据的那个框，监视程序读到的正文是空的（按钮在），按「不认识、有是 / 否的框」答了「否」，测试列框的那条红。
+     - 两个文件单独重跑（15:03–15:08）10 / 10。
+  2. 第二轮（15:08–15:19）37 / 38：我先把监视程序改成「正文空的框下一轮再看、不答」，结果 `uninstall-ui` 第 3 步里那个框 180 秒都没读到正文、超时红。可见不是正文晚到，而是偶尔读不到。这个改法撤了：答法回到原来的样子；另加一条记录：正文读成空时，把框里每个子窗口的类、id、文字记进那一行（`children`，在真的消息框上核过：两个按钮 6 / 7 与正文 `Static:65535`）。`uninstall-ui` 单独连跑三次，3 / 3、3 / 3、3 / 3。
+  - 第三轮就是上面的 38 / 38，没有出现正文读成空的框（`children` 零次）。原因没查明，记在 §八 15。
+- **本机流息**：测试期间没有装着。测试用自己的身份与临时文件夹；packaged 测试按 §八 6 短暂用了真的开始菜单与桌面，结束后没有。维护者 的 `%APPDATA%\Streams` 没有读写。
+- **还没做的**：推送与 Release v1.0.1 等 维护者 点头；发布后由 维护者 从 GitHub 装回 1.0.0、在应用里「检查更新」装上 1.0.1，看「关于」与库、对话，玄翎只跑 `real-registry.mjs`。
 
 ## 十一、卸载后留下的卸载登记（v2 包 N，2026-11-10）
 

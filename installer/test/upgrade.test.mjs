@@ -396,7 +396,9 @@ test(`5 · after the update: the program folder is the ${RELEASE.version} stage;
   S.result.setupLogRestartManager = lines.filter(l => /RestartManager/.test(l))
   assert.match(log, /An older copy of the app in this folder \(its program files are removed first\): 1/)
   assert.match(log, /Open the app again after the update: 1/)
-  assert.match(log, /The uninstall entry shows this version: 1\.0\.0|The uninstall entry showed version .*: written 1\.0\.0/)
+  // 1.0.1: the version built, not a fixed one (written as 1.0.0 on 11-04, when that was the version built — red from 1.0.1 on)
+  const v = RELEASE.version.replaceAll('.', '\\.')
+  assert.match(log, new RegExp(`The uninstall entry shows this version: ${v}\\r?$|The uninstall entry showed version .*: written ${v}\\r?$`, 'm'))
   S.result.entryAfter = entry
 })
 

@@ -63,6 +63,8 @@ namespace StreamsTestN {
     [DllImport("user32.dll")] static extern IntPtr GetDlgItem(IntPtr h, int id);
     [DllImport("user32.dll")] static extern bool IsWindow(IntPtr h);
     [DllImport("user32.dll")] static extern bool PostMessageW(IntPtr h, uint msg, IntPtr w, IntPtr l);
+    [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr h, EnumProc f, IntPtr l);
+    [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr h);
     [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint pid);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32FirstW(IntPtr h, ref PROCESSENTRY32W e);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32NextW(IntPtr h, ref PROCESSENTRY32W e);
@@ -110,6 +112,17 @@ namespace StreamsTestN {
       }, IntPtr.Zero);
       return found.ToArray();
     }
+    // what a box is made of, for the record when its text reads empty: "class:id:text" of each child window
+    public static string Children(long hwnd) {
+      var parts = new List<string>();
+      EnumChildWindows(new IntPtr(hwnd), (c, l) => {
+        var cls = new StringBuilder(64); GetClassNameW(c, cls, 64);
+        var t = new StringBuilder(512); GetWindowTextW(c, t, 512);
+        parts.Add(cls.ToString() + ":" + GetDlgCtrlID(c) + ":" + t.ToString().Replace("|", " "));
+        return true;
+      }, IntPtr.Zero);
+      return string.Join(" | ", parts.ToArray());
+    }
     public static bool Press(long hwnd, int id) {
       IntPtr h = new IntPtr(hwnd);
       if (!IsWindow(h)) return false;
@@ -142,6 +155,11 @@ while ((Get-Date) -lt $deadline) {
       $buttons = @($p[2].Split(',') | Where-Object { $_ -ne '' } | ForEach-Object { [int]$_ })
       $text = $p[4].Replace([string][char]13 + [char]10, [string][char]10)
       if ($text -eq '' -and $buttons.Count -eq 0) { continue }
+      # 1.0.1 (2026-11-17): twice in five runs the data question's text read empty (its buttons there) — once answered 否 for
+      # 是, once (waiting for the text, tried and taken back) never there in 180 s. The answer stays as it was (an unknown box
+      # with 是 / 否 gets 否, and the test's list of boxes goes red); the record says what the box is made of
+      $children = ''
+      if ($text -eq '') { $children = [StreamsTestN.Dialogs]::Children($h) }
       if ($text -ceq $question) { $press = $answer }
       elseif ($text -ceq $confirm) { $press = 6 }
       elseif (($buttons -contains 6) -and ($buttons -contains 7)) { $press = 7 }
@@ -150,7 +168,9 @@ while ((Get-Date) -lt $deadline) {
       Start-Sleep -Milliseconds 300
       $ok = [StreamsTestN.Dialogs]::Press($h, $press)
       $done[$h] = $true
-      [Console]::Out.WriteLine((@{ pid = [int]$p[1]; title = $p[3]; text = $text; buttons = $buttons; pressed = $press; posted = $ok } | ConvertTo-Json -Compress))
+      $row = @{ pid = [int]$p[1]; title = $p[3]; text = $text; buttons = $buttons; pressed = $press; posted = $ok }
+      if ($children -ne '') { $row.children = $children }
+      [Console]::Out.WriteLine(($row | ConvertTo-Json -Compress))
     }
   } else {
     if ($goneAt -eq $null) { $goneAt = Get-Date }
