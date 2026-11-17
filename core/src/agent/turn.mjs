@@ -7,8 +7,11 @@
 //               params.libraryId takes it)
 //   ctx = { agentDir, connector (connect/session.mjs createSessionConnector, or agent/fake.mjs), registry (or a function
 //           giving it), proposals (cards, or a function), createProposal(kind, params, why, { by }) (package B's, the
-//           desktop's services/proposals.mjs), now, log, situationMax, rawError?(where, { code, message }) }
-//           (redesign R5a: where a raw text goes besides the log — the desktop's raw-errors.mjs, for 「复制诊断信息」)
+//           desktop's services/proposals.mjs), now, log, situationMax, rawError?(where, { code, message }),
+//           language?, connection? }
+//           (redesign R5a: where a raw text goes besides the log — the desktop's raw-errors.mjs, for 「复制诊断信息」;
+//           1.0.1 F3 · F5: the interface's language and the connection in use — or a function giving it, read at the turn —
+//           handed to the situation, which reads only the connection's kind, vendor and two model slots)
 //
 // What the model is given: AGENT_SYSTEM (protocol.mjs) + the situation (situation.mjs) + this turn; and the context of the
 // conversation — the newest summary and the last RECENT_TURNS turns, from the transcript — whenever the connection does
@@ -186,7 +189,8 @@ export async function agentTurn(input, ctx) {
   const through = summarizedThrough(before);
   write(as, text.trim(), libraryId ? { libraryId } : undefined);
 
-  const sit = situation(registry, { now, proposals: cards, notes: readAgentNotes(agentDir, { limit: NOTES_IN_SITUATION }), agentUsageFile: paths.usage, ...(situationMax ? { maxChars: situationMax } : {}) }).text;
+  const connection = typeof ctx.connection === 'function' ? ctx.connection() : (ctx.connection ?? null);
+  const sit = situation(registry, { now, proposals: cards, notes: readAgentNotes(agentDir, { limit: NOTES_IN_SITUATION }), agentUsageFile: paths.usage, language: ctx.language, connection, ...(situationMax ? { maxChars: situationMax } : {}) }).text;
   const thisTurn = turnBlock(text.trim(), { as, libraryId, registry });
   const pieces = [];
   const notice = [];

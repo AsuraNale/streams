@@ -835,11 +835,12 @@ const MUTANTS = [
   {
     id: 'r5b-confirm-left',
     what: 'the full card\'s buttons back to 确认 · 提出修改 · 拒绝 (the main one on the left)',
+    // 1.0.1 (PM): the main button is drawn by ConfirmButton since F4 (its test-fetch guard); the anchor follows it
     edits: [['src/renderer/screens/proposal.js', `        <\${Btn} name="decline" kind="quiet" disabled=\${act.busy} onClick=\${act.decline}>\${T.actions.decline}<//>
         <\${Btn} name="revise" disabled=\${act.busy} onClick=\${() => setReviseOpen(o => !o)}>\${T.actions.revise}<//>
-        <\${Btn} name="confirm" kind="primary" disabled=\${act.busy} onClick=\${act.confirm}><\${TIcon} name="approve" fallback="check" />\${create ? T.actions.create : T.actions.confirm}<//>
+        <\${ConfirmButton} create=\${create} busy=\${act.busy} guard=\${guard} />
       </div>
-    </div>`, `        <\${Btn} name="confirm" kind="primary" disabled=\${act.busy} onClick=\${act.confirm}><\${TIcon} name="approve" fallback="check" />\${create ? T.actions.create : T.actions.confirm}<//>
+    </div>`, `        <\${ConfirmButton} create=\${create} busy=\${act.busy} guard=\${guard} />
         <\${Btn} name="revise" disabled=\${act.busy} onClick=\${() => setReviseOpen(o => !o)}>\${T.actions.revise}<//>
         <\${Btn} name="decline" kind="quiet" disabled=\${act.busy} onClick=\${act.decline}>\${T.actions.decline}<//>
       </div>
@@ -1482,6 +1483,76 @@ const MUTANTS = [
     what: '阅读窗口\'s bar draws 研究对话\'s back for 精密国际主义 too (the themes share one shape again)',
     edits: [['src/main/reader.mjs', "  precision: Object.freeze({ back: [['M22 12H6m6-6-6 6 6 6 M3 5v14']], layered: true,", "  precision: Object.freeze({ back: [['M21 6v4q0 4-4 4H4m6-6-6 6 6 6']], layered: true,"]],
     test: ['test/reader.test.mjs', '--test-name-pattern=redesign R6d'],
+  },
+  // 1.0.1 (docs/checks/2026-11-17-1.0.1/contract.md): each of the desktop's fixes put back the way it was (test/ui-v101.test.mjs,
+  // test/ui-v101-en.test.mjs, test/services-v101.test.mjs). The window tests' first test makes the cards the others read, so each
+  // pattern takes it along ("F2 setup" / "English. setup"); every check after it reads the bridge and the page after a fixed wait,
+  // so a broken copy fails on an assertion, not on a wait.
+  {
+    id: 'v101-f2-scroll-used-up',
+    what: 'F2: the conversation\'s first draw (the record not read yet) uses up the scroll to the end again: back on the page it stands at its top',
+    edits: [['src/renderer/screens/chat.js', 'if (toEnd.current && entries !== null && cardsDrawn) {', 'if (toEnd.current) {']],
+    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2'],
+  },
+  {
+    id: 'v101-f2-before-cards',
+    what: 'F2: the end is scrolled to before the cards are drawn (they make the conversation taller after it: the last line out of sight)',
+    edits: [['src/renderer/screens/chat.js', 'if (toEnd.current && entries !== null && cardsDrawn) {', 'if (toEnd.current && entries !== null) {']],
+    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2'],
+  },
+  {
+    id: 'v101-f4-one-press',
+    what: 'F4: a card whose test fetch did not pass is confirmed by the first press again (no second ask)',
+    edits: [['src/renderer/screens/proposal.js', '    if (warn && !armed) { setArmed(true); return undefined }\n', '']],
+    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: a card whose test fetch came back blocked'],
+  },
+  {
+    id: 'v101-f4-no-warning',
+    what: 'F4: no card says its test fetch did not pass (no line beside 确认, one press)',
+    edits: [['src/renderer/screens/proposal.js', '  const warn = trialsNotPassed(card).length > 0\n', '  const warn = false\n']],
+    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: a card whose test fetch came back gap'],
+  },
+  {
+    id: 'v101-f4-every-card',
+    what: 'F4: every card asks twice, a card whose test fetch passed too',
+    edits: [['src/renderer/screens/proposal.js', '  const warn = trialsNotPassed(card).length > 0\n', '  const warn = true\n']],
+    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: a card whose test fetch passed'],
+  },
+  {
+    id: 'v101-f4-compact-unguarded',
+    what: 'F4: the right panel\'s compact card confirms by one press whatever the test fetch said (only the conversation\'s card asks)',
+    edits: [['src/renderer/screens/proposal.js', '  const guard = useTrialGuard(item.card, act.confirm)\n', '  const guard = { warn: false, armed: false, press: act.confirm }\n']],
+    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: the right panel'],
+  },
+  {
+    id: 'v101-f4-failed-passes',
+    what: 'F4: 暂时失败 counts as a test fetch that passed (only 地址无效 and 访问被拒 are said)',
+    edits: [['src/renderer/screens/proposal.js', "export const TRIAL_NOT_PASSED = Object.freeze(['gap', 'blocked', 'failed'])", "export const TRIAL_NOT_PASSED = Object.freeze(['gap', 'blocked'])"]],
+    test: ['test/ui-v101-en.test.mjs', '--test-name-pattern=English. setup|the right panel'],
+  },
+  {
+    id: 'v101-f4-en-one-press',
+    what: 'F4 in English: the first press confirms again',
+    edits: [['src/renderer/screens/proposal.js', '    if (warn && !armed) { setArmed(true); return undefined }\n', '']],
+    test: ['test/ui-v101-en.test.mjs', '--test-name-pattern=English. setup|Access denied'],
+  },
+  {
+    id: 'v101-f4-en-words',
+    what: 'F4 in English: the line beside Confirm is not the agreed sentence',
+    edits: [['src/renderer/texts-en/proposals.js', "trialWarn: 'This address did not pass the test fetch',", "trialWarn: 'Test fetch failed',"]],
+    test: ['test/ui-v101-en.test.mjs', '--test-name-pattern=English. setup|Access denied'],
+  },
+  {
+    id: 'v101-f4-add-unticked',
+    what: 'F4: an added source whose test fetch did not pass says 不添加 again on its card (it is added all the same)',
+    edits: [['src/renderer/screens/proposal.js', 'trial=${{ ...card.trial, include: true }} />', 'trial=${card.trial} />']],
+    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: a card whose test fetch came back blocked'],
+  },
+  {
+    id: 'v101-f35-desktop-not-handed',
+    what: 'F3 · F5: the main process does not hand the interface\'s language and the connection to the turn (the situation says neither)',
+    edits: [['src/main/services/agent.mjs', ', language: language(), connection: connectionNow })', ' })']],
+    test: ['test/services-v101.test.mjs', '--test-name-pattern=v101 F3 · F5'],
   },
 ]
 

@@ -571,6 +571,17 @@
         ]
       },
       {
+        "id": "test-fetch",
+        "zh": "测试抓取",
+        "en": "Test fetch",
+        "note": "05 第 150 行（试抓 → 测试抓取）。作标签、按钮时 Test fetch；句子里小写 the test fetch。1.0.1 F4：提议上的来源测试抓取未通过时，确认旁的提醒（该地址测试抓取未通过 / This address did not pass the test fetch）。",
+        "keys": [
+          "proposals.js:PROPOSALS.card.points.trial",
+          "sources.js:SOURCES.row.try",
+          "first-run.js:NEW_LIBRARY.tryOne"
+        ]
+      },
+      {
         "id": "detected",
         "zh": "系统检测",
         "en": "Detected by Streams",
@@ -722,6 +733,13 @@
         "must_not": null,
         "flags": "i",
         "why": "待确认 = To confirm"
+      },
+      {
+        "zh": "测试抓取",
+        "must": "test fetch",
+        "must_not": null,
+        "flags": "i",
+        "why": "测试抓取 = Test fetch（1.0.1 F4 加）"
       },
       {
         "zh": "系统检测",

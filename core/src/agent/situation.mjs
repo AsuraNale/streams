@@ -1,8 +1,14 @@
 // The situation the main agent is given at every turn (v2 package C, contract C1; docs/core-api.md 5.15.2): a text of at
 // most SITUATION_MAX characters, read from the libraries as they are now. Read only: nothing is written anywhere.
 //
-// situation(registry, { now, proposals, notes, agentUsageFile, maxChars }) -> { text, truncated, libraries, chars }
+// situation(registry, { now, proposals, notes, agentUsageFile, maxChars, language, connection }) -> { text, truncated, libraries, chars }
 //   registry       { libraries: [{ id, path, name, addedAt? }] } (core readRegistry's, or the desktop's entries())
+//   language       1.0.1 F3: the interface's language, 'en' or (anything else) 'zh-CN' — said on top (界面语言), so that the
+//                  main agent writes a proposal's "why" in it (protocol.mjs rule 5)
+//   connection     1.0.1 F5: the connection in use, { kind, vendor?, model?, verifyModel? } (the desktop's connections.active():
+//                  model / verifyModel resolved), or null = none chosen — said on top (当前连接: its kind in the interface's words,
+//                  主模型, 核验模型). Only those four fields are read (connectionFacts): never a key, its hint or reference, an
+//                  address or a folder of this machine, whatever else the object holds
 //   proposals      the proposal cards (the app's proposals.jsonl read back); the pending ones of each library are listed
 //   notes          the agent's newest notes ([{ at, text }]), listed at the end
 //   agentUsageFile the agent's usage.jsonl: its calls this month are in the total and on their own
@@ -25,6 +31,8 @@ import { pipelineFrom } from '../pipeline/config.mjs';
 import { thresholdsOf } from '../proposals/changes.mjs';
 import { PROPOSAL_KIND_WORDS, STATE_WORDS } from './words.mjs';
 import { usageTotal } from '../connect/usage.mjs';
+import { CONNECTION_KINDS } from '../connect/types.mjs';
+import { VENDORS, modelsFor } from '../connect/models.mjs';
 
 export const SITUATION_MAX = 6000;
 export const BRIEF_CHARS = 200;
@@ -113,7 +121,46 @@ function detailBlock(f) {
   return out.join('\n');
 }
 
-export function situation(registry, { now = () => new Date(), proposals = [], notes = [], agentUsageFile, maxChars = SITUATION_MAX } = {}) {
+// ---- 1.0.1 F3 · F5: the interface's language and the connection, on top of the situation ----
+
+/** The interface's language as the situation says it (anything but 'en' is Chinese, the app's default). */
+export const languageLine = (language) => (language === 'en' ? '界面语言：英文（en）' : '界面语言：中文（zh-CN）');
+
+// the kinds as the interface names them (desktop texts/common.js CONNECTIONS kinds; 「输入 API key」 is the button, the kind is API key)
+export const CONNECTION_KIND_WORDS = Object.freeze({ 'claude-code': '连接你电脑上的 Claude Code', codex: '连接你电脑上的 Codex', api: 'API key' });
+const TOOL_NAMES = { 'claude-code': 'Claude Code', codex: 'Codex' };
+// a model slot is said only when it is a plain short name (a model id): not a path, not a key typed into the box by mistake
+const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,79}$/;
+const KEYISH = /^(sk-|sk_|key-|AIza)|[A-Za-z0-9_-]{40,}/;
+const plainModel = (m) => (typeof m === 'string' && MODEL_ID.test(m.trim()) && !KEYISH.test(m.trim()) && !/^[A-Za-z]:/.test(m.trim()) ? m.trim() : null);
+
+/**
+ * The only fields of a connection the situation reads: { kind, vendor, model, verifyModel } (null for what is not there or
+ * not plain), or null when there is no connection the core knows. Nothing else of the object is copied.
+ */
+export function connectionFacts(connection) {
+  if (!connection || typeof connection !== 'object' || !CONNECTION_KINDS.includes(connection.kind)) return null;
+  const vendor = connection.kind === 'api' && typeof connection.vendor === 'string' && Object.hasOwn(VENDORS, connection.vendor) ? connection.vendor : null;
+  return { kind: connection.kind, vendor, model: plainModel(connection.model), verifyModel: plainModel(connection.verifyModel) };
+}
+
+function modelWords(facts, id) {
+  let label = null;
+  try { label = modelsFor(facts.kind, facts.vendor ?? 'custom').find((m) => m.id === id)?.label ?? null; } catch { label = null; }
+  return label ? `${label}（${id}）` : id;
+}
+
+/** 当前连接：… in one line, then the sentence of the settings page on which step uses which slot. */
+export function connectionLines(connection) {
+  const f = connectionFacts(connection);
+  if (!f) return ['当前连接：还没有连接（需先在「设置」中选择连接）'];
+  const kind = f.kind === 'api' ? `${CONNECTION_KIND_WORDS.api}${f.vendor ? `（${VENDORS[f.vendor].label}）` : ''}` : CONNECTION_KIND_WORDS[f.kind];
+  const main = f.model ? modelWords(f, f.model) : `未指定（使用 ${TOOL_NAMES[f.kind] ?? '该连接'} 自己的默认模型）`;
+  const verify = !f.verifyModel || f.verifyModel === f.model ? '同主模型' : modelWords(f, f.verifyModel);
+  return [`当前连接：${kind}；主模型：${main}；核验模型：${verify}`, '评分、摘要、问库与主 Agent 均使用当前连接的主模型；核验使用核验模型。所有库都用这一条连接。'];
+}
+
+export function situation(registry, { now = () => new Date(), proposals = [], notes = [], agentUsageFile, maxChars = SITUATION_MAX, language = 'zh-CN', connection = null } = {}) {
   const entries = Array.isArray(registry?.libraries) ? registry.libraries.filter((l) => l && typeof l.id === 'string' && typeof l.path === 'string') : [];
   const clock = now();
   const names = Object.fromEntries(entries.map((e) => [e.id, e.name]));
@@ -121,7 +168,7 @@ export function situation(registry, { now = () => new Date(), proposals = [], no
   const usage = usageTotal(entries.map((e) => e.path), { month: clock.toISOString().slice(0, 7), ...(agentUsageFile ? { agentFile: agentUsageFile } : {}) });
   const createPending = (Array.isArray(proposals) ? proposals : []).filter((c) => c && c.status === 'pending' && c.kind === 'create_library');
 
-  const head = [`# 局面（${clock.toISOString()}）`, `登记的库：${entries.length} 个${entries.length ? '' : '（还没有库）'}`];
+  const head = [`# 局面（${clock.toISOString()}）`, languageLine(language), connectionLines(connection).join('\n'), `登记的库：${entries.length} 个${entries.length ? '' : '（还没有库）'}`];
   const tail = [];
   if (createPending.length) tail.push(`待确认的创建库提议：${list(createPending, (c) => `${c.id}（${c.params?.name ?? '?'}）`)}`);
   tail.push(`全部库本月用量合计：${usage.calls} 次调用${usage.agent ? `（其中主 Agent ${usage.agent.calls} 次）` : ''}`);

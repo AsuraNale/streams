@@ -212,7 +212,9 @@ test('stale: the user changed the same part through the v1.0 bridge after the ca
   library.handlers.setActiveLibrary(ids.b)
   const add = await proposals.createProposal('add_source', { libraryId: ids.b, source: { name: 'feed-b', kind: 'rss', url: FEED_OK } }, WHY)
   const thr = await proposals.createProposal('edit_thresholds', { libraryId: ids.b, relevance: 0.5 }, WHY)
-  sources.removeSource('hn-agents')
+  // 1.0.1 (F1): a source card is about its one source — the user adds that very source by hand (before 1.0.1 removing
+  // another source was enough to make the card stale; it no longer is)
+  sources.addSource({ name: 'feed-b', kind: 'hn', query: 'rag' })
   const cfg = pipeline.getPipeline().config
   pipeline.savePipeline({ ...cfg, nodes: cfg.nodes.map(n => (n.id === 'relevance' ? { ...n, threshold: 0.6 } : n)) })
   const t = tree(dir('b'))
@@ -224,7 +226,7 @@ test('stale: the user changed the same part through the v1.0 bridge after the ca
   const who = h.getWhoDecided()
   assert.deepEqual([who.sources.by, who.thresholds.by, who.brief], ['you', 'you', null])
   // control: a card made now (after the changes) goes through, and 「谁定的」 then says agent-confirmed
-  const add2 = await proposals.createProposal('add_source', { libraryId: ids.b, source: { name: 'feed-b', kind: 'rss', url: FEED_OK } }, WHY)
+  const add2 = await proposals.createProposal('add_source', { libraryId: ids.b, source: { name: 'feed-c', kind: 'rss', url: FEED_OK } }, WHY)
   assert.equal(h.confirmProposal(add2.id).status, 'confirmed')
   assert.deepEqual([h.getWhoDecided().sources.by, h.getWhoDecided().sources.proposalId], ['agent-confirmed', add2.id])
 })

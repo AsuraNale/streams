@@ -385,7 +385,7 @@ v2 包 D（11-05）：`verifyOnce` / `verifyLoop` 多一个可选 `aiCheck`（�
 
 | 函数 | 作用 | 返回 / 错误 |
 |---|---|---|
-| `draftProposal({ kind, params, why, by }, { libraryDir?, libraryRoot?, fallbackSchedule?, language?, ctx?, now?, scratchRoot?, id? })` | 出一张 `pending` 卡（async）。参数校验 → 在 `scratchRoot`（默认系统临时目录，`mkdirSync` 建、用完删）里拿 `streams.json` 的副本（建库：一个新库）用确认时同一组函数真跑一遍 → `before` = 现在的、`after` = 副本的（按种类显示：来源 `{ count, names, paused }`、主题 `{ topics, sourceTopics }`、`brief`、`thresholds`、`schedule`、`cap`；`run_round` 是 `{ lastRoundAt, cap }` → `{ queued: true, cap }`；建库 `{ folder, state }` → `{ name, folder, brief, topics, sources, thresholds, schedule, cap }`）。`add_source` 与 `create_library` 每个来源试抓一次（`trialOf` = `fetchSource`，不写盘）：`{ status, hint, http, message, count, sample, include }`，`include` = 不是 `blocked` / `gap`。`baseHash` = `hashOf`（sha256 前 16 位）**这张卡自己会改的那一部分**（`HASH_FIELDS`）的现值：加来源 / 删来源 / 暂停来源 = 来源列表；改主题 = 主题；改要求 = `brief`；改过关线 = 两道过关线；改定时 = 定时；改上限 = 上限；跑一轮 = 不算配置（只看库还在）；建库 = 文件夹 + 「空着」。所以同一轮出的「加来源」与「加关键词」两张卡，先确认哪张，另一张都还能确认（UC3）；出卡后同一部分被手动改过 → 确认时 `stale`（11-09 改，原来按 `KIND_FIELDS` 把来源与主题算在一起，两张卡互相作废；`KIND_FIELDS` 仍决定卡上的改前改后与 `changes.jsonl` 记哪些字段）。变异体：`node core/scripts/mutation-check.mjs`（`b-hash-whole-config`：改回整份配置 → UC3 那条测试红）。建库卡的文件夹在且不空 → `bad-proposal`（`reason: 'folder_not_empty'`） | 卡；抛 `bad-proposal` |
+| `draftProposal({ kind, params, why, by }, { libraryDir?, libraryRoot?, fallbackSchedule?, language?, ctx?, now?, scratchRoot?, id? })` | 出一张 `pending` 卡（async）。参数校验 → 在 `scratchRoot`（默认系统临时目录，`mkdirSync` 建、用完删）里拿 `streams.json` 的副本（建库：一个新库）用确认时同一组函数真跑一遍 → `before` = 现在的、`after` = 副本的（按种类显示：来源 `{ count, names, paused }`、主题 `{ topics, sourceTopics }`、`brief`、`thresholds`、`schedule`、`cap`；`run_round` 是 `{ lastRoundAt, cap }` → `{ queued: true, cap }`；建库 `{ folder, state }` → `{ name, folder, brief, topics, sources, thresholds, schedule, cap }`）。`add_source` 与 `create_library` 每个来源试抓一次（`trialOf` = `fetchSource`，不写盘）：`{ status, hint, http, message, count, sample, include }`，`include` = 不是 `blocked` / `gap`。`baseHash` = `hashOf`（sha256 前 16 位）**这张卡自己会改的那一部分**（`HASH_FIELDS`）的现值：加来源 / 删来源 / 暂停来源 = **卡自己动到的那一个来源**（按来源名，`sourceNameOf`；1.0.1 F1 改，原来是整个来源列表，见 5.20）；改主题 = 主题；改要求 = `brief`；改过关线 = 两道过关线；改定时 = 定时；改上限 = 上限；跑一轮 = 不算配置（只看库还在）；建库 = 文件夹 + 「空着」。所以同一轮出的「加来源」与「加关键词」两张卡，先确认哪张，另一张都还能确认（UC3）；出卡后同一部分被手动改过 → 确认时 `stale`（11-09 改，原来按 `KIND_FIELDS` 把来源与主题算在一起，两张卡互相作废；`KIND_FIELDS` 仍决定卡上的改前改后与 `changes.jsonl` 记哪些字段）。变异体：`node core/scripts/mutation-check.mjs`（`b-hash-whole-config`：改回整份配置 → UC3 那条测试红）。建库卡的文件夹在且不空 → `bad-proposal`（`reason: 'folder_not_empty'`） | 卡；抛 `bad-proposal` |
 | `confirmProposal(card, { libraryDir?, hooks?, language?, now?, onStep? })` | **唯一让卡生效的函数**（同步）。先 `assertPending`（不是 `pending` → 抛 `not-pending`，什么都不做）；再重算 `baseHash`，不同 / 库读不出 / 新库文件夹不空了 → `stale`；再按上表执行。`hooks`：`register(folder, { name }) → { libraryId }`（登记并设为当前库）、`unregister(libraryId)`、`enqueue(libraryId) → { queued, reason? }`；`onStep(step)` 每步之前调（抛错 = 那一步失败）。失败：库的配置卡把 `streams.json` 按字节放回；建库卡在登记之前（含登记）撤回登记、只拿掉这一次在文件夹里建的（`streams.json`、`_pipeline`、`index.*`、空的 `notes/`；原来没有文件夹就连文件夹），`rolledBack: true`；登记之后进队列失败 → 库留着，`rolledBack: false`、`result: { libraryId, folder }`。生效后每个变了的字段在库的 `changes.jsonl` 记一行 `agent-confirmed`（建库卡：卡定的 `brief`、`topics`、`sources`、`schedule`、给了的 `thresholds`） | 新的卡；抛 `not-pending` |
 | `declineProposal(card, { now? })` / `reviseProposal(card, text, { now? })` | 「不要」/「改一下」（`text` 1–2000 字，坏 → `bad-proposal`）：只改卡 | 新的卡；抛 `not-pending` |
 | `assertPending(card)` | 上面三个共用的守卫（N1） | 抛 `not-pending` |
@@ -564,11 +564,15 @@ R5a 以前记的卡没有 `basis`：只查来源是否移除 / 暂停与 ④。�
 
 常量：`AGENT_CWD` · `AGENT_CWD_NAME`（`agentPaths` 里没有工作目录）。函数：`appendTranscript(agentDir, { turn, role, text, data? }, { now })` · `readTranscript(agentDir)` → `{ rows, skipped }` · `nextTurn(rows)` · `lastSummary(rows)` · `summarizedThrough(rows)` · `readSessions(agentDir)` · `writeSession(agentDir, kind, value \| null)` · `appendAgentNote(agentDir, text, { turn, now })` · `readAgentNotes(agentDir, { limit })` · `agentPaths(agentDir)`。
 
-### 5.15.2 局面摘要 `situation(registry, { now, proposals, notes, agentUsageFile, maxChars })` → `{ text, truncated, chars, libraries: [{ id, shown: 'detail' \| 'short' \| 'gone' }] }`
+### 5.15.2 局面摘要 `situation(registry, { now, proposals, notes, agentUsageFile, maxChars, language?, connection? })` → `{ text, truncated, chars, libraries: [{ id, shown: 'detail' \| 'short' \| 'gone' }] }`
+
+**1.0.1（F3 · F5，见 5.20）**：开头多两段——「界面语言：中文（zh-CN）/ 英文（en）」与「当前连接：…；主模型：…；核验模型：…」（没有连接时「当前连接：还没有连接…」）。
 
 只读。`registry` = `{ libraries: [{ id, path, name, addedAt? }] }`。每个库（`libraryFacts`）：名字与 id、追踪要求的前 200 字、每个主题和它的关键词数、来源数与五种状态（按每个来源最近一次抓取）的计数外加暂停的、尚未抓取的、待看数、上次运行（时间、进入待看几条）、问题（文件夹读不出 · 来源异常 · 连续 3 次以上运行没有新内容进入待看）、未处理的系统检测、待确认的主 Agent 提议（id 与界面上的名字）；**重设计 R5a（N11）**：全部用界面词（5.15.9）——五种状态用页面上的说法（`STATE_WORDS`，不再写 ok / empty / gap / failed / blocked）、「运行」不用「轮」、系统检测每张一句（`suggestionText`，不写 key、不写证据 JSON、不写原始报错）、「主 Agent 提议」不用「提议卡」；之后是待定的建库卡、**全部库本月用量合计**（含主 Agent 的、单独说出）、主 Agent 最近的笔记。上限 `SITUATION_MAX` = 6000 字（按码点）；超了：先把**登记最早**的库一个个缩成一行（名字、id、待看数、问题），还超再从最早的起整个去掉（注明「另有 N 个较早登记的库没有列出」），末尾写 `（已截短）`（`TRUNCATED_MARK`）；没截不写。
 
 ### 5.15.3 提示与回答（`protocol.mjs`）
+
+**1.0.1（F3 · F4，见 5.20）**：规则 5 加了提议的 `why` 用局面里的界面语言写（用户明说要哪种语言时照用户的）；规则最后一句改成试抓发生在出卡时、结果在卡上、确认时不再试。
 
 `AGENT_SYSTEM`：你是流息的主 Agent；**只按一个 JSON 对象回**（不加别的字、不加代码块）；**不能动手**（没有工具、不能执行命令、不能读写文件）——改任何东西只能出提议卡，只有用户的「确认」让流息自己的代码去做，所以不许说「改了 / 加了 / 建了」，只能说「提议了、等你确认」；一次最多问一个问题（`ask` 一个对象，回复里也别再问）；不说做了没做的事、不编来源和数字；回答用用户这句话的语言；`lookups` 怎么用（每条消息最多连查 3 次）；`note` 是什么；十种卡的 `params` 与来源的形状。**重设计 R5a（N11）第 8 条**：提到界面时用界面上的字——05 统一用词表「这样写」一列（`UI_TERMS`，中 / 英）、提议上按钮的原文（`BUTTONS`：确认、创建、提出修改、拒绝、暂停该来源、修改地址、交由主 Agent 分析、生成修改提议、忽略、将严格程度调整为「{level}」）、十种主 Agent 提议在界面上的名字（`PROPOSAL_KIND_WORDS`），附 05 规则 10 的例句；用户自己的字（库名、追踪要求、笔记）照原样。整段系统提示扫不到 05「不再用」一列的词（测试 `core/test/r5a.test.mjs`）。05 规则 6（不用「您」「我」）只约束我们写给模型的字，不改写模型的输出。
 
@@ -770,6 +774,32 @@ R5a 以前记的卡没有 `basis`：只查来源是否移除 / 暂停与 ④。�
 **变更记录** `changeLog(libraryDir)` → `{ rows, skipped }`：只读。`changes.jsonl` 的每一行 → `{ at, kind: 'change', field, by: 'you' | 'agent-confirmed', proposalId, before, after }`；`streams.json` 的 `setup`（首次设置的记录，`readSetup`）每一步 → `{ at, kind: 'setup', step, by: 'setup', setupBy, detail }`；按 `at` 新的在前，同一时刻文件里后写的在前。坏行不显示、计入 `skipped`。**只列记录过的**：v2 包 B 之前改过的、或只经核心函数直接改（不经桌面 `byYou` 也没确认提议卡）的，不会有行——不编。
 
 测试：`test/r4b-sources.test.mjs`（库名写进去、其余键不动、坏名不写；`name` / `prompts` 的值与一改一行、内置规则不算；变更记录的顺序、三种来源、坏行计数、没记录就没有行；手写进 `streams.json` 的 `tools` 读不回来——评分环节不给模型工具）。变异（`node core/scripts/mutation-check.mjs <id>`）：`r4b-name-unsaved` · `r4b-log-drops-setup` · `r4b-prompts-builtin` · `r4b-tools-kept`。
+
+## 5.20 1.0.1 的五处（2026-11-17）
+
+契约 `docs/checks/2026-11-17-1.0.1/contract.md`（维护者 11-16 试用 1.0.0 的反馈，11-17 在场景演示页上点「对」的五条）。核心管其中四处（F1、F3、F4、F5）；F2（回到主 Agent 对话停在最新一条）与 F4 的界面部分在桌面，见 `docs/desktop.md` §4.24。
+
+**F1 提议过期的规则：来源卡只看自己动到的那一个来源**（`src/proposals/proposals.mjs`）。`baseHashOf(libraryDir, kind, params)`：来源类卡（`SOURCE_CARD_KINDS` = `add_source` · `remove_source` · `pause_source`）的 `baseHash` = `hashOf({ source: 名字, value: 这个名字的来源现在的样子或 null })`，名字由 `sourceNameOf(kind, params)` 取（加来源取 `params.source.name`，删 / 暂停取 `params.name`；名字是 `addSource` 不许重复、删与暂停按它找的那个键）。别的种类照旧按 `HASH_FIELDS`（字段本身没改，仍是 `sources`；`KIND_FIELDS` 仍决定卡上的改前改后与 `changes.jsonl` 记哪些字段）。于是：
+
+- 同一个库、一次出的三张加不同来源的卡，确认第一张后另两张仍是 `pending`，都能确认成功；移除 A 不作废加 B，暂停 A 不作废移除 B，手动加了别的来源也不作废。
+- 两张卡动到**同一个**来源（同名）：先确认的那张生效，后确认的那张 `stale`（`reason: 'changed'`），什么都不写；出卡后那个来源被手动改过（地址、暂停）→ 同样 `stale`。
+- 11-09 的约定保留：加来源与改主题两张卡互不作废（来源卡不看主题，主题卡不看来源）。
+- 升级前（1.0.0）出的、还没确认的来源卡，`baseHash` 是按整个来源列表算的，1.0.1 里重算的值不同，确认时会是 `stale`（「设置已变更，该提议已失效」），要重新出卡；别的种类的旧卡不受影响。
+
+**F3 卡上「为什么」跟界面语言**（`src/agent/situation.mjs`、`protocol.mjs`、`turn.mjs`）。`situation(…, { language })`：`'en'` → 局面开头写「界面语言：英文（en）」，别的（含不给）→「界面语言：中文（zh-CN）」（`languageLine`）；这一段在开头，截短时也留着。`AGENT_SYSTEM` 规则 5：`reply` 与 `ask` 照旧用用户这句话的语言；每张提议的 `why` 用局面给的界面语言写，用户明说要哪种语言时用那种。`agentTurn` 的 `ctx` 多了 `language`（桌面传界面语言，`locale().resolved`）。本包不在代码里改模型写的字。
+
+**F4 试抓的说法**（`protocol.mjs`）。规则最后一句：流息在**出卡时**对每个新来源试抓一次（测试抓取），结果显示在卡上；用户确认时不再试——所以要说「出卡时已试抓，结果在卡上」，不许说「确认时会先试抓」。（核心的试抓本来就在出卡时，`draftProposal` → `trialOf`；1.0.0 的规则只写了「tries a new source once」没写何时。）卡上试抓没通过时确认前再提醒一次，是桌面的事（`docs/desktop.md` §4.24）。
+
+**F5 主 Agent 知道打分用的连接与模型**（`situation.mjs`）。`situation(…, { connection })`：`connection` = `{ kind, vendor?, model?, verifyModel? }`（桌面给 `connections.active()` 的种类、API 的厂商、解析过的主模型与核验模型）或 null。局面开头一段（`connectionLines`）：
+
+- 有连接：「当前连接：连接你电脑上的 Claude Code / 连接你电脑上的 Codex / API key（厂商名）；主模型：<型号表里的名字>（<id>）；核验模型：同主模型 或 <名字>（<id>）」，下一行「评分、摘要、问库与主 Agent 均使用当前连接的主模型；核验使用核验模型。所有库都用这一条连接。」（设置页那句）。没指定主模型的命令行连接：「未指定（使用 Claude Code / Codex 自己的默认模型）」。型号表外的手填 id 照原样写。
+- 没有连接（或种类不认识）：「当前连接：还没有连接（需先在「设置」中选择连接）」。
+- **只读四个字段**（`connectionFacts`）：种类、厂商、两个模型槽；对象里别的东西（key、key 的提示与引用名、接口地址、工作文件夹）一概不读。模型槽只在是普通的短型号名时写（不像路径、不像 key：`sk-` 开头或 40 位以上连续的字母数字不写）。
+- `agentTurn` 的 `ctx.connection`：对象或返回它的函数（每轮读一次）。
+
+**测试**（`core/test/v101.test.mjs`，每条先在旧代码上红）：F1 三条（三张加不同来源的卡依次确认——旧代码第二张就 `stale`；同一来源两张 / 删与暂停同一来源 / 出卡后手动改了那个来源 → 后一张 `stale`，另一个来源的卡照常；移除 A 与加 B 两个顺序、暂停 A 与移除 B、手动加了别的来源）与 11-09 约定一条；F3 局面中英两种界面各写明界面语言、规则 5；F4 规则最后一句；F5 有连接（三种）与没连接、反向（一个假 key 放进对象的各个字段，局面里搜不到它的任何 6 个连续字符，也没有路径、地址、key 引用名）、`agentTurn` 把两样都交给局面。改了的旧测试：`proposals.test.mjs` 两条「stale」用例里手动改的来源换成卡自己的那个（原来手动加别的来源就算过期）；`agent.test.mjs` 截短那条的上限各加开头两段的长度（截掉的次序不变）。
+
+**变异体**（`node core/scripts/mutation-check.mjs "v101-*"`，8 个）：`v101-f1-whole-sources`（来源卡改回看整个列表）· `v101-f1-ignore-source`（来源卡什么都不看）· `v101-f3-no-language`（局面不写界面语言）· `v101-f3-rule5`（规则 5 改回 1.0.0 的）· `v101-f3-turn-language`（`agentTurn` 不把界面语言交给局面）· `v101-f4-rule-last`（规则最后一句改回 1.0.0 的）· `v101-f5-no-connection`（局面不写连接）· `v101-f5-key-leak`（局面把整个连接对象写进去）。原有的 `b-hash-whole-config` 仍抓得到（锚点那一行还在，管别的种类）。
 
 ## 六、桌面桥（desktop 主进程 → 页面）
 

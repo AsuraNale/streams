@@ -287,12 +287,19 @@ export function ChatScreen({ params = {} }) {
       setMore('idle')
     } catch { setMore('failed') }
   }
+  // 1.0.1 F2 (the maintainer 11-16: back on this page, the conversation stood at its top). Found in the real window (test/ui-v101.test.mjs):
+  // this effect also runs when the page is first drawn — the record not read yet (entries null), the list as tall as its box,
+  // nothing to scroll — and that first run used up `toEnd` (set it false); when the record came a moment later toEnd was false,
+  // so nothing scrolled and the page stayed at scrollTop 0. The proposals' cards (useProposals) also come after the record and
+  // make the conversation taller. So the end is scrolled to only once the record and the cards are both drawn, and only then is
+  // toEnd used up. Opened with params.card, the effect below still moves to that card afterwards (useEffect runs after this).
+  const cardsDrawn = proposals.data !== null || proposals.status === 'error'
   useLayoutEffect(() => {
     const el = listRef.current
     if (!el) return
     if (keep.current) { el.scrollTop = keep.current.top + (el.scrollHeight - keep.current.height); keep.current = null; return }
-    if (toEnd.current) { el.scrollTop = el.scrollHeight; toEnd.current = false }
-  }, [entries, sending])
+    if (toEnd.current && entries !== null && cardsDrawn) { el.scrollTop = el.scrollHeight; toEnd.current = false }
+  }, [entries, sending, cardsDrawn])
 
   const busy = sending.length > 0 || agent.busy
   /** Send a sentence to the main Agent. From the box (and a quick answer): only while no turn runs. After 提出修改: queued. */

@@ -20,9 +20,15 @@
 //   提出修改  opens one line to write in on the card; sent, the proposal is 已提出修改 (reviseProposal) and the sentence goes to the
 //            main agent's conversation (the page's own way of sending, else agentSend — and from the right panel, the 主 Agent page).
 //   创建      a new library confirmed: the app goes to that library's 待看 (02 第 39 行); its first run is queued by the core.
+//   1.0.1 F4  a source this card's 确认 / 创建 adds whose test fetch did not pass (地址无效 · 访问被拒 · 暂时失败: TRIAL_NOT_PASSED;
+//            an add_source card's one source, a new library's ticked ones — the unticked are not added): beside the main button
+//            「该地址测试抓取未通过」; the first press does not confirm, it asks once more right there (the button reads 仍然确认 /
+//            仍然创建 and a line says the source is still added) — on the page, never a system dialog; the second press confirms.
+//            A card whose test fetches passed is confirmed by one press, as before. Both sizes (useTrialGuard).
 // Nothing on a card shows a threshold's number, a kind's name, JSON, a raw error or an HTTP code (O9), or a word 05 no longer uses.
 // Test hooks: full — [data-proposal=<id>][data-kind][data-status][data-busy][data-size="full"], [data-part=title|from|library|
-// points|brief|thresholds|topics|sources|schedule|before|after|trial|note|folder|status|failure|revise|call-failed],
+// points|brief|thresholds|topics|sources|schedule|before|after|trial|note|folder|status|failure|revise|call-failed|trial-warning|
+// trial-again], [data-action="confirm"][data-armed=false|true] (only on a card with a test fetch that did not pass),
 // [data-trial=<name>][data-state][data-include], [data-keyword], [data-name][data-changed]; compact — [data-decide=<item id>]
 // [data-from=agent|system][data-kind][data-library][data-busy] with [data-proposal-id] or [data-suggestion=<key>], [data-part=from|
 // sentence|evidence|calls-model|call-failed|revise]; both — [data-action=decline|revise|confirm|revise-send|revise-cancel|
@@ -282,12 +288,51 @@ function CardPoints({ card }) {
     [P.before, html`<div data-part="before"><${SideView} card=${card} side="before" /></div>`],
     [P.after, html`<div data-part="after"><${SideView} card=${card} side="after" /></div>`],
   ]
-  if (card.kind === 'add_source' && card.trial && !Array.isArray(card.trial)) rows.push([P.trial, html`<div data-part="trial"><${TrialLine} name=${card.params?.source?.name ?? null} trial=${card.trial} /></div>`])
+  // 1.0.1 F4: an added source is added whatever its test fetch said (the core's `include` is a new library's tick), so its line
+  // never says 不添加 — beside 确认 the card says the test fetch did not pass and that the source is still added
+  if (card.kind === 'add_source' && card.trial && !Array.isArray(card.trial)) rows.push([P.trial, html`<div data-part="trial"><${TrialLine} name=${card.params?.source?.name ?? null} trial=${{ ...card.trial, include: true }} /></div>`])
   return html`<${Points} rows=${rows} />`
 }
 
-function Btn({ name, kind = '', disabled, onClick, title, children }) {
-  return html`<span class="st-act" data-action=${name}><button type="button" class=${`btn${kind ? ` ${kind}` : ''}`} disabled=${disabled} title=${title} onClick=${onClick}>${children}</button></span>`
+function Btn({ name, kind = '', disabled, onClick, title, armed, children }) {
+  return html`<span class="st-act" data-action=${name} data-armed=${armed === undefined ? undefined : String(armed)}><button type="button" class=${`btn${kind ? ` ${kind}` : ''}`} disabled=${disabled} title=${title} onClick=${onClick}>${children}</button></span>`
+}
+
+/** 1.0.1 F4: the test fetch states that did not pass (05 第三节: 地址无效 · 访问被拒 · 暂时失败). */
+export const TRIAL_NOT_PASSED = Object.freeze(['gap', 'blocked', 'failed'])
+
+/**
+ * 1.0.1 F4: the sources the card's 确认 / 创建 adds whose test fetch did not pass — an add_source card's one source (it is added
+ * whatever its trial says), a new library's ticked ones (an unticked one is not added). Any other kind: none.
+ */
+export function trialsNotPassed(card) {
+  if (card?.kind === 'add_source') return card.trial && !Array.isArray(card.trial) && TRIAL_NOT_PASSED.includes(card.trial.status) ? [card.trial] : []
+  if (card?.kind === 'create_library') return list(card.trial).filter(t => t && t.include !== false && TRIAL_NOT_PASSED.includes(t.status))
+  return []
+}
+
+/**
+ * 1.0.1 F4: the main button of a card with a test fetch that did not pass asks once more before it confirms — on the page: the
+ * first press only arms it (its words become 仍然确认 / 仍然创建, a line says the source is still added), the second runs
+ * `confirm`. A card without one: one press runs it.
+ */
+function useTrialGuard(card, confirm) {
+  const warn = trialsNotPassed(card).length > 0
+  const [armed, setArmed] = useState(false)
+  const press = () => {
+    if (warn && !armed) { setArmed(true); return undefined }
+    setArmed(false)
+    return confirm()
+  }
+  return { warn, armed, press }
+}
+
+/** The main button with its 1.0.1 F4 line beside it: the trial's warning, and once armed, the second ask. */
+function ConfirmButton({ create, busy, guard }) {
+  const words = guard.armed ? (create ? C.createAgain : C.confirmAgain) : (create ? T.actions.create : T.actions.confirm)
+  return html`${guard.warn ? html`<span class="limit-note" data-part="trial-warning">${C.trialWarn}</span>` : null}
+    ${guard.armed ? html`<span class="limit-note" role="alert" data-part="trial-again">${C.trialAgain}</span>` : null}
+    <${Btn} name="confirm" kind="primary" disabled=${busy} armed=${guard.warn ? guard.armed : undefined} onClick=${guard.press}><${TIcon} name="approve" fallback="check" />${words}<//>`
 }
 
 /** The guard of a card's buttons: one press at a time, every button disabled until the bridge answers. */
@@ -381,6 +426,7 @@ function FullCard({ item, onSend, onChanged }) {
   const [reviseOpen, setReviseOpen] = useState(false)
   const act = useAgentActions(item, { onChanged, onSend, compact: false })
   const card = item.card
+  const guard = useTrialGuard(card, act.confirm)
   const title = proposalTitle(item)
   if (card.status !== 'pending') {
     return html`<div class="after-card st-proposal-done" data-proposal=${card.id} data-kind=${card.kind} data-status=${card.status} data-size="full" aria-label=${title}>
@@ -405,7 +451,7 @@ function FullCard({ item, onSend, onChanged }) {
         ${act.busy ? html`<span class="limit-note" role="status">${C.working}</span>` : null}
         <${Btn} name="decline" kind="quiet" disabled=${act.busy} onClick=${act.decline}>${T.actions.decline}<//>
         <${Btn} name="revise" disabled=${act.busy} onClick=${() => setReviseOpen(o => !o)}>${T.actions.revise}<//>
-        <${Btn} name="confirm" kind="primary" disabled=${act.busy} onClick=${act.confirm}><${TIcon} name="approve" fallback="check" />${create ? T.actions.create : T.actions.confirm}<//>
+        <${ConfirmButton} create=${create} busy=${act.busy} guard=${guard} />
       </div>
     </div>
     ${reviseOpen ? html`<${ReviseLine} id=${card.id} busy=${act.busy} onCancel=${() => setReviseOpen(false)} onSend=${t => { setReviseOpen(false); act.revise(t) }} />` : null}
@@ -418,12 +464,13 @@ function FullCard({ item, onSend, onChanged }) {
 function CompactAgent({ item, onChanged }) {
   const [reviseOpen, setReviseOpen] = useState(false)
   const act = useAgentActions(item, { onChanged, compact: true })
+  const guard = useTrialGuard(item.card, act.confirm)
   const create = item.kind === 'create_library'
   return html`
     <div class="confirm-footer" data-busy=${String(act.busy)}><div class="row">
       <${Btn} name="decline" kind="quiet" disabled=${act.busy} onClick=${act.decline}>${T.actions.decline}<//>
       <${Btn} name="revise" disabled=${act.busy} onClick=${() => setReviseOpen(o => !o)}>${T.actions.revise}<//>
-      <${Btn} name="confirm" kind="primary" disabled=${act.busy} onClick=${act.confirm}><${TIcon} name="approve" fallback="check" />${create ? T.actions.create : T.actions.confirm}<//>
+      <${ConfirmButton} create=${create} busy=${act.busy} guard=${guard} />
     </div></div>
     ${reviseOpen ? html`<${ReviseLine} id=${item.proposalId} busy=${act.busy} onCancel=${() => setReviseOpen(false)} onSend=${t => { setReviseOpen(false); act.revise(t) }} />` : null}
     ${act.error ? html`<p class="limit-note" role="alert" data-part="call-failed">${errorWords(act.error)}</p>` : null}

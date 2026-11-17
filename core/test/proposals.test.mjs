@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { createLibrary } from '../src/library/create.mjs';
 import { pipelineConfig } from '../src/pipeline/config.mjs';
 import { readBrief, saveBrief } from '../src/library/brief.mjs';
-import { addSource, updateTopic } from '../src/library/sources.mjs';
+import { addSource, updateSource, updateTopic } from '../src/library/sources.mjs';
 import { saveLibrarySchedule } from '../src/library/schedule.mjs';
 import {
   PROPOSAL_KINDS, appendProposal, confirmProposal, declineProposal, draftProposal, libraryFolderName, readChanges, readProposals,
@@ -223,9 +223,10 @@ test('stale: the configuration the card is about changed after it was made → c
   const brief = await draft('edit_brief', { libraryId: 'a', brief: '新的要求' }, dir);
   const source = await draft('add_source', { libraryId: 'a', source: { name: 'feed-b', kind: 'rss', url: FEED_OK } }, dir);
   const cap = await draft('edit_cap', { libraryId: 'a', cap: 30 }, dir);
-  // by hand, after the cards: the brief, a source, the schedule (not what the cap card is about)
+  // by hand, after the cards: the brief, a source, the schedule (not what the cap card is about). 1.0.1 (F1): a source card is
+  // about its one source, so the source added by hand is the one the card adds (it was another one before 1.0.1)
   saveBrief(dir, '我自己改的要求');
-  addSource(dir, { name: 'mine', kind: 'hn', query: 'rag' });
+  addSource(dir, { name: 'feed-b', kind: 'hn', query: 'rag' });
   saveLibrarySchedule(dir, { enabled: false, time: '06:00' });
   const t = tree(dir);
   for (const c of [brief, source]) {
@@ -279,8 +280,11 @@ test('the other way: the part a card changes changed by hand after it was made �
     edit_schedule: await draft('edit_schedule', { libraryId: 'a', time: '07:45' }, dir),
     edit_cap: await draft('edit_cap', { libraryId: 'a', cap: 30 }, dir),
   };
-  // by hand, after the cards: another source added (not the one of the card), a keyword, the brief, the lines, the time, the cap
-  addSource(dir, { name: 'mine', kind: 'hn', query: 'rag' });
+  // by hand, after the cards: each source card's own source (1.0.1, F1: a source card is about its one source — before 1.0.1
+  // another source added by hand was enough), a keyword, the brief, the lines, the time, the cap
+  addSource(dir, { name: 'feed-b', kind: 'hn', query: 'rag' });
+  updateSource(dir, 'hn-agents', { query: 'agents' });
+  updateSource(dir, 'feed-a', { url: `${FEED_OK}?moved` });
   updateTopic(dir, '评测', { keywords: ['benchmark', 'leaderboard'] });
   saveBrief(dir, '我自己改的要求');
   core.savePipelineConfig(dir, (() => { const p = pipelineConfig(dir); return { ...p, cap: 77, nodes: p.nodes.map((n) => (n.id === 'relevance' ? { ...n, threshold: 0.65 } : n)) }; })());
@@ -293,7 +297,7 @@ test('the other way: the part a card changes changed by hand after it was made �
   assert.deepEqual(tree(dir), t, 'nothing written');
   // control: the same cards made now go through (stale above is about the part, not about the cards)
   assert.equal(confirmProposal(await draft('edit_cap', { libraryId: 'a', cap: 30 }, dir), { libraryDir: dir, now }).status, 'confirmed');
-  assert.equal(confirmProposal(await draft('add_source', { libraryId: 'a', source: { name: 'feed-b', kind: 'rss', url: FEED_OK } }, dir), { libraryDir: dir, now }).status, 'confirmed');
+  assert.equal(confirmProposal(await draft('add_source', { libraryId: 'a', source: { name: 'feed-c', kind: 'rss', url: FEED_OK } }, dir), { libraryDir: dir, now }).status, 'confirmed');
 });
 
 test('a step that fails is undone: streams.json byte for byte as it was, the card failed and says at which step', async () => {

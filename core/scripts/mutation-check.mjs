@@ -383,6 +383,55 @@ const MUTANTS = [
     edits: [['src/library/validate.mjs', '    const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC)]);', '    const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC), ...meta.topics]);']],
     test: ['test/r6d.test.mjs', '--test-name-pattern=R6d-4 validateNote'],
   },
+  // 1.0.1 (docs/checks/2026-11-17-1.0.1/contract.md): each of the core's fixes put back the way it was (test/v101.test.mjs)
+  {
+    id: 'v101-f1-whole-sources',
+    what: 'F1: a source card\'s baseHash covers the whole sources list again (one source card confirmed, every other one of the library stale)',
+    edits: [['src/proposals/proposals.mjs', "  if (name !== null) return hashOf({ source: name, value: snapshot(libraryDir, ['sources']).sources.find((s) => s.name === name) ?? null });\n", '']],
+    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F1: three add_source cards'],
+  },
+  {
+    id: 'v101-f1-ignore-source',
+    what: 'F1: a source card\'s baseHash covers nothing of its source (two cards about the same source both go through)',
+    edits: [['src/proposals/proposals.mjs', "  if (name !== null) return hashOf({ source: name, value: snapshot(libraryDir, ['sources']).sources.find((s) => s.name === name) ?? null });\n", "  if (name !== null) return hashOf({ source: name });\n"]],
+    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F1: two cards about the SAME source'],
+  },
+  {
+    id: 'v101-f3-no-language',
+    what: 'F3: the situation does not say the interface\'s language again',
+    edits: [['src/agent/situation.mjs', '`# 局面（${clock.toISOString()}）`, languageLine(language), ', '`# 局面（${clock.toISOString()}）`, ']],
+    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F3: the situation says'],
+  },
+  {
+    id: 'v101-f3-rule5',
+    what: 'F3: rule 5 is the one of before 1.0.1 again (the why follows the user\'s message, not the interface)',
+    edits: [['src/agent/protocol.mjs', ` Write each proposal\\'s "why" in the interface\\'s language the situation gives (界面语言), unless the user has said plainly which language they want the proposals in: then in that language.',`, `',`]],
+    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F3: the rules'],
+  },
+  {
+    id: 'v101-f3-turn-language',
+    what: 'F3: agentTurn does not hand the interface\'s language to the situation (the desktop\'s locale is lost on the way)',
+    edits: [['src/agent/turn.mjs', 'agentUsageFile: paths.usage, language: ctx.language, connection,', 'agentUsageFile: paths.usage, connection,']],
+    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F3 · F5: agentTurn'],
+  },
+  {
+    id: 'v101-f4-rule-last',
+    what: 'F4: the rules\' last sentence does not say when the test fetch is done again (it is the sentence of before 1.0.1)',
+    edits: [['src/agent/protocol.mjs', /\n  'Streams tries each new source once when the proposal is made[^\n]*/, '']],
+    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F4: the rules'],
+  },
+  {
+    id: 'v101-f5-no-connection',
+    what: 'F5: the situation does not say the connection and its two model slots again',
+    edits: [['src/agent/situation.mjs', "languageLine(language), connectionLines(connection).join('\\n'), ", 'languageLine(language), ']],
+    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F5: the situation says'],
+  },
+  {
+    id: 'v101-f5-key-leak',
+    what: 'F5: the situation copies the whole connection object it is given (a key beside it goes to the model)',
+    edits: [['src/agent/situation.mjs', "languageLine(language), connectionLines(connection).join('\\n'), ", "languageLine(language), connectionLines(connection).join('\\n') + JSON.stringify(connection ?? null), "]],
+    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F5 \\(the other way\\)'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

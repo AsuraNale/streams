@@ -159,6 +159,11 @@ export const PROPOSALS = Object.freeze({
     pausedMark: '（已暂停）',
     trialChip: '{state} · {n} 条',
     unticked: '不添加',
+    // 1.0.1 F4: beside 确认 / 创建 when a source it adds did not pass its test fetch (05: 测试抓取, 该, 未); the first press asks again
+    trialWarn: '该地址测试抓取未通过',
+    trialAgain: '该来源仍会添加，再次点击即可执行。',
+    confirmAgain: '仍然确认',
+    createAgain: '仍然创建',
     scheduleOn: '每天 {time} 自动运行',
     scheduleOff: '未开启定时运行',
     capLine: '单次运行最多 {n} 次模型调用',

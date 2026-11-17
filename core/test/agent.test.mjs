@@ -26,6 +26,7 @@ import { recordSuggestions } from '../src/suggest/records.mjs';
 import { suggestFor } from '../src/suggest/rules.mjs';
 import { readUsageFile, usageTotal, createUsageCounter } from '../src/connect/usage.mjs';
 import { caseDir } from './support/tmp.mjs';
+import { connectionLines, languageLine } from '../src/agent/situation.mjs';
 
 const CLOCK = new Date('2026-11-05T16:00:00.000Z');
 const now = () => CLOCK;
@@ -242,15 +243,17 @@ test('situation: over the limit → first the details of the oldest libraries go
   // the default limit with three libraries: within it
   const def = situation(w.registry, { now });
   assert.ok(def.chars <= SITUATION_MAX, `${def.chars} > ${SITUATION_MAX}`);
-  // so small that libraries go too: the oldest first, said
-  const allShort = situation(w.registry, { now, maxChars: 200 });
+  // so small that libraries go too: the oldest first, said. 1.0.1 (F3 · F5): the head says the interface's language and the
+  // connection too, two parts more — the limits below are those of before 1.0.1 plus their length (what is cut is the same)
+  const EXTRA = [...languageLine('zh-CN')].length + 2 + [...connectionLines(null).join('\n')].length + 2;
+  const allShort = situation(w.registry, { now, maxChars: 200 + EXTRA });
   assert.deepEqual(order(allShort), ['short', 'short', 'short'], 'every library in its one line before any is dropped');
-  const tiny = situation(w.registry, { now, maxChars: 150 });
-  assert.ok(tiny.chars <= 150, String(tiny.chars));
+  const tiny = situation(w.registry, { now, maxChars: 150 + EXTRA });
+  assert.ok(tiny.chars <= 150 + EXTRA, String(tiny.chars));
   assert.ok(tiny.text.endsWith(TRUNCATED_MARK));
   assert.deepEqual(order(tiny), ['gone', 'short', 'short'], 'the oldest goes first');
   assert.match(tiny.text, /另有 1 个较早登记的库没有列出/);
-  assert.deepEqual(order(situation(w.registry, { now, maxChars: 120 })), ['gone', 'gone', 'short']);
+  assert.deepEqual(order(situation(w.registry, { now, maxChars: 120 + EXTRA })), ['gone', 'gone', 'short']);
 });
 
 // ---------------------------------------------------------------- the answer and the turn

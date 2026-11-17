@@ -33,6 +33,9 @@
  *   library-changed, and after a confirmed proposal — a confirmed 暂停该来源 expires the same source's ① ③).
  * 「要」 (acceptSuggestion, the page of before R5a) is 「交由主 Agent 分析」 now.
  *
+ * 1.0.1 (F3 · F5): every turn hands the core the interface's language (locale) and the connection the settings choose — its
+ * kind, the API vendor, 主模型 and 核验模型 as the pipeline resolves them, nothing else — for the situation (core situation.mjs).
+ *
  * Events: `agent-changed { phase: 'started' | 'done', turn, libraryId }` at the start and the end of every turn;
  * `suggestions-changed` (above).
  *
@@ -118,6 +121,20 @@ export function createAgentService({ appDataDir, library, connections, proposals
     return a ? connections.sessionConnector(a.kind, { cwd, log }) : null
   }
   const kindNow = () => (connections.devConnection ? 'fake' : connections.active()?.kind ?? null)
+  // 1.0.1 F3: the interface's language, said in the situation (the agent writes a proposal's "why" in it)
+  const language = () => (locale().resolved === 'en' ? 'en' : 'zh-CN')
+  /**
+   * 1.0.1 F5: the connection the settings choose, for the situation — its kind, the API vendor and the two model slots as the
+   * pipeline resolves them (connections.active()), and nothing else: no key, no key reference, no address, no folder. None
+   * chosen (or none readable) → null, which the situation says as 「还没有连接」.
+   */
+  const connectionNow = () => {
+    try {
+      const a = connections.active?.()
+      if (!a?.kind) return null
+      return { kind: a.kind, vendor: a.connection?.api?.vendor ?? null, model: a.model ?? null, verifyModel: a.verifyModel ?? null }
+    } catch { return null }
+  }
 
   // one turn at a time: each one waits for the one before it
   let chain = Promise.resolve()
@@ -149,7 +166,7 @@ export function createAgentService({ appDataDir, library, connections, proposals
       emit('agent-changed', { phase: 'started', turn: n, libraryId })
       let r
       try {
-        r = await agentTurn({ text, libraryId, as }, { agentDir, connector: c, registry, proposals: cards, createProposal: proposals.createProposal, now, log, rawError: (where, raw) => rawErrors?.note(`agent ${where}`, raw) })
+        r = await agentTurn({ text, libraryId, as }, { agentDir, connector: c, registry, proposals: cards, createProposal: proposals.createProposal, now, log, rawError: (where, raw) => rawErrors?.note(`agent ${where}`, raw), language: language(), connection: connectionNow })
       } catch (err) {
         log(`agent: turn ${n} failed: ${String(err?.stack ?? err)}`)
         emit('agent-changed', { phase: 'done', turn: n, libraryId })
