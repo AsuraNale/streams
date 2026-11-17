@@ -106,7 +106,7 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 1. 点「**更多信息**」；
 2. 再点「**仍要运行**」。
 
-安装不要管理员权限，安装本身不联网。装完开始菜单和桌面上有「流息」。卸载：「设置 → 应用 → 已安装的应用」里找「流息 1.0.0-dev.1」（`release.json` 的 `app_ver_name`；重设计 R6c，维护者 11-13 定：`pre_release` 由 `dev.0` 改为 `dev.1`，`version` 仍是 1.0.0、安装包文件名不变）→ 卸载。下载后可以先核 sha256（发布说明里有）：`Get-FileHash .\Streams-1.0.0-setup.exe -Algorithm SHA256`。
+安装不要管理员权限，安装本身不联网。装完开始菜单和桌面上有「流息」。卸载：「设置 → 应用 → 已安装的应用」里找「流息 1.0.0」（`release.json` 的 `app_ver_name`；发版 1.0.0 起不带开发轮次，维护者 11-16 定，§10.7；开发时的包叫「流息 1.0.0-dev.0 / dev.1」）→ 卸载。下载后可以先核 sha256（发布说明里有）：`Get-FileHash .\Streams-1.0.0-setup.exe -Algorithm SHA256`。
 
 - 安装：按用户装，默认 `%LOCALAPPDATA%\Programs\Streams`，可以改；开始菜单「流息」，桌面「流息」（可以不勾）；装完可以直接打开。只装 x64（Windows 10 1809 及以上）。
 - 卸载：只删安装时放进去的文件、两个快捷方式、卸载项、通知激活器的注册表键。**不删库**。最后问一句「是否同时删除流息的应用数据？」（API key、设置、库的登记、主 Agent 的对话记录、日志和缓存），**默认「否」**（这句话的全文在 `streams.iss` 的 `chs.DeleteAppData`。**重设计 R6c 对照设计 05-措辞规范核过并改了三处**：「应用数据包括你填的 API key、设置、缓存。」→「应用数据包括 API key、设置、库的登记、主 Agent 的对话记录、日志和缓存。」—— 第 6 条，人称能省则省；第 8 条，范围写全（选「是」删的是 `%APPDATA%\Streams` 与 `%LOCALAPPDATA%\Streams` 整个：设置、库的登记 `libraries.json`、主 Agent 的对话记录、加密的 key、日志、Chromium 自己的数据与缓存，`desktop/src/main/layout.mjs`；原句只列了三样，与发布说明的那一行也对不上）；「选「否」保留应用数据（以后重新安装流息可以接着用）。」→「选择「否」将保留应用数据，重新安装流息后可继续使用。」—— 第 5 条，提示先说结果、不用口头说法。第一句问句与「你的库（Markdown 文件夹）不会被删除。」没有冲突，没动。测试读的是 `.iss` 里的这句（`dialogs.mjs uninstallTexts`），跟着走）；选「是」才删 `%APPDATA%\Streams` 与 `%LOCALAPPDATA%\Streams`（`DelTree`：遇到链接只删链接本身，不跟进 —— `installer/test/deltree.test.mjs` 用钉死的 Inno Setup 实测）。应用开着时，安装 / 卸载程序会提示先关（Restart Manager）。
