@@ -239,7 +239,7 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 ## 八、已知限制
 
 1. **没有签名**：安装包与 `Streams.exe` 都是「未知发布者」，SmartScreen 会拦（§四 的两步）。应用自己下载的更新包没有「来自网络」标记、经 `CreateProcess` 启动，SmartScreen 不拦；用户从浏览器下载时照旧会拦。没有签名也意味着：更新包是否可信全靠 GitHub API 经 HTTPS 给的 `digest`（能改发布的人也能改 digest）。
-2. **只有 Windows x64**。现在（重设计 R6d，2026-11-16 实测，§10.6）：安装包 136,172,747 字节（约 136.2 MB / 129.9 MiB），装好 550 个文件、430,314,974 字节（约 410.4 MiB；另加卸载程序的 2 个文件），其中 Electron 的 72 个文件与通知文件共 383,551,001 字节，两款字体 42,898,476 字节。历次的数字见第 11 条。
+2. **只有 Windows x64**。现在（发版 1.0.0，2026-11-16 实测，§10.7）：安装包 136,173,094 字节（约 136.2 MB / 129.9 MiB），装好 550 个文件、430,314,990 字节（约 410.4 MiB；另加卸载程序的 2 个文件），其中 Electron 的 72 个文件与通知文件共 383,551,001 字节，两款字体 42,898,476 字节。历次的数字见第 11 条。
 3. **会安装的两个测试要一台没有真安装的机器（或 Windows 用户）**：守门见到流息的卸载项、快捷方式或通知激活器的键就拒跑，也不许为了跑测试去动真安装。`install-delete`、`uninstall-entry`、`wait-pid` 用测试自己的身份，不受这一条限制。
 4. **测试写真 `HKCU`**：卸载项与通知激活器的键是真的两个（Windows 不让环境变量挪 `HKCU`）；每个会安装的测试结束时卸载、`after` 里无论成败再补一次。测试被强行中断在收尾之前，这两个键可能留下：下一次守门会因此拒跑；跑那一轮临时文件夹里的 `unins000.exe`，或手动删这两个键（v2 包 N 起：中断时安装目录还在，所以守门照旧拒跑；目录也没了的话，守门认作残留、下一轮的装卸会清掉）。另：从某些桌面应用（如 Claude 桌面版）的工具 shell 里跑时，进程看到的是该应用的私有注册表视图（云织 `docs/installer.md` 11.6 查到过；流息 11-10 又查到一次，§十一）—— 测试的写与读在同一个视图里，自身一致；要确认真注册表要从资源管理器起的进程去读（`node installer/real-registry.mjs`）。**这也是给 维护者 装的时候要避开的**：§四最后一条。
 5. **真更新测试里，被安装程序重新打开的流息没有 harness**：它的窗口与托盘图标会出现在屏幕上几秒（测试随即结束它）；Windows 可能把这个托盘图标记在通知区域的设置里（`HKCU\Control Panel\NotifyIconSettings`，按程序路径，指向已删的测试文件夹）。
@@ -248,7 +248,7 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
 8. `[InstallDelete]` 只认**新版** stage 顶层的名字：旧版独有、新版已经不发的顶层文件会留在程序目录里（云织 `docs/installer.md` 11.5 第 6 条）。
 9. **握手只有一个方向、有上限**（11-04 补）：应用把自己的进程号交给安装程序，安装程序在 Restart Manager 动手之前最多等 60 秒；超过 60 秒还没退（机器极忙、进程挂住），安装照常往下走，仍由 Restart Manager 去关它 —— 那时的行为与握手之前一样，可能再卡在关程序那一步。等待的这段时间里安装程序的界面不处理消息（`/SILENT` 的进度窗口可能显示「未响应」，最多 60 秒）。进程号在应用退出后可能被系统分给别的进程：极少见的情况下安装程序会等一个无关的进程，最多 60 秒。安装程序不回报应用：安装中途失败（用户取消、磁盘满）时旧版本仍在，不会自动重新打开。
 10. **（11-09 v2 包 J2 查出并修了）打包后的 v2 曾在 Windows 给不出「文档」文件夹时起不来**：`desktop/src/main/main.mjs` 原来在启动时就算 `join(app.getPath('documents'), 'Streams')`（新建库的默认位置），`getPath` 抛错 → `start failed`，应用退出、没有窗口。安装测试的用户文件夹原来没有 `Documents`，v2 第一次在装好的样子下跑就撞上了。玄翎 11-09 定修法，现在：默认位置由 `desktop/src/main/library-root.mjs` 在**第一次用到时**才算，`documents` 取不到退到 `<用户主目录>Streams`（`getPath('home')`），再取不到退到 `<应用数据>libraries`，退的时候 `main.log` 记一行 `library: the default place for a new library is … (no documents folder: …)`，应用照常启动；什么文件夹都不建。核法：`desktop/test/library-root.test.mjs`（`getPath` 换成替身：`documents` 抛错 → 主目录；两个都不行 → 应用数据；建服务时不问；开发运行不问；`main.mjs` 里不再有自己的 `getPath('documents')` —— 旧代码下这几条是红的）与 `packaged.test.mjs` 第 4b 步（装好的应用、测试用户的 `Documents` 删掉再起：对照先核 `getPath('documents')` 在这里确实抛错，应用照样起来，默认位置是 `<home>Streams`，`main.log` 有那一行、没有 `start failed`）。测试用户平时仍有 `Documents`（`world.mjs appEnv`，真的用户文件夹都有）。
-11. **（v2 包 J2）stage 与安装目录的大小**：v2 的 stage 是 512 个文件、386,899,036 字节（多了 `@mozilla/readability` 14 个文件与 v2 的源码）；上面第 2 条的数字是 11-04 的。**v2 包 N（下一版）**：stage 525 个文件、404,855,643 字节，其中界面字体 `NotoSansSC-VF.ttf` 17,773,244 字节（加它的 OFL 4,434 字节）；安装包 124,407,717 字节（约 124.4 MB / 118.6 MiB），比 J2 的 116,163,537 字节大约 8.2 MB —— 字体压缩后的大小。 **重设计 R6c（现在，合并 R6b 之后）**：stage 550 个文件、430,300,381 字节 —— 比包 N 多 25 个文件、25,444,738 字节：标题字体 `NotoSerifSC-VF.ttf` 25,125,232 字节与它的 OFL 4,301 字节，模板 `renderer/template/` 24 个文件 156,523 字节，其余是 R1–R6b 的源码增减（R6b 删了占位屏 4 个文件；拷进去的：Electron 72、desktop 175（其中 4 个是两款字体与各自的 OFL —— 构建记录的 `copied.font: 4` 是这 4 个再数一次，不另加）、核心 112、`@mozilla/readability` 14、preact 131、htm 41、图标 1、LICENSE 1，共 547 个；构建自己写的 3 个：`resources\app\package.json`、`resources\core\package.json`、`THIRD-PARTY-NOTICES.txt`；合计 550。合并 R6b 之前那一版是 554 个文件、430,296,707 字节、安装包 136,167,840 字节，作废）；安装包 136,169,338 字节，比包 N 的 124,407,717 字节大 11,761,621 字节（约 11.8 MB），几乎都是 Serif 字体压缩后的大小。发布说明的大小那一行写着两款字体各自的字节数。**重设计 R6d（现在）**：stage 仍是 550 个文件（各类拷进去的个数与 R6c 相同），430,314,974 字节，比 R6c 多 14,593 字节，都是 R6d 改的源码；安装包 136,172,747 字节（§10.6）。
+11. **（v2 包 J2）stage 与安装目录的大小**：v2 的 stage 是 512 个文件、386,899,036 字节（多了 `@mozilla/readability` 14 个文件与 v2 的源码）；上面第 2 条的数字是 11-04 的。**v2 包 N（下一版）**：stage 525 个文件、404,855,643 字节，其中界面字体 `NotoSansSC-VF.ttf` 17,773,244 字节（加它的 OFL 4,434 字节）；安装包 124,407,717 字节（约 124.4 MB / 118.6 MiB），比 J2 的 116,163,537 字节大约 8.2 MB —— 字体压缩后的大小。 **重设计 R6c（现在，合并 R6b 之后）**：stage 550 个文件、430,300,381 字节 —— 比包 N 多 25 个文件、25,444,738 字节：标题字体 `NotoSerifSC-VF.ttf` 25,125,232 字节与它的 OFL 4,301 字节，模板 `renderer/template/` 24 个文件 156,523 字节，其余是 R1–R6b 的源码增减（R6b 删了占位屏 4 个文件；拷进去的：Electron 72、desktop 175（其中 4 个是两款字体与各自的 OFL —— 构建记录的 `copied.font: 4` 是这 4 个再数一次，不另加）、核心 112、`@mozilla/readability` 14、preact 131、htm 41、图标 1、LICENSE 1，共 547 个；构建自己写的 3 个：`resources\app\package.json`、`resources\core\package.json`、`THIRD-PARTY-NOTICES.txt`；合计 550。合并 R6b 之前那一版是 554 个文件、430,296,707 字节、安装包 136,167,840 字节，作废）；安装包 136,169,338 字节，比包 N 的 124,407,717 字节大 11,761,621 字节（约 11.8 MB），几乎都是 Serif 字体压缩后的大小。发布说明的大小那一行写着两款字体各自的字节数。**重设计 R6d**：stage 仍是 550 个文件（各类拷进去的个数与 R6c 相同），430,314,974 字节，比 R6c 多 14,593 字节，都是 R6d 改的源码；安装包 136,172,747 字节（§10.6）。**发版 1.0.0（现在）**：stage 550 个文件、430,314,990 字节（版本号字符串多 16 字节）；安装包 136,173,094 字节（§10.7）。
 12. **（v2 包 N）有界面的卸载测试会在屏幕上弹框**：`packaged.test.mjs` 第 5 步与 `uninstall-ui.test.mjs` 起的卸载程序是可见的（与用户双击一样），三个对话框各停约 0.3–1 秒、由测试点掉；跑测试时别去点它们（点了「是」的话 —— 只会删测试自己用户文件夹里的数据，测试随即因对话框的答案不对而红）。
 13. **（v2 包 N）工具 shell 的注册表视图**：从 Claude 桌面版的工具 shell 里装的东西，卸载项只在那个视图里（§十一）。测试自身一致（同一视图里装、同一视图里卸），但给 维护者 的安装不能这样起（§四最后一条）。
 14. **（重设计 R6c）不安装的演练不是安装测试**：`docs/checks/2026-11-13-r6c/rehearsal/rehearse.mjs` 把构建的 stage 拷到临时文件夹、用同一个 harness 起那份 `Streams.exe`，原样跑 `packaged.test.mjs` 的第 3、4、4b 步或 `upgrade.test.mjs` 的第 6 步（不装、不卸、不写注册表与快捷方式；本机装着流息、守门拒跑时也能跑），并能先在副本里做一处变异。它核的是页面那几步与变异能不能被抓到；安装、快捷方式、卸载、真更新（第 1、2、5 步，更新测试的第 1–5、7 步）只有真的测试文件核。更新那一步的演练里，「v1.0 留下的数据」是由现在的应用建库后改写出来的，不是真的 v1.0 写的。
@@ -429,6 +429,34 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
   - v2 草案 6 / 6（2026-11-16T21:52:13Z；它重拍的 `docs/shots/acceptance-v2/` 只差画面上的时间，已还原成提交里的那一版）。
   - 桌面端全套是总验收在同一份代码上跑的（596 / 596）。
 - **本机流息**：没有装（两个视图里卸载项都是 `false`）。本次没有读写 维护者 的 `%APPDATA%\Streams`；应用与卸载程序都以测试用户跑（§五）。
+
+### 10.7 2026-11-16 发版 1.0.0（主工作区 main，在发版提交 `0e40900` 上；时间都是东部时间 EST）
+
+- **版本号**：维护者 11-16 定，今天以正式 1.0.0 发，不带 dev.1。
+  - `installer/setup/release.json` 去掉 `pre_release`，`app_ver_name` 改为「流息 1.0.0」，说明里那句跟着改；`version` 1.0.0、`app_guid`、`output_base_filename` 都没动。
+  - 根、`core`、`desktop`、`wording` 四个 `package.json` 与 `desktop/package-lock.json` 的两处改为 `1.0.0`；`desktop/src/main/version.mjs` 的注释跟着改。
+  - 发布用的代码与配置里不再有 `dev.1`（历史记录除外）。应用显示的版本不变（一直只认数字 1.0.0）；变的是卸载项的名字与安装程序的说明，都从「流息 1.0.0-dev.1」变成「流息 1.0.0」。
+- **构建**（18:07–18:09）：在 `0e40900` 上 `node installer/build-installer.mjs` 连跑两次（86 秒、79 秒）。
+  - 两次都是 `installer/dist/Streams-1.0.0-setup.exe` **136,173,094 字节（约 136.2 MB / 129.9 MiB），SHA256 `2c1049172a9085eb1b067c7495908ae4fad2324de3894936c9ca102e4c78f416`**（每次构建后 `sha256sum` 实算）。
+  - 第二次记 `previous.same_installer: true`、`same_stage: true`。
+  - `build-record.json` 记 `from.head: 0e40900`，`from.uncommitted` 只有两项未跟踪的：`.claude/worktrees/` 与 `rel.json`，不进 stage。
+  - stage 550 个文件、430,314,990 字节（`tree_sha256` `5af09039…`），比 R6d 的多 16 字节，都是版本号字符串。
+  - 安装程序的版本信息：FileDescription「流息 1.0.0」、ProductVersion 1.0.0；构建传给 ISCC 的 `AppVerName=流息 1.0.0`（即卸载项名字）。
+  - 发布说明 `release-notes-1.0.0.md` 的 SHA256 是 `b69866e2…`，里面的大小与 sha256 就是上面这两个数，并写着未签名、未在干净机器上验过。
+  - R6d 的 `386bf77a…` 作废，发出去的是这一个。
+- **同一提交上的其他套**：
+  - 核心 645 / 645、措辞表 19 / 19；
+  - 桌面端全套 596 / 596（设了 `STREAMS_SHARP_DIR`，18:09:48–18:36:51，1,623 秒）。
+- **安装测试**（20:23–20:29）：**本机此时装着流息**，是 维护者 今天下午从资源管理器自己装的 R6d 包 `386bf77a…`，卸载项「流息 1.0.0-dev.1」，`real-registry.mjs` 的 `startedByExplorer` 视图里卸载项与通知键都在，退出码 1。所以要真装真卸的测试按守门拒跑（§八 3）。维护者 当次定不卸，用不安装的演练代替。
+  - `node --test --test-concurrency=1 "installer/test/*.test.mjs"`：38 条中 **25 过、13 条被守门拒跑**。拒跑的是 `packaged` 第 1–5 步 6 条、`upgrade` 第 1–7 步 7 条，拒跑的原话是「Streams looks installed on this machine (…流息.lnk…): this test installs and uninstalls, so it does not run here」。过的 25 条：`stage-check` 6、`wait-pid` 5、`fonts` 4、`switches` 3、`uninstall-ui` 3、`install-delete` 2、`deltree` 1、`uninstall-entry` 1。
+  - 不安装的演练（§八 14，`docs/checks/2026-11-13-r6c/rehearsal/rehearse.mjs`，直接用它，不经 `run-all.mjs`，所以不写 R6c 的记录）：`packaged`（stage 副本 + 第 3、4、4b 步原文）**4 / 4**，94 秒；`upgrade6`（造数据 + 第 6 步原文，「关于 says 1.0.0」）**2 / 2**，83 秒。stage 里 `resources/app/package.json` 的版本是 1.0.0。
+  - `node tests/acceptance/run.mjs`：**12 / 12 通过**（2026-11-17T01:25:38Z），V1 读的是这个安装包与它的发布说明。
+- **这一次没有实测的**：真装、快捷方式、有界面的卸载、真更新（`packaged` 1、2、5，`upgrade` 1–5、7）。
+  - 理由：这几步只有真的测试文件核，而它们要一台没装流息的机器。
+  - 上一次全过是 §10.6 的 R6d 包（38 / 38），两次的代码只差版本号字符串。
+  - `installer/dist/packaged-test-result.json` 与 `upgrade-test-result.json` 仍是 §10.6 那一轮写的（卸载项名字还是「流息 1.0.0-dev.1」），这一轮没有重写它们。
+  - 维护者 卸掉本机的 R6d 包之后，可以照 §〇 再跑全套补上。
+- **本机流息**：维护者 装的那份没有被测试或演练读写、启动或卸载；演练的 harness 把应用数据挪到临时文件夹（§八 14）。
 
 ## 十一、卸载后留下的卸载登记（v2 包 N，2026-11-10）
 
