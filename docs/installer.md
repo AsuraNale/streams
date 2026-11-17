@@ -458,6 +458,16 @@ node --test --test-concurrency=1 "installer/test/*.test.mjs"
   - 维护者 卸掉本机的 R6d 包之后，可以照 §〇 再跑全套补上。
 - **本机流息**：维护者 装的那份没有被测试或演练读写、启动或卸载；演练的 harness 把应用数据挪到临时文件夹（§八 14）。
 
+- **发布**（维护者 当次点头，20:4x）：
+  1. 过滤副本（`tools/publish/drop-files.txt` 的 63 张截图整段历史不带，104 个提交，自检零问题）用 `--force-with-lease` 推到 AsuraNale/streams：`3161de1 → f1bcaf7`。
+  2. 推之前核过远端只有 main 一个分支、没有标签、没有发布。
+  3. 仓库改公开。
+  4. `gh release create v1.0.0`：附件 `Streams-1.0.0-setup.exe`，说明取自 `release-notes-1.0.0.md`，标为最新。
+- **发布后核「检查更新」**：
+  - 匿名 `GET https://api.github.com/repos/AsuraNale/streams/releases/latest`（与应用同样的 Accept 与 User-Agent）返回 `tag_name: v1.0.0`，不是草稿、不是预发布。附件恰好一个：`Streams-1.0.0-setup.exe`，136,173,094 字节，`digest: sha256:2c104917…`，与本地文件相同。
+  - 把这个返回交给应用自己的 `parseRelease`（`desktop/src/main/services/update.mjs`）：当前 1.0.0 → `not_newer`；当前当作 0.9.0 → `newer`，版本 1.0.0，附件的地址在 `DOWNLOAD_PREFIX` 下，sha256 与大小同上。
+  - 没有真的从应用里点「检查更新」下载安装：本机这时装着的是 R6d 包，它也是 1.0.0，所以只会说已是最新。
+
 ## 十一、卸载后留下的卸载登记（v2 包 N，2026-11-10）
 
 ### 11.1 现象
