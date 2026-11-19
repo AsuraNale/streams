@@ -16,7 +16,7 @@ import { randomBytes } from 'node:crypto';
 import { CLAUDE_FIXED_ARGS } from '../connect/claude-code.mjs';
 import { buildPrompt } from './frame.mjs';
 import { parseStream, answerJson } from './stream.mjs';
-import { checkItems, checkSources, windowOf, DEFAULT_MAX_ITEMS } from './guards.mjs';
+import { checkItems, checkSources, cleanAspects, windowOf, DEFAULT_MAX_ITEMS } from './guards.mjs';
 
 export const AGENT_TOOLS = 'WebSearch,WebFetch';
 export const DEFAULT_BUDGET_USD = 2;
@@ -54,25 +54,44 @@ const STATE = (dir) => join(dir, 'agentrun', 'state.json');
 
 export function readState(dir) {
   const p = STATE(dir);
-  if (!existsSync(p)) return { rounds: 0, sources: [], seen: [] };
+  if (!existsSync(p)) return { rounds: 0, aspects: [], sources: [], seen: [] };
   return JSON.parse(readFileSync(p, 'utf8'));
 }
 
+// v2: how many kept items each aspect has so far (from the seen list)
+export function aspectCounts(aspects = [], seen = []) {
+  const out = Object.fromEntries(aspects.map((a) => [a, 0]));
+  for (const s of seen) if (typeof s.aspect === 'string' && Object.hasOwn(out, s.aspect)) out[s.aspect] += 1;
+  return out;
+}
+
+// v2: round 1 sets the aspects (guards.mjs cleanAspects); every item must name one (guards.mjs `aspect`); the per-aspect
+// counts so far go into the next prompt and into each round record; state.json keeps { rounds, aspects, sources, seen }.
 export async function runAgentRound(dir, { userText, today = new Date(), extraSources = [], runner = runClaude, maxAgeDays = 7, max = DEFAULT_MAX_ITEMS, budgetUsd } = {}) {
   const state = readState(dir);
   const round = state.rounds + 1;
   const { from, to } = windowOf(today, maxAgeDays);
-  const prompt = buildPrompt({ round, userText, sources: state.sources, seen: state.seen, from, to, extraSources });
+  const before = state.aspects ?? [];
+  const prompt = buildPrompt({ round, userText, sources: state.sources, seen: state.seen, aspects: before, aspectCounts: aspectCounts(before, state.seen), from, to, extraSources });
   const r = await runner({ prompt, ...(budgetUsd ? { budgetUsd } : {}) });
   const p = r.parsed;
   const answer = answerJson(p.text);
   const src = round === 1 ? checkSources({ sources: answer?.sources, fetches: p.fetches }) : { kept: state.sources, dropped: [] };
-  const items = checkItems({ items: answer?.items, fetches: p.fetches, seen: state.seen, today, maxAgeDays, max });
+  const aspects = round === 1 ? cleanAspects(answer?.aspects) : before;
+  const items = checkItems({ items: answer?.items, fetches: p.fetches, seen: state.seen, today, maxAgeDays, max, aspects });
+  const next = {
+    rounds: round,
+    aspects,
+    sources: round === 1 ? src.kept : state.sources,
+    seen: [...state.seen, ...items.kept.map((i) => ({ title: i.title, url: i.url, aspect: i.aspect.trim(), round }))],
+  };
   const record = {
     round, at: new Date().toISOString(), today: to, window: items.window, prompt,
     run: { exit: r.exit, seconds: r.seconds, costUsd: p.costUsd, turns: p.turns, isError: p.isError, models: p.models, quota: p.quota, otherTools: p.otherTools, searches: p.searches.length, fetches: p.fetches.map((f) => ({ url: f.url, chars: f.text.length, isError: f.isError })) },
     answered: answer !== null,
     raw: answer,
+    aspects,
+    aspectCounts: aspectCounts(aspects, next.seen),
     sources: { kept: src.kept, dropped: src.dropped },
     items: { kept: items.kept, dropped: items.dropped },
     extraSources,
@@ -80,11 +99,6 @@ export async function runAgentRound(dir, { userText, today = new Date(), extraSo
   mkdirSync(join(dir, 'agentrun', 'rounds'), { recursive: true });
   writeFileSync(join(dir, 'agentrun', 'rounds', `${round}.json`), JSON.stringify(record, null, 2) + '\n', 'utf8');
   writeFileSync(join(dir, 'agentrun', 'rounds', `${round}.stdout.jsonl`), r.stdout ?? '', 'utf8');
-  const next = {
-    rounds: round,
-    sources: round === 1 ? src.kept : state.sources,
-    seen: [...state.seen, ...items.kept.map((i) => ({ title: i.title, url: i.url, round }))],
-  };
   writeFileSync(STATE(dir), JSON.stringify(next, null, 2) + '\n', 'utf8');
   return record;
 }

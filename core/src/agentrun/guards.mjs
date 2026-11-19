@@ -7,7 +7,9 @@
 //   quote-not-found   the quote is not, letter for letter, in the text this run's WebFetch got for that page
 //   repeat            the url or the title is one an earlier round already kept
 //   duplicate         the url or the title is one an earlier item of this same answer has
+//   aspect            (v2, when an aspects list is given) the item names no aspect, or one not on the list round 1 set
 //   over-limit        more than `max` items passed everything else (the first ones are kept)
+// cleanAspects(list) -> the round-1 aspects: strings, trimmed, non-empty, unique, at most MAX_ASPECTS
 // checkSources: a source is kept only when its address was opened in this run (shape:url | not-read).
 // Pure: no disk, no network.
 import { normalizeTitle } from '../fetch/html.mjs';
@@ -68,7 +70,21 @@ export function windowOf(today, maxAgeDays = 7) {
   return { from: ageCutoff(d, maxAgeDays), to: localIsoDate(d) };
 }
 
-export function checkItems({ items, fetches = [], seen = [], today = new Date(), maxAgeDays = 7, max = DEFAULT_MAX_ITEMS } = {}) {
+export const MAX_ASPECTS = 10;
+
+export function cleanAspects(list) {
+  const out = [];
+  for (const a of Array.isArray(list) ? list : []) {
+    if (!isText(a)) continue;
+    const t = a.trim();
+    if (!out.includes(t)) out.push(t);
+    if (out.length >= MAX_ASPECTS) break;
+  }
+  return out;
+}
+
+// aspects: undefined = no aspect check (the first version); an array = every item must name one of them
+export function checkItems({ items, fetches = [], seen = [], today = new Date(), maxAgeDays = 7, max = DEFAULT_MAX_ITEMS, aspects } = {}) {
   const index = fetchedIndex(fetches);
   const before = seenIndex(seen);
   const { from, to } = windowOf(today, maxAgeDays);
@@ -84,6 +100,7 @@ export function checkItems({ items, fetches = [], seen = [], today = new Date(),
     if (!(typeof it.published === 'string' && DAY.test(it.published))) reasons.push('shape:published');
     else if ((from && it.published < from) || it.published > to) reasons.push('out-of-window');
     if (!VIA.includes(it.via)) reasons.push('shape:via');
+    if (Array.isArray(aspects) && !(isText(it.aspect) && aspects.includes(it.aspect.trim()))) reasons.push('aspect');
     if (key) {
       const page = index.get(key);
       if (page === undefined) reasons.push('not-read');

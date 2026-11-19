@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { checkItems, checkSources, urlKey, letters, windowOf, QUOTE_MIN } from '../src/agentrun/guards.mjs';
+import { checkItems, checkSources, cleanAspects, urlKey, letters, windowOf, QUOTE_MIN, MAX_ASPECTS } from '../src/agentrun/guards.mjs';
 import { parseStream, answerJson } from '../src/agentrun/stream.mjs';
 import { buildPrompt } from '../src/agentrun/frame.mjs';
 import { claudeAgentArgs, runClaude, runAgentRound, readState } from '../src/agentrun/run.mjs';
@@ -100,6 +100,27 @@ test('stream: fetches with their text, searches, quota, cost, the answer JSON; o
   assert.equal(answerJson('{broken'), null);
 });
 
+test('guards v2: with an aspects list, an item without one or with one not on the list → aspect; without a list no check', () => {
+  const aspects = ['利率决定', '多伦多租金'];
+  assert.equal(checkItems({ items: [{ ...GOOD, aspect: '利率决定' }], fetches: FETCHES, today: TODAY, aspects }).kept.length, 1);
+  assert.equal(checkItems({ items: [{ ...GOOD, aspect: ' 利率决定 ' }], fetches: FETCHES, today: TODAY, aspects }).kept.length, 1);
+  assert.deepEqual(reasons(checkItems({ items: [GOOD], fetches: FETCHES, today: TODAY, aspects })), [['aspect']]);
+  assert.deepEqual(reasons(checkItems({ items: [{ ...GOOD, aspect: '天气' }], fetches: FETCHES, today: TODAY, aspects })), [['aspect']]);
+  assert.deepEqual(reasons(checkItems({ items: [{ ...GOOD, aspect: '利率决定' }], fetches: FETCHES, today: TODAY, aspects: [] })), [['aspect']]);
+  assert.equal(checkItems({ items: [GOOD], fetches: FETCHES, today: TODAY }).kept.length, 1);
+  assert.deepEqual(cleanAspects([' a ', 'a', '', null, 'b', ...Array.from({ length: 20 }, (_, i) => `x${i}`)]).slice(0, 3), ['a', 'b', 'x0']);
+  assert.equal(cleanAspects(Array.from({ length: 20 }, (_, i) => `x${i}`)).length, MAX_ASPECTS);
+  assert.deepEqual(cleanAspects('not a list'), []);
+});
+
+test('frame v2: round 1 asks for the aspects and labels; both rounds carry the rules on what does not belong; later rounds list the counts', () => {
+  const r1 = buildPrompt({ round: 1, userText: 'u', from: 'a', to: 'b' });
+  for (const s of ['要覆盖的方面', '"aspects":[""]', '"aspect":""', '"fit":""', '必须是条目的主体', '不收外围内容', '优先一手或可靠的来源', '宁缺毋滥', '不超过这一轮的一半']) assert.ok(r1.includes(s), s);
+  const r2 = buildPrompt({ round: 2, userText: 'u', aspects: ['A', 'B'], aspectCounts: { A: 3 }, from: 'a', to: 'b' });
+  assert.ok(r2.includes('- A：3 条') && r2.includes('- B：0 条') && r2.includes('先补条数最少的方面'));
+  for (const s of ['必须是条目的主体', '不收外围内容', '换个网站报道也不要']) assert.ok(r2.includes(s), s);
+});
+
 test('frame: round 1 asks for sources; later rounds carry the fixed sources, the seen items, the window, and the extra source', () => {
   const r1 = buildPrompt({ round: 1, userText: '盯加拿大利率', from: '2026-11-12', to: '2026-11-19' });
   assert.match(r1, /"sources":\[/);
@@ -137,13 +158,15 @@ test('runner: Streams 1.0.1 arguments with only WebSearch and WebFetch, a spendi
 test('two rounds: round 1 keeps the sources it opened; round 2 gets them and the seen items, drops the repeat, keeps the new; notes/ untouched', async () => {
   const dir = makeLibrary('agentrun-two-rounds');
   const notesBefore = readdirSync(join(dir, 'notes'));
-  const NEW = { ...GOOD, title: 'Macklem on Ontario rents', url: 'https://www.bankofcanada.ca/2026/11/speech/', quote: 'rents in Ontario are easing' };
+  const R1 = { ...GOOD, aspect: '利率决定' };
+  const NEW = { ...GOOD, title: 'Macklem on Ontario rents', url: 'https://www.bankofcanada.ca/2026/11/speech/', quote: 'rents in Ontario are easing', aspect: '多伦多租金' };
+  const OFF = { ...GOOD, title: 'Some other thing', url: 'https://www.bankofcanada.ca/2026/11/other/', quote: 'rents in Ontario are easing', aspect: '天气' };
   const prompts = [];
   const answers = [
-    { sources: [{ name: 'boc', url: 'https://www.bankofcanada.ca/2026/11/rate/' }, { name: 'ghost', url: 'https://ghost.example/feed' }], items: [GOOD] },
-    { items: [{ ...GOOD }, NEW] },
+    { aspects: ['利率决定', '多伦多租金', ' 利率决定 ', ''], sources: [{ name: 'boc', url: 'https://www.bankofcanada.ca/2026/11/rate/' }, { name: 'ghost', url: 'https://ghost.example/feed' }], items: [R1] },
+    { items: [{ ...R1 }, NEW, OFF] },
   ];
-  const fetchesFor = [FETCHES, [...FETCHES, { url: NEW.url, text: PAGE }]];
+  const fetchesFor = [FETCHES, [...FETCHES, { url: NEW.url, text: PAGE }, { url: OFF.url, text: PAGE }]];
   let n = 0;
   const runner = async ({ prompt }) => { prompts.push(prompt); const i = n++; return { exit: 0, seconds: 1, stdout: 'x', parsed: parseStream(streamOf({ answer: answers[i], fetches: fetchesFor[i] })) }; };
   const r1 = await runAgentRound(dir, { userText: '盯加拿大利率', today: TODAY, runner });
@@ -153,9 +176,15 @@ test('two rounds: round 1 keeps the sources it opened; round 2 gets them and the
   assert.ok(prompts[1].includes('- boc：https://www.bankofcanada.ca/2026/11/rate/'));
   assert.ok(prompts[1].includes(`- ${GOOD.title} | ${GOOD.url}`));
   assert.ok(!prompts[1].includes('ghost.example'));
-  assert.deepEqual(r2.items.dropped.map((d) => d.reasons), [['repeat']]);
+  // v2: round 1's aspects (cleaned: trimmed, no empties, no repeats) and their counts are in round 2's prompt
+  assert.deepEqual(r1.aspects, ['利率决定', '多伦多租金']);
+  assert.ok(prompts[1].includes('- 利率决定：1 条') && prompts[1].includes('- 多伦多租金：0 条'), prompts[1]);
+  assert.deepEqual(r2.items.dropped.map((d) => d.reasons), [['repeat'], ['aspect']]);
   assert.deepEqual(r2.items.kept.map((i) => i.title), ['Macklem on Ontario rents']);
+  assert.deepEqual(r2.aspectCounts, { 利率决定: 1, 多伦多租金: 1 });
   const state = readState(dir);
+  assert.deepEqual(state.aspects, ['利率决定', '多伦多租金']);
+  assert.deepEqual(state.seen.map((s) => s.aspect), ['利率决定', '多伦多租金']);
   assert.equal(state.rounds, 2);
   assert.deepEqual(state.seen.map((s) => s.round), [1, 2]);
   assert.ok(existsSync(join(dir, 'agentrun', 'rounds', '2.json')));
