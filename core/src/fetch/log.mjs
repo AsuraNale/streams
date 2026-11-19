@@ -4,6 +4,7 @@
 //     status  ok | empty | gap | failed | blocked | paused
 //     count   items the fetch parsed (0 when nothing was fetched)
 //     new     items that were not yet in the ledger
+//     old     (11-18 M4, only when > 0) items dated before the round's age limit: not taken in
 //
 // appendFetchLog(libraryDir, entry) -> the written line (ts filled in); refuses malformed entries
 // readFetchLog(libraryDir)          -> { entries, skipped: [{ line, reason }] }
@@ -30,6 +31,7 @@ function checkEntry(entry) {
   }
   if (!Number.isInteger(entry.count) || entry.count < 0) throw new StreamsError('bad-log-entry', '"count" must be a non-negative integer');
   if (!Number.isInteger(entry.new) || entry.new < 0) throw new StreamsError('bad-log-entry', '"new" must be a non-negative integer');
+  if (entry.old !== undefined && (!Number.isInteger(entry.old) || entry.old < 0)) throw new StreamsError('bad-log-entry', '"old" must be a non-negative integer');
 }
 
 export function appendFetchLog(libraryDir, entry) {
@@ -45,6 +47,7 @@ export function appendFetchLog(libraryDir, entry) {
     http: entry.http,
     count: entry.count,
     new: entry.new,
+    old: entry.old || undefined,
     message: entry.message ?? '',
     retry_after_seconds: entry.retry_after_seconds,
   };

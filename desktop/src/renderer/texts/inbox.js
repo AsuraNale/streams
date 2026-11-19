@@ -24,6 +24,9 @@ export const INBOX = Object.freeze({
     later: '稍后处理',
     waiting: '等了 {n} 天',
     unverified: '未通过核验',
+    // 11-18 (proposal D2): a news aggregator's item (Google News): its body cannot be read, it was judged on its title
+    titleOnly: '只有标题',
+    titleOnlyHint: '这个来源只给标题，读不到正文：评分和概述都只依据标题。请打开原文核对。',
     // a run without a connection: the item came in without a score
     scoreless: '未评分',
     scorelessNote: '本次运行未连接模型，未评分、未生成摘要。在设置中连接后，新抓取的内容将会评分。',

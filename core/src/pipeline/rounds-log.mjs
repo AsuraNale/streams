@@ -77,11 +77,11 @@ function gateLine(id, c) {
 export function renderRoundMd(record) {
   const c = record.counts ?? {};
   const lines = [`## ${record.id} · ${record.startedAt} → ${record.finishedAt}`, ''];
-  lines.push(`- fetched ${c.fetched ?? 0} · new ${c.new ?? 0} · maybe-duplicates ${c.maybeDuplicates ?? 0}`);
+  lines.push(`- fetched ${c.fetched ?? 0} · new ${c.new ?? 0} · maybe-duplicates ${c.maybeDuplicates ?? 0}${c.old ? ` · old ${c.old}` : ''}`);
   for (const [id, g] of Object.entries(record.gates ?? {})) lines.push(gateLine(id, g));
   lines.push(`- summarized ${c.summarized ?? 0} · inbox ${c.inbox ?? 0} · verify-rejected ${c.verifyRejected ?? 0}`);
   lines.push(`- calls ${record.calls ?? 0}${record.stoppedAt ? ` · stopped-at ${record.stoppedAt}` : ''}`);
-  for (const s of record.fetch ?? []) lines.push(`- source ${s.name}: ${s.status} (${s.count} / ${s.newCount} new)`);
+  for (const s of record.fetch ?? []) lines.push(`- source ${s.name}: ${s.status} (${s.count} / ${s.newCount} new${s.oldCount ? ` / ${s.oldCount} old` : ''})`);
   for (const u of record.unscored ?? []) lines.push(`- unscored ${u.node} ${u.reason} ${u.url}`);
   for (const p of record.problems ?? []) lines.push(`- problem ${p.code}: ${p.detail ?? ''}`);
   for (const w of record.warnings ?? []) lines.push(`- warning ${w}`);

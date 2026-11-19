@@ -259,7 +259,8 @@ test('an imported library works like any other: readNote / search / graph / list
   // a round from a feed on this machine, then keep: the new note is a file of the folder itself
   const srv = await startFakeServer();
   t.after(() => srv.close());
-  const items = serveItems(srv, 1, () => ({ title: 'Letta ships Memory Blocks', date: 'Thu, 02 Jul 2026 08:00:00 GMT' }));
+  // dated the day before CLOCK (2026-11-03): an imported library has the default age limit (11-18 M4, 7 days)
+  const items = serveItems(srv, 1, () => ({ title: 'Letta ships Memory Blocks', date: 'Mon, 02 Nov 2026 08:00:00 GMT' }));
   const feed = feedRoute(srv, items);
   const cfg = JSON.parse(readFileSync(join(dir, 'streams.json'), 'utf8'));
   cfg.topics = [{ name: 'agent 记忆', keywords: ['memory'] }];

@@ -70,7 +70,9 @@ export const TEST_CONFIG = {
   name: '测试库',
   topics: [{ name: 'agent 记忆', keywords: ['memory'] }, { name: 'MCP', keywords: ['mcp'] }],
   sources: [],
-  pipeline: { nodes: [{ id: 'relevance' }, { id: 'substance' }, { id: 'freshness' }] },
+  // maxAgeDays 0: these fixtures' items carry fixed dates (July–October 2026) and run on CLOCK or the real clock, from
+  // before the age limit (11-18 M4); the limit itself is tested in test/fetch-age.test.mjs on libraries of its own
+  pipeline: { maxAgeDays: 0, nodes: [{ id: 'relevance' }, { id: 'substance' }, { id: 'freshness' }] },
 };
 
 // A fresh library in a clean scratch folder, with TEST_CONFIG as streams.json.

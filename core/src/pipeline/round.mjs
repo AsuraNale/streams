@@ -144,7 +144,8 @@ export async function materialFor({ libraryDir, cfg, node, state, ctx, summaries
   if (node.kind === 'gate' && node.material === 'meta') return { item, body: undefined, materials: 'meta' };
   const b = await fetchBody(state.url, ctx, { libraryDir, bodyMaxChars: cfg.bodyMaxChars });
   if (b.ok) return { item, body: b.text, materials: 'body' };
-  return { item, body: null, materials: 'summary-only', bodyReason: b.reason };
+  // an aggregator's link (cache.mjs title-only): judged on its title, and the card says so
+  return { item, body: null, materials: b.reason === 'title-only' ? 'title-only' : 'summary-only', bodyReason: b.reason };
 }
 
 export async function runRound(libraryDir, { connector, scoreless = false, cap, ctx, signal, onProgress, now } = {}) {
@@ -155,7 +156,7 @@ export async function runRound(libraryDir, { connector, scoreless = false, cap, 
   const config = readConfig(libraryDir).config;
   const cfg = pipelineFrom(config);
   const limit = Number.isInteger(cap) && cap >= 0 ? cap : cfg.cap;
-  const fetch = await fetchRound(libraryDir, { config, ctx: c });
+  const fetch = await fetchRound(libraryDir, { config, ctx: c, maxAgeDays: cfg.maxAgeDays });
   const round = { id: fetch.round.id, startedAt: fetch.round.startedAt };
   const summaries = new Map(fetch.newItems.map((i) => [i.url, i.summary ?? '']));
   const index = readIndex(libraryDir);
@@ -166,6 +167,9 @@ export async function runRound(libraryDir, { connector, scoreless = false, cap, 
   for (const g of gateNodes(cfg)) gates[g.id] = emptyGateCount();
   const counts = { fetched: 0, new: fetch.newItems.length, maybeDuplicates: fetch.maybeDuplicates.length, summarized: 0, inbox: 0, verifyRejected: 0 };
   for (const p of fetch.perSource) counts.fetched += p.count ?? 0;
+  // 11-18 M4: items dated before the age limit, not taken in
+  const old = fetch.perSource.reduce((n, p) => n + (p.oldCount ?? 0), 0);
+  if (old > 0) counts.old = old;
   const problems = [];
   const warnings = [...check.warnings];
   const unscored = [];
@@ -292,7 +296,7 @@ export async function runRound(libraryDir, { connector, scoreless = false, cap, 
     ...(stoppedAt ? { stoppedAt } : {}),
     ...(stoppedAt && stoppedNode ? { stoppedNode } : {}),
     problems, warnings,
-    fetch: fetch.perSource.map((p) => ({ name: p.name, status: p.status, count: p.count, newCount: p.newCount })),
+    fetch: fetch.perSource.map((p) => ({ name: p.name, status: p.status, count: p.count, newCount: p.newCount, ...(p.oldCount ? { oldCount: p.oldCount } : {}) })),
     unscored,
   };
   appendRoundRecord(libraryDir, record);
@@ -336,7 +340,7 @@ export async function previewNode(libraryDir, { connector, nodeId, url, item, ct
   if (node.kind === 'summary' || node.material === 'body') {
     const b = await fetchBody(it.url, c, { libraryDir, bodyMaxChars: cfg.bodyMaxChars });
     body = b.ok ? b.text : null;
-    materials = b.ok ? 'body' : 'summary-only';
+    materials = b.ok ? 'body' : b.reason === 'title-only' ? 'title-only' : 'summary-only';
   }
   const common = { libraryDir, cfg, node, item: it, body, materials, related, topics: libraryTopics(r.config), sourceTopic, connector, round: 'preview', now: c.now, write: false };
   const out = node.kind === 'gate' ? await runGate(common) : await runSummary({ ...common, state });

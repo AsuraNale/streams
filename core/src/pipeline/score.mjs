@@ -75,7 +75,7 @@ function failedOf(v) {
 
 export async function runGate({ libraryDir, cfg, node, item, body, materials, related = [], topics = [], sourceTopic, connector, round, now = () => new Date(), write = true } = {}) {
   const language = cfg.language;
-  const prompt = gatePrompt({ node, item, body, related, topics, sourceTopic, language, bodyMaxChars: cfg.bodyMaxChars });
+  const prompt = gatePrompt({ node, item, body, related, topics, sourceTopic, language, bodyMaxChars: cfg.bodyMaxChars, materials });
   const source = materialText({ item, body, bodyMaxChars: cfg.bodyMaxChars });
   const checklist = node.checklist ?? [];
   const counted = countingConnector(connector);

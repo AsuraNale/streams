@@ -21,6 +21,8 @@ export const INBOX = Object.freeze({
     later: 'Later',
     waiting: 'Waited {n} day{n?|s}',
     unverified: 'Verification failed',
+    titleOnly: 'Title only',
+    titleOnlyHint: 'This source gives only titles and its body cannot be read: the score and the overview rest on the title alone. Open the original to check.',
     scoreless: 'Not scored',
     scorelessNote: 'This run had no model connection: no score and no summary. Once connected in Settings, newly fetched items are scored.',
     maybeDuplicate: 'Possible duplicate',

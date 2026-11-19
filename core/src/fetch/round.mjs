@@ -1,4 +1,4 @@
-// fetchRound(libraryDir, { config?, ctx? })
+// fetchRound(libraryDir, { config?, ctx?, maxAgeDays? })
 //   -> { round: { id, startedAt }, perSource: [...], newItems: [...], maybeDuplicates: [{ url, of }] }
 //
 // One collection round over streams.json `sources[]`:
@@ -10,6 +10,9 @@
 //   - second-layer dedup: a new item whose normalized title equals that of a ledger entry or of an
 //     earlier item in this round is still registered, but its `seen` event carries
 //     maybe_duplicate_of: <that url>. Nothing is dropped or merged automatically;
+//   - 11-18 M4: with maxAgeDays > 0, an item dated before (the round's local day − maxAgeDays) is not taken in: not
+//     registered, so it costs no model call; counted as `old` per source (fetch_log `old`, perSource oldCount). An item
+//     without a date has the fetch day (sources/shared.mjs) and is always taken in. 7 days back is still in, 8 is out;
 //   - seen events take their ts from ctx.now, the same clock as the fetch_log line;
 //   - the logged status is the fetcher's status, except:
 //       * an `ok` fetch whose items were all already known is logged as `empty`
@@ -27,6 +30,7 @@ import { appendEvent, replayLedger } from '../library/ledger.mjs';
 import { isPlainObject } from '../library/frontmatter.mjs';
 import { makeContext } from './context.mjs';
 import { normalizeTitle } from './html.mjs';
+import { localIsoDate } from './dates.mjs';
 import { appendFetchLog } from './log.mjs';
 import { fetchSource, sourceName } from './source.mjs';
 import { PAUSED_STATE, hintOf } from './states.mjs';
@@ -63,12 +67,20 @@ function describeError(e) {
   return `unexpected ${e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 160)}`;
 }
 
-export async function fetchRound(libraryDir, { config, ctx } = {}) {
+// the first calendar day (YYYY-MM-DD) still taken in, or null for no limit
+export function ageCutoff(now, maxAgeDays) {
+  if (!Number.isInteger(maxAgeDays) || maxAgeDays <= 0) return null;
+  const d = now instanceof Date ? now : new Date(now);
+  return localIsoDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() - maxAgeDays));
+}
+
+export async function fetchRound(libraryDir, { config, ctx, maxAgeDays } = {}) {
   if (typeof libraryDir !== 'string' || libraryDir === '') throw new StreamsError('bad-argument', 'libraryDir is required');
   const cfg = loadConfig(libraryDir, config);
   const sources = Array.isArray(cfg.sources) ? cfg.sources : [];
   const c = makeContext(ctx);
   const startedAt = c.now().toISOString();
+  const cutoff = ageCutoff(c.now(), maxAgeDays);
   const round = { id: roundId(startedAt), startedAt };
   const known = knownFromLedger(libraryDir);
   const perSource = [];
@@ -98,9 +110,11 @@ export async function fetchRound(libraryDir, { config, ctx } = {}) {
 
     const ts = c.now().toISOString();
     let newCount = 0;
+    let oldCount = 0;
     let ledgerError;
     for (const item of r.items) {
       if (typeof item.url !== 'string' || item.url === '' || known.urls.has(item.url)) continue; // layer 1
+      if (cutoff !== null && typeof item.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && item.date < cutoff) { oldCount += 1; continue; } // M4
       const key = normalizeTitle(item.title);
       const dupOf = key !== '' && known.titles.has(key) && known.titles.get(key) !== item.url ? known.titles.get(key) : undefined;
       try {
@@ -128,7 +142,7 @@ export async function fetchRound(libraryDir, { config, ctx } = {}) {
       message = `ledger write failed after ${newCount} new item(s): ${String(ledgerError?.message ?? ledgerError).slice(0, 200)}`;
     } else if (r.status === 'ok' && newCount === 0) {
       status = 'empty';
-      message = `${r.items.length} item(s), all already seen`;
+      message = oldCount > 0 ? `${r.items.length} item(s): ${oldCount} dated before ${cutoff}, the rest already seen` : `${r.items.length} item(s), all already seen`;
     }
     const line = appendFetchLog(libraryDir, {
       ts,
@@ -140,10 +154,11 @@ export async function fetchRound(libraryDir, { config, ctx } = {}) {
       http: r.http,
       count: r.items.length,
       new: newCount,
+      old: oldCount,
       message,
       retry_after_seconds: r.retryAfterSeconds,
     });
-    const ps = { name: r.source, kind: r.kind, status, hint: line.hint, count: line.count, newCount, message: line.message };
+    const ps = { name: r.source, kind: r.kind, status, hint: line.hint, count: line.count, newCount, oldCount, message: line.message };
     if (r.http !== undefined) ps.http = r.http;
     if (r.retryAfterSeconds !== undefined) ps.retryAfterSeconds = r.retryAfterSeconds;
     perSource.push(ps);

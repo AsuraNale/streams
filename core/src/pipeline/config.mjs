@@ -1,7 +1,9 @@
 // streams.json `pipeline`: defaults, reading with defaults filled in, validated writing (core-api 4.0).
 //
 // DEFAULT_PIPELINE(language)         the seven default nodes with the default requirement texts
-// pipelineConfig(libraryDir)         { cap, callGapMs, maxVerifyRounds, bodyMaxChars, cacheDays, language, nodes }
+// pipelineConfig(libraryDir)         { cap, callGapMs, maxVerifyRounds, bodyMaxChars, cacheDays, maxAgeDays, language, nodes }
+//                                    maxAgeDays (11-18 proposal M4): an item dated more than this many days before the
+//                                    round's day is not taken in (fetch/round.mjs); 0 = no limit
 //                                    missing nodes / keys get defaults; every gate and the summary carries a locked
 //                                    `checklist` = user items (origin 'user') + baseline items (origin 'streams',
 //                                    generated from `output`, never stored)
@@ -28,8 +30,8 @@ export const MATERIALS = ['meta', 'body'];
 export const MAX_GATES = 5;
 export const FIXED_NODE_IDS = ['fetch', 'decide', 'store'];
 export const SCRIPT_NODE_IDS = ['dedup'];
-export const DEFAULTS = { cap: 120, callGapMs: 0, maxVerifyRounds: 2, bodyMaxChars: 6000, cacheDays: 7, language: 'zh-CN' };
-const NUMBER_KEYS = ['cap', 'callGapMs', 'maxVerifyRounds', 'bodyMaxChars', 'cacheDays'];
+export const DEFAULTS = { cap: 120, callGapMs: 0, maxVerifyRounds: 2, bodyMaxChars: 6000, cacheDays: 7, maxAgeDays: 7, language: 'zh-CN' };
+const NUMBER_KEYS = ['cap', 'callGapMs', 'maxVerifyRounds', 'bodyMaxChars', 'cacheDays', 'maxAgeDays'];
 
 export function DEFAULT_PIPELINE(language = 'zh-CN') {
   const lang = languageOf(language);

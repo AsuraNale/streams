@@ -48,7 +48,7 @@ export async function runSummary({ libraryDir, cfg, node, state, item, body, mat
   let connection = null;
 
   const produce = async (feedback, prior) => {
-    const prompt = summaryPrompt({ node, item, body, related, topics, sourceTopic, language, bodyMaxChars: cfg.bodyMaxChars, checklist, feedback, prior });
+    const prompt = summaryPrompt({ node, item, body, related, topics, sourceTopic, language, bodyMaxChars: cfg.bodyMaxChars, checklist, feedback, prior, materials });
     const r = await completeJson(counted.connector, { prompt, format: 'json', model: 'main' }, { retries: 1 });
     if (!r.ok) {
       if (r.code !== 'bad-format') {

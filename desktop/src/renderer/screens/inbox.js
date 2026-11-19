@@ -90,6 +90,7 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onPic
       <div class="st-card__marks">
         ${item.aiInstruction === true ? html`<${Mark} attrs=${{ 'data-ai-instruction': '' }} title=${aiHint(item)}>${T.card.aiInstruction}<//>` : null}
         ${unverified ? html`<${Mark} attrs=${{ 'data-unverified': '' }}>${T.card.unverified}<//>` : null}
+        ${item.materials === 'title-only' ? html`<${Mark} attrs=${{ 'data-title-only': '' }} title=${T.card.titleOnlyHint}>${T.card.titleOnly}<//>` : null}
         ${item.maybeDuplicateOf ? html`<${Mark} attrs=${{ 'data-maybe-duplicate': item.maybeDuplicateOf }}>${T.card.maybeDuplicate}<//>` : null}
         ${scoreless ? html`<${Mark} attrs=${{ 'data-scoreless': '' }}>${T.card.scoreless}<//>` : null}
         ${moved ? html`<${Mark} attrs=${{ 'data-moved': item.moved }}>${T.card.moved}<//>` : null}

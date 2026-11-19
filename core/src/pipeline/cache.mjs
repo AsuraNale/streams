@@ -2,15 +2,16 @@
 // The body is material for gate 2 and the summary only; it is never written into a note.
 //
 // fetchBody(url, ctx, { libraryDir, bodyMaxChars, now })
-//   -> { ok: true, text, cached }           text = stripHtml(html) cut to bodyMaxChars (a cache hit makes no request)
-//   -> { ok: false, reason }                 reason: 'bad-url' | 'http:<status>' | 'network' | 'empty'
+//   -> { ok: true, text, cached }           text = extractArticle(html) cut to bodyMaxChars (a cache hit makes no request)
+//   -> { ok: false, reason }                 reason: 'bad-url' | 'http:<status>' | 'network' | 'empty' | 'title-only'
+//                                            (title-only: an aggregator's link, html.mjs titleOnlyHost; no request made)
 // readCachedBody(libraryDir, url)  -> text | null
 // cleanCache(libraryDir, { days, now }) -> { removed }   deletes cache files whose ts is older than `days`
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getText } from '../fetch/http.mjs';
-import { stripHtml, truncateText } from '../fetch/html.mjs';
+import { extractArticle, titleOnlyHost, truncateText } from '../fetch/html.mjs';
 import { makeContext } from '../fetch/context.mjs';
 
 export const CACHE_DIR = join('_pipeline', 'cache');
@@ -41,10 +42,13 @@ export async function fetchBody(url, ctx, { libraryDir, bodyMaxChars = 6000, now
     const hit = readCachedBody(libraryDir, url);
     if (hit !== null) return { ok: true, text: truncateText(hit, bodyMaxChars), cached: true };
   }
+  // an aggregator's own page (html.mjs titleOnlyHost): no request, the item is judged on its title
+  if (titleOnlyHost(url)) return { ok: false, reason: 'title-only' };
   const r = await getText(url, { fetchImpl: c.fetchImpl, timeoutMs: c.timeoutMs, userAgent: c.userAgent });
   if (!r.ok) return { ok: false, reason: r.error?.code === 'bad-url' ? 'bad-url' : 'network' };
   if (r.status < 200 || r.status >= 300) return { ok: false, reason: `http:${r.status}` };
-  const text = truncateText(stripHtml(r.text), bodyMaxChars);
+  // 11-18 proposal P1: the article's own words (html.mjs extractArticle), not the whole page with its menus
+  const text = truncateText(extractArticle(r.text), bodyMaxChars);
   if (text === '') return { ok: false, reason: 'empty' };
   if (libraryDir) {
     mkdirSync(join(libraryDir, CACHE_DIR), { recursive: true });
