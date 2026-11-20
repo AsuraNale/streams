@@ -50,6 +50,9 @@ import { listInbox } from './core.mjs'
 import { nativeSource, resolveAppearance, windowColour } from './theme.mjs'
 import { createReader, isReaderSession, readabilitySource, readerCss } from './reader.mjs'
 import { createReaderService } from './services/reader.mjs'
+// 1.1 W1: the core's own files (the definition of actions, the two SOPs) are checked before anything starts
+import { startupCheck } from './core.mjs'
+import { startupProblem } from './startup-check.mjs'
 import { defaultLibraryRoot as defaultRootOf } from './library-root.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -102,6 +105,10 @@ const DEV_DETECT = !app.isPackaged && typeof process.env.STREAMS_DEV_DETECT === 
 // v2 package M (services/quota.mjs; docs/desktop.md §4.11), development and tests only: a JSON file of quotas taken as read at
 // start (the corner's three states without a real codex or a real key); with it nothing real is read. A packaged app ignores it
 const DEV_QUOTA = !app.isPackaged && typeof process.env.STREAMS_DEV_QUOTA === 'string' && isAbsolute(process.env.STREAMS_DEV_QUOTA) ? process.env.STREAMS_DEV_QUOTA : null
+// 1.1 W1: a development run may check the start-up against another SOP folder or definition file (a test of a missing
+// or broken one); the installed app always uses its own
+const DEV_SOP_DIR = !app.isPackaged && typeof process.env.STREAMS_DEV_SOP_DIR === 'string' && isAbsolute(process.env.STREAMS_DEV_SOP_DIR) ? process.env.STREAMS_DEV_SOP_DIR : null
+const DEV_DEFINITION = !app.isPackaged && typeof process.env.STREAMS_DEV_DEFINITION === 'string' && isAbsolute(process.env.STREAMS_DEV_DEFINITION) ? process.env.STREAMS_DEV_DEFINITION : null
 const STARTED_AT = Date.now()
 const clock = DEV_NOW === null ? () => new Date() : () => new Date(DEV_NOW + (Date.now() - STARTED_AT))
 // the app's own version (version.mjs): release.json's — packaged through resources/app/package.json, in development read from it
@@ -247,6 +254,17 @@ app.whenReady().then(() => {
     settingsFile: layout.settingsFile, readSettings, writeSettings, log,
     systemLanguages: () => (DEV_LANGUAGES ? { preferred: DEV_LANGUAGES, fallback: null } : { preferred: app.getPreferredSystemLanguages(), fallback: app.getLocale() }),
   })
+  // 1.1 W1 (C2 / C3): the definition of actions and the two SOPs; broken or missing -> say so and do not start
+  const broken = startupProblem({
+    language: locale.current().resolved,
+    check: () => startupCheck({ ...(DEV_SOP_DIR ? { sopDir: DEV_SOP_DIR } : {}), ...(DEV_DEFINITION ? { definitionPath: DEV_DEFINITION } : {}) }),
+  })
+  if (broken) {
+    log(`startup: the core's own files are not sound, not starting: ${broken.problems.map(p => `${p.code} ${p.message}`).join(' | ')}`)
+    if (!HIDDEN) dialog.showErrorBox(broken.title, broken.body)
+    app.exit(1)
+    return
+  }
   // the theme's native side before the window is made (its background is read in createWindow, the page's in protocol.mjs)
   nativeTheme.themeSource = nativeSource(readSettings(layout.settingsFile).appearance)
   lastScheme = currentLook().scheme

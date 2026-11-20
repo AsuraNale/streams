@@ -21,4 +21,8 @@ export const APP = Object.freeze({
     fallback: 'No article could be extracted from this page; showing the original page.',
     readingNote: 'Reading view: article only, navigation and ads removed',
   }),
+  startupBroken: Object.freeze({
+    title: 'Streams cannot start',
+    body: 'Files that come with Streams are missing or damaged, so it cannot start. Please reinstall Streams.\n\nDetails:\n{problems}',
+  }),
 })

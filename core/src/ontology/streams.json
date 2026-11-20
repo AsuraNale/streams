@@ -1,0 +1,86 @@
+{
+  "schema": "streams.ontology/1",
+  "about": "What exists in Streams and what can be done to it (1.1, docs/checks/2026-11-20-1.1/contract-draft.md W1). An AI changes things only through the actions listed here; an action not listed cannot be done. Loaded and checked by core/src/actions/definition.mjs; the list an agent is given is made from this file.",
+  "actors": {
+    "main_agent": "The main agent: builds a library with the user, proposes changes to its card and sources.",
+    "update_agent": "The update agent: one run per update, picks and summarizes new items under the library's card.",
+    "user": "The person using Streams.",
+    "program": "Streams' own code (reading pages, storing originals)."
+  },
+  "objects": {
+    "library": { "zh": "库", "en": "library", "links": { "card": "one", "source": "many", "item": "many", "note": "many" } },
+    "card": { "zh": "建库卡", "en": "library card", "links": { "library": "one" }, "rule": "Only changes the user confirmed go into it." },
+    "source": { "zh": "来源", "en": "source", "links": { "library": "one", "item": "many" }, "props": ["url", "name", "readable"] },
+    "item": { "zh": "条目", "en": "item", "links": { "source": "one", "original": "one", "summary": "one" } },
+    "original": { "zh": "原文", "en": "original", "links": { "item": "one" }, "rule": "A plain Markdown file in the library folder, outside the notes folder." },
+    "summary": { "zh": "摘要", "en": "summary", "links": { "item": "one", "original": "one" }, "rule": "Each point refers to one sentence of the original." },
+    "note": { "zh": "笔记", "en": "note", "links": { "item": "one", "original": "one" }, "rule": "Written only by writeNoteFile, only when the user keeps an item; links to its original." }
+  },
+  "actions": {
+    "create_library": {
+      "class": 1, "object": "library", "actors": ["main_agent"], "confirm": true,
+      "about": "Create a library from a library card.",
+      "params": { "type": "object", "required": ["card"], "properties": { "card": { "type": "object" } }, "additionalProperties": false }
+    },
+    "edit_card": {
+      "class": 2, "object": "card", "actors": ["main_agent", "user"], "confirm": true,
+      "about": "Change a library's card; the user sees the card before and after.",
+      "params": { "type": "object", "required": ["library", "card"], "properties": { "library": { "type": "string", "minLength": 1 }, "card": { "type": "object" }, "why": { "type": "string", "maxLength": 500 } }, "additionalProperties": false }
+    },
+    "add_source": {
+      "class": 2, "object": "source", "actors": ["main_agent", "user"], "confirm": true,
+      "about": "Add a source (an address or a search term) to a library.",
+      "params": { "type": "object", "required": ["library", "source"], "properties": { "library": { "type": "string", "minLength": 1 }, "source": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "url": { "type": "string", "maxLength": 2000 }, "query": { "type": "string", "maxLength": 500 } } }, "why": { "type": "string", "maxLength": 500 } }, "additionalProperties": false }
+    },
+    "remove_source": {
+      "class": 2, "object": "source", "actors": ["main_agent", "user"], "confirm": true,
+      "about": "Remove a source from a library.",
+      "params": { "type": "object", "required": ["library", "source"], "properties": { "library": { "type": "string", "minLength": 1 }, "source": { "type": "string", "minLength": 1 }, "why": { "type": "string", "maxLength": 500 } }, "additionalProperties": false }
+    },
+    "read_page": {
+      "class": 3, "object": "source", "actors": ["main_agent", "update_agent"], "confirm": false, "tool": true, "budget": "reads",
+      "about": "Read a web page. With a command-line connection this is the connection's own reading tool.",
+      "params": { "type": "object", "required": ["url"], "properties": { "url": { "type": "string", "minLength": 1, "maxLength": 2000 } } }
+    },
+    "search": {
+      "class": 3, "object": "source", "actors": ["main_agent", "update_agent"], "confirm": false, "tool": true, "budget": "searches",
+      "about": "Search the web. With a command-line connection this is the connection's own search tool.",
+      "params": { "type": "object", "required": ["query"], "properties": { "query": { "type": "string", "minLength": 1, "maxLength": 500 } } }
+    },
+    "query_library": {
+      "class": 3, "object": "library", "actors": ["main_agent", "update_agent"], "confirm": false, "tool": true,
+      "about": "Look up what a library already holds.",
+      "params": { "type": "object", "required": ["library"], "properties": { "library": { "type": "string", "minLength": 1 }, "query": { "type": "string", "maxLength": 500 } } }
+    },
+    "submit_items": {
+      "class": 4, "object": "item", "actors": ["update_agent"], "confirm": false, "checked": "verify",
+      "about": "Hand in the items of an update; each is checked by the verification layer before it reaches 待看.",
+      "params": { "type": "object", "required": ["items"], "properties": { "items": { "type": "array", "maxItems": 30, "items": { "type": "object" } } }, "additionalProperties": false }
+    },
+    "save_original": {
+      "class": 5, "object": "original", "actors": ["program"], "confirm": false,
+      "about": "Store the original of an item in the library folder.",
+      "params": { "type": "object", "required": ["url"], "properties": { "url": { "type": "string", "minLength": 1 }, "text": { "type": "string" }, "method": { "type": "string", "enum": ["direct", "render", "pdf"] } } }
+    },
+    "keep": {
+      "class": 6, "object": "note", "actors": ["user"], "confirm": false,
+      "about": "Keep an item: its note is written (writeNoteFile) and links to its original. Only the user does this.",
+      "params": { "type": "object", "required": ["item"], "properties": { "item": { "type": "string", "minLength": 1 } }, "additionalProperties": false }
+    },
+    "dismiss": {
+      "class": 7, "object": "item", "actors": ["user"], "confirm": false,
+      "about": "Discard an item. Only the user does this.",
+      "params": { "type": "object", "required": ["item"], "properties": { "item": { "type": "string", "minLength": 1 }, "reason": { "type": "string", "maxLength": 500 } }, "additionalProperties": false }
+    },
+    "later": {
+      "class": 7, "object": "item", "actors": ["user"], "confirm": false,
+      "about": "Put an item aside for later. Only the user does this.",
+      "params": { "type": "object", "required": ["item"], "properties": { "item": { "type": "string", "minLength": 1 } }, "additionalProperties": false }
+    },
+    "convert_library": {
+      "class": 8, "object": "library", "actors": ["user"], "confirm": true,
+      "about": "Bring a library made by an earlier version over to a library card (through a build conversation).",
+      "params": { "type": "object", "required": ["library", "card"], "properties": { "library": { "type": "string", "minLength": 1 }, "card": { "type": "object" } }, "additionalProperties": false }
+    }
+  }
+}

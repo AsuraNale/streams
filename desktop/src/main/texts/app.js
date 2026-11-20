@@ -26,4 +26,10 @@ export const APP = Object.freeze({
     fallback: '无法从该网页提取正文，已显示原网页。',
     readingNote: '阅读模式：仅保留正文，已移除导航与广告',
   }),
+  // 1.1 W1 (C2 / C3): the app's own files (the definition of actions, the two instructions for the agents) are missing or
+  // broken; the app does not start on them
+  startupBroken: Object.freeze({
+    title: '流息无法启动',
+    body: '流息自带的文件缺失或已损坏，无法启动。请重新安装流息。\n\n详情：\n{problems}',
+  }),
 })

@@ -43,3 +43,11 @@ export * from './suggest/index.mjs';
 export * from './agent/index.mjs';
 // redesign R4a: a new library's settings, the same for 新建库's form and a confirmed card (core-api 5.18, 2026-11-12).
 export { newLibrarySettings, fillNewLibrary, checkNewLibrary } from './library/new-library.mjs';
+// 1.1 W1: the definition of objects and actions (core/src/ontology/streams.json), doing actions and their record, the two
+// SOPs (core/src/sop/), and the start-up check (docs/checks/2026-11-20-1.1/contract-draft.md).
+export {
+  loadDefinition, checkDefinition, actionsFor, DEFINITION_PATH, DEFINITION_SCHEMA,
+  createActionRunner, checkRequest as checkActionRequest, validate as validateActionParams,
+  appendActionLog, readActionLog, ACTION_LOG, startupCheck,
+  loadSop, renderSop, checkSops, placeholdersOf, SOP_DIR, SOP_NAMES,
+} from './actions/index.mjs';

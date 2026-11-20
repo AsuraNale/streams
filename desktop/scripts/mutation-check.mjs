@@ -1554,6 +1554,19 @@ const MUTANTS = [
     edits: [['src/main/services/agent.mjs', ', language: language(), connection: connectionNow })', ' })']],
     test: ['test/services-v101.test.mjs', '--test-name-pattern=v101 F3 · F5'],
   },
+  // 1.1 W1 (C2 / C3): the app checks its own files before it starts
+  {
+    id: 'w1-startup-ignored',
+    what: 'C2 / C3: the start-up check\'s answer is not acted on (the app starts on a missing SOP or a broken definition)',
+    edits: [['src/main/main.mjs', '  if (broken) {\n', '  if (false) {\n']],
+    test: ['test/startup-check.test.mjs', '--test-name-pattern=a missing SOP'],
+  },
+  {
+    id: 'w1-startup-problem-null',
+    what: 'C2 / C3: the start-up check is said to pass whatever it found',
+    edits: [['src/main/startup-check.mjs', '  if (r.ok) return null\n', '  return null\n']],
+    test: ['test/startup-check.test.mjs', '--test-name-pattern=startupProblem|a broken definition file'],
+  },
 ]
 
 function runTest(desktop, test) {

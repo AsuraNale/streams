@@ -432,6 +432,110 @@ const MUTANTS = [
     edits: [['src/agent/situation.mjs', "languageLine(language), connectionLines(connection).join('\\n'), ", "languageLine(language), connectionLines(connection).join('\\n') + JSON.stringify(connection ?? null), "]],
     test: ['test/v101.test.mjs', '--test-name-pattern=v101 F5 \\(the other way\\)'],
   },
+  // 1.1 W1 (骨架; docs/checks/2026-11-20-1.1/contract-draft.md): every check of the definition, the actions, the record
+  // and the SOPs taken out one at a time
+  {
+    id: 'w1-check-name',
+    what: 'B2: an action not in the definition is let through (and done if there is a handler for it)',
+    edits: [['src/actions/actions.mjs', "if (!def) return { ok: false, errors: [`\"${request.action}\" is not an action of the definition`] };", "if (!def) return { ok: true, errors: [], def: { actors: [actor], params: { type: 'object' }, confirm: false } };"]],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^check · an action not in the definition|^list-from-file'],
+  },
+  {
+    id: 'w1-check-actor',
+    what: 'B2: who may do an action is not checked',
+    edits: [['src/actions/actions.mjs', "  if (!def.actors.includes(actor)) return { ok: false, errors: [`\"${actor}\" may not do \"${request.action}\"`] };\n", '']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^check · an action this actor may not do'],
+  },
+  {
+    id: 'w1-check-params',
+    what: 'B2: an action\'s params are not checked against its schema',
+    edits: [['src/actions/actions.mjs', "const errors = validate(def.params, request.params ?? {}, 'params');", 'const errors = [];']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^check · params that do not fit'],
+  },
+  {
+    id: 'w1-check-tool',
+    what: 'B2: a tool is accepted as something handed in',
+    edits: [['src/actions/actions.mjs', "  if (def.tool && typeof handlers[request.action] !== 'function') return { ok: false, errors: [`\"${request.action}\" is a tool used during the run, not something to hand in`] };\n", '']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^check · a tool'],
+  },
+  {
+    id: 'w1-confirm-skipped',
+    what: 'B3: an action that waits for the user is done at once',
+    edits: [['src/actions/actions.mjs', 'if (c.def.confirm) {', 'if (false) {']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^confirm · a held action changes nothing|^confirm · rejected'],
+  },
+  {
+    id: 'w1-confirm-no-recheck',
+    what: 'B3: a held action is done when confirmed without being checked again',
+    edits: [['src/actions/actions.mjs', "      if (!c.ok) { unlinkSync(p); return { status: 'rejected', errors: c.errors }; }\n", '']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^confirm · a held action is checked again'],
+  },
+  {
+    id: 'w1-log-off',
+    what: 'B4: an action done is not recorded',
+    edits: [['src/actions/actions.mjs', 'const line = appendActionLog(logFile(action, params, result), ', 'const line = ((file, entry) => entry)(logFile(action, params, result), ']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^log · five kinds|^confirm · a held action changes nothing'],
+  },
+  {
+    id: 'w1-log-unchecked-object',
+    what: 'B4: a handler that does not say what it changed counts as done',
+    edits: [['src/actions/actions.mjs', "    if (!isObj(result?.object) || typeof result.object.type !== 'string') return { status: 'failed', errors: [`the handler of \"${action}\" did not say which object it changed`] };\n", '']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^log · an action whose handler fails'],
+  },
+  {
+    id: 'w1-list-fixed',
+    what: 'C3: the list an agent is given is the shipped file\'s, whatever definition is passed (as if written into the code)',
+    edits: [['src/actions/definition.mjs', '  return Object.entries(definition.actions)\n', "  return Object.entries(JSON.parse(readFileSync(DEFINITION_PATH, 'utf8')).actions)\n"]],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^list-from-file'],
+  },
+  {
+    id: 'w1-def-unchecked',
+    what: 'the definition file is loaded without being checked',
+    edits: [['src/actions/definition.mjs', '  const errors = checkDefinition(d);\n', '  const errors = [];\n']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^definition · a broken file'],
+  },
+  {
+    id: 'w1-def-ghost-actor',
+    what: 'an action\'s actors are not checked against the definition\'s actors',
+    edits: [['src/actions/definition.mjs', "else for (const who of a.actors) if (!Object.hasOwn(d.actors, who)) errors.push(`${at}.actors: \"${who}\" is not an actor of the definition`);", 'else {}']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^definition · a broken file'],
+  },
+  {
+    id: 'w1-sop-missing-silent',
+    what: 'C2: a missing SOP is read as an empty one, silently',
+    edits: [['src/sop/sop.mjs', "if (!existsSync(path)) throw new StreamsError('sop-missing', `the ${name} SOP is missing (${path})`);", "if (!existsSync(path)) return '';"]],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^sop · a missing or empty SOP'],
+  },
+  {
+    id: 'w1-sop-empty-silent',
+    what: 'C2: an empty SOP is accepted',
+    edits: [['src/sop/sop.mjs', "if (text.trim() === '') throw", 'if (false) throw']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^sop · a missing or empty SOP'],
+  },
+  {
+    id: 'w1-sop-unfilled-silent',
+    what: 'C2: a placeholder left without a value is sent as it is',
+    edits: [['src/sop/sop.mjs', '  if (missing.size) throw', '  if (false) throw']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^sop · filled with'],
+  },
+  {
+    id: 'w1-sop-not-from-file',
+    what: 'C2: the SOP given is always the shipped one, whatever folder is named (a change to the file is not followed)',
+    edits: [['src/sop/sop.mjs', "  const text = readFileSync(path, 'utf8');", "  const text = readFileSync(join(SOP_DIR, `${name}.md`), 'utf8');"]],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^sop · a rule changed in the file'],
+  },
+  {
+    id: 'w1-startup-ignores-sops',
+    what: 'C2: the start-up check does not look at the SOPs',
+    edits: [['src/actions/startup.mjs', '  problems.push(...checkSops({ dir: sopDir }).problems);\n', '']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^sop · a missing or empty SOP'],
+  },
+  {
+    id: 'w1-startup-ignores-definition',
+    what: 'C3: the start-up check does not look at the definition file',
+    edits: [['src/actions/startup.mjs', '    loadDefinition({ path: definitionPath });\n', '']],
+    test: ['test/actions-w1.test.mjs', '--test-name-pattern=^startup · a broken definition'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {
