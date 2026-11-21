@@ -73,6 +73,21 @@ const OUT = resolve(value('--out') ?? DEFAULT_OUT)
 const CONTRAST_FILE = resolve(value('--contrast') ?? (OUT === DEFAULT_OUT ? join(REPO_DIR, 'docs', 'checks', '2026-11-15-r6d', '对比度.json') : join(OUT, '对比度.json')))
 const APP_DIR = resolve(value('--app') ?? DESKTOP_DIR)
 const RULES = args.includes('--rules') // for looking into a failure: each piece under the bar also lists the style rules that give it its colour
+// 1.1 W6: --html also keeps each screen as one HTML file — the page as it was, its style rules inlined, the values of its fields
+// written in — to draw a proposed change on with the app's own styles (docs/checks/2026-11-20-1.1/w6/)
+const HTML = args.includes('--html')
+const PAGE_HTML_SRC = `(() => {
+  for (const el of document.querySelectorAll('input')) el.setAttribute('value', el.value)
+  for (const el of document.querySelectorAll('textarea')) el.textContent = el.value
+  const rulesOf = s => { try { return [...s.cssRules].map(r => (r instanceof CSSImportRule ? (r.styleSheet ? rulesOf(r.styleSheet) : '') : r.cssText)).join('\\n') } catch { return '' } }
+  const css = [...document.styleSheets].map(rulesOf).join('\\n')
+  const clone = document.documentElement.cloneNode(true)
+  for (const e of clone.querySelectorAll('script, link[rel="stylesheet"], style, meta[http-equiv]')) e.remove()
+  const st = document.createElement('style')
+  st.textContent = css
+  clone.querySelector('head').appendChild(st)
+  return { base: location.href, html: '<!doctype html>' + clone.outerHTML }
+})()`
 const W = 1440
 const H = 906
 const POLL = { polling: 100, timeout: 60_000 }
@@ -504,6 +519,10 @@ async function main() {
             contrast = { checked: b.checked + v.checked, below: b.below + v.below, covered: b.covered + v.covered, pictures: b.pictures + v.pictures, lowestPassing: low, entries: [...tag(b, 'bar'), ...tag(v, 'page')] }
             text = `${both.bar[1]}\n${both.view[1]}`
             await readerShot(file)
+            if (HTML) {
+              const pages = await inReader(PAGE_HTML_SRC)
+              for (const [part, p] of [['bar', pages?.bar], ['page', pages?.view]]) if (p?.html) writeFileSync(join(dir, `${id}.${part}.html`), `<!-- base: ${p.base} -->\n${p.html}`, 'utf8')
+            }
           } else {
             contrast = await page.evaluate(`${CONTRAST_SRC}({ rules: ${RULES} })`)
             text = await page.evaluate(() => document.body.innerText)
@@ -513,6 +532,10 @@ async function main() {
                 await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; w.show(); w.focus() })
                 await page.waitForTimeout(500)
               }
+            }
+            if (HTML) {
+              const p = await page.evaluate(PAGE_HTML_SRC)
+              writeFileSync(join(dir, `${id}.html`), `<!-- base: ${p.base} -->\n${p.html}`, 'utf8')
             }
           }
           if (contrast.checked < 5) throw new Error(`${id} ${lk.id}: the contrast check found only ${contrast.checked} pieces of text`)
