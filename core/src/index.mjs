@@ -59,3 +59,11 @@ export {
 } from './read/index.mjs';
 // 1.1 W3: a checked summary into 待看 (the update, W5, calls it)
 export { putInInbox } from './update/inbox.mjs';
+// 1.1 W4: building a library (build/index.mjs). Named one by one: a name here would hide another module's of the same name
+export {
+  checkQuestion, answerText, QUESTION_LIMITS, QUESTION_KINDS,
+  checkCard, cardUrls, urlKey as cardUrlKey, sameUrl, renderCard, CARD_PARTS, DEFINITION_LINES, MAX_DECISIONS, CARD_WORDS,
+  toolsText, budgetText, actionsText, OUTPUT_TEXT, BUILD_BUDGET,
+  createBuild, buildPrompt as buildBuildPrompt, problemText, MAX_BUILD_TURNS,
+  proposalCards, writeCard, readCard, cardHandlers, CARD_DIR, STATE_DIR, CARD_JSON, CARD_MD,
+} from './build/index.mjs';

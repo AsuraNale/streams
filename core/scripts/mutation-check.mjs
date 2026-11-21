@@ -33,7 +33,7 @@ const MUTANTS = [
   {
     id: 'r6b-core-state-word',
     what: 'the core\'s word for a state is not 05\'s (the main agent would say another word than the page)',
-    edits: [['src/agent/words.mjs', "gap: '地址无效', failed: '暂时失败', blocked: '访问被拒', paused: '已暂停', never: '尚未抓取' }),", "gap: '地址待查', failed: '暂时失败', blocked: '访问被拒', paused: '已暂停', never: '尚未抓取' }),"]],
+    edits: [['src/agent/words.mjs', "gap: '地址无效', failed: '暂时失败', blocked: '访问被拒', login: '要登录',", "gap: '地址待查', failed: '暂时失败', blocked: '访问被拒', login: '要登录',"]],
     test: ['test/r5a.test.mjs', '--test-name-pattern=redesign R6b-1'],
   },
   {
@@ -723,6 +723,103 @@ const MUTANTS = [
     what: 'the judge is called although a rule failed',
     edits: [['src/verify/verify.mjs', '  if (rulesPassed && judgeList.length > 0) {', '  if (judgeList.length > 0) {']],
     test: ['test/verify-w3.test.mjs', '--test-name-pattern=^judge: only when the rules pass'],
+  },
+  // 1.1 W4 (docs/checks/2026-11-20-1.1/w4/scorecard.json): building a library
+  {
+    id: 'w4-six-questions',
+    what: 'a 6th question is shown',
+    edits: [['src/build/questions.mjs', 'Object.freeze({ questions: 5, options: 4, inputs: 2, minOptions: 2 })', 'Object.freeze({ questions: 6, options: 4, inputs: 2, minOptions: 2 })']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^questions: a 6th question'],
+  },
+  {
+    id: 'w4-first-with-options',
+    what: 'the first question may come with options',
+    edits: [['src/build/questions.mjs', "    if (n === 1) problems.push('first-not-input');\n", '']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^questions: a 6th question'],
+  },
+  {
+    id: 'w4-five-options',
+    what: 'a choice question may have 5 options',
+    edits: [['src/build/questions.mjs', 'if (options.length > QUESTION_LIMITS.options)', 'if (options.length > QUESTION_LIMITS.options + 1)']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^questions: a 6th question'],
+  },
+  {
+    id: 'w4-three-inputs',
+    what: 'a 3rd question with no options is shown',
+    edits: [['src/build/questions.mjs', 'if (inputs > QUESTION_LIMITS.inputs)', 'if (inputs > QUESTION_LIMITS.inputs + 1)']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^questions: a 6th question'],
+  },
+  {
+    id: 'w4-no-unreadable-part',
+    what: 'a card without 读不到的来源 can be confirmed',
+    edits: [['src/build/card.mjs', "    else if (part === 'unreadable') ok = Array.isArray(v);", "    else if (part === 'unreadable') ok = true;"]],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^card: without'],
+  },
+  {
+    id: 'w4-six-lines',
+    what: 'the definition is checked for six lines, not the 语言 line',
+    edits: [['src/build/card.mjs', "export const DEFINITION_LINES = Object.freeze(['purpose', 'scope', 'exclude', 'trust', 'rhythm', 'language', 'hard']);", "export const DEFINITION_LINES = Object.freeze(['purpose', 'scope', 'exclude', 'trust', 'rhythm', 'hard']);"]],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^card: without'],
+  },
+  {
+    id: 'w4-urls-last-turn-only',
+    what: 'only the last turn\'s reads count for the card\'s addresses',
+    edits: [['src/build/conversation.mjs', '    for (const x of r.reads ?? []) s.reads.push({ url: x.url, ok: x.ok !== false, turn });', '    s.reads = (r.reads ?? []).map((x) => ({ url: x.url, ok: x.ok !== false, turn }));']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^urls: every address'],
+  },
+  {
+    id: 'w4-urls-not-checked',
+    what: 'the card\'s addresses are not checked against what was read',
+    edits: [['src/build/card.mjs', '    for (const url of cardUrls(card)) if (!read.has(urlKey(url))) problems.push', '    for (const url of []) if (!read.has(urlKey(url))) problems.push']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^urls: every address'],
+  },
+  {
+    id: 'w4-library-at-once',
+    what: 'the library is made when the card is handed in, not when the user confirms',
+    edits: [['src/ontology/streams.json', '"names": { "zh": "建库", "en": "Create the library" },\n      "class": 1, "object": "library", "actors": ["main_agent"], "confirm": true,', '"names": { "zh": "建库", "en": "Create the library" },\n      "class": 1, "object": "library", "actors": ["main_agent"], "confirm": false,']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^confirm: the card waits'],
+  },
+  {
+    id: 'w4-claude-more-tools',
+    what: 'Claude Code builds with one more tool than the two web tools',
+    edits: [['src/connect/session.mjs', "export const WEB_TOOLS = Object.freeze(['WebSearch', 'WebFetch']);", "export const WEB_TOOLS = Object.freeze(['WebSearch', 'WebFetch', 'Bash']);"]],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^connection: Claude Code builds'],
+  },
+  {
+    id: 'w4-codex-no-search-on-resume',
+    what: 'a Codex resume goes without --search (the build would lose the web after the first turn)',
+    edits: [['src/connect/session.mjs', "  const argv = [...(web ? [CODEX_SEARCH_FLAG] : []), ...CODEX_RESUME_ARGS];", '  const argv = [...CODEX_RESUME_ARGS];']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^connection: Codex builds'],
+  },
+  {
+    id: 'w4-codex-views-not-read',
+    what: 'the pages Codex viewed without an open_page action are not counted as read (every card of a Codex build would fail)',
+    edits: [['src/connect/session.mjs', '    for (const res of Array.isArray(item.results) ? item.results : []) if (CODEX_VIEW.test(String(res?.ref_id ?? \'\'))) read(res.url);\n', '']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^urls: what was read comes from'],
+  },
+  {
+    id: 'w4-codex-search-results-read',
+    what: 'Codex\'s search results count as pages read',
+    edits: [['src/connect/session.mjs', 'const CODEX_VIEW = /^turn\\d+view\\d+$/;', 'const CODEX_VIEW = /^turn\\d+(view|search)\\d+$/;']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^urls: what was read comes from'],
+  },
+  {
+    id: 'w4-proposal-no-definition',
+    what: 'a proposal card is made for an action the definition does not have',
+    edits: [['src/build/proposals.mjs', '    if (!def || def.confirm !== true) continue;', "    if (def && def.confirm !== true) continue;"]],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^proposals: names come'],
+  },
+  {
+    id: 'w4-other-tool-ok',
+    what: 'a build goes on when the agent used another tool',
+    edits: [['src/build/conversation.mjs', "    if ((r.otherTools ?? []).length) { s.status = 'stopped'; return { kind: 'stopped', notice: 'other-tool' }; }\n    let a = interpret(r);", '    let a = interpret(r);']],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^a build stops'],
+  },
+  {
+    id: 'w4-sop-place-not-required',
+    what: 'a build SOP without the place of the answer format is sent anyway',
+    edits: [['src/build/conversation.mjs', "export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS', 'OUTPUT']);", "export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS']);"]],
+    test: ['test/build-w4.test.mjs', '--test-name-pattern=^sop: a rule changed'],
   },
 ];
 

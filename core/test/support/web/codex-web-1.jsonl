@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"01a1ff60-a746-71b1-9643-caf9260bea00"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I’ll check the Bank of Canada homepage for the latest announcement date it shows."}}
+{"type":"item.started","item":{"id":"exec-fe6603aa-5d62-4dc6-87ec-a276ca2f374e","type":"web_search","query":"","action":{"type":"other"}}}
+{"type":"item.completed","item":{"id":"exec-fe6603aa-5d62-4dc6-87ec-a276ca2f374e","type":"web_search","query":"https://www.bankofcanada.ca/","action":{"type":"open_page","url":"https://www.bankofcanada.ca/"},"results":[{"type":"text_result","domain":"www.bankofcanada.ca","ref_id":"turn0view0","snippet":"Total lines: 488","title":"Bank of Canada","url":"https://www.bankofcanada.ca/"},{"type":"text_result","domain":"www.bankofcanada.ca","ref_id":"turn0view1","snippet":"Total lines: 488","title":"Bank of Canada","url":"https://www.bankofcanada.ca/"}]}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"The latest policy interest rate announcement shown on the Bank of Canada homepage is dated **October 28, 2026**. [Bank of Canada](https://www.bankofcanada.ca/)"}}
+{"type":"turn.completed","usage":{"input_tokens":39707,"cached_input_tokens":18944,"cache_write_input_tokens":0,"output_tokens":123,"reasoning_output_tokens":0}}

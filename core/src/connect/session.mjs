@@ -25,6 +25,11 @@
 //                checked against `codex exec resume --help` of 0.166.0-alpha.6 on 2026-11-05.) The prompt on stdin; -o's
 //                file sits in a throw-away folder beside, never inside, `cwd`.
 //   api          no session on the server: send() is complete(); the caller replays the conversation (core agent).
+// web: true (1.1 W4, building a library): the same sessions with the two web tools and nothing else —
+//   claude-code  --tools WebSearch,WebFetch --allowedTools WebSearch WebFetch in place of --tools ''
+//   codex        --search before exec (the native web_search tool), on the first call and on every resume; still read-only
+//   and every result carries what the run read: reads [{ url, ok }] (Claude Code's WebFetch calls; Codex's open_page
+//   actions) and searches [query], read from the call's own output (agentrun/stream.mjs, codexWebOf below).
 // `cwd` must be empty before each call (anything found there is removed first: the folder is the app's own and nothing
 // belongs in it), and is checked again after; a call that leaves something there says so in `leftover` (and it is removed).
 //
@@ -44,6 +49,7 @@ import { runProcess } from './process.mjs';
 import { withWorkdir } from './workdir.mjs';
 import { resolveModel } from './models.mjs';
 import { checkRequest, clip, failure } from './types.mjs';
+import { parseStream } from '../agentrun/stream.mjs';
 
 // a main-agent turn carries the situation and the recent conversation: more time than one v1.0 call
 export const AGENT_TIMEOUT_MS = 240_000;
@@ -56,14 +62,25 @@ export const CODEX_READ_ONLY_CONFIG = 'sandbox_mode="read-only"';
 export const CODEX_RESUME_ARGS = Object.freeze(['exec', 'resume', '--json', '-c', CODEX_READ_ONLY_CONFIG, '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules']);
 
 // failures of the connection itself: a new session would fail the same way, so they are not a lost session
+// 1.1 W4: a turn of building a library reads and searches the web: more time than a turn of talk
+export const WEB_TIMEOUT_MS = 20 * 60_000;
+export const WEB_TOOLS = Object.freeze(['WebSearch', 'WebFetch']);
+// Claude Code with the two web tools and nothing else (the zero-tool set's --tools '' replaced)
+export const CLAUDE_WEB_ARGS = Object.freeze(CLAUDE_SESSION_ARGS.flatMap((a, i, all) => {
+  if (a === '--tools') return ['--tools', WEB_TOOLS.join(','), '--allowedTools', ...WEB_TOOLS];
+  if (i > 0 && all[i - 1] === '--tools') return [];
+  return [a];
+}));
+export const CODEX_SEARCH_FLAG = '--search';
+
 export const CONNECTION_CODES = Object.freeze(['not-installed', 'not-logged-in', 'login-expired', 'bad-key', 'rate-limited', 'network', 'timeout', 'refused', 'bad-format', 'bad-model']);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SESSION_RE = /^[A-Za-z0-9._:-]{1,200}$/;
 
 /** `claude` argv of one main-agent call: a new session (`sessionId`) or a resumed one (`resume`). */
-export function claudeSessionArgv({ model, system, sessionId, resume } = {}) {
-  const argv = [...CLAUDE_SESSION_ARGS];
+export function claudeSessionArgv({ model, system, sessionId, resume, web = false } = {}) {
+  const argv = [...(web ? CLAUDE_WEB_ARGS : CLAUDE_SESSION_ARGS)];
   if (resume) argv.push('--resume', resume);
   else if (sessionId) argv.push('--session-id', sessionId);
   else throw new StreamsError('bad-request', 'a session call needs a sessionId or a resume id');
@@ -73,8 +90,8 @@ export function claudeSessionArgv({ model, system, sessionId, resume } = {}) {
 }
 
 /** `codex` argv of the first call of a conversation. */
-export function codexSessionArgv({ model, cwd, lastMessageFile } = {}) {
-  const argv = [...CODEX_SESSION_ARGS];
+export function codexSessionArgv({ model, cwd, lastMessageFile, web = false } = {}) {
+  const argv = [...(web ? [CODEX_SEARCH_FLAG] : []), ...CODEX_SESSION_ARGS];
   if (cwd) argv.push('-C', cwd);
   if (lastMessageFile) argv.push('-o', lastMessageFile);
   if (model) argv.push('-m', model);
@@ -83,9 +100,9 @@ export function codexSessionArgv({ model, cwd, lastMessageFile } = {}) {
 }
 
 /** `codex` argv of every later call: `exec resume <id> -`, read-only by config override. */
-export function codexResumeArgv({ model, sessionId, lastMessageFile } = {}) {
+export function codexResumeArgv({ model, sessionId, lastMessageFile, web = false } = {}) {
   if (!sessionId) throw new StreamsError('bad-request', 'a resume needs a session id');
-  const argv = [...CODEX_RESUME_ARGS];
+  const argv = [...(web ? [CODEX_SEARCH_FLAG] : []), ...CODEX_RESUME_ARGS];
   if (lastMessageFile) argv.push('-o', lastMessageFile);
   if (model) argv.push('-m', model);
   argv.push(sessionId, '-');
@@ -106,14 +123,14 @@ function lostOrNot(result, resumed) {
   return CONNECTION_CODES.includes(result.code) ? result : { ...result, sessionLost: true };
 }
 
-export function createSessionConnector(connection, deps = {}, { cwd } = {}) {
+export function createSessionConnector(connection, deps = {}, { cwd, web = false } = {}) {
   const base = createConnector(connection, deps);
   const kind = connection.kind;
   if (kind === 'api') {
     return { ...base, sessionful: false, cwd: null, send: async (req) => ({ ...(await base.complete(req)), sessionId: null, resumed: false }) };
   }
   if (typeof cwd !== 'string' || !isAbsolute(cwd)) throw new StreamsError('bad-argument', 'a session connection needs an absolute working folder');
-  const timeoutMs = deps.timeoutMs ?? AGENT_TIMEOUT_MS;
+  const timeoutMs = deps.timeoutMs ?? (web ? WEB_TIMEOUT_MS : AGENT_TIMEOUT_MS);
   const log = typeof deps.log === 'function' ? deps.log : () => {};
   const run = (cmd, args, input) => runProcess({ file: cmd.file, args: [...cmd.prefixArgs, ...args], cwd, input, timeoutMs, env: deps.env, spawnImpl: deps.spawnImpl, platform: deps.platform });
   const before = () => {
@@ -141,7 +158,7 @@ export function createSessionConnector(connection, deps = {}, { cwd } = {}) {
       const resumed = Boolean(sessionId);
       const id = sessionId || randomUUID();
       before();
-      const r = await run(cmd, claudeSessionArgv({ model, system: req.system, ...(resumed ? { resume: id } : { sessionId: id }) }), req.prompt);
+      const r = await run(cmd, claudeSessionArgv({ model, system: req.system, web, ...(resumed ? { resume: id } : { sessionId: id }) }), req.prompt);
       const sf = spawnFailure(r);
       if (sf) return after({ ...sf, model, sessionId: id, resumed });
       const parsed = parseClaudeOutput(r, { now: deps.now });
@@ -151,8 +168,10 @@ export function createSessionConnector(connection, deps = {}, { cwd } = {}) {
       const out = !parsed.ok
         ? { ok: false, code: parsed.code, detail: parsed.detail, text: parsed.text, usage: { calls: 1, ...(parsed.usage || {}) }, model: parsed.model ?? model }
         : finishText({ text: parsed.text, usage: parsed.usage, model: parsed.model ?? model ?? 'default' });
+      // 1.1 W4: what the run read and searched, from its own stream
+      const webOf = web ? claudeWebOf(r.stdout) : {};
       // v2 package M: the plan's windows of this turn, as complete() gives them
-      return after(lostOrNot(withQuota({ ...out, sessionId: sid, resumed }, parsed.quota, deps), resumed));
+      return after(lostOrNot(withQuota({ ...out, ...webOf, sessionId: sid, resumed }, parsed.quota, deps), resumed));
     }
     return { ...base, sessionful: true, cwd, send };
   }
@@ -170,7 +189,7 @@ export function createSessionConnector(connection, deps = {}, { cwd } = {}) {
       // the -o file in a throw-away folder of its own, never in cwd
       const r = await withWorkdir(deps.tmpRoot, async (side) => {
         const lastMessageFile = join(side.root, CODEX_LAST_MESSAGE_FILE);
-        const args = resumed ? codexResumeArgv({ model, sessionId, lastMessageFile }) : codexSessionArgv({ model, cwd, lastMessageFile });
+        const args = resumed ? codexResumeArgv({ model, sessionId, lastMessageFile, web }) : codexSessionArgv({ model, cwd, lastMessageFile, web });
         // the first call carries the system text before the prompt (v1.0's way); a resumed session has it already
         const input = !resumed && req.system ? `${req.system}\n\n${req.prompt}` : req.prompt;
         const res = await run(chosen.cmd, args, input);
@@ -193,7 +212,7 @@ export function createSessionConnector(connection, deps = {}, { cwd } = {}) {
         out = finishText({ text, usage: ev.usage, model: model ?? 'default' });
       }
       if (!resumed && !sid && out.ok) log('session: codex gave no thread id; the next call starts a new session');
-      return after(lostOrNot({ ...out, sessionId: sid, resumed }, resumed));
+      return after(lostOrNot({ ...out, ...(web ? codexWebOf(r.stdout) : {}), sessionId: sid, resumed }, resumed));
     }
     return { ...base, sessionful: true, cwd, send };
   }
@@ -211,4 +230,40 @@ export function threadIdOf(stdout) {
     } catch { /* not an event */ }
   }
   return null;
+}
+
+/** What a Claude Code run read and searched: its WebFetch calls (ok = not an error result) and WebSearch queries; any
+ *  other tool it used is named in otherTools (there should be none). */
+export function claudeWebOf(stdout) {
+  const p = parseStream(stdout);
+  return { reads: p.fetches.map((f) => ({ url: f.url, ok: !f.isError })), searches: p.searches.map((x) => x.query), otherTools: p.otherTools };
+}
+
+/** What a Codex run read and searched (`codex --search exec --json`, 0.167, real runs of 2026-11-21): a completed
+ *  web_search item carries `results`, each with a `ref_id`. `turn<N>view<M>` is a page the model opened and looked at
+ *  (whatever the item's action: open_page, find_in_page, other); `turn<N>search<M>` is only a search result, never
+ *  counted as read. An open_page action's own url counts too. A search action's queries are the searches. */
+const CODEX_VIEW = /^turn\d+view\d+$/;
+export function codexWebOf(stdout) {
+  const reads = [];
+  const seen = new Set();
+  const read = (url) => { if (typeof url === 'string' && url !== '' && !seen.has(url)) { seen.add(url); reads.push({ url, ok: true }); } };
+  const searches = [];
+  for (const raw of String(stdout || '').split('\n')) {
+    const line = raw.trim();
+    if (!line.startsWith('{')) continue;
+    let ev;
+    try { ev = JSON.parse(line); } catch { continue; }
+    const item = ev?.type === 'item.completed' ? ev.item : null;
+    if (!item || item.type !== 'web_search') continue;
+    const a = item.action ?? {};
+    if (a.type === 'open_page') read(a.url);
+    for (const res of Array.isArray(item.results) ? item.results : []) if (CODEX_VIEW.test(String(res?.ref_id ?? ''))) read(res.url);
+    if (a.type === 'search') {
+      const q = typeof a.query === 'string' && a.query !== '' ? a.query : typeof item.query === 'string' ? item.query : '';
+      if (q) searches.push(q);
+      for (const extra of Array.isArray(a.queries) ? a.queries : []) if (typeof extra === 'string' && extra !== '' && extra !== q) searches.push(extra);
+    }
+  }
+  return { reads, searches, otherTools: [] };
 }

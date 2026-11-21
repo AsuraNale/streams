@@ -18,21 +18,25 @@
   },
   "actions": {
     "create_library": {
+      "names": { "zh": "建库", "en": "Create the library" },
       "class": 1, "object": "library", "actors": ["main_agent"], "confirm": true,
       "about": "Create a library from a library card.",
       "params": { "type": "object", "required": ["card"], "properties": { "card": { "type": "object" } }, "additionalProperties": false }
     },
     "edit_card": {
+      "names": { "zh": "改建库卡", "en": "Change the library card" },
       "class": 2, "object": "card", "actors": ["main_agent", "user"], "confirm": true,
       "about": "Change a library's card; the user sees the card before and after.",
       "params": { "type": "object", "required": ["library", "card"], "properties": { "library": { "type": "string", "minLength": 1 }, "card": { "type": "object" }, "why": { "type": "string", "maxLength": 500 } }, "additionalProperties": false }
     },
     "add_source": {
+      "names": { "zh": "加来源", "en": "Add a source" },
       "class": 2, "object": "source", "actors": ["main_agent", "user"], "confirm": true,
       "about": "Add a source (an address or a search term) to a library.",
       "params": { "type": "object", "required": ["library", "source"], "properties": { "library": { "type": "string", "minLength": 1 }, "source": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 200 }, "url": { "type": "string", "maxLength": 2000 }, "query": { "type": "string", "maxLength": 500 } } }, "why": { "type": "string", "maxLength": 500 } }, "additionalProperties": false }
     },
     "remove_source": {
+      "names": { "zh": "去掉来源", "en": "Remove a source" },
       "class": 2, "object": "source", "actors": ["main_agent", "user"], "confirm": true,
       "about": "Remove a source from a library.",
       "params": { "type": "object", "required": ["library", "source"], "properties": { "library": { "type": "string", "minLength": 1 }, "source": { "type": "string", "minLength": 1 }, "why": { "type": "string", "maxLength": 500 } }, "additionalProperties": false }
@@ -78,6 +82,7 @@
       "params": { "type": "object", "required": ["item"], "properties": { "item": { "type": "string", "minLength": 1 } }, "additionalProperties": false }
     },
     "convert_library": {
+      "names": { "zh": "把上一版的库换过来", "en": "Bring a library from the last version over" },
       "class": 8, "object": "library", "actors": ["user"], "confirm": true,
       "about": "Bring a library made by an earlier version over to a library card (through a build conversation).",
       "params": { "type": "object", "required": ["library", "card"], "properties": { "library": { "type": "string", "minLength": 1 }, "card": { "type": "object" } }, "additionalProperties": false }

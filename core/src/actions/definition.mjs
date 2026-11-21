@@ -41,6 +41,10 @@ export function checkDefinition(d) {
     if (typeof a.confirm !== 'boolean') errors.push(`${at}.confirm: must be true or false`);
     if (a.tool !== undefined && typeof a.tool !== 'boolean') errors.push(`${at}.tool: must be true or false`);
     if (a.tool && a.confirm) errors.push(`${at}: a tool (reading, searching) is never one the user confirms`);
+    // 1.1 W4: an action the user confirms is shown to him as a proposal card, named in both languages
+    if (a.confirm === true && !(isObj(a.names) && ['zh', 'en'].every((l) => typeof a.names[l] === 'string' && a.names[l].trim() !== ''))) {
+      errors.push(`${at}.names: an action the user confirms needs a name in zh and en (its proposal card shows it)`);
+    }
     errors.push(...checkSchemaShape(a.params, `${at}.params`));
     if (isObj(a.params) && a.params.type !== 'object') errors.push(`${at}.params: must be an object schema`);
   }

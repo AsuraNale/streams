@@ -19,4 +19,5 @@ export { createUsageCounter, createUsageRecorder, readUsage, readUsageFile, usag
 export { findExecutable } from './which.mjs';
 export { createWorkdir, removeWorkdir, withWorkdir, DEFAULT_TMP_ROOT } from './workdir.mjs';
 // v2 package C: the main agent's session mode (docs/core-api.md 5.15)
-export { createSessionConnector, claudeSessionArgv, codexSessionArgv, codexResumeArgv, threadIdOf, emptyFolder, CLAUDE_SESSION_ARGS, CODEX_SESSION_ARGS, CODEX_RESUME_ARGS, CODEX_READ_ONLY_CONFIG, CONNECTION_CODES, AGENT_TIMEOUT_MS } from './session.mjs';
+export { createSessionConnector, claudeSessionArgv, codexSessionArgv, codexResumeArgv, threadIdOf, emptyFolder, CLAUDE_SESSION_ARGS, CODEX_SESSION_ARGS, CODEX_RESUME_ARGS, CODEX_READ_ONLY_CONFIG, CONNECTION_CODES, AGENT_TIMEOUT_MS,
+  WEB_TIMEOUT_MS, WEB_TOOLS, CLAUDE_WEB_ARGS, CODEX_SEARCH_FLAG, claudeWebOf, codexWebOf } from './session.mjs';
