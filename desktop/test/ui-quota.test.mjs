@@ -62,8 +62,14 @@ const shot = async name => {
 const until = fn => s.page.waitForFunction(fn, null, POLL)
 
 test('quotaView: the lines in the Chinese table\'s words; null for nothing, a shape not known, a balance with no line', () => {
+  // the clock is noon today, not the moment the test runs: after 22:00 a reset two hours away is tomorrow's and the row
+  // rightly says 「明天 01:34 重置」, which the today-only pattern below does not take (red at 23:34 on 11-20)
   const now = new Date()
-  const v = quotaView(DEV['claude-code'], now)
+  now.setHours(12, 0, 0, 0)
+  const soon = Math.floor(now.getTime() / 1000) + 2 * 3600
+  const later = Math.floor(now.getTime() / 1000) + 3 * 86400
+  const plan = { source: 'claude-code', at: new Date(now.getTime() - 5 * 60_000).toISOString(), windows: [{ id: 'five_hour', usedPercent: 5, resetsAt: soon }, { id: 'seven_day', usedPercent: 11, resetsAt: later }] }
+  const v = quotaView(plan, now)
   assert.equal(v.title, SHELL.sidebar.quota.plan)
   const resets = sec => nextText(new Date(sec * 1000).toISOString(), SHELL.sidebar.quota.resets, now)
   // v2 package K2: each plan row also carries its parts for the K1 look (span, used 0–100, pct, when)
