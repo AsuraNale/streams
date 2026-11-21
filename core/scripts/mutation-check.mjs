@@ -645,6 +645,85 @@ const MUTANTS = [
     edits: [['src/read/extract.mjs', "  return { text: '', paragraphs: [], way: 'none', title };", "  return { text: stripHtml(raw), paragraphs: [stripHtml(raw)], way: 'paragraphs', title };"]],
     test: ['test/read-w2.test.mjs', '--test-name-pattern=^extract · a page that only gives its whole text'],
   },
+  // 1.1 W3 (docs/checks/2026-11-20-1.1/w3/scorecard.json): a summary checked against the original kept in the library
+  {
+    id: 'w3-quote-always-found',
+    what: 'a point\'s sentence counts as found whether or not it is in the original',
+    edits: [['src/verify/rules.mjs', '        if (!locateQuote(text, quote)) bad.push(', '        if (false) bad.push(']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^quotes: a made-up sentence'],
+  },
+  {
+    id: 'w3-quote-from-handed-back',
+    what: 'the sentence is looked for in the material handed to the check, not in the original kept in the library',
+    edits: [['src/verify/rules.mjs', "      const text = typeof original?.text === 'string' ? original.text : source;", '      const text = source;']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^quotes: what is checked is the original'],
+  },
+  {
+    id: 'w3-quote-any-length',
+    what: 'a sentence of any length counts (two characters of the original would do)',
+    edits: [['src/verify/original-check.mjs', 'export const QUOTE_MIN_CHARS = 6;', 'export const QUOTE_MIN_CHARS = 1;']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^quotes: a sentence shorter than'],
+  },
+  {
+    id: 'w3-spacing-matters',
+    what: 'the spacing of the sentence must be the original\'s exactly (a summary that writes 10月 for 10 月 is sent back)',
+    edits: [['src/verify/original-check.mjs', "    .replace(DROP, '');", ';']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^quotes: spacing'],
+  },
+  {
+    id: 'w3-numbers-always-found',
+    what: 'every number of the summary counts as in the original',
+    edits: [['src/verify/original-check.mjs', '    const found = have.some((o) => o.value === n.value && (n.unit === \'\' || o.unit === n.unit));', '    const found = true;']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^numbers: a number the original does not have'],
+  },
+  {
+    id: 'w3-numbers-no-unit',
+    what: 'the unit of a number is not compared (1.2 万 written as 1.2 亿 passes)',
+    edits: [['src/verify/original-check.mjs', "(n.unit === '' || o.unit === n.unit)", 'true']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^numbers: a number the original does not have'],
+  },
+  {
+    id: 'w3-numbers-not-title',
+    what: 'the title of the original is left out of the number check',
+    edits: [['src/verify/rules.mjs', "[original.title ?? '', original.text].join('\\n')", 'original.text']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^numbers: the same number written another way'],
+  },
+  {
+    id: 'w3-anchor-off-by-one',
+    what: 'the place of a point in the original starts one character late',
+    edits: [['src/verify/original-check.mjs', '  const start = t.from[at];', '  const start = t.from[at] + 1;']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^anchors: each point that passed'],
+  },
+  {
+    id: 'w3-points-not-lines',
+    what: 'the card\'s points are the { text, quote } objects, not the plain lines the 待看 card shows',
+    edits: [['src/verify/summary.mjs', "    points: points.map((p) => (typeof p === 'string' ? p : isObj(p) && typeof p.text === 'string' ? p.text : '')),", '    points,']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^anchors: each point that passed'],
+  },
+  {
+    id: 'w3-failed-not-in-inbox',
+    what: 'an item that did not pass after its rounds is kept out of 待看 (it would disappear)',
+    edits: [['src/update/inbox.mjs', "  if (!checked || checked.status !== 'checked') throw", "  if (!checked || checked.status !== 'checked' || !checked.verification.passed) throw"]],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^twice: two rounds that fail'],
+  },
+  {
+    id: 'w3-feedback-everything',
+    what: 'the second round gets back every item, not only the ones that failed',
+    edits: [['src/verify/verify.mjs', '    feedback = { failed: last.items.filter((it) => !it.passed).map(', '    feedback = { failed: last.items.map(']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^twice: two rounds that fail'],
+  },
+  {
+    id: 'w3-summary-without-original',
+    what: 'a summary is asked for although no original was kept',
+    edits: [['src/verify/summary.mjs', "  if (!stored || stored.text.trim() === '') return { status: 'no-original'", "  if (false) return { status: 'no-original'"], ['src/verify/summary.mjs', '  const original = { text: stored.text, title: stored.title };', "  const original = { text: stored?.text ?? '', title: stored?.title ?? '' };"], ['src/verify/summary.mjs', '  const source = stored.text.length > judgeMaxChars ? stored.text.slice(0, judgeMaxChars) : stored.text;', '  const source = original.text;']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^no original'],
+  },
+  {
+    id: 'w3-judge-on-failed-rules',
+    what: 'the judge is called although a rule failed',
+    edits: [['src/verify/verify.mjs', '  if (rulesPassed && judgeList.length > 0) {', '  if (judgeList.length > 0) {']],
+    test: ['test/verify-w3.test.mjs', '--test-name-pattern=^judge: only when the rules pass'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

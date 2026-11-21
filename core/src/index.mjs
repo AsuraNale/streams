@@ -57,3 +57,5 @@ export {
   saveOriginal, readOriginal, originalFor, originalId, originalPath, pruneOriginals,
   ORIGINALS_DIR, ORIGINAL_METHODS, ORIGINAL_MISSING, RETAIN_DISMISSED_DAYS, sourceStateOf,
 } from './read/index.mjs';
+// 1.1 W3: a checked summary into 待看 (the update, W5, calls it)
+export { putInInbox } from './update/inbox.mjs';

@@ -1,6 +1,6 @@
 // The verification loop (product spec 4.11 "循环与退出", core-api 4.3).
 //
-// verifyOnce({ task, checklist, output, claimed, source, candidateIds, connector, aiCheck })
+// verifyOnce({ task, checklist, output, claimed, source, candidateIds, original, connector, aiCheck })
 //   -> { passed, items:[{ id, kind, passed, evidence, claimed }], claimsNotFound, forgot, calls, judged, code?, aiJudge? }
 //   Rules first, judge second: if any rule fails the judge is not called (judged:false, calls:0)
 //   and `items` holds the rule verdicts only (the judge items have no verdict yet). With every rule
@@ -12,6 +12,8 @@
 //   rides in that same call. Its verdict is not one of `items` and never changes `passed`; it comes back as
 //   aiJudge:{ flagged, evidence } (flagged = the judge answered that id with passed:false; no answer, or a failed
 //   call, is not flagged). No judge call (no judge items, or a rule failed) -> no aiJudge and no extra call.
+//   original = { text, title }: the original kept in the library (1.1 W3), for the rules that check against it
+//   (points_quoted, numbers_in_original); the judge still reads `source`.
 //
 // verifyLoop({ ...same, produce, maxRounds, aiCheck })
 //   -> { passed, rounds, output, claimed, last, history, calls }
@@ -23,14 +25,14 @@ import { checkRule } from './rules.mjs';
 import { judgeItems } from './judge.mjs';
 import { AI_JUDGE_ITEM } from './ai-instructions.mjs';
 
-export async function verifyOnce({ task = '', checklist = [], output, claimed = [], source = '', candidateIds = [], connector, aiCheck = false } = {}) {
+export async function verifyOnce({ task = '', checklist = [], output, claimed = [], source = '', candidateIds = [], original, connector, aiCheck = false } = {}) {
   const claimedSet = new Set(Array.isArray(claimed) ? claimed.map(String) : []);
   const items = [];
   const judgeList = [];
   let rulesPassed = true;
   for (const it of checklist) {
     if (it.kind === 'judge') { judgeList.push(it); continue; }
-    const r = checkRule(it.rule, output, { source, candidateIds });
+    const r = checkRule(it.rule, output, { source, candidateIds, original });
     if (!r.passed) rulesPassed = false;
     items.push({ id: it.id, kind: 'rule', passed: r.passed, evidence: r.evidence, claimed: claimedSet.has(it.id) });
   }
@@ -68,7 +70,7 @@ export async function verifyOnce({ task = '', checklist = [], output, claimed = 
   return result;
 }
 
-export async function verifyLoop({ task = '', checklist = [], source = '', candidateIds = [], connector, produce, maxRounds = 2, aiCheck = false } = {}) {
+export async function verifyLoop({ task = '', checklist = [], source = '', candidateIds = [], original, connector, produce, maxRounds = 2, aiCheck = false } = {}) {
   if (typeof produce !== 'function') throw new TypeError('verifyLoop needs a produce function');
   const descs = new Map(checklist.map((it) => [it.id, it.desc]));
   const limit = Number.isInteger(maxRounds) && maxRounds >= 1 ? maxRounds : 1;
@@ -86,7 +88,7 @@ export async function verifyLoop({ task = '', checklist = [], source = '', candi
     output = p.output;
     claimed = Array.isArray(p.claimed) ? p.claimed : [];
     calls += typeof p.calls === 'number' ? p.calls : 0;
-    last = await verifyOnce({ task, checklist, output, claimed, source, candidateIds, connector, aiCheck });
+    last = await verifyOnce({ task, checklist, output, claimed, source, candidateIds, original, connector, aiCheck });
     calls += last.calls;
     history.push(last);
     if (last.passed) break;

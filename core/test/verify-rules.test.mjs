@@ -32,7 +32,7 @@ test('parseRule splits on the first colon only; regex args keep their own colons
   assert.deepEqual(parseRule('json_nonempty'), { op: 'json_nonempty', arg: '' });
   assert.equal(parseRule(''), null);
   assert.equal(parseRule(undefined), null);
-  assert.equal(RULE_OPS.length, 13);
+  assert.equal(RULE_OPS.length, 15); // 1.1 W3 added points_quoted and numbers_in_original (verify-w3.test.mjs)
 });
 
 test('contains: one positive, one negative, case-insensitive, string and object output', () => {
@@ -190,6 +190,8 @@ test('sentinel: every operator in RULE_OPS has at least one failing input (a rul
     json_nonempty: ['json_nonempty:k', { k: '' }],
     json_count: ['json_count:k,1', { k: [] }],
     max_chars: ['max_chars:k,1', { k: 'ab' }],
+    points_quoted: ['points_quoted:k', { k: [{ text: 'a', quote: 'not in the material at all' }] }],
+    numbers_in_original: ['numbers_in_original:k', { k: 'grew 12%' }],
   };
   for (const op of RULE_OPS) {
     assert.ok(failing[op], `no failing input written for ${op}`);

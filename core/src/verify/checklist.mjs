@@ -93,6 +93,8 @@ const BASELINE_WORDS = {
     'no-placeholder': '没有 TODO / TBD / FIXME 占位',
     'no-banned-words': '没有内部用词',
     'numbers-in-source': '摘要里的每个数字和断言都能在材料里找到，目标 / 预计 / 已完成这类状态词没被升级',
+    'point-quotes': '每个要点带一句原文原话，逐字在存下的原文里',
+    'numbers-found': '摘要里的数字在存下的原文里都找得到，单位也一样',
   },
   en: {
     'json-keys': 'The output has every agreed field: {keys}',
@@ -105,6 +107,8 @@ const BASELINE_WORDS = {
     'no-placeholder': 'No TODO / TBD / FIXME left in',
     'no-banned-words': 'No internal terms',
     'numbers-in-source': 'Every number and claim in the summary can be found in the material, and words such as target / expected / done are not upgraded',
+    'point-quotes': 'Each point carries one sentence of the original, word for word as it is in the stored original',
+    'numbers-found': 'Every number in the summary is in the stored original, with the same unit',
   },
 };
 const KEYS_JOIN = { 'zh-CN': '、', en: ', ' };
@@ -155,6 +159,22 @@ export function summaryBaseline(language = 'zh-CN') {
       kind: 'judge',
       origin: 'streams',
     },
+  ];
+}
+
+// 1.1 W3: the summary checked against the original kept in the library (B14). Each point is { text, quote }: quote is one
+// sentence of the original; the code finds where it is (verify/original-check.mjs), the model does not count characters.
+// The judge item is the same independent judgment as before, reading the stored original.
+export function originalChecklist(language = 'zh-CN') {
+  const w = BASELINE_WORDS[languageOf(language)];
+  return [
+    rule('what-nonempty', w['what-nonempty'], 'json_nonempty:what'),
+    rule('points-count', w['points-count'], 'json_count:points,3'),
+    rule('point-quotes', w['point-quotes'], 'points_quoted:points'),
+    rule('numbers-found', w['numbers-found'], 'numbers_in_original:what,points'),
+    rule('no-placeholder', w['no-placeholder'], 'not_regex:\\b(TODO|TBD|FIXME)\\b'),
+    rule('no-banned-words', w['no-banned-words'], `not_regex:\\b(${BANNED_WORDS.join('|')})\\b`),
+    { id: 'numbers-in-source', desc: w['numbers-in-source'], kind: 'judge', origin: 'streams' },
   ];
 }
 

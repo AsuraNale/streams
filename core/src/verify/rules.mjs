@@ -1,23 +1,28 @@
 // Rule items of the verification layer (product spec 4.11, core-api 4.3): deterministic checks
 // that cost zero model calls.
 //
-// checkRule(rule, output, { source, candidateIds }) -> { passed, evidence }
+// checkRule(rule, output, { source, candidateIds, original }) -> { passed, evidence }
 //
 // `rule` is "<op>:<arg>". `output` is a string or an object:
 //   text ops   contains · regex · not_regex · min_words · max_words
 //              run on the string itself, or on JSON.stringify(object)
 //   json ops   json_keys · json_range · json_enum · quote_in_source · ids_in_set
 //              json_nonempty · json_count · max_chars
+//              points_quoted · numbers_in_original (1.1 W3: against `original` = { text, title }, the original kept in the
+//              library; without it, against `source`)
 //              read fields of the object; a string is JSON.parse'd first (unparseable = failed)
 // An unknown op, a bad argument or a bad pattern never throws: it is a failed check with the
 // reason in `evidence`. Evidence strings are internal (the desktop layer decides what to show).
 //
 // countWords(text): whitespace-separated tokens, each run of Han characters counts one per character.
 
+import { QUOTE_MIN_CHARS, foldedLength, locateQuote, missingNumbers, numbersIn } from './original-check.mjs';
+
 export const RULE_OPS = [
   'contains', 'regex', 'not_regex', 'min_words', 'max_words',
   'json_keys', 'json_range', 'json_enum', 'quote_in_source', 'ids_in_set',
   'json_nonempty', 'json_count', 'max_chars',
+  'points_quoted', 'numbers_in_original',
 ];
 
 const TEXT_OPS = ['contains', 'regex', 'not_regex', 'min_words', 'max_words'];
@@ -126,7 +131,14 @@ function checkText(op, arg, text) {
   }
 }
 
-function checkJson(op, arg, data, { source, candidateIds }) {
+// the words of a field for the number check: a string, or an array of strings / of points { text }
+function wordsOf(v) {
+  if (typeof v === 'string') return [v];
+  if (Array.isArray(v)) return v.flatMap((p) => (typeof p === 'string' ? [p] : isPlainObject(p) && typeof p.text === 'string' ? [p.text] : []));
+  return [];
+}
+
+function checkJson(op, arg, data, { source, candidateIds, original }) {
   switch (op) {
     case 'json_keys': {
       const keys = arg.split(',').map((k) => k.trim()).filter(Boolean);
@@ -197,12 +209,38 @@ function checkJson(op, arg, data, { source, candidateIds }) {
       const len = charLength(typeof v === 'string' ? v : JSON.stringify(v));
       return len <= n ? pass(`${field} has ${len} chars (allow <= ${n})`) : fail(`${field} has ${len} chars (allow <= ${n})`);
     }
+    case 'points_quoted': {
+      const field = arg.trim();
+      if (!field) return fail('points_quoted: empty argument');
+      const text = typeof original?.text === 'string' ? original.text : source;
+      if (typeof text !== 'string' || text === '') return fail('no original');
+      const points = data[field];
+      if (!Array.isArray(points) || points.length === 0) return fail(`${field} has no points`);
+      const bad = [];
+      points.forEach((p, i) => {
+        const quote = isPlainObject(p) && typeof p.quote === 'string' ? p.quote : '';
+        if (quote.trim() === '') { bad.push(`point ${i + 1}: no quote`); return; }
+        const n = foldedLength(quote);
+        if (n < QUOTE_MIN_CHARS) { bad.push(`point ${i + 1}: quote too short (${n} chars, need >= ${QUOTE_MIN_CHARS})`); return; }
+        if (!locateQuote(text, quote)) bad.push(`point ${i + 1}: quote not found in the original: ${show(quote)}`);
+      });
+      return bad.length === 0 ? pass(`${points.length} quotes found in the original`) : fail(bad.join('; '));
+    }
+    case 'numbers_in_original': {
+      const fields = arg.split(',').map((f) => f.trim()).filter(Boolean);
+      if (fields.length === 0) return fail('numbers_in_original: empty argument');
+      const text = typeof original?.text === 'string' ? [original.title ?? '', original.text].join('\n') : source;
+      if (typeof text !== 'string' || text === '') return fail('no original');
+      const words = fields.flatMap((f) => wordsOf(data[f])).join('\n');
+      const missing = missingNumbers(words, text);
+      return missing.length === 0 ? pass(`${numbersIn(words).length} numbers found in the original`) : fail(`numbers not in the original: ${missing.join(', ')}`);
+    }
     default:
       return fail(`unknown rule op "${op}"`);
   }
 }
 
-export function checkRule(rule, output, { source = '', candidateIds = [] } = {}) {
+export function checkRule(rule, output, { source = '', candidateIds = [], original } = {}) {
   const parsed = parseRule(rule);
   if (!parsed) return fail('rule is not a string');
   const { op, arg } = parsed;
@@ -210,5 +248,5 @@ export function checkRule(rule, output, { source = '', candidateIds = [] } = {})
   if (TEXT_OPS.includes(op)) return checkText(op, arg, asText(output));
   const { data, error } = asObject(output);
   if (error) return fail(error);
-  return checkJson(op, arg, data, { source, candidateIds });
+  return checkJson(op, arg, data, { source, candidateIds, original });
 }
