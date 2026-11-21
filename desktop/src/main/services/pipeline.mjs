@@ -102,7 +102,7 @@ export function withFirstProbe(connector, result) {
  *   this when given (services/schedule.mjs startRescore: the queue)
  * @param {{note: Function}|null} [o.rawErrors] - redesign R5a (O9): raw-errors.mjs
  */
-export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {}, schedule = () => null, onRoundDone = () => {}, roundGate = null, afterRound = () => {}, afterDismiss = () => {}, rescoreGate = null, rawErrors = null }) {
+export function createPipelineService({ library, connections, emit, log, hidden = false, shell, locale, now = () => new Date(), fetchContext = {}, schedule = () => null, onRoundDone = () => {}, roundGate = null, afterRound = () => {}, afterDismiss = () => {}, rescoreGate = null, rawErrors = null, update = () => null }) {
   // the round in the background, if one runs; what the last one gave; the problems the last self-check found
   let running = null
   let last = null
@@ -215,6 +215,9 @@ export function createPipelineService({ library, connections, emit, log, hidden 
    */
   async function startRoundIn({ id: libraryId = null, path: dir }) {
     if (running) throw new BridgeError('bad_arguments', 'a round is running')
+    // 1.1 W5: a library with a library card is updated by it (services/update.mjs), not by v1.0's scoring pipeline
+    const u = update()
+    if (u && u.applies(dir)) return startUpdateIn({ id: libraryId, path: dir }, u)
     const a = connections.active()
     const roundId = `d-${now().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}-${randomBytes(3).toString('hex')}`
     const cap = pipelineConfig(dir).cap
@@ -243,6 +246,44 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     // probe's calls, so the run record's 运行前自检 is the call the usage file has (the probe through `probed` above)
     const connector = scoreless ? null : withFirstProbe(a.connector, { ok: true, latencyMs: check.probe?.latencyMs ?? 0, model: check.probe?.model, usage: { calls: check.probe?.calls ?? 1 } })
     void runInBackground({ dir, libraryId, roundId, connector, cap, controller, scoreless })
+    return { started: true, roundId }
+  }
+
+  /**
+   * 1.1 W5: one update of the library `{ id, path }` (it has a card) in the background. The same one-at-a-time and the same
+   * events as a round: `round-progress` (phase 'update', then done with the result), `inbox-changed`, onRoundDone (the queue
+   * and the 「本次运行新增」 notification). A connection that cannot update, or none: not started, the problem's code in the answer.
+   */
+  async function startUpdateIn({ id: libraryId = null, path: dir }, u) {
+    const a = connections.active()
+    const roundId = `u-${now().toISOString().replace(/[-:]/g, '').replace(/.d{3}Z$/, 'Z')}-${randomBytes(3).toString('hex')}`
+    const problem = u.problemFor(a)
+    if (problem) {
+      lastProblems = [problem]
+      log(`pipeline: update of ${libraryId ?? dir} not started: ${problem.code}${problem.connection ? ` (${problem.connection})` : ''}`)
+      progress({ roundId, libraryId, cap: null, phase: 'done', counts: null, calls: 0, done: true, result: null, problems: [problem] })
+      return { started: false, problems: [problem] }
+    }
+    const controller = new AbortController()
+    running = { roundId, libraryId, controller, cap: null, startedAt: now().toISOString(), update: true }
+    const base = { roundId, libraryId, cap: null, update: true }
+    progress({ ...base, phase: 'update', counts: null, calls: 0, done: false })
+    void (async () => {
+      let result = null
+      try {
+        result = await u.run(dir, a, { round: roundId })
+      } catch (err) {
+        log(`pipeline: update ${roundId} failed: ${String(err?.stack ?? err)}`)
+        result = { started: false, status: 'internal', problems: [{ code: 'internal', detail: String(err?.message ?? err).slice(0, 300) }] }
+      }
+      last = { roundId, libraryId, result }
+      lastProblems = result.started ? null : result.problems ?? null
+      running = null
+      const counts = result.record?.counts ?? null
+      progress({ ...base, phase: 'done', counts, calls: result.record?.calls ?? 0, done: true, result, ...(result.started ? {} : { problems: result.problems ?? [] }) })
+      emit('inbox-changed', { libraryId, count: inboxCount(dir) })
+      try { onRoundDone({ roundId, libraryId, result: { ...result, counts: counts ? { inbox: counts.inbox } : null } }) } catch (err) { log(`pipeline: after update ${roundId}: ${String(err?.stack ?? err)}`) }
+    })()
     return { started: true, roundId }
   }
 

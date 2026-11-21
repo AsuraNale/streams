@@ -56,7 +56,9 @@ import { startupProblem } from './startup-check.mjs'
 // 1.1 W2: reading a page three ways (core read/), the hidden render window and the PDF reader it is given
 import { createRenderService, isRenderSession } from './render.mjs'
 import { pdfText } from './pdf-text.mjs'
-import { createPageReader } from './core.mjs'
+import { createPageReader, createLinkReader } from './core.mjs'
+// 1.1 W5: a library with a card is updated by it (services/library-update.mjs; services/update.mjs is the app's own update)
+import { createLibraryUpdateService } from './services/library-update.mjs'
 import { defaultLibraryRoot as defaultRootOf } from './library-root.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -316,6 +318,8 @@ app.whenReady().then(() => {
   let scheduler = null
   // the main agent (made below): after every round it records the library's rule-based suggestion cards (v2 package C)
   let agent = null
+  // 1.1 W5: made below, once the render service is there (the pipeline asks for it only when a round starts)
+  let libraryUpdate = null
   const pipeline = createPipelineService({
     library, connections, emit, log, hidden: HIDDEN, shell, locale: currentLocale, now: clock,
     schedule: () => scheduler?.view() ?? null, onRoundDone: done => scheduler?.roundDone(done),
@@ -325,6 +329,7 @@ app.whenReady().then(() => {
     afterDismiss: r => agent?.afterDismiss(r),
     rescoreGate: entry => scheduler.startRescore(entry),
     rawErrors,
+    update: () => libraryUpdate,
   })
   pipelineHeld = () => pipeline.held()
   // redesign R2 (N03): a held 放弃 is written when the app quits (whatever quits it: 退出, an update, the last window) …
@@ -342,6 +347,7 @@ app.whenReady().then(() => {
   // 1.1 W2: the page reader (direct -> rendered in a hidden window -> a PDF's text), for the update of W5
   const renderService = createRenderService({ BrowserWindow, session, log })
   const readPages = () => createPageReader({ render: renderService.render, pdfText })
+  libraryUpdate = createLibraryUpdateService({ readPages, readLinks: () => createLinkReader({ render: renderService.render }), log, now: clock })
   closeReader = () => { reader.window()?.close() }
   restyleReader = () => reader.restyle()
   // v2 package K2: 「跟随系统」 follows Windows while the app runs — nativeTheme says when the system's light / dark changed (with

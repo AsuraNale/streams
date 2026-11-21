@@ -20,7 +20,8 @@ import { originalChecklist } from './checklist.mjs';
 import { verifyLoop } from './verify.mjs';
 import { locateQuote } from './original-check.mjs';
 
-export const JUDGE_MAX_CHARS = 12000;
+// 1.1 W5's live runs: at 12000 the judge saw long pages cut and called what came after 「not in the material」
+export const JUDGE_MAX_CHARS = 40000;
 
 const TASK = {
   'zh-CN': '为一条资料写摘要：一句「这是什么」和三个要点，每个要点带一句原文原话',

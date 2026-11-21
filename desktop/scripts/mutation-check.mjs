@@ -1608,6 +1608,19 @@ const MUTANTS = [
     // (only this test: the development one reads font sources a mirror does not carry)
     test: ['test/licenses.test.mjs', '--test-name-pattern=^PDF.js inside unpdf'],
   },
+  // 1.1 W5 (docs/checks/2026-11-20-1.1/w5/scorecard.json): a library with a card is updated by it, on Claude Code only
+  {
+    id: 'w5-card-library-old-round',
+    what: 'a library with a card still runs v1.0\'s scoring pipeline',
+    edits: [['src/main/services/pipeline.mjs', '    if (u && u.applies(dir)) return startUpdateIn({ id: libraryId, path: dir }, u)', '    if (false && u && u.applies(dir)) return startUpdateIn({ id: libraryId, path: dir }, u)']],
+    test: ['test/services-library-update.test.mjs', '--test-name-pattern=^a library with a card'],
+  },
+  {
+    id: 'w5-codex-updates',
+    what: 'Codex may update in 1.1 (W4\'s live runs said it may not)',
+    edits: [['src/main/services/library-update.mjs', "export const UPDATE_KINDS = Object.freeze(['claude-code'])", "export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex'])"]],
+    test: ['test/services-library-update.test.mjs', '--test-name-pattern=^only Claude Code'],
+  },
 ]
 
 function runTest(desktop, test) {

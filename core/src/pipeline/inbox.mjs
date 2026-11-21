@@ -88,6 +88,11 @@ export function listInbox(libraryDir, { now = () => new Date() } = {}) {
     if (later.has(s.url)) { card.later = true; card.laterAt = later.get(s.url); }
     if (s.maybeDuplicateOf) card.maybeDuplicateOf = s.maybeDuplicateOf;
     if (item.materials) card.materials = item.materials;
+    // 1.1 W5: the original kept or not (「原文没存下来」), a summary that was not written, the deadline and the agent's reason
+    if (item.original) card.original = item.original;
+    if (item.summaryMissing) card.summaryMissing = item.summaryMissing;
+    if (typeof item.due === 'string') card.due = item.due;
+    if (typeof item.why === 'string') card.why = item.why;
     if (s.aiInstruction === true || item.aiInstruction === true) card.aiInstruction = true;
     if (item.scoreless === true) { card.scoreless = true; card.excerpt = typeof item.excerpt === 'string' ? item.excerpt : ''; }
     if (card.moved === 'rejected') card.excerpt = typeof item.excerpt === 'string' ? item.excerpt : '';
