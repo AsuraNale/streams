@@ -47,6 +47,6 @@ export async function makeMirror({ root }) {
   const skip = new Set([join(DESKTOP_DIR, 'node_modules'), join(DESKTOP_DIR, '.work')])
   cpSync(DESKTOP_DIR, desktop, { recursive: true, filter: src => !skip.has(src) && ![...skip].some(s => src.startsWith(s + sep)) })
   const realModules = join(DESKTOP_DIR, 'node_modules')
-  for (const name of ['preact', 'htm', 'playwright-core', '@mozilla/readability']) link(join(realModules, name), join(desktop, 'node_modules', name))
+  for (const name of ['preact', 'htm', 'playwright-core', '@mozilla/readability', 'unpdf']) link(join(realModules, name), join(desktop, 'node_modules', name))
   return { root, desktop }
 }

@@ -70,8 +70,8 @@ export const BUTTONS = Object.freeze({
 });
 
 export const STATE_WORDS = Object.freeze({
-  zh: Object.freeze({ ok: '正常', empty: '无更新', gap: '地址无效', failed: '暂时失败', blocked: '访问被拒', paused: '已暂停', never: '尚未抓取' }),
-  en: Object.freeze({ ok: 'OK', empty: 'No updates', gap: 'Invalid address', failed: 'Temporary failure', blocked: 'Access denied', paused: 'Paused', never: 'Not fetched yet' }),
+  zh: Object.freeze({ ok: '正常', empty: '无更新', gap: '地址无效', failed: '暂时失败', blocked: '访问被拒', login: '要登录', paused: '已暂停', never: '尚未抓取' }),
+  en: Object.freeze({ ok: 'OK', empty: 'No updates', gap: 'Invalid address', failed: 'Temporary failure', blocked: 'Access denied', login: 'Sign-in required', paused: 'Paused', never: 'Not fetched yet' }),
 });
 
 export const ADVICE_WORDS = Object.freeze({
@@ -82,12 +82,14 @@ export const ADVICE_WORDS = Object.freeze({
     'fix-address-or-remove': '该地址无效，重试无法解决。请修改地址，或移除该来源。',
     'retry-next-round': '下次运行时将自动重试，无需修改地址。',
     'blocked-remove-source': '该网站拒绝程序访问，重试无法解决。请改用其他来源。',
+    'login-not-supported': '该网站需要登录才能读取，流息这一版还读不了要登录的网站。请改用其他来源。',
   }),
   en: Object.freeze({
     none: 'No action needed.',
     'fix-address-or-remove': 'This address is not valid, so retrying will not help. Change the address or remove this source.',
     'retry-next-round': 'Streams tries again on the next run. There is no need to change the address.',
     'blocked-remove-source': 'This site does not allow programs to read it, so retrying will not help. Use a different source.',
+    'login-not-supported': 'This site needs you to sign in before it can be read, and this version of Streams cannot read such sites. Use a different source.',
   }),
 });
 

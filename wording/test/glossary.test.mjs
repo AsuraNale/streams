@@ -70,8 +70,9 @@ test('the five fetch states: the shell\'s keys, in order, each with its words', 
   assert.deepEqual(glossary.fetch_states.map(s => s.id), [...FETCH_STATES])
   // redesign R6b-1: the five words are 05 第三节's now (维护者 11-11 过目第 1 条; the contract's table, word for word) — this line used
   // to hold the v1 words, and the English column was only checked for being there
-  assert.deepEqual(glossary.fetch_states.map(s => s.zh), ['正常', '无更新', '地址无效', '暂时失败', '访问被拒'])
-  assert.deepEqual(glossary.fetch_states.map(s => s.en), ['OK', 'No updates', 'Invalid address', 'Temporary failure', 'Access denied'])
+  // 1.1 W2: acceptance B8's sixth state, 要登录
+  assert.deepEqual(glossary.fetch_states.map(s => s.zh), ['正常', '无更新', '地址无效', '暂时失败', '访问被拒', '要登录'])
+  assert.deepEqual(glossary.fetch_states.map(s => s.en), ['OK', 'No updates', 'Invalid address', 'Temporary failure', 'Access denied', 'Sign-in required'])
   for (const s of FETCH_STATES) {
     assert.equal(fetchStateWord(s), userTerm(s).zh, s)
     assert.ok(fetchStateWord(s, 'en'), `${s} in English`)

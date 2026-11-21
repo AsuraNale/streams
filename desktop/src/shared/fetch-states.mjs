@@ -5,6 +5,7 @@
 //   gap       the address is wrong or the feed is gone (needs the user)
 //   failed    a temporary failure (network, timeout): tried again next run
 //   blocked   the site refused us (403, a bot wall): the user decides
-export const FETCH_STATES = Object.freeze(['ok', 'empty', 'gap', 'failed', 'blocked'])
+// 1.1 W2 (B8): the sixth, 要登录
+export const FETCH_STATES = Object.freeze(['ok', 'empty', 'gap', 'failed', 'blocked', 'login'])
 
 export const isFetchState = v => FETCH_STATES.includes(v)

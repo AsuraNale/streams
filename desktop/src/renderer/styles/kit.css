@@ -139,6 +139,7 @@
 .st-fetch--gap { color: var(--st-fetch-gap); background: var(--st-fetch-gap-bg); }
 .st-fetch--failed { color: var(--st-fetch-failed); background: var(--st-fetch-failed-bg); }
 .st-fetch--blocked { color: var(--st-fetch-blocked); background: var(--st-fetch-blocked-bg); }
+.st-fetch--login { color: var(--st-fetch-login); background: var(--st-fetch-login-bg); }
 
 /* ==== v2 package K2: each theme's own marks (the draft's css/themes.css), colours from the tokens ==================== */
 /* the current thing of a list: the library in the sidebar, the card under the keys in 待看, a row of a list */

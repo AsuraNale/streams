@@ -16,6 +16,10 @@ import { join, relative } from 'node:path'
 import { BUNDLED_FONTS, fontOfFile } from './fonts.mjs'
 
 const LICENSE_FILE = /^(licen[cs]e|copying|notice|copyright|authors)([._-].*)?$/i
+// 1.1 W2: projects shipped inside an npm package without their own license file there (desktop/src/main/third-party/)
+export const BUNDLED_INSIDE = Object.freeze([
+  Object.freeze({ pkg: 'unpdf', name: 'PDF.js 6.4.299', license: 'Apache-2.0', file: Object.freeze(['src', 'main', 'third-party', 'PDFJS-LICENSE.txt']) }),
+])
 const sha = text => createHash('sha256').update(text).digest('hex')
 const rule = char => char.repeat(78)
 
@@ -169,6 +173,14 @@ export function buildNotices({ stage, lockFile, facts }) {
       printed.set(h, `${p.id} ${t.name}`)
       line(`${t.name}:`)
       line(t.text)
+    }
+    // 1.1 W2: a package that carries another project inside it, whose own license file it does not ship (unpdf bundles
+    // PDF.js, Apache-2.0): that project's notice and license, from the file the app ships for it
+    for (const b of BUNDLED_INSIDE.filter(x => x.pkg === p.pkg.name)) {
+      const path = join(resources, 'app', ...b.file)
+      line()
+      line(`Inside ${p.pkg.name}: ${b.name} (${b.license}) — ${['resources', 'app', ...b.file].join('\\')}`)
+      line(existsSync(path) ? readFileSync(path, 'utf8').replace(/\r\n/g, '\n').trim() : `(MISSING: ${b.file.join('/')})`)
     }
     line()
   }

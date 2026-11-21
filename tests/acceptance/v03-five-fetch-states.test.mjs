@@ -23,20 +23,21 @@ import * as EN from '../../desktop/src/renderer/texts-en/common.js'
 // redesign R6b-1: the five states' words (05-措辞规范 第三节「五种抓取状态」: 正常 / 无更新 / 地址无效 / 暂时失败 / 访问被拒; English from
 // 05 and docs/checks/2026-11-13-r6b/contract.md R6b-1) and what the 处理建议 of each must say. The names PLAN_WORDS / PLAN_HINTS
 // stay; what they hold used to be the v1 plan's words (方案 §1.7) and fragments of the v1 mockups' sentences.
-const PLAN_WORDS = { ok: '正常', empty: '无更新', gap: '地址无效', failed: '暂时失败', blocked: '访问被拒' }
-const PLAN_WORDS_EN = { ok: 'OK', empty: 'No updates', gap: 'Invalid address', failed: 'Temporary failure', blocked: 'Access denied' }
+// 1.1 W2: the 1.1 acceptance standard's B8 takes V3's place here — 「六种来源状态……多一种『要登录』」: login, its word and its 处理建议
+const PLAN_WORDS = { ok: '正常', empty: '无更新', gap: '地址无效', failed: '暂时失败', blocked: '访问被拒', login: '要登录' }
+const PLAN_WORDS_EN = { ok: 'OK', empty: 'No updates', gap: 'Invalid address', failed: 'Temporary failure', blocked: 'Access denied', login: 'Sign-in required' }
 const PLAN_HINTS = {
   // the contract's four sentences (written to 05 第三节「处理建议一句按正式口气重写」): 「无需处理。」「该地址无效，重试无法解决。请修改地址，或移除该来源。」
   // 「下次运行时将自动重试，无需修改地址。」「该网站拒绝程序访问，重试无法解决。请改用其他来源。」
-  'zh-CN': { none: ['无需处理'], 'fix-address-or-remove': ['地址无效', '重试无法解决', '修改地址', '移除该来源'], 'retry-next-round': ['下次运行', '自动重试', '无需修改地址'], 'blocked-remove-source': ['拒绝程序访问', '重试无法解决', '改用其他来源'] },
-  en: { none: ['No action needed'], 'fix-address-or-remove': ['not valid', 'retrying will not help', 'Change the address', 'remove this source'], 'retry-next-round': ['next run', 'no need to change the address'], 'blocked-remove-source': ['does not allow programs', 'retrying will not help', 'different source'] },
+  'zh-CN': { none: ['无需处理'], 'fix-address-or-remove': ['地址无效', '重试无法解决', '修改地址', '移除该来源'], 'retry-next-round': ['下次运行', '自动重试', '无需修改地址'], 'blocked-remove-source': ['拒绝程序访问', '重试无法解决', '改用其他来源'], 'login-not-supported': ['需要登录', '读不了', '改用其他来源'] },
+  en: { none: ['No action needed'], 'fix-address-or-remove': ['not valid', 'retrying will not help', 'Change the address', 'remove this source'], 'retry-next-round': ['next run', 'no need to change the address'], 'blocked-remove-source': ['does not allow programs', 'retrying will not help', 'different source'], 'login-not-supported': ['sign in', 'cannot read', 'different source'] },
 }
 // the reverse sentinel: what only the sentences of 地址无效 / 访问被拒 say — a temporary failure must not be told any of it
 const NOT_FOR_FAILED = {
   'zh-CN': ['重试无法解决', '移除该来源', '改用其他来源'],
   en: ['retrying will not help', 'remove this source', 'different source'],
 }
-const BAD = ['gap', 'failed', 'blocked']
+const BAD = ['gap', 'failed', 'blocked', 'login']
 
 /** What is wrong with one language's tables (the same function is run on a broken copy below). */
 function dictionaryProblems({ FETCH_STATES, FETCH_HINTS }, lang) {
@@ -68,7 +69,7 @@ function tryUrl(url, fetchContext = { timeoutMs: 3000 }) {
 const words = (r, T) => ({ word: T.FETCH_STATES[r.status], hint: T.FETCH_HINTS[r.hint] })
 
 test('V3 dictionaries: each of the five states has the plan\'s word and a 「怎么办」 that says the plan\'s action (中英两套)', () => {
-  assert.deepEqual(core.FETCH_STATES, ['ok', 'empty', 'gap', 'failed', 'blocked'])
+  assert.deepEqual(core.FETCH_STATES, ['ok', 'empty', 'gap', 'failed', 'blocked', 'login'])
   assert.deepEqual(dictionaryProblems(ZH, 'zh-CN'), [])
   assert.deepEqual(dictionaryProblems(EN, 'en'), [])
   assert.deepEqual(Object.keys(EN.FETCH_STATES).sort(), Object.keys(ZH.FETCH_STATES).sort())
@@ -105,6 +106,9 @@ test('V3 server: 200 with items, 200 empty, 404, 503 (Retry-After), 429 (Retry-A
     ['/busy', { status: 503, body: 'busy', contentType: 'text/plain', headers: { 'retry-after': '120' } }, 'failed', 'retry-next-round', 120],
     ['/slow-down', { status: 429, body: 'slow down', contentType: 'text/plain', headers: { 'retry-after': '30' } }, 'failed', 'retry-next-round', 30],
     ['/forbidden', { status: 403, body: 'no bots', contentType: 'text/plain' }, 'blocked', 'blocked-remove-source', undefined],
+    // 1.1 W2 (B8): a sign-in page where the feed should be, and a 401
+    ['/login', { status: 200, body: '<html><head><title>Sign in</title></head><body><form><input name="u"><input type="password" name="p"><button>Sign in</button></form></body></html>', contentType: 'text/html' }, 'login', 'login-not-supported', undefined],
+    ['/members-only', { status: 401, body: 'sign in first', contentType: 'text/plain' }, 'login', 'login-not-supported', undefined],
   ]
   const seen = new Set()
   for (const [path, spec, status, hint, retryAfter] of cases) {
@@ -127,7 +131,7 @@ test('V3 server: 200 with items, 200 empty, 404, 503 (Retry-After), 429 (Retry-A
     assert.ok(words(r, EN).word && words(r, EN).hint, `${path}: English words`)
     seen.add(status)
   }
-  assert.deepEqual([...seen].sort(), [...core.FETCH_STATES].sort(), 'all five states were produced')
+  assert.deepEqual([...seen].sort(), [...core.FETCH_STATES].sort(), 'all six states were produced')
   // reverse: 「无更新」 and 「没抓到」 are never merged — the empty feed and the 404 differ in state, word and hint
   const empty = await tryUrl(`${srv.base}/empty`)
   const missing = await tryUrl(`${srv.base}/missing`)

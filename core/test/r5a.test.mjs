@@ -405,12 +405,15 @@ test('redesign R6b-1: the four 处理建议 and the state words the main agent i
     'fix-address-or-remove': '该地址无效，重试无法解决。请修改地址，或移除该来源。',
     'retry-next-round': '下次运行时将自动重试，无需修改地址。',
     'blocked-remove-source': '该网站拒绝程序访问，重试无法解决。请改用其他来源。',
+    // 1.1 W2 (B8): the sixth state's
+    'login-not-supported': '该网站需要登录才能读取，流息这一版还读不了要登录的网站。请改用其他来源。',
   });
   assert.deepEqual({ ...ADVICE_WORDS.en }, {
     none: 'No action needed.',
     'fix-address-or-remove': 'This address is not valid, so retrying will not help. Change the address or remove this source.',
     'retry-next-round': 'Streams tries again on the next run. There is no need to change the address.',
     'blocked-remove-source': 'This site does not allow programs to read it, so retrying will not help. Use a different source.',
+    'login-not-supported': 'This site needs you to sign in before it can be read, and this version of Streams cannot read such sites. Use a different source.',
   });
   // control: the scan sees a 处理建议 that says them (the kind of sentence that used to be taken out)
   assert.equal(hits('重试无法解决：修改地址，或删掉该来源。').length, 1);

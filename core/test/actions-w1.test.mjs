@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import {
-  loadDefinition, checkDefinition, actionsFor, DEFINITION_PATH,
+  loadDefinition, checkDefinition, actionListFor as actionsFor, DEFINITION_PATH,
   createActionRunner, checkActionRequest, readActionLog, ACTION_LOG, startupCheck,
   loadSop, renderSop, checkSops, placeholdersOf, SOP_DIR, SOP_NAMES,
 } from '../src/index.mjs';

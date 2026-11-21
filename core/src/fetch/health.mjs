@@ -2,7 +2,7 @@
 //
 // Input is lastRoundStatus() from log.mjs: { [source]: { status, consecutive, ... } }.
 // Output is internal codes only; the desktop turns them into words.
-//   level   blocked  if any source is blocked (its own level: the fix is "change the source", not "retry")
+//   level   blocked  if any source is blocked or asks to sign in (1.1 W2) (its own level: the fix is "change the source", not "retry")
 //           warning  else if any source is failed or gap (a fetch problem is never "a quiet day")
 //           quiet    all ok / empty (or nothing fetched yet)
 //   lines   one string per state that has sources, in a fixed shape:
@@ -29,12 +29,14 @@ export function sourceHealth(lastRoundStatus) {
   const lines = [];
   const line = (state, list) => `${state} ${list.length}/${total} ${list.join(',')} hint=${hintOf(state)}`;
   if (by.blocked.length) lines.push(line('blocked', by.blocked));
+  // 1.1 W2 (B8): a site that asks to sign in is the same kind of problem (another source, not a retry), on a line of its own
+  if (by.login.length) lines.push(line('login', by.login));
   if (by.failed.length) lines.push(line('failed', by.failed));
   if (by.gap.length) lines.push(line('gap', by.gap));
   const fine = [...by.ok, ...by.empty].sort();
   if (fine.length) lines.push(`ok ${fine.length}/${total} ${fine.join(',')} hint=none`);
   if (by.paused.length) lines.push(`paused ${by.paused.length} ${by.paused.join(',')} hint=none`);
 
-  const level = by.blocked.length ? 'blocked' : (by.failed.length || by.gap.length ? 'warning' : 'quiet');
+  const level = by.blocked.length || by.login.length ? 'blocked' : (by.failed.length || by.gap.length ? 'warning' : 'quiet');
   return { level, counts, lines };
 }

@@ -28,7 +28,7 @@ export const PIPELINE = Object.freeze({
   gateLine: '{name} · {threshold}',
   materials: Object.freeze({ meta: 'Title, source and summary only', body: 'Read the full text' }),
   about: Object.freeze({
-    fetch: 'Each source gets a state (OK / No updates / Invalid address / Temporary failure / Access denied); each item carries its source and date',
+    fetch: 'Each source gets a state (OK / No updates / Invalid address / Temporary failure / Access denied / Sign-in required); each item carries its source and date',
     dedup: 'The same link; the same title republished',
     summary: 'One overview line + three points',
     decide: 'Inbox: Keep / Discard / Later',

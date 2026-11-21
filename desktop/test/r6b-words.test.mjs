@@ -35,8 +35,9 @@ const TABLES = [
 
 // ---- the contract's two tables (R6b-1) -------------------------------------------------------------------------------------
 const STATES = {
-  zh: { ok: '正常', empty: '无更新', gap: '地址无效', failed: '暂时失败', blocked: '访问被拒' },
-  en: { ok: 'OK', empty: 'No updates', gap: 'Invalid address', failed: 'Temporary failure', blocked: 'Access denied' },
+  // 1.1 W2: acceptance B8 adds the sixth state, 要登录 (1.1 验收标准 V3 → B8: 「多一种『要登录』」)
+  zh: { ok: '正常', empty: '无更新', gap: '地址无效', failed: '暂时失败', blocked: '访问被拒', login: '要登录' },
+  en: { ok: 'OK', empty: 'No updates', gap: 'Invalid address', failed: 'Temporary failure', blocked: 'Access denied', login: 'Sign-in required' },
 }
 const HINTS = {
   zh: {
@@ -44,15 +45,17 @@ const HINTS = {
     'fix-address-or-remove': '该地址无效，重试无法解决。请修改地址，或移除该来源。',
     'retry-next-round': '下次运行时将自动重试，无需修改地址。',
     'blocked-remove-source': '该网站拒绝程序访问，重试无法解决。请改用其他来源。',
+    'login-not-supported': '该网站需要登录才能读取，流息这一版还读不了要登录的网站。请改用其他来源。',
   },
   en: {
     none: 'No action needed.',
     'fix-address-or-remove': 'This address is not valid, so retrying will not help. Change the address or remove this source.',
     'retry-next-round': 'Streams tries again on the next run. There is no need to change the address.',
     'blocked-remove-source': 'This site does not allow programs to read it, so retrying will not help. Use a different source.',
+    'login-not-supported': 'This site needs you to sign in before it can be read, and this version of Streams cannot read such sites. Use a different source.',
   },
 }
-const FIVE = ['ok', 'empty', 'gap', 'failed', 'blocked']
+const FIVE = ['ok', 'empty', 'gap', 'failed', 'blocked', 'login'] // (the name stays; 1.1 W2 added the sixth)
 
 /** What differs from the contract's tables in one set of words ({ states, hints } of one language). */
 function tableProblems({ states, hints }, lang, where) {
@@ -68,7 +71,7 @@ test('R6b-1 the five states and the four 处理建议 are the contract\'s tables
   assert.deepEqual(tableProblems({ states: FETCH_STATES_EN, hints: FETCH_HINTS_EN }, 'en', 'page'), [])
   assert.deepEqual(tableProblems({ states: STATE_WORDS.zh, hints: ADVICE_WORDS.zh }, 'zh', 'core'), [])
   assert.deepEqual(tableProblems({ states: STATE_WORDS.en, hints: ADVICE_WORDS.en }, 'en', 'core'), [])
-  assert.deepEqual(Object.keys(FETCH_STATES), FIVE, 'the five keys, as they were')
+  assert.deepEqual(Object.keys(FETCH_STATES), FIVE, 'the six keys: the five as they were, and 要登录 of 1.1')
   // 尚未抓取 (05 规则 4), the same in the core
   assert.deepEqual([SOURCE_STATES.never, SOURCE_STATES_EN.never, STATE_WORDS.zh.never, STATE_WORDS.en.never], ['尚未抓取', 'Not fetched yet', '尚未抓取', 'Not fetched yet'])
   // the sentences that spell the states out use the same words

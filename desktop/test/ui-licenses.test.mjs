@@ -50,7 +50,7 @@ test('「由 Starry Digital 开发」 in the dialog asks for the maker\'s page',
 })
 
 // (redesign R6a: this test's name said 「the six parts」; the table has seven rows since the heading font got its own)
-test('the seven rows of the parts table: Electron, Chromium, Node.js from the runtime; Preact, htm and @mozilla/readability from the app\'s own package.json files; Noto Serif SC from the font file that ships (redesign R6a)', async () => {
+test('the nine rows of the parts table: Electron, Chromium, Node.js from the runtime; Preact, htm, @mozilla/readability and unpdf (with PDF.js inside it, 1.1 W2) from the app\'s own package.json files; Noto Serif SC from the font file that ships (redesign R6a)', async () => {
   const versions = await s.app.evaluate(() => process.versions)
   const rows = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="components"] [data-component]')].map(r => [...r.querySelectorAll('td')].map(td => td.textContent)))
   assert.deepEqual(rows, [
@@ -60,10 +60,13 @@ test('the seven rows of the parts table: Electron, Chromium, Node.js from the ru
     ['Preact', pkg('preact').version, pkg('preact').license],
     ['htm', pkg('htm').version, pkg('htm').license],
     ['@mozilla/readability', pkg('@mozilla/readability').version, pkg('@mozilla/readability').license],
+    // 1.1 W2: the PDF reader and PDF.js inside it
+    ['unpdf', pkg('unpdf').version, pkg('unpdf').license],
+    ['PDF.js', '6.4.299', 'Apache-2.0'],
     // redesign R6a: the heading font of 研究对话, its version from the font file that ships
     ['Noto Serif SC', '2.003', 'OFL-1.1'],
   ])
-  assert.deepEqual(rows.at(-2), ['@mozilla/readability', '0.6.0', 'Apache-2.0'], 'control: the reading mode\'s part, as desktop/package.json pins it')
+  assert.deepEqual(rows.at(-4), ['@mozilla/readability', '0.6.0', 'Apache-2.0'], 'control: the reading mode\'s part, as desktop/package.json pins it')
   // redesign R4b (P19): the bundled UI font is its own line above the table, its license folded under it
   assert.equal((await s.page.evaluate(() => window.streams.getLicenses())).data.font.name, 'Noto Sans SC')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-dialog="licenses"] [data-part="font"] b').textContent), fmt(SETTINGS.licenses.font, { name: 'Noto Sans SC', license: 'SIL Open Font License 1.1' }))

@@ -32,7 +32,7 @@ export const PIPELINE = Object.freeze({
   gateLine: '{name} · {threshold}',
   materials: Object.freeze({ meta: '仅标题、来源、摘要', body: '读取正文' }),
   about: Object.freeze({
-    fetch: '记录每个来源的状态（正常 / 无更新 / 地址无效 / 暂时失败 / 访问被拒），每条内容附来源和日期',
+    fetch: '记录每个来源的状态（正常 / 无更新 / 地址无效 / 暂时失败 / 访问被拒 / 要登录），每条内容附来源和日期',
     dedup: '相同链接；相同标题的转载',
     summary: '「内容概述」一句 + 三条要点',
     decide: '待看：收藏 / 放弃 / 稍后处理',

@@ -53,6 +53,10 @@ import { createReaderService } from './services/reader.mjs'
 // 1.1 W1: the core's own files (the definition of actions, the two SOPs) are checked before anything starts
 import { startupCheck } from './core.mjs'
 import { startupProblem } from './startup-check.mjs'
+// 1.1 W2: reading a page three ways (core read/), the hidden render window and the PDF reader it is given
+import { createRenderService, isRenderSession } from './render.mjs'
+import { pdfText } from './pdf-text.mjs'
+import { createPageReader } from './core.mjs'
 import { defaultLibraryRoot as defaultRootOf } from './library-root.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -157,9 +161,11 @@ protocol.registerSchemesAsPrivileged([{ scheme: APP_SCHEME, privileges: APP_SCHE
 app.enableSandbox()
 Menu.setApplicationMenu(null)
 
-// (the reading window's contents are the reader's to guard: reader.mjs guardReaderContents — they may show http(s) pages)
+// (the reading window's contents are the reader's to guard: reader.mjs guardReaderContents — they may show http(s) pages;
+// 1.1 W2: so are the render window's, render.mjs guardRenderContents)
 app.on('web-contents-created', (_event, contents) => {
   if (isReaderSession(contents.session, p => session.fromPartition(p))) return
+  if (isRenderSession(contents.session, p => session.fromPartition(p))) return
   guardContents(contents, { onBlocked: blocked })
 })
 
@@ -333,6 +339,9 @@ app.whenReady().then(() => {
     onBack: () => { bringToFront() },
   })
   const readerService = createReaderService({ library, reader, log })
+  // 1.1 W2: the page reader (direct -> rendered in a hidden window -> a PDF's text), for the update of W5
+  const renderService = createRenderService({ BrowserWindow, session, log })
+  const readPages = () => createPageReader({ render: renderService.render, pdfText })
   closeReader = () => { reader.window()?.close() }
   restyleReader = () => reader.restyle()
   // v2 package K2: 「跟随系统」 follows Windows while the app runs — nativeTheme says when the system's light / dark changed (with

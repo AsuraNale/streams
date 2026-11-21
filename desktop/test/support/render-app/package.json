@@ -1,0 +1,6 @@
+{
+  "name": "streams-render-test-app",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs"
+}

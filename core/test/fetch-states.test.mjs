@@ -2,16 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FETCH_STATES, LOG_STATES, HINTS, classifyHttp, classifyError, hintOf, parseRetryAfter } from '../src/fetch/states.mjs';
 
-test('five states in a fixed order, each with its hint code; paused is a log value, not a fetch state', () => {
-  assert.deepEqual(FETCH_STATES, ['ok', 'empty', 'gap', 'failed', 'blocked']);
-  assert.deepEqual(LOG_STATES, ['ok', 'empty', 'gap', 'failed', 'blocked', 'paused']);
+test('six states in a fixed order (1.1 W2: 要登录 the sixth), each with its hint code; paused is a log value, not a fetch state', () => {
+  assert.deepEqual(FETCH_STATES, ['ok', 'empty', 'gap', 'failed', 'blocked', 'login']); // 1.1 W2 (B8): the sixth, 要登录
+  assert.deepEqual(LOG_STATES, ['ok', 'empty', 'gap', 'failed', 'blocked', 'login', 'paused']);
   assert.deepEqual(HINTS, {
-    ok: 'none', empty: 'none', gap: 'fix-address-or-remove', failed: 'retry-next-round', blocked: 'blocked-remove-source', paused: 'none',
+    ok: 'none', empty: 'none', gap: 'fix-address-or-remove', failed: 'retry-next-round', blocked: 'blocked-remove-source', login: 'login-not-supported', paused: 'none',
   });
   for (const s of LOG_STATES) assert.equal(hintOf(s), HINTS[s]);
   // negative: the three bad states each get a DIFFERENT hint (merging two hands the user an action that cannot work)
   assert.notEqual(hintOf('gap'), hintOf('failed'));
   assert.notEqual(hintOf('failed'), hintOf('blocked'));
+  assert.notEqual(hintOf('blocked'), hintOf('login'));
   assert.notEqual(hintOf('gap'), hintOf('blocked'));
   for (const bad of ['pending', 'OK', '', undefined, null, 'toString']) {
     assert.throws(() => hintOf(bad), (e) => e.code === 'bad-state', String(bad));
@@ -24,7 +25,7 @@ test('classifyHttp: the status table', () => {
   const table = [
     [200, 'ok'], [201, 'ok'], [204, 'ok'],
     [301, 'gap'], [302, 'gap'],
-    [400, 'gap'], [401, 'gap'], [404, 'gap'], [410, 'gap'], [422, 'gap'],
+    [400, 'gap'], [401, 'login'], [404, 'gap'], [410, 'gap'], [422, 'gap'],
     [403, 'blocked'], [407, 'blocked'], [451, 'blocked'],
     [408, 'failed'], [429, 'failed'],
     [500, 'failed'], [502, 'failed'], [503, 'failed'], [504, 'failed'],

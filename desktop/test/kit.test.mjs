@@ -56,8 +56,8 @@ test('every --st- variable a style file uses is defined in interim.css, there on
   assert.equal(ok('#F6F6F3'), false, 'control: a colour is not taken')
 })
 
-test('the five fetch states (src/shared/fetch-states.mjs) each have a colour and a background variable', () => {
-  assert.deepEqual([...FETCH_STATES], ['ok', 'empty', 'gap', 'failed', 'blocked'])
+test('the six fetch states (src/shared/fetch-states.mjs; 1.1 W2 added 要登录) each have a colour and a background variable', () => {
+  assert.deepEqual([...FETCH_STATES], ['ok', 'empty', 'gap', 'failed', 'blocked', 'login'])
   const inInterim = defined(INTERIM)
   for (const s of FETCH_STATES) {
     assert.ok(inInterim.includes(`--st-fetch-${s}`), `--st-fetch-${s}`)

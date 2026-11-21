@@ -55,7 +55,7 @@
     "一个来源出了什么事只说五种之一：正常、无更新、地址无效、暂时失败、访问被拒。",
     "品牌只在说「连接你电脑上的 …」、型号表和许可证页时出现。"
   ],
-  "fetch_states_about": "id 是 desktop/src/shared/fetch-states.mjs 的五个状态键（由测试核对）；zh / en 是界面上的词（desktop/src/renderer/texts/common.js FETCH_STATES 与 texts-en 同名表照此）。",
+  "fetch_states_about": "id 是 desktop/src/shared/fetch-states.mjs 的六个状态键（1.1 W2 加了「要登录」）（由测试核对）；zh / en 是界面上的词（desktop/src/renderer/texts/common.js FETCH_STATES 与 texts-en 同名表照此）。",
   "fetch_states": [
     {
       "id": "ok",
@@ -81,6 +81,11 @@
       "id": "blocked",
       "zh": "访问被拒",
       "en": "Access denied"
+    },
+    {
+      "id": "login",
+      "zh": "要登录",
+      "en": "Sign-in required"
     }
   ],
   "entries": [
@@ -278,9 +283,17 @@
           "action": "rename",
           "zh": "访问被拒",
           "en": "Access denied"
+        },
+        {
+          "internal": [
+            "login"
+          ],
+          "action": "rename",
+          "zh": "要登录",
+          "en": "Sign-in required"
         }
       ],
-      "note": "五种之外不再发明状态。"
+      "note": "六种之外不再发明状态（1.1 验收标准 B8 加了「要登录」）。"
     },
     {
       "id": "one-line",

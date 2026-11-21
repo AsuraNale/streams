@@ -53,6 +53,8 @@ export const FETCH_STATES = Object.freeze({
   gap: '地址无效',
   failed: '暂时失败',
   blocked: '访问被拒',
+  // 1.1 W2 (B8)
+  login: '要登录',
 })
 
 // the three ways to connect a model (plan C2; getConnections().kinds), the words S1 / S13 / S14 share. The brand words
@@ -131,6 +133,7 @@ export const FETCH_HINTS = Object.freeze({
   'fix-address-or-remove': '该地址无效，重试无法解决。请修改地址，或移除该来源。',
   'retry-next-round': '下次运行时将自动重试，无需修改地址。',
   'blocked-remove-source': '该网站拒绝程序访问，重试无法解决。请改用其他来源。',
+  'login-not-supported': '该网站需要登录才能读取，流息这一版还读不了要登录的网站。请改用其他来源。',
 })
 
 // a source that is not in one of the five states: paused by the user, or never fetched yet

@@ -39,7 +39,7 @@ function install({ license = 'MIT License\n\nCopyright (c) test\n', notices = tr
   const root = tempDir('st-licenses-')
   made.push(root)
   const app = join(root, 'resources', 'app')
-  for (const [name, version, lic] of [['preact', '9.9.9', 'MIT'], ['htm', '8.8.8', 'Apache-2.0'], ['@mozilla/readability', '7.7.7', 'BSD-2-Clause']]) {
+  for (const [name, version, lic] of [['preact', '9.9.9', 'MIT'], ['htm', '8.8.8', 'Apache-2.0'], ['@mozilla/readability', '7.7.7', 'BSD-2-Clause'], ['unpdf', '6.6.6', 'MIT']]) {
     mkdirSync(join(app, 'node_modules', name), { recursive: true })
     writeFileSync(join(app, 'node_modules', name, 'package.json'), JSON.stringify({ name, version, license: lic }))
   }
@@ -66,6 +66,9 @@ test('development: the repository\'s LICENSE in full, the six parts, no notices 
     { name: 'Preact', version: pkg('preact').version, license: pkg('preact').license },
     { name: 'htm', version: pkg('htm').version, license: pkg('htm').license },
     { name: '@mozilla/readability', version: pkg('@mozilla/readability').version, license: pkg('@mozilla/readability').license },
+    // 1.1 W2: the PDF reader, and PDF.js inside it
+    { name: 'unpdf', version: pkg('unpdf').version, license: pkg('unpdf').license },
+    { name: 'PDF.js', version: '6.4.299', license: 'Apache-2.0' },
     // v2 package K2: the bundled UI font, its version from the font file that ships
     { name: 'Noto Sans SC', version: '2.04', license: 'OFL-1.1' },
     // redesign R6a: the heading font of 研究对话, the same way
@@ -80,7 +83,7 @@ test('development: the repository\'s LICENSE in full, the six parts, no notices 
   assert.deepEqual([pkg('preact').version, pkg('htm').version, pkg('@mozilla/readability').version], ['10.29.8', '3.1.1', '0.6.0'], 'control: the pinned versions (desktop/package.json)')
   assert.equal(pkg('@mozilla/readability').license, 'Apache-2.0', 'control: the reading mode\'s part is Apache-2.0')
   const deps = JSON.parse(readFileSync(join(DESKTOP_DIR, 'package.json'), 'utf8')).dependencies
-  assert.deepEqual(Object.keys(deps).sort(), ['@mozilla/readability', 'htm', 'preact'], 'every package the app ships has its row (a new dependency without one turns this red)')
+  assert.deepEqual(Object.keys(deps).sort(), ['@mozilla/readability', 'htm', 'preact', 'unpdf'], 'every package the app ships has its row (a new dependency without one turns this red)')
   assert.deepEqual(v.notices, { available: false })
   assert.equal(noticesFileOf({ packaged: false, installDir: 'C:\\x' }), null)
 })
@@ -97,7 +100,7 @@ test('installed: the app\'s own LICENSE and package.json files, the notices besi
   const { root, app } = install({ license: 'MIT License\n\nanother copy\n' })
   const v = licensesView({ packaged: true, desktopDir: app, installDir: root, versions: VERSIONS })
   assert.equal(v.own.text, 'MIT License\n\nanother copy\n', 'control: the install\'s copy, not the repository\'s')
-  assert.deepEqual(v.components.slice(3), [{ name: 'Preact', version: '9.9.9', license: 'MIT' }, { name: 'htm', version: '8.8.8', license: 'Apache-2.0' }, { name: '@mozilla/readability', version: '7.7.7', license: 'BSD-2-Clause' }, { name: 'Noto Sans SC', version: '9.87', license: 'OFL-1.1' }, { name: 'Noto Serif SC', version: '6.54', license: 'OFL-1.1' }], 'the install\'s own package.json files and fonts, not the repository\'s')
+  assert.deepEqual(v.components.slice(3), [{ name: 'Preact', version: '9.9.9', license: 'MIT' }, { name: 'htm', version: '8.8.8', license: 'Apache-2.0' }, { name: '@mozilla/readability', version: '7.7.7', license: 'BSD-2-Clause' }, { name: 'unpdf', version: '6.6.6', license: 'MIT' }, { name: 'PDF.js', version: '6.4.299', license: 'Apache-2.0' }, { name: 'Noto Sans SC', version: '9.87', license: 'OFL-1.1' }, { name: 'Noto Serif SC', version: '6.54', license: 'OFL-1.1' }], 'the install\'s own package.json files and fonts, not the repository\'s')
   assert.equal(v.displayFont.text, 'SIL OPEN FONT LICENSE (serif test copy)\n', 'redesign R6a: the install\'s own copy of the heading font\'s license')
   assert.equal(v.font.text, 'SIL OPEN FONT LICENSE (test copy)\n', 'the install\'s own copy of the font license')
   assert.deepEqual(v.notices, { available: true })
@@ -108,4 +111,20 @@ test('installed: the app\'s own LICENSE and package.json files, the notices besi
   assert.equal(w.own.license, 'unknown', 'a text that is not MIT is not called MIT')
   // a development run never offers the notices, even with a file of that name in its folder
   assert.deepEqual(licensesView({ packaged: false, desktopDir: DESKTOP_DIR, installDir: root, versions: VERSIONS }).notices, { available: false })
+})
+
+// 1.1 W2: PDF.js is inside unpdf; the version the licenses page and the notices give is the one unpdf really carries, and
+// the license text that goes into the notices is the Apache License 2.0 in full
+test('PDF.js inside unpdf: the version unpdf carries, and the Apache-2.0 text the notices copy', async () => {
+  const { getResolvedPDFJS } = await import('unpdf')
+  const { BUNDLED } = await import('../src/main/licenses.mjs')
+  const { BUNDLED_INSIDE } = await import('../../installer/notices.mjs')
+  const real = (await getResolvedPDFJS()).version
+  assert.deepEqual(BUNDLED.map(b => [b.name, b.version, b.license, b.inside]), [['PDF.js', real, 'Apache-2.0', 'unpdf']])
+  assert.deepEqual(BUNDLED_INSIDE.map(b => [b.pkg, b.name, b.license]), [['unpdf', `PDF.js ${real}`, 'Apache-2.0']])
+  const text = readFileSync(join(DESKTOP_DIR, ...BUNDLED_INSIDE[0].file), 'utf8')
+  assert.match(text, new RegExp(`^PDF\.js ${real.replace(/\./g, '\.')} `))
+  assert.match(text, /Apache License\s+Version 2\.0, January 2004/)
+  assert.match(text, /9\. Accepting Warranty or Additional Liability/)
+  assert.match(text.trimEnd(), /END OF TERMS AND CONDITIONS$/)
 })

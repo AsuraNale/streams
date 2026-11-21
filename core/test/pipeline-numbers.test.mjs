@@ -63,7 +63,7 @@ test('homeNumbers: every number recomputed from the ledger / fetch_log / rounds.
   assert.equal(homeNumbers(dir).caught, 3);
   const empty = makeLibrary('numbers-empty');
   // redesign R2 (F27): `later` (items put aside with 稍后处理) is a field of its own, 0 here
-  assert.deepEqual(homeNumbers(empty), { caught: 0, inbox: 0, inboxOldestDays: 0, later: 0, kept: 0, dismissed: 0, lastRound: null, noOutputStreak: 0, sources: { level: 'quiet', counts: { ok: 0, empty: 0, gap: 0, failed: 0, blocked: 0, paused: 0 }, lines: ['no-fetch-yet'] } });
+  assert.deepEqual(homeNumbers(empty), { caught: 0, inbox: 0, inboxOldestDays: 0, later: 0, kept: 0, dismissed: 0, lastRound: null, noOutputStreak: 0, sources: { level: 'quiet', counts: { ok: 0, empty: 0, gap: 0, failed: 0, blocked: 0, login: 0, paused: 0 }, lines: ['no-fetch-yet'] } });
 });
 
 test('roundLog / listRounds: the structured record of each round, newest first; counts agree with the ledger events of that round', async (t) => {

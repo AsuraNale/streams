@@ -536,6 +536,115 @@ const MUTANTS = [
     edits: [['src/actions/startup.mjs', '    loadDefinition({ path: definitionPath });\n', '']],
     test: ['test/actions-w1.test.mjs', '--test-name-pattern=^startup · a broken definition'],
   },
+  // 1.1 W2 (读网页和原文): each rule of reading a page, keeping its original and a source's state, taken out one at a time
+  {
+    id: 'w2-no-render',
+    what: 'B5: the second way (rendering) is never tried',
+    edits: [['src/read/read-page.mjs', "    if (typeof render !== 'function') return fail(refused ? 'blocked' : 'no-article', out.message);", "    return fail(refused ? 'blocked' : 'no-article', out.message);"]],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^tiers · a page whose text a script writes|^tiers · a page that refuses'],
+  },
+  {
+    id: 'w2-403-reported-at-once',
+    what: 'B8: a refusal (403) is reported without trying the other way first',
+    edits: [['src/read/read-page.mjs', '      if (REFUSED_HTTP.includes(d.status)) {\n', "      if (REFUSED_HTTP.includes(d.status)) {\n        return fail('blocked', `HTTP ${d.status}: refused`);\n"]],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^states · six states|^tiers · a page that refuses'],
+  },
+  {
+    id: 'w2-no-human-check',
+    what: 'a human check is not recognised (it would be rendered, and read as a page)',
+    edits: [['src/read/detect.mjs', "  return CHECK.test(String(html ?? ''));", '  return false;']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^guards · a human check'],
+  },
+  {
+    id: 'w2-no-sign-in',
+    what: 'B8: a sign-in page is not recognised',
+    edits: [['src/read/detect.mjs', "export function signInPage(html, url = '') {\n", "export function signInPage(html, url = '') {\n  return false;\n"]],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^guards · a sign-in page'],
+  },
+  {
+    id: 'w2-no-error-page',
+    what: 'an error page once rendered is taken as read (pretest 2: weibo.com\'s 404 page)',
+    edits: [['src/read/detect.mjs', '  return ERROR_TITLE.test(t) || ERROR_TITLE.test(body.slice(0, 200));', '  return false;']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^dead · an error page'],
+  },
+  {
+    id: 'w2-404-not-dead',
+    what: '404 / 410 are not a dead address (they become a temporary failure)',
+    edits: [['src/read/read-page.mjs', '      if (DEAD_HTTP.includes(d.status)) return fail(\'dead\', `HTTP ${d.status}`);\n', '']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^dead · 404 and 410'],
+  },
+  {
+    id: 'w2-own-ua-gone',
+    what: 'the direct way does not say it is Streams (no User-Agent of its own)',
+    edits: [['src/read/read-page.mjs', "headers: { 'user-agent': userAgent, accept: ACCEPT_PAGE }", 'headers: { accept: ACCEPT_PAGE }']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^guards · both ways read as Streams'],
+  },
+  {
+    id: 'w2-no-gap-per-site',
+    what: 'one site is read again at once (no wait between two reads)',
+    edits: [['src/read/read-page.mjs', '      if (wait > 0) await sleep(wait);\n', '']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^guards · both ways read as Streams'],
+  },
+  {
+    id: 'w2-empty-original-written',
+    what: 'B6: an unreadable page gets an (empty) original file',
+    edits: [['src/read/original.mjs', "  if (typeof text !== 'string' || text.trim() === '') throw new StreamsError('bad-argument', 'an original needs text: a page that could not be read has no original (originalFor)');\n", "  if (typeof text !== 'string') text = '';\n"]],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^original · a page that could not be read'],
+  },
+  {
+    id: 'w2-dismissed-at-once',
+    what: 'B7: a dismissed item loses its original at once, not after 7 days',
+    edits: [['src/read/original.mjs', 't - since >= RETAIN_DISMISSED_DAYS * DAY_MS', 't - since >= 0']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^retention'],
+  },
+  {
+    id: 'w2-kept-cleaned',
+    what: 'B7: a kept item\'s original is cleaned too',
+    edits: [['src/read/original.mjs', "    if (s?.stage === 'dismissed' && ", "    if ((s?.stage === 'dismissed' || s?.stage === 'kept') && "]],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^retention'],
+  },
+  {
+    id: 'w2-originals-scanned',
+    what: 'an imported library takes _originals for a folder of the user\'s own',
+    edits: [['src/library/scan.mjs', "const NOT_SCANNED = new Set(['_pipeline', '_originals', '_card', '_state']);", "const NOT_SCANNED = new Set(['_pipeline', '_card', '_state']);"]],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^original · an imported library'],
+  },
+  {
+    id: 'w2-login-as-blocked',
+    what: 'B8: a sign-in page is reported as 访问被拒, not 要登录',
+    edits: [['src/read/source-state.mjs', "check: 'blocked', login: 'login',", "check: 'blocked', login: 'blocked',"]],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^states · six states'],
+  },
+  {
+    id: 'w2-401-not-login',
+    what: 'B8: a 401 is a wrong address again (as in 1.0)',
+    edits: [['src/fetch/states.mjs', '  if (s === 401) return out(\'login\', `HTTP ${s}: the site asks to sign in`);\n', '']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^states · a feed address'],
+  },
+  {
+    id: 'w2-feed-sign-in-gap',
+    what: 'B8: a sign-in page where a feed should be is a wrong address again',
+    edits: [['src/fetch/sources/rss.mjs', "  if (!parsed.ok && signInPage(doc.text, url)) return result('login', 'the address shows a sign-in page, not a feed', { http: doc.http });\n", '']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^states · a feed address'],
+  },
+  {
+    id: 'w2-no-contact-trim',
+    what: 'the contact details at the top of an article stay in its original',
+    edits: [['src/read/extract.mjs', '  while (start < Math.min(LEAD_MAX, ps.length - 1) && isContact(ps[start])) start++;\n', '']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^extract · contact details'],
+  },
+  {
+    id: 'w2-no-closing-trim',
+    what: 'short closing lines that only point elsewhere (a newsletter, customer service) stay in the original',
+    edits: [['src/read/extract.mjs', '  while (end - 1 > start && Array.from(ps[end - 1]).length <= TAIL_SHORT && (TAIL_ANY.test(ps[end - 1]) || isContact(ps[end - 1]))) end--;\n', '']],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^extract · short closing lines'],
+  },
+  {
+    id: 'w2-whole-page-original',
+    what: 'a page that only gives its whole text (a menu) is taken for an original',
+    edits: [['src/read/extract.mjs', "  return { text: '', paragraphs: [], way: 'none', title };", "  return { text: stripHtml(raw), paragraphs: [stripHtml(raw)], way: 'paragraphs', title };"]],
+    test: ['test/read-w2.test.mjs', '--test-name-pattern=^extract · a page that only gives its whole text'],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

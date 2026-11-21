@@ -110,7 +110,7 @@ test('sourceHealth: failed / gap warn, blocked is its own level with its own act
   let h = sourceHealth(lastRoundStatus(dir));
   assert.equal(h.level, 'warning');
   assert.deepEqual(h.lines, ['failed 1/2 b hint=retry-next-round', 'ok 1/2 a hint=none']);
-  assert.deepEqual(h.counts, { ok: 1, empty: 0, gap: 0, failed: 1, blocked: 0, paused: 0 });
+  assert.deepEqual(h.counts, { ok: 1, empty: 0, gap: 0, failed: 1, blocked: 0, login: 0, paused: 0 });
   // round 2: b gap (HN 400 lands here) -> still a warning, with the other action
   line(dir, '2026-11-02T00:00:00.000Z', 'a', 'ok', { count: 1, new: 1 });
   line(dir, '2026-11-02T00:00:00.000Z', 'b', 'gap', { http: 400 });
@@ -151,7 +151,7 @@ test('sourceHealth: failed / gap warn, blocked is its own level with its own act
 });
 
 test('sourceHealth: nothing on record is quiet with no-fetch-yet; only paused sources is quiet too', () => {
-  assert.deepEqual(sourceHealth({}), { level: 'quiet', counts: { ok: 0, empty: 0, gap: 0, failed: 0, blocked: 0, paused: 0 }, lines: ['no-fetch-yet'] });
+  assert.deepEqual(sourceHealth({}), { level: 'quiet', counts: { ok: 0, empty: 0, gap: 0, failed: 0, blocked: 0, login: 0, paused: 0 }, lines: ['no-fetch-yet'] });
   const h = sourceHealth({ z: { status: 'paused', consecutive: 1 } });
   assert.equal(h.level, 'quiet');
   assert.deepEqual(h.lines, ['paused 1 z hint=none']);

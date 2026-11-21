@@ -9,6 +9,8 @@
 //                                                        hint: retry-next-round
 //   blocked  refused: 403 / 451 / 407, or a proxy refusing the connection
 //                                                        hint: blocked-remove-source
+//   login    1.1 W2 (B8): 401, or a sign-in page where a feed should be
+//                                                        hint: login-not-supported
 //
 // "No new content" (empty) and "did not fetch" (gap / failed / blocked) are never merged.
 // classifyHttp(status, headers, { now }) -> { state, http, message, retryAfterSeconds? }
@@ -16,7 +18,8 @@
 // hintOf(state)                          -> hint code (throws on an unknown state)
 import { StreamsError } from '../errors.mjs';
 
-export const FETCH_STATES = ['ok', 'empty', 'gap', 'failed', 'blocked'];
+// 1.1 W2 (B8): the sixth, the site asks to sign in (read/source-state.mjs); this version only says it cannot read it
+export const FETCH_STATES = ['ok', 'empty', 'gap', 'failed', 'blocked', 'login'];
 // A paused source is logged too, with this sixth value; it is not one of the five fetch states.
 export const PAUSED_STATE = 'paused';
 export const LOG_STATES = [...FETCH_STATES, PAUSED_STATE];
@@ -27,6 +30,7 @@ export const HINTS = {
   gap: 'fix-address-or-remove',
   failed: 'retry-next-round',
   blocked: 'blocked-remove-source',
+  login: 'login-not-supported',
   paused: 'none',
 };
 
@@ -47,6 +51,8 @@ export function classifyHttp(status, headers = {}, { now } = {}) {
     ? { state, http: s, message }
     : { state, http: s, message: `${message} (Retry-After: ${retryAfterSeconds}s)`, retryAfterSeconds });
   if (s >= 200 && s < 300) return out('ok', `HTTP ${s}`);
+  // 1.1 W2 (B8): the site asks to sign in — 要登录, which this version only reports
+  if (s === 401) return out('login', `HTTP ${s}: the site asks to sign in`);
   if (BLOCKED_HTTP.includes(s)) return out('blocked', `HTTP ${s}: refused`);
   if (FAILED_HTTP_4XX.includes(s)) return out('failed', `HTTP ${s}: slow down, retry next run`);
   if (s >= 500) return out('failed', `HTTP ${s}: server-side, retry next run`);

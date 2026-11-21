@@ -71,6 +71,9 @@
   --st-fetch-failed-bg: var(--pick);
   --st-fetch-blocked: var(--ink11);
   --st-fetch-blocked-bg: var(--pick);
+  /* 1.1 W2 (B8): 要登录 looks as 访问被拒 does (the same kind of problem: another source, not a retry) */
+  --st-fetch-login: var(--ink11);
+  --st-fetch-login-bg: var(--pick);
 }
 /* 单线黑白's --pick is the inverted ink (its selected things turn black); the screens not rebuilt yet put their text on
    --st-selected, so there it is the template's light well */
@@ -80,4 +83,5 @@
   --st-fetch-gap-bg: var(--well);
   --st-fetch-failed-bg: var(--well);
   --st-fetch-blocked-bg: var(--well);
+  --st-fetch-login-bg: var(--well);
 }

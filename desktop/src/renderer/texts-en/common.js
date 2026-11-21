@@ -40,6 +40,8 @@ export const FETCH_STATES = Object.freeze({
   gap: 'Invalid address',
   failed: 'Temporary failure',
   blocked: 'Access denied',
+  // 1.1 W2 (B8)
+  login: 'Sign-in required',
 })
 
 export const CONNECTIONS = Object.freeze({
@@ -108,6 +110,7 @@ export const FETCH_HINTS = Object.freeze({
   'fix-address-or-remove': 'This address is not valid, so retrying will not help. Change the address or remove this source.',
   'retry-next-round': 'Streams tries again on the next run. There is no need to change the address.',
   'blocked-remove-source': 'This site does not allow programs to read it, so retrying will not help. Use a different source.',
+  'login-not-supported': 'This site needs you to sign in before it can be read, and this version of Streams cannot read such sites. Use a different source.',
 })
 
 export const SOURCE_STATES = Object.freeze({

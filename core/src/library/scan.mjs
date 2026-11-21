@@ -21,7 +21,8 @@ import { validateNote } from './validate.mjs';
 export const NOTES_DIR = 'notes';
 // what an imported folder's streams.json says: the folder itself holds the notes
 export const IMPORTED_NOTES_DIR = '.';
-const NOT_SCANNED = new Set(['_pipeline']);
+// 1.1 W2: Streams' own folders of 1.1 (the originals; W4's library card and W5's state) are not the user's folders either
+const NOT_SCANNED = new Set(['_pipeline', '_originals', '_card', '_state']);
 
 /** The note folder of a library whose streams.json is `config` (null / no key = the default). */
 export function notesDirOf(libraryDir, config) {

@@ -1567,6 +1567,47 @@ const MUTANTS = [
     edits: [['src/main/startup-check.mjs', '  if (r.ok) return null\n', '  return null\n']],
     test: ['test/startup-check.test.mjs', '--test-name-pattern=startupProblem|a broken definition file'],
   },
+  // 1.1 W2 (B5): the hidden render window and the PDF reader
+  {
+    id: 'w2-render-shown',
+    what: 'the render window is shown',
+    edits: [['src/main/render.mjs', 'new BrowserWindow({ show: false, width: 1280', 'new BrowserWindow({ show: true, width: 1280']],
+    test: ['test/render.test.mjs', '--test-name-pattern=a real hidden window|it stops at a human check'],
+  },
+  {
+    id: 'w2-render-not-streams',
+    what: 'the render window does not read as Streams (Electron\'s own User-Agent)',
+    edits: [
+      ['src/main/render.mjs', '    if (userAgent) s.setUserAgent(userAgent)\n', ''],
+      ['src/main/render.mjs', 'wc.loadURL(url, userAgent ? { userAgent } : {})', 'wc.loadURL(url, {})'],
+    ],
+    test: ['test/render.test.mjs', '--test-name-pattern=a real hidden window|it stops at a human check'],
+  },
+  {
+    id: 'w2-render-new-window',
+    what: 'a page in the render window may open a new window',
+    edits: [['src/main/render.mjs', "return { action: 'deny' }", "return { action: 'allow' }"]],
+    test: ['test/render.test.mjs', '--test-name-pattern=the render window\'s settings and guards'],
+  },
+  {
+    id: 'w2-render-any-request',
+    what: 'the render session lets every address through (file:, app:)',
+    edits: [['src/main/render.mjs', "const ok = isWebUrl(details.url) || details.url.startsWith('data:') || details.url.startsWith('blob:')", 'const ok = true']],
+    test: ['test/render.test.mjs', '--test-name-pattern=the render window\'s settings and guards'],
+  },
+  {
+    id: 'w2-pdf-pages-run-together',
+    what: 'the PDF reader runs the pages together',
+    edits: [['src/main/pdf-text.mjs', ".filter(Boolean).join('\\n\\n')", ".filter(Boolean).join(' ')"]],
+    test: ['test/render.test.mjs', '--test-name-pattern=the PDF reader'],
+  },
+  {
+    id: 'w2-licences-no-pdfjs',
+    what: 'the licenses page leaves out PDF.js inside unpdf',
+    edits: [['src/main/licenses.mjs', "  Object.freeze({ name: 'PDF.js', version: '6.4.299', license: 'Apache-2.0', inside: 'unpdf' }),\n", '']],
+    // (only this test: the development one reads font sources a mirror does not carry)
+    test: ['test/licenses.test.mjs', '--test-name-pattern=^PDF.js inside unpdf'],
+  },
 ]
 
 function runTest(desktop, test) {

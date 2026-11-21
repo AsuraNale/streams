@@ -5,7 +5,8 @@
  *   own         { license: 'MIT', text }: the packaged app reads its own copy, resources/app/LICENSE (installer/build-installer.mjs
  *               puts the repository's LICENSE there); a development run reads the repository's, beside desktop/
  *   components  [{ name, version, license }]: Electron, Chromium, Node.js (the version from the runtime's process.versions),
- *               Preact, htm and @mozilla/readability (the reading mode's article extraction, v2 package H; the version and
+ *               Preact, htm, @mozilla/readability (the reading mode's article extraction, v2 package H) and unpdf (the PDF
+ *               reader, 1.1 W2), then PDF.js, which unpdf carries inside it (BUNDLED, 1.1 W2) (the version and
  *               the license from their own package.json in the app's node_modules: what ships)
  *               v2 package K2: and the bundled UI font, Noto Sans SC (its version from the font file's own name table, the
  *               license SIL OFL 1.1)
@@ -36,6 +37,13 @@ const PACKAGES = Object.freeze([
   Object.freeze({ name: 'Preact', pkg: 'preact' }),
   Object.freeze({ name: 'htm', pkg: 'htm' }),
   Object.freeze({ name: '@mozilla/readability', pkg: '@mozilla/readability' }),
+  // 1.1 W2: the PDF reader (main process, src/main/pdf-text.mjs)
+  Object.freeze({ name: 'unpdf', pkg: 'unpdf' }),
+])
+// 1.1 W2: what a package carries inside it with a license of its own (unpdf ships PDF.js; its license text is
+// src/main/third-party/PDFJS-LICENSE.txt, which installer/notices.mjs copies into the full notices)
+export const BUNDLED = Object.freeze([
+  Object.freeze({ name: 'PDF.js', version: '6.4.299', license: 'Apache-2.0', inside: 'unpdf' }),
 ])
 
 // v2 package K2: the UI font that ships with the app (styles/fonts.css loads it through app://) and its license text
@@ -97,6 +105,7 @@ export function licensesView({ packaged, desktopDir, installDir, versions = proc
   const components = [
     ...RUNTIME.map(c => ({ name: c.name, version: String(versions[c.version] ?? ''), license: c.license })),
     ...PACKAGES.map(p => { const pkg = pkgOf(p.pkg); return { name: p.name, version: String(pkg.version ?? ''), license: String(pkg.license ?? '') } }),
+    ...BUNDLED.map(b => ({ name: b.name, version: b.version, license: b.license })),
     // v2 package K2: the bundled font, read from the file that ships
     { name: FONT.name, version: fontVersion(readFileSync(join(desktopDir, ...FONT.file))), license: FONT.license },
     // redesign R6a: and the heading font of 研究对话, read the same way

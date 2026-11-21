@@ -13,10 +13,11 @@ const lock = JSON.parse(readFileSync(join(DESKTOP_DIR, 'package-lock.json'), 'ut
 
 // v2 package H: @mozilla/readability, the reading window's 阅读模式 (src/main/reader.mjs; run in a hidden window, not by the page)
 const EXPECTED = {
-  dependencies: { '@mozilla/readability': '0.6.0', htm: '3.1.1', preact: '10.29.8' },
+  // 1.1 W2: unpdf, the PDF reader (src/main/pdf-text.mjs; main process)
+  dependencies: { '@mozilla/readability': '0.6.0', htm: '3.1.1', preact: '10.29.8', unpdf: '1.9.1' },
   devDependencies: { 'playwright-core': '1.63.0' },
 }
-const LICENCES = { '@mozilla/readability': 'Apache-2.0', htm: 'Apache-2.0', preact: 'MIT', 'playwright-core': 'Apache-2.0' }
+const LICENCES = { '@mozilla/readability': 'Apache-2.0', htm: 'Apache-2.0', preact: 'MIT', 'playwright-core': 'Apache-2.0', unpdf: 'MIT' }
 
 test('package.json pins exactly these dependencies', () => {
   assert.deepEqual(pkg.dependencies, EXPECTED.dependencies)
@@ -26,7 +27,7 @@ test('package.json pins exactly these dependencies', () => {
 test('package-lock.json: every package from registry.npmjs.org with an sha512 integrity and a known licence; nothing linked', () => {
   const entries = Object.entries(lock.packages).filter(([k]) => k.startsWith('node_modules/'))
   const names = entries.map(([k]) => k.slice('node_modules/'.length)).sort()
-  assert.deepEqual(names, ['@mozilla/readability', 'htm', 'playwright-core', 'preact'], 'no other package (none of them has dependencies)')
+  assert.deepEqual(names, ['@mozilla/readability', 'htm', 'playwright-core', 'preact', 'unpdf'], 'no other package (none of them has dependencies)')
   for (const [key, e] of entries) {
     const name = key.slice('node_modules/'.length)
     assert.equal(e.link, undefined, `${name} is not a link`)

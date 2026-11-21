@@ -46,8 +46,14 @@ export { newLibrarySettings, fillNewLibrary, checkNewLibrary } from './library/n
 // 1.1 W1: the definition of objects and actions (core/src/ontology/streams.json), doing actions and their record, the two
 // SOPs (core/src/sop/), and the start-up check (docs/checks/2026-11-20-1.1/contract-draft.md).
 export {
-  loadDefinition, checkDefinition, actionsFor, DEFINITION_PATH, DEFINITION_SCHEMA,
+  // (actionsFor is the suggestions' own name, suggest/act.mjs: the list an agent is given goes out as actionListFor)
+  loadDefinition, checkDefinition, actionsFor as actionListFor, DEFINITION_PATH, DEFINITION_SCHEMA,
   createActionRunner, checkRequest as checkActionRequest, validate as validateActionParams,
   appendActionLog, readActionLog, ACTION_LOG, startupCheck,
   loadSop, renderSop, checkSops, placeholdersOf, SOP_DIR, SOP_NAMES,
 } from './actions/index.mjs';
+export {
+  createPageReader, READ_REASONS, extractOriginal, cleanEdges, humanCheck, signInPage, errorPage,
+  saveOriginal, readOriginal, originalFor, originalId, originalPath, pruneOriginals,
+  ORIGINALS_DIR, ORIGINAL_METHODS, ORIGINAL_MISSING, RETAIN_DISMISSED_DAYS, sourceStateOf,
+} from './read/index.mjs';
