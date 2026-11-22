@@ -1,0 +1,36 @@
+{"ts":"2026-11-10T09:00:00.000Z","ev":"seen","url":"http://127.0.0.1:59625/item/1","source":"letta-blog","title":"Letta 发布 Memory Blocks API：把 agent 记忆拆成可编辑的块","date":"2026-11-21","summary":"summary of item 1"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"seen","url":"http://127.0.0.1:59625/item/2","source":"letta-blog","title":"一篇比较五种 agent 记忆方案的评测","date":"2026-11-20","summary":"summary of item 2"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"seen","url":"http://127.0.0.1:59625/item/3","source":"letta-blog","title":"Our CRM now has AI memory","date":"2026-11-19","summary":"summary of item 3"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"seen","url":"http://127.0.0.1:59625/item/4","source":"letta-blog","title":"MemGPT 作者的一次播客访谈","date":"2026-11-18","summary":"summary of item 4"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"seen","url":"http://127.0.0.1:59625/item/5","source":"letta-blog","title":"MCP 服务器注册表投毒事件复盘","date":"2026-11-17","summary":"summary of item 5"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"seen","url":"http://127.0.0.1:59625/item/6","source":"letta-blog","title":"给 agent 加长期记忆的三种做法","date":"2026-11-16","summary":"summary of item 6"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"seen","url":"http://127.0.0.1:59625/item/7","source":"letta-blog","title":"一年前的旧文被转发：记忆这个词","date":"2026-11-15","summary":"summary of item 7"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/1","node":"relevance","score":0.86,"reason":"直接讲 agent 记忆的实现","quote":"Letta 发布 Memory Blocks API：把 agent 记忆拆成可编辑的块","materials":"meta","cfg":"0b0c6b5d","threshold":0.7,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/2","node":"relevance","score":0.91,"reason":"直接讲 agent 记忆的实现","quote":"一篇比较五种 agent 记忆方案的评测","materials":"meta","cfg":"0b0c6b5d","threshold":0.7,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/3","node":"relevance","score":0.71,"reason":"直接讲 agent 记忆的实现","quote":"Our CRM now has AI memory","materials":"meta","cfg":"0b0c6b5d","threshold":0.7,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/4","node":"relevance","score":0.78,"reason":"直接讲 agent 记忆的实现","quote":"MemGPT 作者的一次播客访谈","materials":"meta","cfg":"0b0c6b5d","threshold":0.7,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/5","node":"relevance","score":0.83,"reason":"直接讲 agent 记忆的实现","quote":"MCP 服务器注册表投毒事件复盘","materials":"meta","cfg":"0b0c6b5d","threshold":0.7,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/6","node":"relevance","score":0.75,"reason":"直接讲 agent 记忆的实现","quote":"给 agent 加长期记忆的三种做法","materials":"meta","cfg":"0b0c6b5d","threshold":0.7,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/7","node":"relevance","score":0.3,"reason":"直接讲 agent 记忆的实现","quote":"一年前的旧文被转发：记忆这个词","materials":"meta","cfg":"0b0c6b5d","threshold":0.7,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/1","node":"substance","score":0.72,"reason":"有具体接口和示例，但没有评测","quote":"Letta 发布 Memory Blocks API：把 agent 记忆拆成可编辑的块","materials":"body","cfg":"b7ebd89d","threshold":0.6,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/1","node":"freshness","value":"new","reason":"有具体接口和示例，但没有评测","cfg":"b7ebd89d","round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/2","node":"substance","score":0.8,"reason":"有具体接口和示例，但没有评测","quote":"一篇比较五种 agent 记忆方案的评测","materials":"body","cfg":"b7ebd89d","threshold":0.6,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/2","node":"freshness","value":"new","reason":"有具体接口和示例，但没有评测","cfg":"b7ebd89d","round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/3","node":"substance","score":0.61,"reason":"有具体接口和示例，但没有评测","quote":"Our CRM now has AI memory","materials":"body","cfg":"b7ebd89d","threshold":0.6,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/3","node":"freshness","value":"new","reason":"有具体接口和示例，但没有评测","cfg":"b7ebd89d","round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/4","node":"substance","score":0.6,"reason":"有具体接口和示例，但没有评测","quote":"MemGPT 作者的一次播客访谈","materials":"body","cfg":"b7ebd89d","threshold":0.6,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/4","node":"freshness","value":"followup","reason":"有具体接口和示例，但没有评测","cfg":"b7ebd89d","round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/5","node":"substance","score":0.77,"reason":"有具体接口和示例，但没有评测","quote":"MCP 服务器注册表投毒事件复盘","materials":"body","cfg":"b7ebd89d","threshold":0.6,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/5","node":"freshness","value":"new","reason":"有具体接口和示例，但没有评测","cfg":"b7ebd89d","round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/6","node":"substance","score":0.66,"reason":"有具体接口和示例，但没有评测","quote":"给 agent 加长期记忆的三种做法","materials":"body","cfg":"b7ebd89d","threshold":0.6,"round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"scored","url":"http://127.0.0.1:59625/item/6","node":"freshness","value":"duplicate","reason":"有具体接口和示例，但没有评测","cfg":"b7ebd89d","round":"r-20261110T090000Z-8f5211"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"inbox","url":"http://127.0.0.1:59625/item/1","round":"r-20261110T090000Z-8f5211","verified":true}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"inbox","url":"http://127.0.0.1:59625/item/2","round":"r-20261110T090000Z-8f5211","verified":true}
+{"ts":"2026-10-24T08:00:00.000Z","ev":"inbox","url":"http://127.0.0.1:59625/item/3","round":"r-20261110T090000Z-8f5211","verified":true}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"inbox","url":"http://127.0.0.1:59625/item/4","round":"r-20261110T090000Z-8f5211","verified":false}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"inbox","url":"http://127.0.0.1:59625/item/5","round":"r-20261110T090000Z-8f5211","verified":true}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"inbox","url":"http://127.0.0.1:59625/item/6","round":"r-20261110T090000Z-8f5211","verified":true}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"kept","url":"http://127.0.0.1:59625/item/2","id":"2026-11-20-一篇比较五种-agent-记忆方案的评测"}
+{"ts":"2026-11-10T09:00:00.000Z","ev":"dismissed","url":"http://127.0.0.1:59625/item/1","reason":"营销稿，没有技术内容"}
+{"ts":"2026-11-11T09:00:00.000Z","ev":"kept","url":"http://127.0.0.1:59625/item/5","id":"2026-11-17-mcp-服务器注册表投毒事件复盘"}
+{"ts":"2026-11-11T09:00:00.000Z","ev":"kept","url":"http://127.0.0.1:59625/item/4","id":"2026-11-18-memgpt-作者的一次播客访谈"}

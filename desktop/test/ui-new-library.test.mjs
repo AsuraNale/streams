@@ -218,20 +218,8 @@ const r = worldSession({
   env: world => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'new-libs'), STREAMS_START_SCREEN: 'new-library' }),
 })
 
-test('R4a-3 创建并运行: the library made and its first run goes (创建库后的首次运行; rounds.jsonl gets it); the app on its 待看', async () => {
-  await formReady(r.page)
-  await r.page.fill('[data-field="name"]', '电池')
-  await r.page.fill('[data-field="brief"]', '追踪动力电池装车量。')
-  await addSource(r.page, URLS.ok)
-  await r.page.click('[data-action="create-run"] button')
-  await ready(r.page, 'inbox')
-  const dir = join(r.world.root, 'new-libs', '电池')
-  const deadline = Date.now() + 60_000
-  while (core.listRounds(dir, 5).length === 0 && Date.now() < deadline) await r.page.waitForTimeout(200)
-  assert.equal(core.listRounds(dir, 5).length, 1, 'its first run ran')
-  assert.equal((await r.page.evaluate(() => window.streams.getAppState())).data.library.path, dir)
-  assert.deepEqual(r.errors, [])
-})
+// 1.1 W7a: 「创建并运行」 is gone with 1.0's round — a library this form makes has no card, so it is not updated (needs-build);
+// the form itself has no way in since W6b and goes in W7b.
 
 // ---- F: a folder of the user's .md files ----
 let vault = null

@@ -220,6 +220,17 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     // 1.1 W5: a library with a library card is updated by it (services/update.mjs), not by v1.0's scoring pipeline
     const u = update()
     if (u && u.applies(dir)) return startUpdateIn({ id: libraryId, path: dir }, u)
+    // 1.1 W7a (E3): a library without a card was made by the last version — it is not updated the old way any more (only one
+    // kind of library in 1.1, 维护者 11-20); it is brought over by the build conversation first (重新查一遍来源). Nothing is fetched
+    // and no model is called. (v1.0's round below goes in W7b.)
+    if (u) {
+      const problem = { code: 'needs-build' }
+      lastProblems = [problem]
+      failedAt = { libraryId, dir, at: now().toISOString(), problems: [problem] }
+      log(`pipeline: ${libraryId ?? dir} has no library card: not updated (needs the build conversation)`)
+      progress({ roundId: `n-${randomBytes(3).toString('hex')}`, libraryId, cap: null, phase: 'done', counts: null, calls: 0, done: true, result: null, problems: [problem] })
+      return { started: false, problems: [problem] }
+    }
     const a = connections.active()
     const roundId = `d-${now().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}-${randomBytes(3).toString('hex')}`
     const cap = pipelineConfig(dir).cap
@@ -273,13 +284,15 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     void (async () => {
       let result = null
       try {
-        result = await u.run(dir, a, { round: roundId })
+        result = await u.run(dir, a, { round: roundId, signal: controller.signal })
       } catch (err) {
         log(`pipeline: update ${roundId} failed: ${String(err?.stack ?? err)}`)
         result = { started: false, status: 'internal', problems: [{ code: 'internal', detail: String(err?.message ?? err).slice(0, 300) }] }
       }
       last = { roundId, libraryId, result }
       lastProblems = result.started ? null : result.problems ?? null
+      // 1.1 W7a: as after a round of 1.0, this library's 稍后处理 items are back in 待看 once its update has run
+      if (result.started) { try { const r = releaseLater(dir); if (r.released) log(`pipeline: update ${roundId}: ${r.released} item(s) back from later`) } catch (err) { log(`pipeline: update ${roundId}: the later items not given back: ${String(err?.message ?? err)}`) } }
       if (result.status === 'login-expired') updateProblems.set(dir, { code: 'login-expired', at: now().toISOString() })
       else if (result.started) updateProblems.delete(dir)
       running = null

@@ -177,3 +177,23 @@ test('不建了 after the connection changed to one that cannot build: the waiti
   assert.equal(pending(), 0, 'taken back without the connection')
   assert.equal(again.getBuild(), null)
 })
+
+// 1.1 W7a (E3, B3): a library without a card (made by the last version) is brought over: the card goes into its own folder
+test('bringing a library of the last version over: mode convert; the folder the same until 确认; then its card there, the same library', async () => {
+  const s = await setup({ replies: [card(CARD(), [A, B])] })
+  // a library of the last version: registered, current, no card
+  s.w.dialogAnswers.push(join(s.w.root, 'old'))
+  await s.library.handlers.chooseLibraryFolder()
+  await s.library.handlers.useChosenFolder('old')
+  const old = s.library.current()
+  const tree = () => readdirSync(old.path, { recursive: true, withFileTypes: true }).filter(d => d.isFile()).map(d => join(d.parentPath ?? d.path, d.name)).sort().map(p => `${p}:${hash(p)}`).join('|')
+  const before = tree()
+  const v = await s.b.startBuild('原来的要求：跟踪电车', old.libraryId)
+  assert.deepEqual([v.mode, v.library.id, v.turns.at(-1).canConfirm], ['convert', old.libraryId, true])
+  assert.equal(tree(), before, 'not confirmed: the folder the same')
+  const r = await s.b.confirmBuild()
+  assert.equal(r.libraryId, old.libraryId)
+  assert.equal(readCard(old.path).name, '测试电车库')
+  assert.equal(s.library.current().path, old.path)
+  assert.equal(existsSync(join(s.w.root, 'libs')), false, 'no new library folder')
+})

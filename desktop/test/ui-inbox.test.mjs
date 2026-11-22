@@ -26,6 +26,7 @@ import { PANEL } from '../src/renderer/texts/panel.js'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { closeApp, launch, ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
+import { quietCard } from './support/card-world.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { tempDir } from '../scripts/lib/temp.mjs'
 import { makeWorld } from '../scripts/lib/world.mjs'
@@ -299,6 +300,8 @@ describe('稍后处理 after a restart, and back in 待看 when this library\'s 
     let app = null
     try {
       const world = await makeWorld({ root, kind: 'seeded' })
+      // 1.1 W7a: a library has a card now, or it is not updated at all (needs-build): its run is an update
+      core.writeCard(world.library, quietCard())
       const env = { STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'inbox' }
       let started = await launch(world, { env, settings })
       app = started.app

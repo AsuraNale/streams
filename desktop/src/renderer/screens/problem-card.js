@@ -8,7 +8,7 @@
 //   only in 设置 → 关于 → ▾ 高级 now, not on this banner.
 // A retry that starts the run, or another connection chosen, takes the banner away (getHome().problem is null again).
 // Test hooks: [data-part="problem"][data-code][data-connection-code][data-kind], .today-problem__text, [data-part="problem-fix"],
-// [data-action=login|retry|change] (at most three), [data-part="login-failed"].
+// [data-action=login|retry|change|rebuild] (at most three), [data-part="login-failed"].
 import { html, useState } from '../lib/html.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
@@ -33,7 +33,7 @@ export function problemWords(problem) {
     return { text, fix, login }
   }
   // redesign R5b (O9): a problem the page has no words for is said as a connection problem, never by its code
-  const text = Object.hasOwn(P, problem.code) && typeof P[problem.code] === 'string' ? P[problem.code] : fmt(P.connection.other, { name, n })
+  const text = Object.hasOwn(P, problem.code) && typeof P[problem.code] === 'string' ? fmt(P[problem.code], { cc: CONNECTIONS.names['claude-code'] }) : fmt(P.connection.other, { name, n })
   return { text, fix: null, login: false }
 }
 
@@ -49,7 +49,7 @@ function Btn({ name, primary, quiet, disabled, onClick, children }) {
  * @param {() => void} p.onChange - to 设置
  * @param {() => Promise<void>} p.onRedetect - detect the connections again (before the retry after a sign-in)
  */
-export function ProblemCard({ problem, busy, onRetry, onChange, onRedetect }) {
+export function ProblemCard({ problem, busy, onRetry, onChange, onRedetect, onRebuild }) {
   const [loginFailed, setLoginFailed] = useState(false)
   if (!problem) return null
   const { text, fix, login } = problemWords(problem)
@@ -59,7 +59,12 @@ export function ProblemCard({ problem, busy, onRetry, onChange, onRedetect }) {
     try { const r = await call('openLogin', kind); if (!r?.ok) setLoginFailed(true) } catch { setLoginFailed(true) }
   }
   const signedIn = async () => { await onRedetect?.(); onRetry() }
-  const buttons = login
+  // 1.1 W7a: a library of the last version — the way to 「重新查一遍来源」 (来源与要求); a connection that can only ask — 设置
+  const buttons = problem.code === 'needs-build'
+    ? [html`<${Btn} key="rebuild" name="rebuild" primary disabled=${busy} onClick=${onRebuild}>${P.rebuild}<//>`]
+    : problem.code === 'update-not-supported'
+      ? [html`<${Btn} key="change" name="change" primary disabled=${busy} onClick=${onChange}>${P.change}<//>`]
+      : login
     ? [
         html`<${Btn} key="login" name="login" primary disabled=${busy} onClick=${openLogin}>${P.login}<//>`,
         html`<${Btn} key="retry" name="retry" disabled=${busy} onClick=${signedIn}>${P.loginAgain}<//>`,

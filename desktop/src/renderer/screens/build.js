@@ -13,7 +13,9 @@
 //   the last card while the core can confirm it (whole, every address read: A2); 不建了 ends the conversation, nothing made (B3).
 //   A turn that failed (the connection): why, 再试一次 (and 去设置 for a sign-in). A build that stopped: why, 重新开始.
 // Words: texts/build.js BUILD (and texts/agent.js AGENT for the speaker, texts/common.js CONNECTIONS / DAY).
-// Test hooks: main[data-screen="build"][data-state][data-mode=create|edit][data-view=start|talk]; [data-field=opener|message|other];
+// 1.1 W7a: params.from (with params.brief) — a library of the last version brought over: data-mode convert, its own words
+// (texts/build.js BUILD.convert), the opening words made from its old requirements and sources (getSources).
+// Test hooks: main[data-screen="build"][data-state][data-mode=create|edit|convert][data-view=start|talk]; [data-field=opener|message|other];
 // [data-action=cancel-build] (params.back: the screen 新建库 was opened from, as v1.0's form had it);
 // [data-part=start-why|from-old|going|progress-chip|conversation|thinking|not-shown|trouble|stopped|how-it-works];
 // [data-row=you|agent][data-kind]; [data-part=question][data-n][data-kind] with [data-option=<text>][aria-pressed];
@@ -121,6 +123,7 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
   const card = turn.card ?? {}
   const d = card.definition ?? {}
   const edit = mode === 'edit'
+  const cv = mode === 'convert' ? T.convert : null
   const decide = list(card.decide)
   const can = last && turn.canConfirm === true
   const problems = problemWords(turn.problems)
@@ -132,9 +135,9 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
     [T.lines.decide, decide.length ? decide.map((x, i) => `${i + 1}. ${entryWords('decide', x)}`).join(SEP) : T.decideNone],
     [T.lines.rest, fmt(T.rest, { sources: list(card.sources).length, unreadable: list(card.unreadable).length, samples: list(card.samples).length })],
   ]
-  return html`<article class="confirmation st-proposal st-build-card" data-part="build-card" data-can-confirm=${String(can)} data-last=${String(last)} aria-label=${fmt(edit ? T.editCardTitle : T.cardTitle, { name: card.name ?? '' })}>
+  return html`<article class="confirmation st-proposal st-build-card" data-part="build-card" data-can-confirm=${String(can)} data-last=${String(last)} aria-label=${fmt(cv?.cardTitle ?? (edit ? T.editCardTitle : T.cardTitle), { name: card.name ?? '' })}>
     <div class="confirm-top">
-      <div class="confirm-title"><${TIcon} name="file" /><div><h2 data-part="title">${fmt(edit ? T.editCardTitle : T.cardTitle, { name: card.name ?? '' })}</h2><small data-part="from">${edit ? T.editFrom : T.cardFrom}</small></div></div>
+      <div class="confirm-title"><${TIcon} name="file" /><div><h2 data-part="title">${fmt(cv?.cardTitle ?? (edit ? T.editCardTitle : T.cardTitle), { name: card.name ?? '' })}</h2><small data-part="from">${cv?.from ?? (edit ? T.editFrom : T.cardFrom)}</small></div></div>
       ${turn.urls ? html`<span class="confirm-number" data-part="urls">${fmt(T.urlsRead, { n: turn.urls })}</span>` : null}
     </div>
     <div class="card-body">
@@ -146,12 +149,12 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
       ${problems.length ? html`<p class="progress-alert" role="status" data-part="card-problems">${fmt(T.notWhole, { what: problems.join(PUNCT.semi) })}</p>` : null}
     </div>
     <div class="confirm-footer">
-      <span class="muted" data-part="note">${edit ? fmt(T.editFolder, { name: libraryName ?? card.name ?? '' }) : fmt(T.folder, { name: card.name ?? '' })}</span>
+      <span class="muted" data-part="note">${cv ? fmt(cv.folder, { name: libraryName ?? card.name ?? '' }) : edit ? fmt(T.editFolder, { name: libraryName ?? card.name ?? '' }) : fmt(T.folder, { name: card.name ?? '' })}</span>
       <div class="row">
         ${acting ? html`<span class="limit-note" role="status">${T.confirming}</span>` : null}
-        ${last ? html`<${Btn} name="drop" kind="quiet" disabled=${busy || acting} onClick=${onDrop}>${edit ? T.dropEdit : T.drop}<//>` : null}
+        ${last ? html`<${Btn} name="drop" kind="quiet" disabled=${busy || acting} onClick=${onDrop}>${cv?.drop ?? (edit ? T.dropEdit : T.drop)}<//>` : null}
         <${Btn} name="full" onClick=${() => setFull(f => !f)}>${full ? T.fold : T.full}<//>
-        ${can ? html`<span class="st-act" data-action="confirm"><button type="button" class="btn primary" disabled=${busy || acting} onClick=${onConfirm}><${TIcon} name="approve" fallback="check" /> ${edit ? T.confirmEdit : T.confirm}</button></span>` : null}
+        ${can ? html`<span class="st-act" data-action="confirm"><button type="button" class="btn primary" disabled=${busy || acting} onClick=${onConfirm}><${TIcon} name="approve" fallback="check" /> ${cv?.confirm ?? (edit ? T.confirmEdit : T.confirm)}</button></span>` : null}
       </div>
     </div>
   </article>`
@@ -183,8 +186,23 @@ function Question({ q, open, busy, onAnswer }) {
 function StartPage({ params, onStarted }) {
   const { navigate, appState, libraries } = useApp()
   const edit = typeof params.edit === 'string' ? params.edit : null
-  const libraryName = edit ? (libraries?.data ?? []).find(l => l.id === edit)?.name ?? '' : null
+  // 1.1 W7a: params.from — a library of the last version, brought over (its card goes into its own folder)
+  const from = !edit && typeof params.from === 'string' ? params.from : null
+  const cv = from ? T.convert : null
+  const target = edit ?? from
+  const libraryName = target ? (libraries?.data ?? []).find(l => l.id === target)?.name ?? '' : null
   const [text, setText] = useState(typeof params.opener === 'string' ? params.opener : typeof params.send === 'string' ? params.send : '')
+  // bringing one over: the opening words carry its old requirements and sources (getSources: the current library is that one)
+  useEffect(() => {
+    if (!from || typeof params.opener === 'string') return
+    let live = true
+    call('getSources').then(v => {
+      if (!live) return
+      const names = (v?.sources ?? []).map(s => [s.name, s.url ?? s.query].filter(Boolean).join(SEP)).join(PUNCT.list)
+      setText(t => t || fmt(cv.opener, { name: libraryName ?? '', brief: params.brief || cv.none, sources: names || cv.none }))
+    }, () => {})
+    return () => { live = false }
+  }, [from])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const active = appState?.data?.activeConnection ?? null
@@ -196,7 +214,7 @@ function StartPage({ params, onStarted }) {
     setBusy(true)
     setError(null)
     try {
-      onStarted(await call('startBuild', t, edit ?? undefined))
+      onStarted(await call('startBuild', t, target ?? undefined))
     } catch (err) {
       if (err?.code === 'bad_arguments' && /going/.test(String(err?.message ?? ''))) setError('going')
       else setError('failed')
@@ -212,17 +230,17 @@ function StartPage({ params, onStarted }) {
   }, [can])
   const chip = html`<span class="status-chip" data-part="connection-chip"><span class="dot"></span> ${active ? fmt(T.chip, { name: names[active] ?? active }) : T.chipNone}</span>`
   return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="build" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
-    <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': edit ? 'edit' : 'create', 'data-view': 'start' }}>
-      <${TopBar} title=${edit ? T.editTitle : T.title} subtitle=${edit ? T.editSubtitle : T.subtitle} titleTag="h1" titleId="build-title" actions=${chip} />
+    <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': edit ? 'edit' : from ? 'convert' : 'create', 'data-view': 'start' }}>
+      <${TopBar} title=${cv?.title ?? (edit ? T.editTitle : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.editSubtitle : T.subtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
       <div class="st-main__body">
         <section class="new-content st-build-start" data-part="build-start">
-          <span class="eyebrow">${edit ? T.editEyebrow : T.eyebrow}</span>
-          <h2>${edit ? fmt(T.editHeading, { name: libraryName }) : T.heading}</h2>
-          ${typeof params.from === 'string' && !edit ? html`<p class="progress-alert" data-part="from-old">${T.fromOld}</p>` : null}
-          <label class="field"><span>${edit ? T.editLabel : T.label}</span>
+          <span class="eyebrow">${cv?.eyebrow ?? (edit ? T.editEyebrow : T.eyebrow)}</span>
+          <h2>${cv ? fmt(cv.heading, { name: libraryName }) : edit ? fmt(T.editHeading, { name: libraryName }) : T.heading}</h2>
+          ${cv ? html`<p class="progress-alert" data-part="from-old">${cv.note}</p>` : null}
+          <label class="field"><span>${cv?.label ?? (edit ? T.editLabel : T.label)}</span>
             <textarea data-field="opener" rows="4" maxlength=${OPENER_MAX} placeholder=${edit ? T.editPlaceholder : T.placeholder} value=${text} disabled=${busy}
               onInput=${e => setText(e.currentTarget.value)}></textarea></label>
-          <p class="limit-note st-build-lead">${edit ? T.editLead : T.lead}</p>
+          <p class="limit-note st-build-lead">${cv ? cv.subtitle : edit ? T.editLead : T.lead}</p>
           ${can ? null : html`<div class="progress-alert" role="alert" data-part="start-why">
             <span>${fmt(T.needClaude, { name: names['claude-code'], current: active ? names[active] ?? active : T.chipNone })}</span>
             <span class="st-act" data-action="go-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></div>`}
@@ -250,6 +268,7 @@ function Talk({ view, onView }) {
   const [note, setNote] = useState(null)
   const listRef = useRef(null)
   const edit = view.mode === 'edit'
+  const cv = view.mode === 'convert' ? T.convert : null
   const libraryName = view.library?.name ?? (libraries?.data ?? []).find(l => l.id === view.library?.id)?.name ?? null
   const working = busy || view.busy
   const turns = view.turns ?? []
@@ -288,7 +307,7 @@ function Talk({ view, onView }) {
   }
 
   const asked = view.asked ?? 0
-  const chipText = waiting ? (edit ? T.editWaiting : T.cardWaiting) : fmt(T.progress, { n: Math.max(asked, 1) })
+  const chipText = waiting ? (cv?.waiting ?? (edit ? T.editWaiting : T.cardWaiting)) : fmt(T.progress, { n: Math.max(asked, 1) })
   const chip = html`<span class="status-chip" data-part="progress-chip" data-asked=${asked} data-waiting=${String(waiting)}><span class="dot"></span> ${chipText}</span>`
   const trouble = view.trouble?.code ?? null
   const troubleWords = trouble && Object.hasOwn(T.trouble, trouble) ? T.trouble[trouble] : T.trouble.failed
@@ -298,11 +317,11 @@ function Talk({ view, onView }) {
 
   return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="build" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
     <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': view.mode, 'data-view': 'talk' }}>
-      <${TopBar} title=${edit ? T.editTitle : T.title} subtitle=${edit ? T.editSubtitle : T.talkSubtitle} titleTag="h1" titleId="build-title" actions=${chip} />
+      <${TopBar} title=${cv?.title ?? (edit ? T.editTitle : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.editSubtitle : T.talkSubtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
       <div class="st-chat">
         <div class="st-main__body thread-scroll" ref=${listRef}>
           <div class="thread" data-part="conversation">
-            <div class="date-line" data-part="date-line">${fmt(edit ? T.editDateLine : T.dateLine, { day: today })}</div>
+            <div class="date-line" data-part="date-line">${fmt(cv?.dateLine ?? (edit ? T.editDateLine : T.dateLine), { day: today })}</div>
             ${turns.map((t, i) => {
               if (t.role === 'you') return html`<div key=${i} class="user-message" data-row="you">${t.text}</div>`
               return html`<div key=${i} class="assistant-message" data-row="agent" data-kind=${t.kind}>

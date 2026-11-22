@@ -273,7 +273,10 @@ app.whenReady().then(() => {
   if (broken) {
     log(`startup: the core's own files are not sound, not starting: ${broken.problems.map(p => `${p.code} ${p.message}`).join(' | ')}`)
     if (!HIDDEN) dialog.showErrorBox(broken.title, broken.body)
-    app.exit(1)
+    // exit a moment later: an exit this early (helper processes still starting) sometimes crashed Electron itself — exit code
+    // 0xC0000005 instead of 1 in full test runs (11-21, 11-22), with app.exit and process.exit alike. The log line above is
+    // written already; nothing else is started (the return below), and the window is never made.
+    setTimeout(() => app.exit(1), 500)
     return
   }
   // the theme's native side before the window is made (its background is read in createWindow, the page's in protocol.mjs)

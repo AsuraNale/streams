@@ -34,6 +34,10 @@ export const TODAY = Object.freeze({
     'not-writable': '库文件夹无法写入，本次运行未开始。请检查该文件夹是否为只读，或被其他程序占用。',
     index: '索引无法读取，本次运行未开始。请在「来源与要求 → 高级设置 → 库文件夹」中重建索引后重试。',
     config: '库的设置文件无法读取，本次运行未开始。',
+    // 1.1 W7a: a library made by the last version is not updated the old way any more; a connection that can only ask
+    'needs-build': '这座库是上一版建的，不再按原来的方式更新，本次运行未开始。要继续更新，先到「来源与要求」点「重新查一遍来源」，确认新的建库卡。笔记、资料库和问库照常。',
+    'update-not-supported': '当前连接这一版只能问库，本次更新未开始。建库和更新要用「{cc}」，到设置里换一个连接。',
+    rebuild: '重新查一遍来源',
     // the buttons (at most three): login · login again and retry · change the connection; otherwise retry · change (redesign R4b:
     // 复制诊断信息 is only in 设置 → 关于 → 高级)
     login: '前往登录',

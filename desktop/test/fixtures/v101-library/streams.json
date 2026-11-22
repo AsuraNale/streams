@@ -1,0 +1,95 @@
+{
+  "name": "v101-library",
+  "topics": [
+    {
+      "name": "agent 记忆"
+    },
+    {
+      "name": "MCP 生态"
+    },
+    {
+      "name": "评测"
+    }
+  ],
+  "sources": [
+    {
+      "name": "letta-blog",
+      "kind": "rss",
+      "url": "http://127.0.0.1:59626/feed",
+      "topic": "agent 记忆",
+      "max_results": 50
+    },
+    {
+      "name": "mcp-news",
+      "kind": "rss",
+      "url": "http://127.0.0.1:59626/feed",
+      "topic": "MCP 生态",
+      "max_results": 50
+    }
+  ],
+  "pipeline": {
+    "cap": 120,
+    "callGapMs": 0,
+    "maxVerifyRounds": 2,
+    "bodyMaxChars": 6000,
+    "cacheDays": 7,
+    "maxAgeDays": 7,
+    "language": "zh-CN",
+    "nodes": [
+      {
+        "id": "fetch",
+        "kind": "fixed"
+      },
+      {
+        "id": "dedup",
+        "kind": "script"
+      },
+      {
+        "id": "relevance",
+        "kind": "gate",
+        "threshold": 0.7,
+        "material": "meta",
+        "requirement": "判断这条资料和这个库的主题有多相关，给 0 到 1 的分数。\n1. 看实质，不看关键词：它是不是真的在讲这个库关心的东西，还是只是提到了相关的词。只提到词的，分数要低。\n2. 拿不准就打低分（不超过 0.5）：漏掉一条还能捞回来，放进来一条不相关的会占用注意力。「可能有点意思」是 0.4，不是 0.7。\n3. 离题的再热也低：再热门、写得再好，不是这个库的角度就不超过 0.3。\n4. 标题会骗人，先说清它是什么：理由里先说明它实际是什么（一个工具、一篇论文、一条新闻、一篇吐槽……）；说不清是什么，就是拿不准。\n5. 数字照抄，不夸大：理由里提到的数字必须是材料里的原数，不估算、不取整放大。",
+        "output": {
+          "relevance": "score",
+          "reason": "text",
+          "quote": "text"
+        },
+        "checklist": []
+      },
+      {
+        "id": "substance",
+        "kind": "gate",
+        "threshold": 0.6,
+        "material": "body",
+        "requirement": "判断这条资料的实质：它是否包含新的方法、数据、接口或事件，而不只是提到关键词。拿不准就打低分。\n对比下面「库里已有的相关条目」，判断新鲜度：全新（new）/ 已有条目的后续进展（followup）/ 同一件事的重复报道（duplicate）。\n后续进展不算重复：阶段、事件日期或数字有一样不同的，就是后续进展，不是重复。\n数字照抄，不夸大：理由里提到的数字必须是材料里的原数。",
+        "output": {
+          "substance": "score",
+          "freshness": "enum:new|followup|duplicate",
+          "reason": "text",
+          "quote": "text"
+        },
+        "checklist": []
+      },
+      {
+        "id": "summary",
+        "kind": "summary",
+        "requirement": "为这条资料写摘要，给一个人快速判断要不要收藏。\n「这是什么」用一句话说清它实际是什么（一个工具、一篇论文、一次发布……）和它为什么值得看。\n三行要点，每行一句，只写材料里有的内容。\n数字照抄：材料里的数字原样写，不估算、不取整放大；一个数字带的状态词（目标 / 预计 / 已完成 / 已批准）要一起带上，不要把计划写成结果。材料没说清的写「材料未说明」，不往好处猜。",
+        "output": {
+          "what": "text",
+          "points": "list:3",
+          "quote": "text"
+        },
+        "checklist": []
+      },
+      {
+        "id": "decide",
+        "kind": "fixed"
+      },
+      {
+        "id": "store",
+        "kind": "fixed"
+      }
+    ]
+  }
+}

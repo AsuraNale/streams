@@ -37,9 +37,9 @@ export function createLibraryUpdateService({ readPages, readLinks = () => create
       if (!UPDATE_KINDS.includes(active.kind)) return { code: 'update-not-supported', connection: active.kind }
       return null
     },
-    /** One update of the library at `dir` on the active connection. */
-    async run(dir, active, { round } = {}) {
-      const r = await runUpdate(dir, { connector: session(active), judge: active.connector, readPage: readPages().read, readLinks: readLinks().read, now, round })
+    /** One update of the library at `dir` on the active connection (1.1 W7a: `signal` — 停止). */
+    async run(dir, active, { round, signal = null } = {}) {
+      const r = await runUpdate(dir, { connector: session(active), judge: active.connector, readPage: readPages().read, readLinks: readLinks().read, now, round, signal })
       log(`update: ${round ?? '-'} of ${dir}: ${r.status}${r.record ? ` · sources ${r.record.counts.read} · new ${r.record.counts.newLinks} · inbox ${r.record.counts.inbox} · calls ${r.record.calls ?? 0}` : ''}`)
       return r
     },

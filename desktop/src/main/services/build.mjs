@@ -12,12 +12,14 @@
  *     there already); once made it is registered and becomes the current library (services/library.mjs adopt).
  *
  *   getBuild()                       → the view (below) or null
- *   startBuild(opener, libraryId?)   → the view after the agent's first turn; with libraryId: a change of that library's card
+ *   startBuild(opener, libraryId?)   → the view after the agent's first turn; with libraryId: a change of that library's card,
+ *                                      or (1.1 W7a) for a library without one (made by the last version) bringing it over:
+ *                                      the card is convert_library and goes into that library's own folder on 确认
  *   replyBuild(answer)               → the view after the next turn; answer: a string, or { picked: [option], other }
  *   retryBuild()                     → the turn that failed (the connection), sent again
  *   confirmBuild()                   → { done: true, libraryId } — the library made (or its card changed)
  *   dropBuild()                      → null — 不建了 / 不改了
- * The view: { mode: 'create' | 'edit', library: { id, name } | null, status: 'talking' | 'stopped', opener, asked, busy,
+ * The view: { mode: 'create' | 'edit' | 'convert', library: { id, name } | null, status: 'talking' | 'stopped', opener, asked, busy,
  *   stopped: notice | null, trouble: { code } | null, turns: [{ role: 'you', text } | { role: 'agent', kind, say, question?,
  *   card?, before?, changes?, urls?, canConfirm?, problems?, notice? }] } (changes: [{ key, before, after }], core cardChanges) — the agent's turns as createBuild gave them, its notes to itself
  *   left out. Each change sends `build-changed { phase }` (started · done · ended).
@@ -157,8 +159,8 @@ export function createBuildService({ appDataDir, library, connections, emit, log
     const last = [...turns].reverse().find(t => t.role === 'agent' && t.kind === 'card')
     if (last && !s.pendingId) last.canConfirm = false
     return {
-      mode: s.edit ? 'edit' : 'create',
-      library: s.edit ? { id: s.edit.library, name: library.find(s.edit.library)?.name ?? null } : null,
+      mode: s.edit ? 'edit' : s.convert ? 'convert' : 'create',
+      library: s.edit || s.convert ? { id: (s.edit ?? s.convert).library, name: library.find((s.edit ?? s.convert).library)?.name ?? null } : null,
       status: saved.stopped ? 'stopped' : 'talking',
       opener: s.opener,
       asked: s.asked.length,
@@ -208,13 +210,14 @@ export function createBuildService({ appDataDir, library, connections, emit, log
       if (!text || text.length > OPENER_MAX) throw new BridgeError('bad_arguments', 'what to follow')
       const active = activeOrRefuse()
       let edit = null
+      let convert = null
       if (libraryId !== undefined && libraryId !== null) {
         const card = readCard(dirOfLibrary(libraryId))
-        if (!card) throw new BridgeError('bad_arguments', 'that library has no card')
-        edit = { library: libraryId, card }
+        if (card) edit = { library: libraryId, card }
+        else convert = { library: libraryId }
       }
       if (saved) end('stopped')
-      build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit })
+      build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert })
       saved = { v: 1, core: build.state(), stopped: null, trouble: null, retry: null }
       return turn('start', text)
     },
@@ -241,16 +244,17 @@ export function createBuildService({ appDataDir, library, connections, emit, log
         throw new BridgeError('bad_arguments', `not done: ${out.status}`)
       }
       const path = b.state().libraryDir
-      const edit = saved.core.edit
+      const edit = saved.core.edit ?? saved.core.convert ?? null
       let libraryId
       if (edit) {
+        // a card changed, or a library of the last version brought over: the same library, its folder and registration
         libraryId = edit.library
         emit('library-changed', library.current())
       } else {
         const lib = library.adopt(path, { name: b.state().card?.name })
         libraryId = lib?.libraryId ?? null
       }
-      log(`build: ${edit ? 'card changed' : 'library made'}: ${path}`)
+      log(`build: ${saved.core.convert ? 'library brought over' : edit ? 'card changed' : 'library made'}: ${path}`)
       end('built')
       return { done: true, libraryId }
     },

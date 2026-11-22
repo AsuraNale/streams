@@ -1,0 +1,2 @@
+{"ts":"2026-11-10T09:00:00.000Z","round":"r-20261110T090000Z-8f5211","source":"letta-blog","kind":"rss","status":"ok","hint":"none","http":200,"count":7,"new":7,"message":"7 item(s)"}
+{"ts":"2026-11-10T09:00:00.000Z","round":"r-20261110T090000Z-8f5211","source":"mcp-news","kind":"rss","status":"failed","hint":"retry-next-round","count":0,"new":0,"message":"network: TypeError: fetch failed <- Error [ECONNREFUSED]: connect ECONNREFUSED 127.0.0.1:59626"}

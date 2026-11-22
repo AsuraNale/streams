@@ -21,6 +21,7 @@ import { APP } from '../src/main/texts/app.js'
 import { APP as APP_EN } from '../src/main/texts-en/app.js'
 import { createTray } from '../src/main/tray.mjs'
 import { worldSession } from './support/seed.mjs'
+import { quietCard } from './support/card-world.mjs'
 import { startHoldingFeed } from './support/queue-world.mjs'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
@@ -30,7 +31,8 @@ const s = worldSession({
   kind: 'seeded',
   waitFor: 'inbox',
   settings: { connections: { active: 'claude-code' }, panel: { open: true, tab: 'progress' } },
-  prepare: async () => { feed = await startHoldingFeed({ holdMs: 15_000 }); return () => feed.close() },
+  // 1.1 W7a: a library without a card is not updated (needs-build); with one, 立即运行 is an update (the development stand-in)
+  prepare: async world => { core.writeCard(world.library, quietCard()); feed = await startHoldingFeed({ holdMs: 15_000 }); return () => feed.close() },
   env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake' }),
 })
 after(() => feed?.release())
@@ -63,17 +65,18 @@ test('立即运行: the run starts at once — no dialog; the button is the stat
   // it ran: a second round on disk, and the button back to 「立即运行」
   for (const end = Date.now() + POLL.timeout; Date.now() < end && !(rounds().length === 2 && rounds()[0].finishedAt); await s.page.waitForTimeout(150));
   assert.equal(rounds().length, 2, 'a second round on disk')
-  assert.deepEqual(rounds()[0].fetch.map(f => f.status), ['failed', 'failed'], 'both dead sources failed: nothing left this machine')
+  assert.equal(rounds()[0].kind, 'update', 'an update of the card (1.1), not a round of 1.0')
   await runState('idle')
   assert.equal(await s.page.evaluate(() => window.__dialogs), 0, 'no dialog at any point')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="problem"]')), null, 'no 「not started」 card after a run that started')
-  // redesign R2: the panel's last run is the funnel, its round id on [data-part="last-run"] itself (was the R1 part's [data-part="round"])
-  await s.page.waitForFunction(id => document.querySelector('[data-part="right-panel"] [data-part="last-run"]')?.dataset.round === id, rounds()[0].id, POLL)
 })
 
 test('运行中 · 停止: a run caught while it runs (a held feed); the click stops it and the button is 「立即运行」 again', async () => {
-  core.addSource(s.world.library, { name: 'held', kind: 'rss', topic: core.listTopics?.(s.world.library)?.[0]?.name ?? 'agent 记忆', url: feed.url('held') })
+  // the card's one source is the feed that holds its answer: the update is caught reading it (1.1 W7a: 停止 stops an update)
+  core.writeCard(s.world.library, { ...quietCard(), sources: [{ name: 'held', url: feed.url('held'), status: '读得到' }] })
   const n = rounds().length
+  // its own watch, so it runs on its own too (--test-name-pattern, the mutants)
+  await watchDialogs()
   await s.page.click('[data-part="run-button"] button')
   await runState('running')
   const b = await button()
@@ -85,6 +88,7 @@ test('运行中 · 停止: a run caught while it runs (a held feed); the click s
   await runState('idle')
   for (const end = Date.now() + POLL.timeout; Date.now() < end && !(rounds().length === n + 1 && rounds()[0].finishedAt); await s.page.waitForTimeout(150));
   assert.equal(rounds().length, n + 1)
+  assert.equal(rounds()[0].status, 'cancelled', 'the update says it was stopped')
   const state = (await s.page.evaluate(() => window.streams.getRoundState())).data
   assert.equal(state.running, false)
   assert.ok(readFileSync(join(s.world.appData, 'logs', 'main.log'), 'utf8').includes('cancel asked'), 'cancelRound was called')

@@ -181,6 +181,7 @@ function BuildWaiting({ view, turn }) {
   const [acting, setActing] = useState(false)
   const [failed, setFailed] = useState(false)
   const edit = view.mode === 'edit'
+  const cv = view.mode === 'convert' ? BUILD.convert : null
   const card = turn.card ?? {}
   const sources = Array.isArray(card.sources) ? card.sources.length : 0
   const act = async fn => {
@@ -191,14 +192,14 @@ function BuildWaiting({ view, turn }) {
   }
   return html`<article class="confirmation st-rp-decide" data-part="build-waiting" data-mode=${view.mode} data-size="compact">
     <div class="card-body">
-      <span class="eyebrow" data-part="from">${edit ? BUILD.panelEditEyebrow : BUILD.panelEyebrow}</span>
-      <h3 data-part="sentence">${fmt(edit ? BUILD.editCardTitle : BUILD.cardTitle, { name: card.name ?? '' })}</h3>
+      <span class="eyebrow" data-part="from">${cv?.panelEyebrow ?? (edit ? BUILD.panelEditEyebrow : BUILD.panelEyebrow)}</span>
+      <h3 data-part="sentence">${fmt(cv?.cardTitle ?? (edit ? BUILD.editCardTitle : BUILD.cardTitle), { name: card.name ?? '' })}</h3>
       <p class="muted" data-part="evidence">${fmt(BUILD.panelLine, { urls: turn.urls ?? 0, sources })}</p>
     </div>
     <div class="confirm-footer" data-busy=${String(acting)}><div class="row">
-      <span class="st-act" data-action="drop"><button type="button" class="btn quiet" disabled=${acting || view.busy} onClick=${() => act(async () => { await call('dropBuild'); app?.build?.set?.(null) })}>${edit ? BUILD.dropEdit : BUILD.drop}</button></span>
+      <span class="st-act" data-action="drop"><button type="button" class="btn quiet" disabled=${acting || view.busy} onClick=${() => act(async () => { await call('dropBuild'); app?.build?.set?.(null) })}>${cv?.drop ?? (edit ? BUILD.dropEdit : BUILD.drop)}</button></span>
       <span class="st-act" data-action="full"><button type="button" class="btn" onClick=${() => app?.navigate?.('build')}>${BUILD.full}</button></span>
-      <span class="st-act" data-action="confirm"><button type="button" class="btn primary" disabled=${acting || view.busy} onClick=${() => act(() => confirmAndOpen(app))}><${TIcon} name="approve" fallback="check" /> ${edit ? BUILD.confirmEdit : BUILD.confirm}</button></span>
+      <span class="st-act" data-action="confirm"><button type="button" class="btn primary" disabled=${acting || view.busy} onClick=${() => act(() => confirmAndOpen(app))}><${TIcon} name="approve" fallback="check" /> ${cv?.confirm ?? (edit ? BUILD.confirmEdit : BUILD.confirm)}</button></span>
     </div></div>
     ${failed ? html`<p class="limit-note" role="alert" data-part="call-failed">${BUILD.failedCall}</p>` : null}
   </article>`

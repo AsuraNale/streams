@@ -41,8 +41,11 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 export async function runUpdate(libraryDir, {
   connector, judge, readPage, readLinks, definition = loadDefinition(), budget = UPDATE_BUDGET, sopDir, now = () => new Date(), round,
-  pendingDir = join(tmpdir(), 'streams-update-pending'),
+  pendingDir = join(tmpdir(), 'streams-update-pending'), signal = null,
 } = {}) {
+  // 1.1 W7a: 停止 (signal aborted) — no more sources or pages are read; what was kept stays, the sources not read stay for the
+  // next update, the originals kept are carried to it; no agent run starts. The record says 'cancelled'.
+  const stopped = () => signal?.aborted === true;
   const startedAt = now().toISOString();
   const id = round ?? `u-${startedAt.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}-${randomBytes(3).toString('hex')}`;
   const card = readCard(libraryDir);
@@ -64,6 +67,7 @@ export async function runUpdate(libraryDir, {
   const unfinished = order.slice(budget.sources);
   const fresh = []; // { url, source }
   for (const src of toRead) {
+    if (stopped()) break;
     const r = await readLinks(src);
     counts.read += 1;
     const prev = state.sources[src];
@@ -85,7 +89,7 @@ export async function runUpdate(libraryDir, {
     e.seen = e.seen.filter((l) => l !== f.url);
   }
   counts.newLinks = take.length;
-  state.unfinished = unfinished;
+  state.unfinished = [...toRead.slice(counts.read), ...unfinished];
 
   // ---- the new pages' originals (W2): kept before the agent sees them, so nothing fetched is lost whatever it answers
   const originals = [];
@@ -94,7 +98,12 @@ export async function runUpdate(libraryDir, {
     const o = readOriginal(libraryDir, c.id ?? originalId(c.url));
     if (o) originals.push({ url: c.url, title: o.title, text: o.text, method: o.method, source: c.source ?? '' });
   }
-  for (const f of take) {
+  for (const [i, f] of take.entries()) {
+    if (stopped()) {
+      // the links not fetched are not marked seen: the next update finds them again
+      for (const g of take.slice(i)) { const e = state.sources[g.source]; e.seen = e.seen.filter((l) => l !== g.url); }
+      break;
+    }
     const r = await readPage(f.url);
     // 1.1 W6a (A5): what the source's pages came to, for the 「原文」 column of 来源与要求 (sources.mjs sourceRows)
     const e = state.sources[f.source];
@@ -121,6 +130,10 @@ export async function runUpdate(libraryDir, {
     return { started: true, status, record, ...(extra.problems ? { problems: extra.problems } : {}) };
   };
 
+  if (stopped()) {
+    state.carry = originals.map((o) => ({ url: o.url, id: originalId(o.url), source: o.source }));
+    return finish('cancelled', { calls: 0 });
+  }
   if (originals.length === 0 && missing.length === 0 && !sweepDue) {
     // B9: nothing new — no model call; the state is written only if a source's own answer changed (writeState compares)
     return finish('nothing-new', { calls: 0 });

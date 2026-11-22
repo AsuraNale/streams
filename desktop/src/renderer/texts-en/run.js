@@ -52,6 +52,7 @@ export const RUN = Object.freeze({
     dedup: 'Remove duplicates',
     gate: '{name} scoring',
     summary: 'Summary and verification',
+    update: 'Read the sources, keep the originals; the update agent picks and summarizes by the card',
   }),
   stepsDone: '{done} / {total} steps done',
   stepNow: 'Current step: {step}',

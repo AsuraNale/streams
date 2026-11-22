@@ -18,10 +18,14 @@ import { RUN as T } from '../texts/run.js'
 const nodeName = id => (Object.hasOwn(NODE_NAMES, id) ? NODE_NAMES[id] : id)
 /** The six steps of a run, in order (the default pipeline's two gates). */
 export const RUN_STEPS = Object.freeze(['self-check', 'fetch', 'dedup', 'gate:relevance', 'gate:substance', 'summary'])
+/** 1.1 W7a: an update of a library by its card is one agent run — one step, not 1.0's six. */
+export const UPDATE_STEPS = Object.freeze(['update'])
+const stepsOf = phase => (phase === 'update' ? UPDATE_STEPS : RUN_STEPS)
 
 /** Where a run is: the index of its current step (a phase of round-progress); dedup is done once a gate has begun. */
 export function stepOf(phase) {
   if (typeof phase !== 'string' || phase === '') return 0
+  if (phase === 'update') return 0
   const at = RUN_STEPS.indexOf(phase)
   if (at >= 0) return at
   if (phase.startsWith('gate:')) return 3
@@ -38,6 +42,7 @@ function stepWords(id, sources) {
 export function RunSteps({ running, sources }) {
   const [stopping, setStopping] = useState(false)
   const now = stepOf(running?.phase)
+  const steps = stepsOf(running?.phase)
   const stop = async () => {
     setStopping(true)
     try { await call('cancelRound') } catch { setStopping(false) }
@@ -47,9 +52,9 @@ export function RunSteps({ running, sources }) {
     <div class="section-label"><span>${head}</span>
       <span class="st-act" data-action="cancel-run"><button type="button" disabled=${stopping} onClick=${stop}><${TIcon} name="stop" /> ${stopping ? T.stopping : T.stop}</button></span>
     </div>
-    <div class="progress-line" aria-hidden="true">${RUN_STEPS.map((id, i) => html`<span key=${id} class=${i < now ? 'done' : i === now ? 'now' : ''}></span>`)}</div>
-    <div class="progress-caption"><span>${fmt(T.stepsDone, { done: Math.min(now, RUN_STEPS.length), total: RUN_STEPS.length })}</span><span>${fmt(T.stepNow, { step: stepWords(RUN_STEPS[Math.min(now, RUN_STEPS.length - 1)], sources) })}</span></div>
-    ${RUN_STEPS.map((id, i) => html`<div key=${id} class="step-line" data-step=${id} data-done=${String(i < now)} data-now=${String(i === now)}>
+    <div class="progress-line" aria-hidden="true">${steps.map((id, i) => html`<span key=${id} class=${i < now ? 'done' : i === now ? 'now' : ''}></span>`)}</div>
+    <div class="progress-caption"><span>${fmt(T.stepsDone, { done: Math.min(now, steps.length), total: steps.length })}</span><span>${fmt(T.stepNow, { step: stepWords(steps[Math.min(now, steps.length - 1)], sources) })}</span></div>
+    ${steps.map((id, i) => html`<div key=${id} class="step-line" data-step=${id} data-done=${String(i < now)} data-now=${String(i === now)}>
       <${TIcon} name=${i < now ? 'check' : 'clock'} /><span>${stepWords(id, sources)}</span>
     </div>`)}
   </section>`

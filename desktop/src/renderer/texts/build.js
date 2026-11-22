@@ -23,7 +23,6 @@ export const BUILD = Object.freeze({
   editPlaceholder: '例如：电池那块加上国轩高科',
   lead: '不用自己找来源、不用懂订阅地址。主 Agent 最多问 5 个问题，多数可以直接点选；写好的建库卡上每个网址都是它这次打开过的。你点「确认」之前，什么都不会建。',
   editLead: '主 Agent 按你说的改这张卡，改动要查的会去查。改好的卡显示改前改后；你点「确认」之前，这座库的建库卡不变。',
-  fromOld: '上一版建的库，要求原样放在这里了，可以改了再开始。确认以后会建一座新库，原来的库照旧留着。',
   cost: '建库大约要几分钟，用的是「{name}」的额度',
   start: '开始',
   cancel: '取消',
@@ -44,7 +43,26 @@ export const BUILD = Object.freeze({
     usage: '建库和更新要用「{name}」。用「{codex}」或「{api}」时，这一版只能问库。',
   }),
 
-  // the conversation
+  // 1.1 W7a: bringing a library of the last version over (来源与要求's 「重新查一遍来源」)
+  convert: Object.freeze({
+    title: '重新查一遍来源',
+    subtitle: '把上一版建的库换成按建库卡更新。主 Agent 重新查一遍来源、写一张建库卡，你确认了才换；笔记、资料库和待看不动。',
+    eyebrow: '换库 / BRING IT OVER',
+    heading: '把「{name}」换过来',
+    label: '用一两句话说这座库追踪什么',
+    note: '这座库是上一版建的。原来的追踪要求和来源放在下面了，可以改了再开始；确认以后，建库卡写进这座库自己的文件夹，笔记、资料库和待看不动。',
+    opener: '这座库是上一版建的，名字是「{name}」。原来的追踪要求：{brief}。原来的来源：{sources}。请重新查一遍来源，写一张建库卡。',
+    none: '（没有写）',
+    dateLine: '重新查一遍来源 · {day}',
+    waiting: '换库的建库卡等你确认',
+    cardTitle: '换库的建库卡：{name}',
+    from: '主 Agent 写 · 你确认了才换',
+    folder: '建库卡写进「{name}」自己的文件夹；笔记和待看不动',
+    drop: '不换了',
+    confirm: '确认，换过来',
+    panelEyebrow: '主 Agent 写 · 换库',
+  }),
+
   dateLine: '新建库 · {day}',
   editDateLine: '改建库卡 · {day}',
   questionN: '第 {n} 题',

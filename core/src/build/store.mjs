@@ -5,9 +5,11 @@
 //
 // writeCard(libraryDir, card, { now, language }) -> { json, md, history }
 // readCard(libraryDir) -> the card | null
-// cardHandlers({ libraryDirFor, dirOfLibrary, language }) -> { create_library, edit_card } for createActionRunner
+// cardHandlers({ libraryDirFor, dirOfLibrary, language }) -> { create_library, convert_library, edit_card } for createActionRunner
 //   create_library({ card }): libraryDirFor(card) is where the library goes (the desktop decides: a new empty folder);
 //     createLibrary there, the card written, the state started. -> { object: { type: 'library', id: dir }, before: null, after }
+//   convert_library({ library, card }) (1.1 W7a): a library of the last version gets the card in its own folder; refused when
+//     it has one already. Nothing else of the library is touched.
 //   edit_card({ library, card, why }): dirOfLibrary(library) is its folder; the card before and after are recorded.
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -66,6 +68,18 @@ export function cardHandlers({ libraryDirFor, dirOfLibrary, language = 'zh-CN' }
       writeCard(dir, card, { now, language });
       startState(dir, now);
       return { object: { type: 'library', id: dir }, before: null, after: { name: card.name } };
+    },
+    // 1.1 W7a (E3): a library made by the last version (no card) gets the card in its own folder — its notes, its 待看 and
+    // its registration as they are; one that has a card already is refused (that is edit_card)
+    async convert_library(params, { now }) {
+      const check = checkCard(params.card, { reads: null });
+      if (!check.ok) throw new StreamsError('bad-card', `the card is not whole: ${check.problems.map((p) => p.code).join(', ')}`);
+      if (typeof dirOfLibrary !== 'function') throw new StreamsError('bad-argument', 'convert_library needs dirOfLibrary(library)');
+      const dir = dirOfLibrary(params.library);
+      if (readCard(dir)) throw new StreamsError('has-card', 'this library has a card already');
+      writeCard(dir, params.card, { now, language });
+      startState(dir, now);
+      return { object: { type: 'library', id: dir }, before: null, after: { name: params.card.name } };
     },
     async edit_card(params, { now }) {
       const check = checkCard(params.card, { reads: null });

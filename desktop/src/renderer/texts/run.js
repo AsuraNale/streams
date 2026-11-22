@@ -61,6 +61,8 @@ export const RUN = Object.freeze({
     dedup: '去重',
     gate: '{name}评分',
     summary: '摘要与核验',
+    // 1.1 W7a: an update is one step — the agent reads, keeps the originals, picks and writes by the card
+    update: '读来源、存原文，更新 Agent 按建库卡挑选、写摘要',
   }),
   stepsDone: '{done} / {total} 个环节已完成',
   stepNow: '当前步骤：{step}',

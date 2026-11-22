@@ -17,6 +17,9 @@ import { basename, join } from 'node:path'
 import { APP } from '../src/main/texts/app.js'
 import { NOTIFY } from '../src/main/texts/notify.js'
 import { worldSession } from './support/seed.mjs'
+import { pathToFileURL } from 'node:url'
+import { REPO_DIR } from '../scripts/lib/paths.mjs'
+import { quietCard } from './support/card-world.mjs'
 // v2 package F: 今日 is the 概览 tab of a library's page now (screen 'overview', the screen the app opens on); this file's assertions are v1.0's, only the screen id changed
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -88,37 +91,36 @@ async function serveTwo() {
 const missed = worldSession({
   kind: 'seeded',
   waitFor: 'inbox',
-  settings: { schedule: { enabled: true, time: '08:30' } },
+  settings: { schedule: { enabled: true, time: '08:30' }, connections: { active: 'claude-code' } },
+  // 1.1 W7a: a library has a card, or it is not updated (needs-build): the catch-up is an update of its card. Its one source
+  // is read for the first time, so its links are only noted (W5): nothing new, and no notification
   prepare: async world => {
     feed = await serveTwo()
-    const file = join(world.library, 'streams.json')
-    const cfg = JSON.parse(readFileSync(file, 'utf8'))
-    cfg.sources = [{ name: 'catch-up-feed', kind: 'rss', url: feed.url, topic: world.seed.topics[0], max_results: 50 }]
-    writeFileSync(file, `${JSON.stringify(cfg, null, 2)}\n`)
+    const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
+    core.writeCard(world.library, { ...quietCard(), sources: [{ name: 'catch-up-feed', url: feed.url, status: '读得到' }] })
     return () => feed.close()
   },
-  env: world => ({ ...env(world), STREAMS_DEV_NOW: localIso(1, '09:00') }),
+  // an update needs a connection (1.0 ran a round without one): the development one, chosen as Claude Code
+  env: world => ({ ...env(world), STREAMS_DEV_NOW: localIso(1, '09:00'), STREAMS_DEV_CONNECTION: 'fake' }),
 })
 
-test('missed: the last round before the last slot → one round at start, one notification; a wake from sleep afterwards starts none', async () => {
+test('missed: the last round before the last slot → one update at start (nothing new the first time: no notification); a wake from sleep afterwards starts none', async () => {
   const seedRound = missed.world.seed.round.id
   // (the app was started in the before hook: the catch-up may be done already)
   await until(() => roundLines(missed.world).length === 2, 'the catch-up round in rounds.jsonl')
   const rounds = roundLines(missed.world)
   assert.equal(rounds[0].id, seedRound, 'the seed\'s round first, then the one the app ran')
   assert.ok(rounds[1].startedAt.startsWith(new Date(Date.parse(localIso(1, '09:00'))).toISOString().slice(0, 13)), `the round ran on the app's clock: ${rounds[1].startedAt}`)
+  assert.equal(rounds[1].kind, 'update', 'an update of the card')
   assert.match(mainLog(missed.world), /schedule: catch-up at start \(last round /)
-  await until(() => notifications(missed.world).length >= 1, 'the notification')
-  const sent = notifications(missed.world)
-  assert.equal(sent.length, 1, 'one notification')
-  // v2 package A: the notification names the library (here the development one: its folder's name)
-  assert.deepEqual([sent[0].kind, sent[0].screen, sent[0].body], ['newItems', 'inbox', NOTIFY.kinds.newItems.replace('{n}', '2').replace('{library}', basename(missed.world.library))])
+  await sleep(1500)
+  assert.equal(notifications(missed.world).length, 0, 'nothing new the first time a source is read: no notification')
   // only one: a wake from sleep looks again and finds nothing owed
   await missed.app.evaluate(({ powerMonitor }) => { powerMonitor.emit('resume') })
   await until(() => mainLog(missed.world).includes('schedule: resume: nothing missed'), 'the look after waking')
   await sleep(2000)
   assert.equal(roundLines(missed.world).length, 2, 'still two rounds')
-  assert.equal(notifications(missed.world).length, 1, 'still one notification')
+  assert.equal(notifications(missed.world).length, 0, 'still none')
   const sched = (await missed.page.evaluate(() => window.streams.getSchedule())).data
   assert.equal(sched.missed, false)
   assert.equal(sched.lastRoundAt, rounds[1].startedAt)

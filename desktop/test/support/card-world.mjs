@@ -98,3 +98,18 @@ export async function seedCardLibrary(dir, site, { longTitle = false } = {}) {
   if (r.status !== 'done') throw new Error(`the seed update did not finish: ${JSON.stringify(r)}`)
   return { items: items.map(i => ({ url: i.url, title: i.title, quotes: quotes[new URL(i.url).pathname] })), missing: site.urls.locked, card, record: r.record }
 }
+
+/**
+ * 1.1 W7a: a whole library card whose one source is an address nothing answers on (127.0.0.1, port 9): written into a library
+ * of 1.0's seed (seedLibrary), it makes that library a 1.1 one — 立即运行 is an update (the development connection's stand-in
+ * agent) that reads nothing, hands in nothing and ends at once — while its 待看 and notes stay as the seed left them.
+ */
+export function quietCard(name = 'test') {
+  return {
+    name,
+    definition: { summary: '一座测试库。', purpose: '测试', scope: '对象：测试；行业：测试；地域：本机；规模：小', exclude: '无', trust: '官方', rhythm: '每天一次', language: '中文', hard: '无' },
+    decide: [], collect: ['新的'], skip: ['旧的'],
+    sources: [{ name: '本机', url: 'http://127.0.0.1:9/list', status: '读得到' }], unreadable: [],
+    pick: ['新的先收'], write: ['写清数字'], samples: [{ title: '样例', url: 'http://127.0.0.1:9/a', date: '2026-11-20' }],
+  }
+}

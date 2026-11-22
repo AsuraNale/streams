@@ -39,7 +39,7 @@ import { ProblemCard } from './problem-card.js'
 
 const R = SHELL.head.run
 // redesign R2: the self-check's problems — the only ones that make the banner
-export const BANNER_CODES = Object.freeze(['connection', 'not-writable', 'index', 'config'])
+export const BANNER_CODES = Object.freeze(['connection', 'not-writable', 'index', 'config', 'needs-build', 'update-not-supported'])
 
 /** The chip while this library runs: 运行中：<当前环节> · 模型调用 n / 上限 m (getQueue's running). */
 function runningChip(running) {
@@ -179,7 +179,7 @@ export function LibraryFrame({ tab, screen = tab, state, label, labelledby, acti
     <div class="workspace lib-page" data-library=${id ?? ''}>
       <${LibraryHead} row=${row} name=${current?.name ?? null} libraryId=${id} actions=${actions} home=${home.data} est=${est.data} onAnswer=${() => home.reload()} />
       <${LibrarySections} current=${tab} badges=${{ inbox: row?.inbox ?? null }} onSelect=${t => navigate(t)} />
-      ${problem ? html`<div class="st-banner"><${ProblemCard} problem=${problem} busy=${busy} onRetry=${retry} onChange=${() => navigate('settings')} onRedetect=${redetect} /></div>` : null}
+      ${problem ? html`<div class="st-banner"><${ProblemCard} problem=${problem} busy=${busy} onRetry=${retry} onChange=${() => navigate('settings')} onRedetect=${redetect} onRebuild=${() => navigate('sources')} /></div>` : null}
       <div class="lib-page__content" ref=${content} onScrollCapture=${remember}>
         <${Main} inner screen=${screen} state=${state} label=${label} labelledby=${labelledby}>${children}<//>
       </div>

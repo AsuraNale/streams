@@ -55,5 +55,17 @@ export async function seedQueue(world, shelf, feed, { sources = 8 } = {}) {
   core.saveLibrarySchedule(ev, { enabled: true, time: '08:30' })
   core.saveLibrarySchedule(fashion, { enabled: true, time: '08:30' })
   core.saveLibrarySchedule(current, { enabled: false, time: '21:00' })
+  // 1.1 W7a: a library without a card is not updated (needs-build), so each of the three has one: its run is an update whose
+  // sources are the same held feed (电动车 and 时尚 are caught reading them; the current one's answers at once)
+  const card = (name, urls) => ({
+    name,
+    definition: { summary: '一座测试库。', purpose: '测试', scope: '对象：测试；行业：测试；地域：本机；规模：小', exclude: '无', trust: '官方', rhythm: '每天一次', language: '中文', hard: '无' },
+    decide: [], collect: ['新的'], skip: ['旧的'],
+    sources: urls.map((url, i) => ({ name: `来源 ${i + 1}`, url, status: '读得到' })), unreadable: [],
+    pick: ['新的先收'], write: ['写清数字'], samples: [{ title: '样例', url: 'http://127.0.0.1:9/a', date: '2026-11-20' }],
+  })
+  core.writeCard(ev, card('电动车', Array.from({ length: sources }, (_, i) => feed.url(`slow-${i + 1}`))))
+  core.writeCard(fashion, card('时尚', [feed.url('fashion')]))
+  core.writeCard(current, card('AI Agent 记忆', ['http://127.0.0.1:9/list']))
   return { now: localAt(1, '09:53'), running: shelf.ids[1], waiting: shelf.ids[2], current: shelf.ids[0] }
 }

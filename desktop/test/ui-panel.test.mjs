@@ -76,9 +76,9 @@ test('the queue at start: 电动车 runs (its catch-up), 时尚 waits at place 2
   assert.deepEqual(view.waiting.map(w => [w.libraryId, w.why]), [[waiting, 'catch-up']])
   await until(([r, w]) => document.querySelector(`[data-library-row="${r}"] [data-library-queue="running"]`) !== null && document.querySelector(`[data-library-row="${w}"] [data-library-queue="queued"]`)?.dataset.position === '2', [running, waiting])
   const line = id => s.page.evaluate(i => document.querySelector(`[data-library-row="${i}"] [data-library-queue]`)?.textContent ?? null, id)
-  // 运行中 · <当前环节> (the step the round is at: 抓取 while its feeds are held)
+  // 运行中 · <当前环节> (1.1 W7a: an update is one step, 更新, while its sources are held)
   assert.ok((await line(running)).startsWith(QUEUE.running), await line(running))
-  await until(([i, t]) => document.querySelector(`[data-library-row="${i}"] [data-library-queue]`)?.textContent === t, [running, fmt(QUEUE.runningPhase, { phase: ROUND_PHASES.fetch })])
+  await until(([i, t]) => document.querySelector(`[data-library-row="${i}"] [data-library-queue]`)?.textContent === t, [running, fmt(QUEUE.runningPhase, { phase: ROUND_PHASES.update })])
   assert.equal(await line(waiting), fmt(QUEUE.queued, { n: 2 }))
   assert.equal(await line(current), null, 'control: the library not in the line has no queue line')
   const card = id => s.page.evaluate(i => document.querySelector(`[data-shelf-card="${i}"] [data-part="queue"]`)?.textContent.trim() ?? null, id)
@@ -121,13 +121,14 @@ test('R2 · the running library (its catch-up): 待看 says 本次运行 · … 
   const steps = await s.page.evaluate(() => { const r = document.querySelector('[data-part="run-steps"]'); return { why: r.dataset.why, head: r.querySelector('.section-label').textContent, steps: [...r.querySelectorAll('[data-step]')].map(e => [e.dataset.step, e.dataset.done, e.dataset.now]), stop: r.querySelector('[data-action="cancel-run"]') !== null } })
   assert.equal(steps.why, 'catch-up')
   assert.ok(steps.head.includes(QUEUE.why['catch-up']) && steps.head.includes('开始') && !steps.head.includes(QUEUE.why.schedule), steps.head)
-  assert.deepEqual(steps.steps.map(x => x[0]), ['self-check', 'fetch', 'dedup', 'gate:relevance', 'gate:substance', 'summary'])
-  assert.deepEqual(steps.steps.filter(x => x[2] === 'true').map(x => x[0]), ['fetch'], 'held on the slow feeds: at 抓取')
-  assert.deepEqual(steps.steps.filter(x => x[1] === 'true').map(x => x[0]), ['self-check'])
+  // 1.1 W7a: an update is one agent run — one step (1.0's six steps are not its own)
+  assert.deepEqual(steps.steps.map(x => x[0]), ['update'])
+  assert.deepEqual(steps.steps.filter(x => x[2] === 'true').map(x => x[0]), ['update'], 'held on the slow sources: updating')
+  assert.deepEqual(steps.steps.filter(x => x[1] === 'true').map(x => x[0]), [])
   assert.equal(steps.stop, true)
   assert.ok(await s.page.evaluate(() => document.querySelector('main [data-part="run-pending"]')?.textContent.includes('本次运行尚未完成')), 'nothing in 待看 yet: 本次运行尚未完成')
   const chip = await s.page.evaluate(() => { const c = document.querySelector('[data-part="running-chip"]'); return { text: c.textContent, calls: c.dataset.calls, cap: c.dataset.cap } })
-  assert.ok(chip.text.includes('运行中：抓取') && chip.text.includes(`模型调用 ${chip.calls} / 上限 ${chip.cap}`), chip.text)
+  assert.ok(chip.text.includes('运行中：更新'), chip.text)
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="next-run"]')), null, 'the next-run chip gives way while it runs')
   await tabTo('progress')
   const p = await s.page.evaluate(() => ({
@@ -137,7 +138,7 @@ test('R2 · the running library (its catch-up): 待看 says 本次运行 · … 
     rule: document.querySelector('[data-part="keep-running"]')?.textContent ?? '',
     lastRun: document.querySelector('[data-pane="progress"] [data-part="last-run"]')?.dataset.complete ?? null,
   }))
-  assert.ok(p.running.includes(QUEUE.why['catch-up']) && p.running.includes('开始') && p.running.includes('当前步骤：抓取'), p.running)
+  assert.ok(p.running.includes(QUEUE.why['catch-up']) && p.running.includes('开始') && p.running.includes('当前步骤：更新'), p.running)
   assert.equal(p.stop, true)
   assert.ok(p.waiting.includes(QUEUE.why['catch-up']) && p.waiting.includes('加入队列') && p.waiting.includes('前一任务完成后自动开始'), p.waiting)
   assert.equal(p.rule, PANEL.progress.keepRunning)
@@ -197,14 +198,15 @@ test('four tabs switch; folded into the rail and unfolded; open / folded and the
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="right-panel"]').dataset.tab), 'decide', 'the tab after the reload')
   // the window at its smallest still has room for the three columns
   const fit = await s.app.evaluate(async ({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows()[0]
+    // the app's own window (1.1 W7a: an update may have made the hidden window that renders pages)
+    const w = BrowserWindow.getAllWindows().find(x => x.webContents.getURL().startsWith('app://'))
     w.setContentSize(1280, 800)
     await new Promise(r => setTimeout(r, 400))
     return w.webContents.executeJavaScript('(() => { const m = document.querySelector("main").getBoundingClientRect(); const p = document.querySelector("[data-part=right-panel]").getBoundingClientRect(); return { main: Math.round(m.width), right: Math.round(p.right), inner: innerWidth, scroll: document.documentElement.scrollWidth } })()')
   })
   assert.ok(fit.main >= 600, JSON.stringify(fit))
   assert.ok(fit.right <= fit.inner && fit.scroll <= fit.inner, JSON.stringify(fit))
-  await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 960))
+  await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(x => x.webContents.getURL().startsWith('app://')).setContentSize(1440, 960))
 })
 
 // ---- 等你决定 ---------------------------------------------------------------------------------------------------------------

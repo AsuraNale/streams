@@ -101,6 +101,7 @@ export const ROUND_PHASES = Object.freeze({
   gate: 'scoring',
   summary: 'summarizing',
   done: 'done',
+  update: 'updating',
 })
 
 // ---- 11-03 plan B ----

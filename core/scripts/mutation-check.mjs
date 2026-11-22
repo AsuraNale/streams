@@ -956,6 +956,25 @@ const MUTANTS = [
     edits: [['src/build/conversation.mjs', '  async function offerCard(card, say) {\n    const before = s.card ?? s.edit?.card ?? null;', '  async function offerCard(card, say) {\n    const before = null;']],
     test: ['test/w6b.test.mjs', '--test-name-pattern=^a build: a card sent again'],
   },
+  // 1.1 W7a: bringing a library of the last version over
+  {
+    id: 'w7a-convert-as-new',
+    what: 'bringing a library over makes a new library instead',
+    edits: [['src/build/conversation.mjs', "      : isObj(s.convert) ? { action: 'convert_library', params: { library: s.convert.library, card } }\n", '']],
+    test: ['test/w7a.test.mjs', '--test-name-pattern=^convert: the card is convert_library'],
+  },
+  {
+    id: 'w7a-convert-over-card',
+    what: 'a library that has a card is brought over again (its card overwritten)',
+    edits: [['src/build/store.mjs', "      if (readCard(dir)) throw new StreamsError('has-card', 'this library has a card already');\n", '']],
+    test: ['test/w7a.test.mjs', '--test-name-pattern=^convert: a library that has a card'],
+  },
+  {
+    id: 'w7a-update-not-stopped',
+    what: '停止 does not stop an update: it reads every source and runs the agent',
+    edits: [['src/update/run.mjs', '  const stopped = () => signal?.aborted === true;', '  const stopped = () => false;']],
+    test: ['test/w7a.test.mjs', '--test-name-pattern=^an update stopped'],
+  },
   {
     id: 'w4-proposal-no-definition',
     what: 'a proposal card is made for an action the definition does not have',

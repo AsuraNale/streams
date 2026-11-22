@@ -1,0 +1,39 @@
+{
+  "url": "http://127.0.0.1:59625/item/6",
+  "title": "给 agent 加长期记忆的三种做法",
+  "source": "letta-blog",
+  "date": "2026-11-16",
+  "scores": {
+    "relevance": {
+      "score": 0.75,
+      "reason": "直接讲 agent 记忆的实现"
+    },
+    "substance": {
+      "score": 0.66,
+      "reason": "有具体接口和示例，但没有评测"
+    },
+    "freshness": {
+      "value": "duplicate",
+      "reason": "有具体接口和示例，但没有评测"
+    }
+  },
+  "summary": {
+    "what": "一条讲 给 agent 加长期记忆的三种做法 的材料，有代码示例，不是论文。",
+    "points": [
+      "把长期记忆拆成块",
+      "暴露读写接口",
+      "给了数字但没有第三方评测"
+    ],
+    "quote": "给 agent 加长期记忆的三种做法"
+  },
+  "verification": {
+    "passed": true,
+    "rounds": 1,
+    "failed": [],
+    "claimsNotFound": [],
+    "forgot": []
+  },
+  "materials": "body",
+  "round": "r-20261110T090000Z-8f5211",
+  "inboxAt": "2026-11-10T09:00:00.000Z"
+}

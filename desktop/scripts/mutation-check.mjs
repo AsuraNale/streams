@@ -1676,6 +1676,49 @@ const MUTANTS = [
     edits: [['src/main/services/pipeline.mjs', '      else if (result.started) updateProblems.delete(dir)\n', '']],
     test: ['test/services-library-update.test.mjs', '--test-name-pattern=^the sign-in banner'],
   },
+  // 1.1 W7a: a library of the last version; the connections
+  {
+    id: 'w7a-old-round-runs',
+    what: 'a library without a card still runs the last version\'s round',
+    edits: [['src/main/services/pipeline.mjs', '    if (u) {\n      const problem = { code: \'needs-build\' }', '    if (false) {\n      const problem = { code: \'needs-build\' }']],
+    test: ['test/services-library-update.test.mjs', '--test-name-pattern=^a library without a card'],
+  },
+  {
+    id: 'w7a-convert-refused',
+    what: 'a library without a card cannot be brought over (refused as before W7a)',
+    edits: [['src/main/services/build.mjs', '        else convert = { library: libraryId }\n', "        else throw new BridgeError('bad_arguments', 'that library has no card')\n"]],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=^bringing a library'],
+  },
+  {
+    id: 'w7a-no-banner',
+    what: 'the page shows no banner for a library that needs bringing over, nor for a connection that can only ask',
+    edits: [['src/renderer/screens/library-frame.js', "'config', 'needs-build', 'update-not-supported']", "'config']"]],
+    test: ['test/ui-w7a.test.mjs'],
+  },
+  {
+    id: 'w7a-convert-writes-early',
+    what: 'the card of a library brought over is written before 确认',
+    edits: [['src/main/services/build.mjs', "      build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert })", "      if (convert) writeCard(dirOfLibrary(libraryId), { name: 'early' })\n      build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert })"], ['src/main/services/build.mjs', "  cardChanges, cardHandlers,", "  writeCard, cardChanges, cardHandlers,"]],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=^bringing a library'],
+  },
+  {
+    id: 'w7a-later-kept',
+    what: 'the items put off with 稍后处理 are not given back after an update',
+    edits: [['src/main/services/pipeline.mjs', '      if (result.started) { try { const r = releaseLater(dir);', '      if (false) { try { const r = releaseLater(dir);']],
+    test: ['test/services-library-update.test.mjs', '--test-name-pattern=^after an update'],
+  },
+  {
+    id: 'w7a-update-no-signal',
+    what: '停止 is not handed to the update',
+    edits: [['src/main/services/pipeline.mjs', '        result = await u.run(dir, a, { round: roundId, signal: controller.signal })', '        result = await u.run(dir, a, { round: roundId })']],
+    test: ['test/ui-run.test.mjs', '--test-name-pattern=^运行中'],
+  },
+  {
+    id: 'w7a-update-steps-six',
+    what: 'a running update is shown as the six steps of 1.0 (stuck at 运行前自检)',
+    edits: [['src/renderer/screens/run-steps.js', "const stepsOf = phase => (phase === 'update' ? UPDATE_STEPS : RUN_STEPS)", 'const stepsOf = () => RUN_STEPS']],
+    test: ['test/ui-panel.test.mjs', '--test-name-pattern=^R2 · the running library'],
+  },
   // 1.1 W6b: 新建库 and the build conversation
   {
     id: 'w6b-build-any-connection',

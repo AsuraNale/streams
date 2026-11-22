@@ -2,7 +2,7 @@
 // web, writes the card; the code gives it the build SOP and the two web tools, keeps the state, checks what it hands
 // back and waits for the user. The code never decides what to ask or what to read.
 //
-// createBuild({ connector, definition, runner, kind, language, today, budget, sopDir, state, now, maxTurns, edit })
+// createBuild({ connector, definition, runner, kind, language, today, budget, sopDir, state, now, maxTurns, edit, convert })
 //   connector  a session connection with the web tools: createSessionConnector(connection, deps, { cwd, web: true });
 //              send(req, { sessionId }) -> { ok, text, sessionId, reads, searches, otherTools, … }
 //   runner     createActionRunner(...) with cardHandlers (store.mjs): a whole card is handed in as the action create_library,
@@ -12,6 +12,9 @@
 //              card it has now; its new card is the action edit_card (held until 确认, B3); the 1st question may be a choice;
 //              the addresses already on the card count as read; the budget is the one for a change (changeSearches,
 //              changeReads)
+//   convert    1.1 W7a (E3): { library } to bring a library made by the last version over — a build like a new one (the user's
+//              words carry its old requirements and sources; every address must be read this time), whose card is the action
+//              convert_library, asked for in the user's name (the definition lets only the user do it) and held until 确认
 // -> { start(opener), reply(answer), confirm(), drop(), state() }, each turn -> one of
 //   { kind: 'question', say, question }                 a question that passed checkQuestion: the interface shows it
 //   { kind: 'card', say, card, canConfirm, problems, proposal?, before }
@@ -79,11 +82,12 @@ export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, so
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null } = {}) {
+export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null, convert = null } = {}) {
   if (!connector || typeof connector.send !== 'function') throw new StreamsError('bad-argument', 'a build needs a session connection with the web tools');
   if (!runner) throw new StreamsError('bad-argument', 'a build needs the action runner');
   if (edit !== null && (!isObj(edit) || typeof edit.library !== 'string' || !isObj(edit.card))) throw new StreamsError('bad-argument', 'a change of a card needs { library, card }');
-  const s = state ?? { v: 1, language, kind, opener: null, sessionId: null, status: 'new', turns: [], asked: [], reads: [], searches: [], calls: 0, card: null, pendingId: null, libraryDir: null, edit: edit ? { library: edit.library, card: edit.card } : null };
+  if (convert !== null && (!isObj(convert) || typeof convert.library !== 'string' || edit !== null)) throw new StreamsError('bad-argument', 'bringing a library over needs { library }, and no edit');
+  const s = state ?? { v: 1, language, kind, opener: null, sessionId: null, status: 'new', turns: [], asked: [], reads: [], searches: [], calls: 0, card: null, pendingId: null, libraryDir: null, edit: edit ? { library: edit.library, card: edit.card } : null, convert: convert ? { library: convert.library } : null };
   const editing = () => isObj(s.edit);
   const day = today ?? now().toISOString().slice(0, 10);
 
@@ -171,8 +175,10 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
     const before = s.card ?? s.edit?.card ?? null;
     s.card = card;
     if (s.pendingId) { runner.reject(s.pendingId); s.pendingId = null; }
-    const request = editing() ? { action: 'edit_card', params: { library: s.edit.library, card } } : { action: 'create_library', params: { card } };
-    const r = await runner.request('main_agent', request);
+    const request = editing() ? { action: 'edit_card', params: { library: s.edit.library, card } }
+      : isObj(s.convert) ? { action: 'convert_library', params: { library: s.convert.library, card } }
+        : { action: 'create_library', params: { card } };
+    const r = await runner.request(request.action === 'convert_library' ? 'user' : 'main_agent', request);
     if (r.status !== 'pending') return { kind: 'card', say, card, canConfirm: false, problems: [{ code: 'rejected', errors: r.errors ?? [] }], before };
     s.pendingId = r.pending.id;
     const [proposal] = proposalCards([r.pending], definition, { language: s.language, cardOf: () => s.edit?.card ?? null });

@@ -123,6 +123,8 @@ export const ROUND_PHASES = Object.freeze({
   gate: '评分',
   summary: '摘要',
   done: '已完成',
+  // 1.1 W7a: an update of a library by its card (one agent run: no steps of 1.0)
+  update: '更新',
 })
 
 // ---- 11-03 界面 B: words more than one of its screens use (资料库 · 来源与主题 · 流水线 · 运行状态 · 问库 · 图谱) ----

@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { join } from 'node:path'
+import { readdirSync } from 'node:fs'
 import { createLibraryService } from '../src/main/services/library.mjs'
 import { createPipelineService } from '../src/main/services/pipeline.mjs'
 import { createScheduleService } from '../src/main/services/schedule.mjs'
@@ -88,11 +89,30 @@ test('only Claude Code updates in 1.1: Codex or an API key does not start, and s
   }
 })
 
-test('a library without a card keeps v1.0\'s round (until W7)', async () => {
+// 1.1 W7a (E3): a library without a card (made by the last version) is not updated the old way any more: not started, code
+// needs-build; no self-check, no fetch, no model call, nothing written; the page shows the banner (getHome().problem)
+test('a library without a card is not updated: needs-build, no round of v1.0, nothing written', async () => {
   const s = await setup({ card: false })
-  await s.pipeline.startRoundIn({ id: s.id, path: s.dir }).catch(() => null)
-  assert.ok(s.w.eventsOf('round-progress').some(e => e.payload.phase === 'self-check'), 'v1.0\'s self-check')
-  assert.equal(s.sessions.length, 0)
+  const before = readdirSync(s.dir, { recursive: true }).sort().join('|')
+  const r = await s.pipeline.startRoundIn({ id: s.id, path: s.dir })
+  assert.deepEqual(r, { started: false, problems: [{ code: 'needs-build' }] })
+  assert.equal(s.w.eventsOf('round-progress').some(e => e.payload.phase === 'self-check'), false, 'no self-check of v1.0')
+  assert.equal(s.sessions.length, 0, 'no agent')
+  assert.equal(readdirSync(s.dir, { recursive: true }).sort().join('|'), before, 'nothing written')
+  assert.equal(s.pipeline.handlers.getHome().problem.code, 'needs-build')
+})
+
+// 1.1 W7a: 稍后处理 items come back once the library's update has run (as after a round of 1.0)
+test('after an update, the items put off with 稍后处理 are back in 待看', async () => {
+  const { markLater, readLater, putMissingInInbox } = await import('../src/main/core.mjs')
+  const s = await setup()
+  putMissingInInbox(s.dir, { item: { url: 'https://example-later.test/1', title: '稍后再看', source: 's' }, round: 'r0' })
+  markLater(s.dir, 'https://example-later.test/1')
+  assert.equal(readLater(s.dir).size, 1, 'control: put off')
+  await s.pipeline.startRoundIn({ id: s.id, path: s.dir })
+  await until(() => s.done.length === 1)
+  const left = readLater(s.dir)
+  assert.equal(left.size, 0, 'given back after the update')
 })
 
 test('the catch-up: three slots missed while the app was shut -> one update, only one', async () => {
