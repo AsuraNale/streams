@@ -2,9 +2,10 @@
 // 4 options plus 「其它」, at most 2 questions with no options). The main agent proposes a question; only one that passes
 // these checks is handed to the interface. The checks are the code's; how to ask is the SOP's (sop/build.md).
 //
-// checkQuestion(q, asked) -> { ok, problems: [code], question }
+// checkQuestion(q, asked, { firstInput }) -> { ok, problems: [code], question }
 //   q      what the agent handed in: { text, kind: 'input' | 'single' | 'multi', options? }
 //   asked  the questions already shown in this conversation (their `question` objects)
+//   firstInput  false when changing a library's card (1.1 W6b): what the library is for is known, so the 1st question may be a choice
 //   codes  too-many-questions   a 6th question
 //          first-not-input      the 1st question is not a question with no options (it asks what the library is for)
 //          too-many-inputs      a 3rd question with no options
@@ -21,7 +22,7 @@ const OTHER = /^(其它|其他|other|others|something else)[\s:：.。…]*$/i;
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-export function checkQuestion(q, asked = []) {
+export function checkQuestion(q, asked = [], { firstInput = true } = {}) {
   const problems = [];
   if (!isObj(q)) return { ok: false, problems: ['bad-kind'] };
   const n = asked.length + 1;
@@ -39,7 +40,7 @@ export function checkQuestion(q, asked = []) {
     const inputs = asked.filter((a) => a.kind === 'input').length + 1;
     if (inputs > QUESTION_LIMITS.inputs) problems.push('too-many-inputs');
   } else if (kind === 'single' || kind === 'multi') {
-    if (n === 1) problems.push('first-not-input');
+    if (n === 1 && firstInput) problems.push('first-not-input');
     if (options.length > QUESTION_LIMITS.options) problems.push('too-many-options');
     if (options.length < QUESTION_LIMITS.minOptions) problems.push('too-few-options');
   }

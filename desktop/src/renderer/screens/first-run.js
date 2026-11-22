@@ -151,7 +151,8 @@ function TrackHome({ data, onChange }) {
   const send = () => {
     const t = text.trim()
     if (!t || !usable) return
-    navigate('chat', { send: t })
+    // 1.1 W6b: the sentence starts the build conversation (screens/build.js), no longer v1.0's main agent page
+    navigate('build', { send: t })
   }
   return html`<div class="thread-scroll st-first-body"><form class="new-content st-first" data-part="track" onSubmit=${e => { e.preventDefault(); send() }}>
     <span class="eyebrow">${T.eyebrow}</span>

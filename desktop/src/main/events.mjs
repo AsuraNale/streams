@@ -25,6 +25,8 @@ export const EVENT_TOPICS = Object.freeze({
   'connections-changed': 'the connection settings changed (the active one, a model slot, a key stored or removed): null',
   'round-progress': 'a round of the pipeline moved: { roundId, libraryId, phase, counts, calls, cap, done, result?, problems? }; the last one has done: true',
   'inbox-changed': 'the inbox of a library changed (a round wrote into it, a keep, a dismiss): { libraryId, count }',
+  // 1.1 W6b (services/build.mjs): the build conversation
+  'build-changed': 'a turn of the build conversation started or ended, or the conversation ended (built, dropped): { phase: "started" | "done" | "ended" }; the page re-reads getBuild',
   // v2 package B (services/proposals.mjs): the proposal cards
   'proposals-changed': 'a proposal card was made or decided (confirmed, declined, sent back, stale, failed): { libraryId, id, status }; libraryId null for a create_library card',
   // v2 package C (services/agent.mjs): the main agent

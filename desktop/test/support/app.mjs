@@ -97,3 +97,13 @@ export function appSession({ env = {}, settings = null, waitFor } = {}) {
 export async function ready(page, screen = 'inbox') {
   await page.waitForFunction(id => Boolean(document.querySelector(`main[data-screen="${id}"][data-state="ready"]`)), screen, { timeout: 90_000, polling: 100 })
 }
+
+/**
+ * 1.1 W6b: v1.0's 新建库 form (the route 'new-library') has no way in from the interface any more — 新建库 is the build
+ * conversation (screens/build.js) — and W7 removes it. Its tests reach it as a notification of the app would: the main
+ * process sends `open-screen` with that route, and the page goes there.
+ */
+export async function openForm(app, page) {
+  await app.evaluate(({ BrowserWindow }) => { BrowserWindow.getAllWindows()[0].webContents.send('streams:event', { topic: 'open-screen', payload: { screen: 'new-library' } }) })
+  await ready(page, 'new-library')
+}

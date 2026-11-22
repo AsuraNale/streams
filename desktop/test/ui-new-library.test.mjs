@@ -26,7 +26,7 @@ import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { FETCH_HINTS, FETCH_STATES } from '../src/renderer/texts/common.js'
 import { NEW_LIBRARY as T, HOW_IT_WORKS } from '../src/renderer/texts/first-run.js'
 import { fmt } from '../src/renderer/lib/format.js'
-import { ready } from './support/app.mjs'
+import { ready, openForm } from './support/app.mjs'
 import { seedImportFolder, seedShelf, worldSession } from './support/seed.mjs'
 import { startFakeServer } from '../../core/test/support/fake-server.mjs'
 import { EMPTY_RSS, rssWith } from '../../core/test/support/feeds.mjs'
@@ -79,16 +79,14 @@ const root = () => join(n.world.root, 'new-libs')
 /** The form open with the name typed (each test can also run on its own: --test-name-pattern, the mutants). */
 async function onForm() {
   if (await n.page.evaluate(() => document.querySelector('main[data-screen="new-library"]') === null)) {
-    await n.page.click('aside.sidebar [data-action="add-library"]')
-    await ready(n.page, 'new-library')
+    await openForm(n.app, n.page)
   }
   await formReady(n.page)
   if (await n.page.evaluate(() => document.querySelector('[data-field="name"]').value === '')) await n.page.fill('[data-field="name"]', '中国电动车')
 }
 
 test('R4a-3 新建库 is one page in the usual frame: the sidebar and the right panel stay, no step of a wizard; the defaults', async () => {
-  await n.page.click('aside.sidebar [data-action="add-library"]')
-  await ready(n.page, 'new-library')
+  await openForm(n.app, n.page)
   await formReady(n.page)
   assert.equal(await n.page.evaluate(() => document.querySelectorAll('aside.sidebar [data-library-row]').length), 3, 'the sidebar with its libraries')
   assert.equal(await n.page.evaluate(() => document.querySelector('[data-part="right-panel"]') !== null), true, 'the right panel')

@@ -49,6 +49,8 @@ import { LIBRARY_ROUTES, Menu } from '../kit/index.js'
 import { NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
 import { PANEL as T, QUEUE } from '../texts/panel.js'
 import { PROPOSALS } from '../texts/proposals.js'
+import { BUILD } from '../texts/build.js'
+import { confirmAndOpen, waitingCard } from '../lib/build.js'
 import { Proposal } from './proposal.js'
 import { RunFunnel } from './run-funnel.js'
 
@@ -169,19 +171,54 @@ function ProgressPane() {
 
 // ---- 待确认 -------------------------------------------------------------------------------------------------------------
 
+/**
+ * 1.1 W6b: the library card of the build conversation while it waits for 确认 (lib/build.js waitingCard) — 不建了, 看全文 (the
+ * conversation, 新建库), 确认 (the same as the card's own in the conversation).
+ * Test hooks: article[data-part="build-waiting"][data-mode] with [data-action=drop|full|confirm].
+ */
+function BuildWaiting({ view, turn }) {
+  const app = useApp()
+  const [acting, setActing] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const edit = view.mode === 'edit'
+  const card = turn.card ?? {}
+  const sources = Array.isArray(card.sources) ? card.sources.length : 0
+  const act = async fn => {
+    if (acting) return
+    setActing(true)
+    setFailed(false)
+    try { await fn() } catch { setFailed(true) } finally { setActing(false) }
+  }
+  return html`<article class="confirmation st-rp-decide" data-part="build-waiting" data-mode=${view.mode} data-size="compact">
+    <div class="card-body">
+      <span class="eyebrow" data-part="from">${edit ? BUILD.panelEditEyebrow : BUILD.panelEyebrow}</span>
+      <h3 data-part="sentence">${fmt(edit ? BUILD.editCardTitle : BUILD.cardTitle, { name: card.name ?? '' })}</h3>
+      <p class="muted" data-part="evidence">${fmt(BUILD.panelLine, { urls: turn.urls ?? 0, sources })}</p>
+    </div>
+    <div class="confirm-footer" data-busy=${String(acting)}><div class="row">
+      <span class="st-act" data-action="drop"><button type="button" class="btn quiet" disabled=${acting || view.busy} onClick=${() => act(async () => { await call('dropBuild'); app?.build?.set?.(null) })}>${edit ? BUILD.dropEdit : BUILD.drop}</button></span>
+      <span class="st-act" data-action="full"><button type="button" class="btn" onClick=${() => app?.navigate?.('build')}>${BUILD.full}</button></span>
+      <span class="st-act" data-action="confirm"><button type="button" class="btn primary" disabled=${acting || view.busy} onClick=${() => act(() => confirmAndOpen(app))}><${TIcon} name="approve" fallback="check" /> ${edit ? BUILD.confirmEdit : BUILD.confirm}</button></span>
+    </div></div>
+    ${failed ? html`<p class="limit-note" role="alert" data-part="call-failed">${BUILD.failedCall}</p>` : null}
+  </article>`
+}
+
 /** 待确认: every library's, one list; the head says how many (the same number as the tab's). */
 function DecidePane() {
-  const { toConfirm } = useApp()
+  const { toConfirm, build } = useApp()
   const L = PROPOSALS.list
   const items = toConfirm?.items ?? []
-  const n = items.length
+  // 1.1 W6b: the build's card waiting for 确认 is one of the list
+  const waiting = waitingCard(build?.data)
+  const n = items.length + (waiting ? 1 : 0)
   return html`<div class="st-rp-pane" data-pane="decide" data-count=${n}>
     <${PanelSummary} part="decide-summary" eyebrow=${L.eyebrow} title=${n ? html`<span data-part="decide-title" data-count=${n}>${fmt(L.title, { n })}</span>` : html`<span data-part="decide-none">${L.none}</span>`}>
-      ${n ? html`<p data-part="decide-lead">${L.lead}</p>` : null}
+      ${n ? html`<p data-part="decide-lead">${waiting && !items.length ? BUILD.panelLead : L.lead}</p>` : null}
     <//>
     ${toConfirm?.status === 'error' && !n ? html`<p class="progress-alert" role="alert">${L.loadFailed}</p>` : null}
     ${toConfirm?.said ? html`<p class="progress-alert" role="status" data-part="decide-said">${toConfirm.said}</p>` : null}
-    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}
+    ${n ? html`<div class="st-stack" data-part="decide-list">${waiting ? html`<${BuildWaiting} view=${build.data} turn=${waiting} />` : null}${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}
   </div>`
 }
 
@@ -302,12 +339,12 @@ function FilesPane() {
 
 /** The panel itself. `detail`: what the screen shows in 详情 (null: one sentence). */
 export function RightPanel({ detail = null }) {
-  const { appState, setPanel, toConfirm } = useApp()
+  const { appState, setPanel, toConfirm, build } = useApp()
   const panel = appState?.data?.panel ?? null
   const open = panel?.open !== false
   const tab = TAB_IDS.includes(panel?.tab) ? panel.tab : 'detail'
-  // redesign R5b (O5): the number is the list's length, the same list 待确认 shows
-  const n = toConfirm?.items?.length ?? 0
+  // redesign R5b (O5): the number is the list's length, the same list 待确认 shows (1.1 W6b: and the build's waiting card)
+  const n = (toConfirm?.items?.length ?? 0) + (waitingCard(build?.data) ? 1 : 0)
   const icons = hasTabIcons()
   const badge = id => (id === 'decide' && n > 0 ? html` <small class="st-count" data-panel-badge=${id} aria-label=${fmt(T.decideBadge, { n })}>${n}</small>` : null)
   if (!open) {

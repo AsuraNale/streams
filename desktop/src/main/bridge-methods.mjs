@@ -42,6 +42,10 @@ const smallObject = (v, max = 20_000) => {
   try { const text = JSON.stringify(v); return typeof text === 'string' && text.length <= max } catch { return false }
 }
 const optional = (o, key, check) => o[key] === undefined || check(o[key])
+// 1.1 W6b: an answer to the build agent — words, or the options picked (at most 4) and what was typed beside 「其它」
+const buildAnswer = a => (typeof a === 'string' && a.trim() !== '' && a.length <= 4000)
+  || (isObject(a) && onlyKeys(a, ['picked', 'other']) && Array.isArray(a.picked) && a.picked.length <= 4 && a.picked.every(p => typeof p === 'string' && p.length <= 500)
+    && optional(a, 'other', v => typeof v === 'string' && v.length <= 2000))
 /** { topics?, days? } — the filter of getLibrary; null is the same as {} */
 const libraryFilter = f => f === null || (isObject(f) && onlyKeys(f, ['topics', 'days']) && optional(f, 'topics', strings) && optional(f, 'days', days))
 const searchFilter = f => f === null || (isObject(f) && onlyKeys(f, ['view', 'topics', 'days']) && optional(f, 'view', v => SEARCH_VIEWS.includes(v)) && optional(f, 'topics', strings) && optional(f, 'days', days))
@@ -223,6 +227,13 @@ export const BRIDGE_METHODS = Object.freeze({
   getCardView: Object.freeze({ args: 0 }),
   proposeCardSource: Object.freeze({ args: 1, check: ([t]) => typeof t === 'string' && t.trim() !== '' && t.length <= 2000 }),
   settleCardSource: Object.freeze({ args: 2, check: ([id, yes]) => typeof id === 'string' && id.length <= 80 && typeof yes === 'boolean' }),
+  // 1.1 W6b: the build conversation (services/build.mjs); a library id to change that library's card
+  getBuild: Object.freeze({ args: 0 }),
+  startBuild: Object.freeze({ args: 2, optional: 1, check: ([t, id]) => typeof t === 'string' && t.trim() !== '' && t.length <= 2000 && (id === undefined || id === null || libraryId(id)) }),
+  replyBuild: Object.freeze({ args: 1, check: ([a]) => buildAnswer(a) }),
+  retryBuild: Object.freeze({ args: 0 }),
+  confirmBuild: Object.freeze({ args: 0 }),
+  dropBuild: Object.freeze({ args: 0 }),
   guessSource: Object.freeze({ args: 1, check: ([input]) => nonEmptyShort(2000)(input) }),
   trySource: Object.freeze({ args: 1, check: ([source]) => smallObject(source, 10_000) }),
   addSource: Object.freeze({ args: 1, check: ([source]) => smallObject(source, 10_000) }),

@@ -17,6 +17,7 @@ import { GraphScreen } from './graph.js'
 import { InboxScreen } from './inbox.js'
 import { LibraryScreen } from './library.js'
 import { NewLibraryScreen } from './new-library.js'
+import { BuildScreen } from './build.js'
 import { SettingsScreen } from './settings.js'
 import { ShelfScreen } from './shelf.js'
 import { SourcesScreen } from './sources.js'
@@ -33,6 +34,9 @@ export const SCREENS = Object.freeze({
   settings: SettingsScreen,
   // v2 package I: 新建库, the manual way (v1.0's 首次设置 without the connection step); app.js newLibrary() opens it
   'new-library': NewLibraryScreen,
+  // 1.1 W6b: 新建库 — one sentence, then the build conversation with the main agent (app.js newLibrary() opens it; v1.0's form
+  // above stays until W7 and has no way in from the interface)
+  build: BuildScreen,
 })
 
 /**

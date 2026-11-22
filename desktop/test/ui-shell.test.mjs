@@ -340,12 +340,11 @@ test('库架 with no library registered: one line and two buttons (the files of 
   assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-shelf-card], [data-library-row]').length), 0)
   assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="shelf-empty"] [data-action]')].map(a => a.dataset.action)), ['empty-chat', 'empty-manual'])
   assert.deepEqual(shelf.dirs.map(d => readFileSync(join(d, 'streams.json'), 'utf8')), before)
-  // v2 package I: 手动新建 is 新建库's own flow (screens/new-library.js), no longer a dialog; 取消 comes back to 库架
+  // 1.1 W6b: 手动新建 is 新建库 — the one-sentence page of the build conversation (screens/build.js); 取消 comes back to 库架
   await s.page.click('[data-action="empty-manual"] button')
-  await ready(s.page, 'new-library')
-  // redesign R4a: 新建库 is one page now (no first step 'folder'): the form is there, no step of a wizard
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="new-library"] [data-field="brief"]') !== null && document.querySelector('.fr-body, [data-step]') === null), true)
-  await s.page.click('[data-action="cancel-new"] button')
+  await ready(s.page, 'build')
+  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="build"]').dataset.view === 'start' && document.querySelector('textarea[data-field="opener"]') !== null), true)
+  await s.page.click('[data-action="cancel-build"] button')
   await ready(s.page, 'shelf')
 })
 

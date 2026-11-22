@@ -13,6 +13,7 @@
 // cardUrls(card) -> every http(s) address on the card, the entries' own and those written in its words
 // sameUrl(a, b) / urlKey(u): host case, a leading www., the scheme, a trailing slash and #… do not count
 // renderCard(card, language) -> the Markdown people read
+// cardChanges(before, after, language) -> the lines that changed (1.1 W6b, A2), see below
 export const CARD_PARTS = Object.freeze(['definition', 'collect', 'skip', 'sources', 'unreadable', 'pick', 'write', 'samples']);
 export const DEFINITION_LINES = Object.freeze(['purpose', 'scope', 'exclude', 'trust', 'rhythm', 'language', 'hard']);
 export const MAX_DECISIONS = 3;
@@ -121,6 +122,40 @@ export function checkCard(card, { reads } = {}) {
 }
 
 const list = (v) => (Array.isArray(v) ? v : filled(v) ? [v] : []);
+
+// 1.1 W6b (A2, 改卡时显示改前改后): what changed between two cards, line by line, as the words people read.
+// cardChanges(before, after, language) -> [{ key, label, before, after }] in the card's order; a line the same on both is
+// left out. key: name · summary · one of the seven lines · decide · one of the parts but definition. before / after are the
+// line's words (a list part: its entries one per line); '' where the card has none.
+const CHANGE_KEYS = Object.freeze(['name', 'summary', ...DEFINITION_LINES, 'decide', ...CARD_PARTS.filter((p) => p !== 'definition')]);
+
+function entryText(part, e, w) {
+  if (!isObj(e)) return typeof e === 'string' ? e : '';
+  if (part === 'sources') return `${e.name ?? ''}${w.sep}${e.url ?? e.query ?? ''}${filled(e.status) ? ` · ${e.status}` : ''}`;
+  if (part === 'unreadable') return `${e.name ?? ''}${filled(e.url) ? ` · ${e.url}` : ''}${w.sep}${e.reason ?? ''}`;
+  if (part === 'samples') return `${e.title ?? ''} · ${e.url ?? ''}${filled(e.date) ? ` · ${e.date}` : ''}`;
+  if (part === 'decide') return `${e.what ?? ''}${filled(e.default) ? `（${w.default}${w.sep}${e.default}）` : ''}`;
+  return stringsOf(e).join(' · ');
+}
+
+function lineOf(card, key, w) {
+  const c = isObj(card) ? card : {};
+  if (key === 'name') return filled(c.name) ? c.name.trim() : '';
+  if (key === 'summary' || DEFINITION_LINES.includes(key)) return isObj(c.definition) && filled(c.definition[key]) ? c.definition[key].trim() : '';
+  return list(c[key]).map((e) => entryText(key, e, w).trim()).filter(Boolean).join('\n');
+}
+
+export function cardChanges(before, after, language = 'zh-CN') {
+  const w = CARD_WORDS[language] ?? CARD_WORDS['zh-CN'];
+  const label = { ...w, name: language === 'en' ? 'Name' : '库名', summary: language === 'en' ? 'In one paragraph' : '一段话' };
+  const out = [];
+  for (const key of CHANGE_KEYS) {
+    const a = lineOf(before, key, w);
+    const b = lineOf(after, key, w);
+    if (a !== b) out.push({ key, label: label[key] ?? key, before: a, after: b });
+  }
+  return out;
+}
 
 export function renderCard(card, language = 'zh-CN') {
   const w = CARD_WORDS[language] ?? CARD_WORDS['zh-CN'];

@@ -209,6 +209,12 @@ frame-ancestors 'none'
 | `getCardView()` | 无 | **1.1 W6a**：有建库卡的库 → `{ card, rows, old: false }`（rows 来自核心 `sourceRows`：每个来源的状态和「原文」一列：read · pdf · link · search · unknown）；没有建库卡的库（上一版建的）→ `{ card: null, rows: [], old: true, brief }` | A5 · A6 |
 | `proposeCardSource(text)` | 网址（http/https）或检索词 | **1.1 W6a**：定义里的 `add_source`（user），挂起不执行，返回 `{ id, source }`；库里零改动 | A5 · B3 |
 | `settleCardSource(id, confirm)` | 挂起的编号、`true` 确认 / `false` 不加 | **1.1 W6a**：确认才把来源写进建库卡（新版本存进历史）；卡上已有同一来源 → `bad_arguments` | A5 · B3 |
+| `getBuild()` | 无 | **1.1 W6b**：建库对话（services/build.mjs）→ `{ mode: 'create' \| 'edit', library, status: 'talking' \| 'stopped', opener, asked, busy, stopped, trouble, turns }` 或 `null`（没有在谈的）。`turns`：你的话 `{ role: 'you', text }`、主 Agent 的一轮 `{ role: 'agent', kind: 'question' \| 'card' \| 'say' \| 'stopped', say, question?, card?, before?, canConfirm?, problems?, notice? }`（核心 createBuild 给的样子；它自己的备注不给） | A1 · A2 |
+| `startBuild(opener, libraryId?)` | 想追踪什么（一两句话）；带库 id 是改那座库的建库卡 | **1.1 W6b**：只有 Claude Code 能建库（别的连接 → `bad_arguments` 'build-not-supported'，没选 → `no_connection`）；已有在谈的 → `bad_arguments`；返回主 Agent 第一轮以后的 `getBuild()` | A1 |
+| `replyBuild(answer)` | 一句话，或 `{ picked: [选项]（≤ 4）, other? }` | **1.1 W6b**：回答主 Agent，返回下一轮以后的 `getBuild()` | A1 |
+| `retryBuild()` | 无 | **1.1 W6b**：连接失败的那一轮再发一次 | — |
+| `confirmBuild()` | 无 | **1.1 W6b**：确认等着的建库卡：建库（库文件夹 = 库架所在的文件夹 \ 卡上的库名，名字占用了加 2、3…；建好登记成当前的库）或改卡（新版本存进历史）；返回 `{ done: true, libraryId }`；没确认之前什么都不建、不改 | A2 · B3 |
+| `dropBuild()` | 无 | **1.1 W6b**：不建了 / 不改了：等着的卡撤回，对话结束（存在 `build\\ended-…`） | B3 |
 | `guessSource(input)` | 字符串 | 核心 `guessSource` | S5「加来源」第一步 |
 | `trySource(source)` | 来源对象（形状同 streams.json 的一项） | 核心 `fetchSource` 的结果，只回 `{ status, hint, http, message, count, sample: [前 3 条的 {title, date}] }`；不写盘。**重设计 R5a（O9）**：只回 `{ status, hint, count, sample }`——不再有 `http` 与 `message`，原文进日志与诊断信息 | S5「试抓」 |
 | `addSource(source)` | 见核心 5.6 | 核心的返回；错误码 → `bad_arguments`；发 `library-changed` | S5 |
@@ -346,6 +352,7 @@ frame-ancestors 'none'
 | `connections-changed` | `null` | 连接的设置变了（选定、模型槽、key 存了或删了） | 设置、S1 |
 | `round-progress` | `{ roundId, libraryId, phase, counts, calls, cap, done, result?, problems? }` | 一轮的每个阶段开始、每条打完分、跑完或停下（哪个库的一轮都发，带它的 `libraryId`） | 概览（v1.0 今日；只认当前库的）、S12 |
 | `inbox-changed` | `{ libraryId, count }` | 某个库的待看变了（一轮写入、收藏、放弃） | 侧栏角标（只认当前库的 `count`）、待看、今日 |
+| `build-changed` | `{ phase }`（`started` · `done` · `ended`） | **1.1 W6b**：建库对话的一轮开始或结束，或对话结束（建好、不建了） | 新建库、右栏待确认（重读 `getBuild`） |
 | `proposals-changed` | `{ libraryId, id, status }`（建库卡 `libraryId` 为 null） | **v2 包 B**：出了一张提议卡，或一张卡被确认 / 不要 / 改一下 / 过期 / 失败 | 包 G 的卡片、「等你定的事」角标 |
 | `agent-changed` | `{ phase: 'started' \| 'done', turn, libraryId }` | **v2 包 C**：主 Agent 的一轮开始了 / 结束了（`agentSend`、`acceptSuggestion` 都会发） | 包 G 的对话流（重读 `getAgentTranscript` / `getAgentStatus`） |
 | `quota-changed` | `{ kind }`（哪种连接的；当前连接换了时是新的当前连接） | **v2 包 M**：某种连接的套餐余量 / API 余额读到了、随一次调用来了、读不到了，或当前连接换了（§4.11） | 左栏左下角（重读 `getQuota`） |

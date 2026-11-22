@@ -59,6 +59,7 @@ import { pdfText } from './pdf-text.mjs'
 import { createPageReader, createLinkReader } from './core.mjs'
 // 1.1 W5: a library with a card is updated by it (services/library-update.mjs; services/update.mjs is the app's own update)
 import { createLibraryUpdateService } from './services/library-update.mjs'
+import { createBuildService, devBuildSession } from './services/build.mjs'
 import { defaultLibraryRoot as defaultRootOf } from './library-root.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -114,6 +115,8 @@ const DEV_QUOTA = !app.isPackaged && typeof process.env.STREAMS_DEV_QUOTA === 's
 // 1.1 W1: a development run may check the start-up against another SOP folder or definition file (a test of a missing
 // or broken one); the installed app always uses its own
 const DEV_SOP_DIR = !app.isPackaged && typeof process.env.STREAMS_DEV_SOP_DIR === 'string' && isAbsolute(process.env.STREAMS_DEV_SOP_DIR) ? process.env.STREAMS_DEV_SOP_DIR : null
+// 1.1 W6b, development and tests only: the build agent's replies (services/build.mjs devBuildSession)
+const DEV_BUILD = !app.isPackaged && typeof process.env.STREAMS_DEV_BUILD === 'string' && isAbsolute(process.env.STREAMS_DEV_BUILD) ? process.env.STREAMS_DEV_BUILD : null
 const DEV_DEFINITION = !app.isPackaged && typeof process.env.STREAMS_DEV_DEFINITION === 'string' && isAbsolute(process.env.STREAMS_DEV_DEFINITION) ? process.env.STREAMS_DEV_DEFINITION : null
 const STARTED_AT = Date.now()
 const clock = DEV_NOW === null ? () => new Date() : () => new Date(DEV_NOW + (Date.now() - STARTED_AT))
@@ -405,6 +408,14 @@ app.whenReady().then(() => {
   })
   // the main agent (v2 package C): one conversation, one turn at a time; its cards go through createProposal above, so only
   // the user's 「确认」 changes anything
+  // 1.1 W6b: building a library (and changing a library's card) as one conversation with the main agent
+  const build = createBuildService({
+    appDataDir: layout.appData, library, connections, emit, log, now: clock, locale: currentLocale,
+    libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
+    // a test or development run with the development connection never reaches the real command line: the script, or the
+    // stand-in's one question
+    ...(DEV_BUILD || DEV_CONNECTION ? { session: (active, callsSoFar) => devBuildSession(DEV_BUILD, callsSoFar) } : {}),
+  })
   agent = createAgentService({ appDataDir: layout.appData, library, connections, proposals, emit, log, now: clock, locale: currentLocale, devScript: DEV_AGENT_SCRIPT, rawErrors })
   // the tray's count is the current library's
   const inboxNow = () => { const d = library.dir(); if (!d) return 0; try { return listInbox(d).length } catch { return 0 } }
@@ -468,6 +479,7 @@ app.whenReady().then(() => {
       ...scheduler.handlers,
       ...proposals.handlers,
       ...newLibrary.handlers,
+      ...build.handlers,
       ...agent.handlers,
       // v2 package M
       ...quota.handlers,

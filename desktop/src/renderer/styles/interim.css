@@ -101,3 +101,21 @@
 .st-src-card-note { margin-right: auto; }
 .st-src-pending { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .st-src-old { display: grid; gap: 8px; }
+
+/* 1.1 W6b (A1, A2): 新建库 — the one-sentence page, the question buttons, the library card, before / after */
+.st-build-start textarea { width: 100%; resize: vertical; }
+.st-build-lead { line-height: 1.75; }
+.st-build-cost { margin-right: auto; }
+.st-build-options { flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.st-build-options .filter { white-space: normal; text-align: left; max-width: 100%; }
+.st-build-other { margin: 6px 0; }
+.st-build-other .muted { white-space: nowrap; padding-left: 4px; }
+.st-build-answer { justify-content: flex-end; margin-top: 8px; }
+.st-build-qn { margin-right: 8px; }
+.st-build-card dd, .st-build-card dt, .st-build-change p, .st-build-part li { overflow-wrap: anywhere; }
+.st-build-full { display: grid; gap: 10px; margin-top: 12px; }
+.st-build-part ul { margin: 0; padding-left: 20px; }
+.st-build-changes { display: grid; gap: 10px; margin-top: 12px; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--surface2); border-radius: 6px; }
+.st-build-change p { margin: 4px 0 0; line-height: 1.7; white-space: pre-line; }
+.st-build-change del { color: var(--muted, inherit); }
+.st-build-change ins { text-decoration: none; background: color-mix(in srgb, var(--accent) 16%, transparent); }

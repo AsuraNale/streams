@@ -25,6 +25,7 @@ import { useLoad } from './lib/use-load.js'
 import { useLibraries } from './lib/libraries.js'
 // redesign R5b: what waits for you to confirm — every library's, one list (the right panel's 待确认, the 主 Agent page's head)
 import { useToConfirm } from './lib/agent.js'
+import { useBuild } from './lib/build.js'
 // v2 package L: the one queue of the rounds (the right panel, the sidebar, 库架, the library's head)
 import { useQueue } from './lib/queue.js'
 import { ALIASES, FIRST_SCREEN, LIBRARY_FIRST_SCREEN, SCREENS } from './screens/index.js'
@@ -96,6 +97,8 @@ function App() {
   // redesign R5b (P16, O5): the things waiting for you to confirm (listToConfirm; its count is the tab's number) and the queue
   const toConfirm = useToConfirm(shell)
   const queue = useQueue(shell)
+  // 1.1 W6b: the build conversation (新建库 and the right panel's 待确认); read in 首次打开 too, where it starts
+  const build = useBuild(true)
   const libraryId = appState.data?.library?.libraryId ?? null
   // the route of a library's page is that library's to remember
   useEffect(() => {
@@ -143,9 +146,10 @@ function App() {
   const value = {
     route, navigate, has, appState, libraries, openLibrary, memory: memory.current,
     // v2 package L: the right panel's lists, the queue; setPanel folds / unfolds the panel or picks a tab (settings.json)
-    toConfirm, queue, setPanel,
+    toConfirm, queue, setPanel, build,
     // 新建库, the manual way (v2 package I): its own route; 「取消」 comes back to the screen it was opened from
-    newLibrary: () => setRoute(r => (r.screen === 'new-library' ? r : { screen: 'new-library', params: { back: r.screen } })),
+    // 1.1 W6b: 新建库 is the build conversation ('build'); v1.0's form ('new-library') has no way in any more (W7 removes it)
+    newLibrary: () => setRoute(r => (r.screen === 'build' ? r : { screen: 'build', params: { back: r.screen } })),
   }
   if (setup === null) return null
   const Screen = screens[route.screen]

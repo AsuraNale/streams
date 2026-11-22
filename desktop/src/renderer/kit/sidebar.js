@@ -138,7 +138,7 @@ export function AppSidebar({ current: where }) {
   const quota = useQuota()
   return html`<${Sidebar}>
     <nav class="side-nav" aria-label=${SIDEBAR.label}>
-      <${SidebarAdd} name="add-library" isCurrent=${here === 'new-library'} onClick=${() => newLibrary?.()}>${SHELL.sidebar.newLibrary}<//>
+      <${SidebarAdd} name="add-library" isCurrent=${here === 'new-library' || here === 'build'} onClick=${() => newLibrary?.()}>${SHELL.sidebar.newLibrary}<//>
       ${NAV_ENTRIES.map(([id, icon]) => html`<${SidebarNav} key=${id} id=${id} icon=${icon} isCurrent=${here === id}
         n=${id === 'shelf' && libraries?.data ? rows.length : null} onClick=${() => navigate(id)}>${SIDEBAR.entries[id]}<//>`)}
     </nav>

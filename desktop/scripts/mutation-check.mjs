@@ -1676,6 +1676,55 @@ const MUTANTS = [
     edits: [['src/main/services/pipeline.mjs', '      else if (result.started) updateProblems.delete(dir)\n', '']],
     test: ['test/services-library-update.test.mjs', '--test-name-pattern=^the sign-in banner'],
   },
+  // 1.1 W6b: 新建库 and the build conversation
+  {
+    id: 'w6b-build-any-connection',
+    what: 'a build starts on Codex or an API key',
+    edits: [['src/main/services/build.mjs', "    if (!BUILD_KINDS.includes(active.kind)) throw new BridgeError('bad_arguments', 'build-not-supported')\n", '']],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=^only Claude Code'],
+  },
+  {
+    id: 'w6b-drop-leaves-card',
+    what: '不建了 leaves the card waiting',
+    edits: [['src/main/services/build.mjs', '      try { const r = runner(); for (const p of r.pending()) r.reject(p.id) } catch', '      try { void runner } catch']],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=^不建了 after the connection'],
+  },
+  {
+    id: 'w6b-not-kept',
+    what: 'the conversation is not written after a turn (gone after a restart)',
+    edits: [['src/main/services/build.mjs', '      if (saved) write()\n', '']],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=^one conversation at a time'],
+  },
+  {
+    id: 'w6b-edit-no-before',
+    what: 'a change of a card comes without the card before it',
+    edits: [['src/main/services/build.mjs', "a.card = t.card; a.before = t.before ?? null;", "a.card = t.card; a.before = null;"]],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=^changing a library'],
+  },
+  {
+    id: 'w6b-ui-confirm-any-card',
+    what: 'the page offers 确认 on a card that is not whole',
+    edits: [['src/renderer/screens/build.js', "  const can = last && turn.canConfirm === true\n", "  const can = last\n"]],
+    test: ['test/ui-w6b.test.mjs', '--test-name-pattern=^W6b: 新建库'],
+  },
+  {
+    id: 'w6b-ui-single-as-multi',
+    what: 'a single-choice question lets several options be pressed',
+    edits: [['src/renderer/screens/build.js', "(q.kind === 'single' ? (p.includes(o) ? [] : [o]) : p.includes(o)", "(false ? (p.includes(o) ? [] : [o]) : p.includes(o)"]],
+    test: ['test/ui-w6b.test.mjs', '--test-name-pattern=^W6b: 新建库'],
+  },
+  {
+    id: 'w6b-ui-no-changes',
+    what: 'the card sent again shows no before / after',
+    edits: [['src/renderer/screens/build.js', "  if (!Array.isArray(changes)) return null\n", "  if (changes || !changes) return null\n"]],
+    test: ['test/ui-w6b.test.mjs', '--test-name-pattern=^W6b: 新建库'],
+  },
+  {
+    id: 'w6b-ui-old-form',
+    what: '新建库 still opens v1.0\'s form',
+    edits: [['src/renderer/app.js', "newLibrary: () => setRoute(r => (r.screen === 'build' ? r : { screen: 'build', params: { back: r.screen } })),", "newLibrary: () => setRoute(r => (r.screen === 'new-library' ? r : { screen: 'new-library', params: { back: r.screen } })),"]],
+    test: ['test/ui-w6b.test.mjs', '--test-name-pattern=^W6b: 新建库'],
+  },
 ]
 
 function runTest(desktop, test) {

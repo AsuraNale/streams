@@ -913,6 +913,49 @@ const MUTANTS = [
     edits: [['src/build/card.mjs', '        && ((isWeb(e.url) && !filled(e.query)) || (filled(e.query) && (e.url === undefined || e.url === \'\')));', '        && (isWeb(e.url) || filled(e.query));']],
     test: ['test/w6a.test.mjs', '--test-name-pattern=^a card source'],
   },
+  // 1.1 W6b: before / after of a card, a change of a library's card, 不建了
+  {
+    id: 'w6b-no-changes',
+    what: 'two cards are always said to be the same (no before / after)',
+    edits: [['src/build/card.mjs', '    if (a !== b) out.push({ key, label: label[key] ?? key, before: a, after: b });', '    void a; void b;']],
+    test: ['test/w6b.test.mjs', '--test-name-pattern=^cardChanges'],
+  },
+  {
+    id: 'w6b-edit-as-create',
+    what: 'a change of a library\'s card is proposed as a new library',
+    edits: [['src/build/conversation.mjs', "    const request = editing() ? { action: 'edit_card', params: { library: s.edit.library, card } } : { action: 'create_library', params: { card } };", "    const request = { action: 'create_library', params: { card } };"]],
+    test: ['test/w6b.test.mjs', '--test-name-pattern=^changing a library'],
+  },
+  {
+    id: 'w6b-edit-old-urls-unread',
+    what: 'changing a card, the addresses already on it must be opened again',
+    edits: [['src/build/conversation.mjs', '  const readsSoFar = () => (editing() ? [...s.reads, ...cardUrls(s.edit.card).map((url) => ({ url, ok: true }))] : s.reads);', '  const readsSoFar = () => s.reads;']],
+    test: ['test/w6b.test.mjs', '--test-name-pattern=^changing a card: the addresses'],
+  },
+  {
+    id: 'w6b-edit-any-url',
+    what: 'changing a card, a new address need not be read',
+    edits: [['src/build/conversation.mjs', '      const c = checkCard(json.card, { reads: readsSoFar() });', '      const c = checkCard(json.card, { reads: editing() ? null : readsSoFar() });']],
+    test: ['test/w6b.test.mjs', '--test-name-pattern=^changing a card: the addresses'],
+  },
+  {
+    id: 'w6b-drop-keeps-card',
+    what: '不建了 leaves the card waiting',
+    edits: [['src/build/conversation.mjs', "    drop() {\n      if (s.pendingId) { runner.reject(s.pendingId); s.pendingId = null; }", '    drop() {']],
+    test: ['test/w6b.test.mjs', '--test-name-pattern=^不建了'],
+  },
+  {
+    id: 'w6b-first-choice-anywhere',
+    what: 'a new build may open with a choice question',
+    edits: [['src/build/questions.mjs', "    if (n === 1 && firstInput) problems.push('first-not-input');", "    if (n === 1 && firstInput === 'never') problems.push('first-not-input');"]],
+    test: ['test/w6b.test.mjs', '--test-name-pattern=^the first question'],
+  },
+  {
+    id: 'w6b-no-before',
+    what: 'a card sent again is shown without the one before it',
+    edits: [['src/build/conversation.mjs', '  async function offerCard(card, say) {\n    const before = s.card ?? s.edit?.card ?? null;', '  async function offerCard(card, say) {\n    const before = null;']],
+    test: ['test/w6b.test.mjs', '--test-name-pattern=^a build: a card sent again'],
+  },
   {
     id: 'w4-proposal-no-definition',
     what: 'a proposal card is made for an action the definition does not have',

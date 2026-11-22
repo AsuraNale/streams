@@ -2,15 +2,21 @@
 // web, writes the card; the code gives it the build SOP and the two web tools, keeps the state, checks what it hands
 // back and waits for the user. The code never decides what to ask or what to read.
 //
-// createBuild({ connector, definition, runner, kind, language, today, budget, sopDir, state, now, maxTurns })
+// createBuild({ connector, definition, runner, kind, language, today, budget, sopDir, state, now, maxTurns, edit })
 //   connector  a session connection with the web tools: createSessionConnector(connection, deps, { cwd, web: true });
 //              send(req, { sessionId }) -> { ok, text, sessionId, reads, searches, otherTools, … }
 //   runner     createActionRunner(...) with cardHandlers (store.mjs): a whole card is handed in as the action create_library,
 //              held until the user confirms (B3)
 //   state      a build's state as state() gave it (to go on after a restart); a new build when left out
-// -> { start(opener), reply(answer), confirm(), state() }, each turn -> one of
+//   edit       1.1 W6b (A2): { library, card } to change a library's card instead of building one — the agent is given the
+//              card it has now; its new card is the action edit_card (held until 确认, B3); the 1st question may be a choice;
+//              the addresses already on the card count as read; the budget is the one for a change (changeSearches,
+//              changeReads)
+// -> { start(opener), reply(answer), confirm(), drop(), state() }, each turn -> one of
 //   { kind: 'question', say, question }                 a question that passed checkQuestion: the interface shows it
-//   { kind: 'card', say, card, canConfirm, problems, proposal? }
+//   { kind: 'card', say, card, canConfirm, problems, proposal?, before }
+//                                                       before: the card shown before this one in the build (or, changing a
+//                                                       library's card, the card it has now); null for the first (A2)
 //                                                       canConfirm only for a whole card whose every address was read in
 //                                                       this build (all turns' reads); then proposal is its pending card
 //   { kind: 'say', say, notice? }                       words only; notice 'question-not-shown' when a question failed its
@@ -23,7 +29,7 @@ import { loadSop, renderSop, placeholdersOf } from '../sop/sop.mjs';
 import { answerJson } from '../agentrun/stream.mjs';
 import { StreamsError } from '../errors.mjs';
 import { checkQuestion, answerText } from './questions.mjs';
-import { checkCard, CARD_WORDS } from './card.mjs';
+import { checkCard, cardUrls, CARD_WORDS } from './card.mjs';
 import { toolsText, budgetText, actionsText, OUTPUT_TEXT, BUILD_BUDGET } from './format.mjs';
 import { proposalCards } from './proposals.mjs';
 
@@ -60,27 +66,34 @@ export function problemText(p) {
 // checks read, the tools, the budget …), so a SOP without one is refused rather than sent
 export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS', 'OUTPUT']);
 
-export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, sopDir, opener }) {
+export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, sopDir, opener, current = null }) {
   const text = loadSop('build', sopDir ? { dir: sopDir } : {});
   const missing = BUILD_SOP_PLACES.filter((k) => !placeholdersOf(text).includes(k));
   if (missing.length) throw new StreamsError('sop-incomplete', `the build SOP has no place for ${missing.join(', ')}`);
   const sop = renderSop(text, {
     TODAY: today, TOOLS: toolsText(kind), BUDGET: budgetText(budget), ACTIONS: actionsText(definition), OUTPUT: OUTPUT_TEXT,
   });
-  return `${sop}\n\n## 用户的开场白\n用户：${opener}`;
+  const now = current ? `\n\n## 这座库现在的建库卡（用户要改它）\n\`\`\`json\n${JSON.stringify(current, null, 2)}\n\`\`\`` : '';
+  return `${sop}${now}\n\n## 用户的开场白\n用户：${opener}`;
 }
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS } = {}) {
+export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null } = {}) {
   if (!connector || typeof connector.send !== 'function') throw new StreamsError('bad-argument', 'a build needs a session connection with the web tools');
   if (!runner) throw new StreamsError('bad-argument', 'a build needs the action runner');
-  const s = state ?? { v: 1, language, kind, opener: null, sessionId: null, status: 'new', turns: [], asked: [], reads: [], searches: [], calls: 0, card: null, pendingId: null, libraryDir: null };
+  if (edit !== null && (!isObj(edit) || typeof edit.library !== 'string' || !isObj(edit.card))) throw new StreamsError('bad-argument', 'a change of a card needs { library, card }');
+  const s = state ?? { v: 1, language, kind, opener: null, sessionId: null, status: 'new', turns: [], asked: [], reads: [], searches: [], calls: 0, card: null, pendingId: null, libraryDir: null, edit: edit ? { library: edit.library, card: edit.card } : null };
+  const editing = () => isObj(s.edit);
   const day = today ?? now().toISOString().slice(0, 10);
 
   // a reply that is not JSON is still the agent's answer (interpret sends it back once); any other failure is the connection's
   const usable = (r) => r.ok || (r.code === 'bad-format' && typeof r.text === 'string' && r.text !== '');
-  const over = () => s.searches.length > budget.searches + budget.changeSearches || s.reads.length > budget.reads + budget.changeReads;
+  const over = () => (editing()
+    ? s.searches.length > budget.changeSearches || s.reads.length > budget.changeReads
+    : s.searches.length > budget.searches + budget.changeSearches || s.reads.length > budget.reads + budget.changeReads);
+  // the addresses the card may carry: this build's reads, and (changing a card) those already on it
+  const readsSoFar = () => (editing() ? [...s.reads, ...cardUrls(s.edit.card).map((url) => ({ url, ok: true }))] : s.reads);
 
   async function call(prompt) {
     const r = await connector.send({ prompt, format: 'json', model: 'main' }, { sessionId: s.sessionId ?? undefined });
@@ -98,18 +111,18 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
     const say = typeof json.say === 'string' ? json.say : '';
     if (json.question !== undefined && json.card !== undefined) return { problem: 'two', say, problems: ['一轮只交一样：一个问题，或一张建库卡'] };
     if (json.question !== undefined) {
-      const c = checkQuestion(json.question, s.asked);
+      const c = checkQuestion(json.question, s.asked, { firstInput: !editing() });
       return c.ok ? { kind: 'question', say, question: c.question } : { problem: 'question', say, problems: c.problems };
     }
     if (json.card !== undefined) {
-      const c = checkCard(json.card, { reads: s.reads });
+      const c = checkCard(json.card, { reads: readsSoFar() });
       return c.ok ? { kind: 'card', say, card: json.card } : { problem: 'card', say, card: json.card, problems: c.problems };
     }
     return { kind: 'say', say };
   }
 
   async function turn(prompt, userText) {
-    if (s.status === 'built' || s.status === 'stopped') throw new StreamsError('bad-state', `this build is ${s.status}`);
+    if (s.status === 'built' || s.status === 'stopped' || s.status === 'dropped') throw new StreamsError('bad-state', `this build is ${s.status}`);
     if (s.turns.filter((t) => t.role === 'agent').length >= maxTurns) { s.status = 'stopped'; return { kind: 'stopped', notice: 'too-many-turns' }; }
     if (userText !== undefined) s.turns.push({ role: 'user', text: userText, at: now().toISOString() });
     let r = await call(prompt);
@@ -136,8 +149,10 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
     } else if (a.kind === 'card') {
       out = await offerCard(a.card, a.say);
     } else if (a.problem === 'card') {
+      const before = s.card ?? s.edit?.card ?? null;
       s.card = a.card;
-      out = { kind: 'card', say: a.say, card: a.card, canConfirm: false, problems: a.problems };
+      if (s.pendingId) { runner.reject(s.pendingId); s.pendingId = null; }
+      out = { kind: 'card', say: a.say, card: a.card, canConfirm: false, problems: a.problems, before };
     } else if (a.problem === 'question' || a.problem === 'two') {
       out = { kind: 'say', say: a.say, notice: 'question-not-shown', problems: a.problems };
     } else if (a.problem === 'bad-format') {
@@ -153,13 +168,15 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
   }
 
   async function offerCard(card, say) {
+    const before = s.card ?? s.edit?.card ?? null;
     s.card = card;
     if (s.pendingId) { runner.reject(s.pendingId); s.pendingId = null; }
-    const r = await runner.request('main_agent', { action: 'create_library', params: { card } });
-    if (r.status !== 'pending') return { kind: 'card', say, card, canConfirm: false, problems: [{ code: 'rejected', errors: r.errors ?? [] }] };
+    const request = editing() ? { action: 'edit_card', params: { library: s.edit.library, card } } : { action: 'create_library', params: { card } };
+    const r = await runner.request('main_agent', request);
+    if (r.status !== 'pending') return { kind: 'card', say, card, canConfirm: false, problems: [{ code: 'rejected', errors: r.errors ?? [] }], before };
     s.pendingId = r.pending.id;
-    const [proposal] = proposalCards([r.pending], definition, { language: s.language });
-    return { kind: 'card', say, card, canConfirm: true, problems: [], proposal };
+    const [proposal] = proposalCards([r.pending], definition, { language: s.language, cardOf: () => s.edit?.card ?? null });
+    return { kind: 'card', say, card, canConfirm: true, problems: [], proposal, before };
   }
 
   return {
@@ -167,7 +184,7 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
       if (s.status !== 'new') throw new StreamsError('bad-state', 'this build has started already');
       if (typeof opener !== 'string' || opener.trim() === '') throw new StreamsError('bad-argument', 'what the user wants to follow is needed');
       s.opener = opener.trim();
-      const prompt = buildPrompt({ definition, kind: s.kind, today: day, budget, sopDir, opener: s.opener });
+      const prompt = buildPrompt({ definition, kind: s.kind, today: day, budget, sopDir, opener: s.opener, current: s.edit?.card ?? null });
       return turn(prompt, s.opener);
     },
     async reply(answer) {
@@ -183,6 +200,12 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
       if (out.status === 'done') { s.status = 'built'; s.libraryDir = out.result.object.id; s.pendingId = null; }
       else if (out.status === 'rejected') s.pendingId = null; // taken back, or no longer allowed by the definition
       return out;
+    },
+    /** 不建了 / 不改了: the card waiting is taken back and the build ends; nothing was made. */
+    drop() {
+      if (s.pendingId) { runner.reject(s.pendingId); s.pendingId = null; }
+      if (s.status !== 'built') s.status = 'dropped';
+      return s;
     },
     state: () => s,
   };

@@ -26,8 +26,9 @@ export function AppFrame({ sidebar, panel, children }) {
   </div>`
 }
 
-export function Main({ screen, state, label, labelledby, inner = false, children }) {
-  return html`<main class=${inner ? 'center st-main' : 'workspace st-main'} data-screen=${screen} data-state=${state} aria-label=${label} aria-labelledby=${labelledby}>
+export function Main({ screen, state, label, labelledby, inner = false, attrs = null, children }) {
+  // attrs (1.1 W6b): more data-* attributes of the screen (新建库's data-mode, data-view)
+  return html`<main class=${inner ? 'center st-main' : 'workspace st-main'} data-screen=${screen} data-state=${state} aria-label=${label} aria-labelledby=${labelledby} ...${attrs ?? {}}>
     ${children}
   </main>`
 }

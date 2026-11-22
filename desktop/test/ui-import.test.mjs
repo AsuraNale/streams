@@ -39,7 +39,7 @@ import { LIBRARY } from '../src/renderer/texts/library.js'
 import { NEW_LIBRARY } from '../src/renderer/texts/first-run.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { headerText, parseHeaderText } from '../src/renderer/lib/header-text.js'
-import { ready } from './support/app.mjs'
+import { ready, openForm } from './support/app.mjs'
 import { IMPORT_FILES, seedImportFolder, worldSession } from './support/seed.mjs'
 // v2 package F: 资料库 and 今日 (概览) are tabs of the library's page, reached through it, not v1.0's sidebar entries; the assertions are v1.0's
 
@@ -251,8 +251,7 @@ const f = worldSession({
 
 test("首次打开 → 手动创建 → 新建库 (redesign R4a: one page) with 更改… on a folder of .md files: it says how many and that nothing is moved; 仅创建 opens it as a library, the files as they were", async () => {
   await f.page.waitForFunction(() => document.querySelector('[data-part="first-run"]')?.dataset.view === 'home', null, POLL)
-  await f.page.click('[data-action="manual-new"] button')
-  await ready(f.page, 'new-library')
+  await openForm(f.app, f.page)
   await f.page.waitForFunction(() => document.querySelector('[data-part="folder-state"]')?.dataset.state !== '', null, POLL)
   await f.page.click('[data-action="change-folder"] button')
   await f.page.waitForFunction(p => document.querySelector('[data-part="location"]')?.dataset.path === p, vaultF, POLL)

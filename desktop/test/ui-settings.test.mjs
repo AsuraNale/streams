@@ -25,7 +25,7 @@ import { basename, join } from 'node:path'
 import { CONNECTIONS } from '../src/renderer/texts/common.js'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
 import { worldSession } from './support/seed.mjs'
-import { ready } from './support/app.mjs'
+import { ready, openForm } from './support/app.mjs'
 
 const KEY = 'sk-test-ui-settings-key-0000-ab12'
 const s = worldSession({
@@ -130,8 +130,7 @@ test('运行 (v2: on the library\'s 来源与要求, not 设置): the cap writte
 // is as before: a library was made there, it is the current one, the sidebar carries its name
 test("库: 新建库 on the folder the hook gives → the sidebar carries the new name (v2 package I: through 新建库, not a settings part; redesign R4a: the one-page form)", async () => {
   const another = join(s.world.root, 'another')
-  await s.page.click('.st-sidebar [data-action="add-library"]')
-  await ready(s.page, 'new-library')
+  await openForm(s.app, s.page)
   await click('[data-action="change-folder"]')
   await s.page.waitForFunction(p => document.querySelector('[data-part="location"]')?.dataset.path === p, another, POLL)
   await s.page.fill('[data-field="name"]', basename(another))

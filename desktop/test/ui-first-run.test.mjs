@@ -113,16 +113,20 @@ test('R4a-2 更换连接 → 连接选择 (Claude Code is the current one) → �
   assert.deepEqual([s.setupConnection.by, s.setupConnection.detail], ['chose', 'codex'])
 })
 
-test('R4a-1 发送 → 主 Agent, the sentence sent there (the first real call); the guide of the empty app is not shown above it', async () => {
+// 1.1 W6b: 发送 goes to 新建库 (screens/build.js) with the sentence — no longer v1.0's main agent page. This session's connection
+// is Codex (the step above chose it), and in 1.1 only Claude Code builds: the page keeps the sentence, says why it cannot start
+// and sends nothing. (On Claude Code the sentence starts the conversation at once: test/ui-w6b.test.mjs.)
+test('R4a-1 发送 → 新建库 with the sentence; on Codex it says why it cannot start and nothing is sent; nothing to the main agent, nothing made', async () => {
   const sentence = '我想跟踪 AI agent 的新工具和评测，不要营销稿。'
   await a.page.fill('textarea[data-field="track"]', sentence)
   await a.page.click('[data-action="send"] button')
-  await ready(a.page, 'chat')
-  await until(a.page, () => document.querySelector('[data-part="compose"]')?.dataset.busy === 'false' && document.querySelector('[data-row="you"]') !== null)
-  const rows = readFileSync(transcriptOf(a.world), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
-  assert.deepEqual(rows.filter(r => r.role === 'you').map(r => r.text), [sentence], 'sent once, as typed')
-  assert.ok(rows.some(r => r.role === 'agent'), 'the main agent answered')
-  assert.equal(await a.page.evaluate(() => document.querySelector('[data-part="first-guide"]')), null)
+  await ready(a.page, 'build')
+  assert.equal((await a.page.evaluate(() => window.streams.getAppState())).data.activeConnection, 'codex', 'control: the connection of this session')
+  const p = await a.page.evaluate(() => ({ view: document.querySelector('main[data-screen="build"]').dataset.view, box: document.querySelector('textarea[data-field="opener"]').value, why: Boolean(document.querySelector('[data-part="start-why"]')), start: document.querySelector('[data-action="start"] button').disabled }))
+  assert.deepEqual(p, { view: 'start', box: sentence, why: true, start: true })
+  assert.equal((await a.page.evaluate(() => window.streams.getBuild())).data, null, 'nothing sent')
+  assert.equal(existsSync(transcriptOf(a.world)), false, 'nothing went to the main agent')
+  assert.deepEqual(registryOf(a.world)?.libraries ?? [], [], 'nothing made')
   assert.deepEqual(a.errors, [])
 })
 
@@ -194,10 +198,11 @@ test('R4a-2 nothing found → 连接选择; 暂时跳过 → the one screen says
   await viewIs(c.page, 'home')
 })
 
-test('R4a-1 the ways out: 手动创建 → 新建库 (取消 comes back to 首次打开); 暂不创建，先进入应用 → 库架; nothing made', async () => {
+test('R4a-1 the ways out: 手动创建 → 新建库 (1.1 W6b: the one-sentence page; 取消 comes back to 首次打开); 暂不创建，先进入应用 → 库架; nothing made', async () => {
   await c.page.click('[data-action="manual-new"] button')
-  await ready(c.page, 'new-library')
-  await c.page.click('[data-action="cancel-new"] button')
+  await ready(c.page, 'build')
+  assert.equal(await c.page.evaluate(() => document.querySelector('main[data-screen="build"]').dataset.view), 'start')
+  await c.page.click('[data-action="cancel-build"] button')
   await ready(c.page, 'first-run')
   await viewIs(c.page, 'home')
   await c.page.click('[data-action="skip-create"] button')

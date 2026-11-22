@@ -680,8 +680,8 @@ export function SourcesScreen({ params = {} }) {
           ${view.status === 'error' && !d ? html`<div class="progress-alert" role="alert">${view.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}
             <${Btn} name="retry-sources" onClick=${() => view.reload()}>${ERRORS.retry}<//></div>` : null}
           ${error ? html`<p class="progress-alert" role="alert">${error}</p>` : null}
-          ${cv?.old ? html`<${OldNotice} connection=${appState?.data?.activeConnection ?? null} onRecheck=${() => navigate('new-library', { from: libraryId })} />` : null}
-          ${hasCard ? html`<${CardPart} card=${cv.card} onChange=${() => navigate('chat')} />
+          ${cv?.old ? html`<${OldNotice} connection=${appState?.data?.activeConnection ?? null} onRecheck=${() => navigate('build', { from: libraryId, opener: cv?.brief ?? '' })} />` : null}
+          ${hasCard ? html`<${CardPart} card=${cv.card} onChange=${() => navigate('build', { edit: libraryId })} />
             <${CardSourcesPart} rows=${cv.rows ?? []} onAdded=${() => cardView.reload()} />` : html`<${BriefPart} library=${library} />
           ${d ? html`<${SourcesPart} view=${d} busy=${busy} act=${act} onDialog=${setDialog} />
             <${TopicsPart} view=${d} busy=${busy} reload=${() => view.reload()} onDialog=${setDialog} />` : null}`}

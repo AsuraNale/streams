@@ -6,7 +6,7 @@
 //   proposals.mjs     proposal cards for the actions waiting for 确认, from the definition
 //   store.mjs         _card/ and _state/ of a library; the handlers of create_library and edit_card (only after 确认, B3)
 export { checkQuestion, answerText, QUESTION_LIMITS, QUESTION_KINDS } from './questions.mjs';
-export { checkCard, cardUrls, urlKey, sameUrl, renderCard, CARD_PARTS, DEFINITION_LINES, MAX_DECISIONS, CARD_WORDS } from './card.mjs';
+export { checkCard, cardUrls, urlKey, sameUrl, renderCard, cardChanges, CARD_PARTS, DEFINITION_LINES, MAX_DECISIONS, CARD_WORDS } from './card.mjs';
 export { toolsText, budgetText, actionsText, OUTPUT_TEXT, BUILD_BUDGET } from './format.mjs';
 export { createBuild, buildPrompt, problemText, MAX_BUILD_TURNS } from './conversation.mjs';
 export { proposalCards } from './proposals.mjs';

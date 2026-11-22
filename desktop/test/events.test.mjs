@@ -30,7 +30,7 @@ test('emit (main): a listed topic only, to the app\'s own pages that are still o
   // v2 package C: agent-changed (a turn of the main agent started or ended); v2 package M: quota-changed (the corner above 设置);
   // v2 package L: queue-changed (the one queue of the rounds changed); redesign R5a: suggestions-changed (a 系统检测 made or
   // handled, O5) — the reason this list changed
-  assert.deepEqual(Object.keys(EVENT_TOPICS).sort(), ['agent-changed', 'connections-changed', 'inbox-changed', 'libraries-changed', 'library-changed', 'open-screen', 'proposals-changed', 'queue-changed', 'quota-changed', 'round-progress', 'settings-changed', 'suggestions-changed', 'update'])
+  assert.deepEqual(Object.keys(EVENT_TOPICS).sort(), ['agent-changed', 'build-changed', 'connections-changed', 'inbox-changed', 'libraries-changed', 'library-changed', 'open-screen', 'proposals-changed', 'queue-changed', 'quota-changed', 'round-progress', 'settings-changed', 'suggestions-changed', 'update'])
 })
 
 test('onEvent (page): only a listed topic and a function; the payload alone arrives; the returned function unsubscribes', async () => {

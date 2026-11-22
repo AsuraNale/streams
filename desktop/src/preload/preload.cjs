@@ -135,6 +135,12 @@ const METHODS = [
   // interface B: the sources and the topics
   'getSources',
   'getCardView',
+  'getBuild',
+  'startBuild',
+  'replyBuild',
+  'retryBuild',
+  'confirmBuild',
+  'dropBuild',
   'proposeCardSource',
   'settleCardSource',
   'guessSource',
@@ -182,6 +188,7 @@ const EVENT_TOPICS = [
   'connections-changed',
   'round-progress',
   'inbox-changed',
+  'build-changed',
   // a proposal card made or decided (v2 package B)
   'proposals-changed',
   // a turn of the main agent started or ended (v2 package C)

@@ -29,7 +29,7 @@ import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
 import { ADVANCED } from '../src/renderer/texts/sources.js'
 import { fmt } from '../src/renderer/lib/format.js'
-import { ready } from './support/app.mjs'
+import { ready, openForm } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
@@ -56,8 +56,8 @@ test("首次打开 (redesign R4a): nothing found → 连接选择 → 暂时跳�
   await viewIs('home')
   const rec = JSON.parse(readFileSync(join(a.world.appData, 'settings.json'), 'utf8')).setupConnection
   assert.equal(rec.by, 'skipped')
-  await click('[data-action="manual-new"]')
-  await ready(a.page, 'new-library')
+  // 1.1 W6b: 手动创建 opens the build conversation now; v1.0's form (whose records this checks) is reached directly until W7
+  await openForm(a.app, a.page)
   await a.page.waitForFunction(() => document.querySelector('[data-part="folder-state"]')?.dataset.state !== '', null, POLL)
   await click('[data-action="change-folder"]')
   await a.page.waitForFunction(p => document.querySelector('[data-part="location"]')?.dataset.path === p, lib(), POLL)
