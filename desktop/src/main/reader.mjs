@@ -72,7 +72,7 @@ export const EXTRACT_WEB_PREFERENCES = Object.freeze({ ...READER_WEB_PREFERENCES
 
 /** Where the bar's buttons point: never loaded, only read by the bar's will-navigate. */
 export const ACTION_ORIGIN = 'https://streams-reader.invalid'
-export const READER_ACTIONS = Object.freeze(['back', 'reading', 'original', 'browser'])
+export const READER_ACTIONS = Object.freeze(['back', 'reading', 'stored', 'original', 'browser'])
 
 // redesign R3: the template's reader-header (its buttons and the address field) is 60 px high
 export const BAR_HEIGHT = 60
@@ -239,7 +239,7 @@ function glyph(name, look) {
  * The bar's page (the template's reader-header). `mode`: 'loading' | 'reading' | 'original'; `canRead`: the text was taken out
  * (阅读模式 can be chosen); `fallback`: it could not be, so the original page is shown with the line saying so.
  */
-export function barPage({ url, mode, canRead, fallback, words, look, css }) {
+export function barPage({ url, mode, canRead, fallback, words, look, css, stored = false }) {
   const action = name => `${ACTION_ORIGIN}/${name}`
   const seg = (name, label, enabled) => {
     const cur = mode === name
@@ -251,7 +251,7 @@ export function barPage({ url, mode, canRead, fallback, words, look, css }) {
     + `<a class="btn quiet rd-btn" data-reader-action="back" href="${action('back')}">${glyph('back', look)} ${escapeHtml(words.back)}</a>`
     + `<span class="search-field rd-url" role="group" aria-label="${escapeHtml(words.address)}">${glyph('external', look)}<span class="rd-url__text" data-reader-url title="${escapeHtml(url)}">${escapeHtml(url)}</span></span>`
     + (fallback ? `<span class="rd-note" data-reader-note role="status">${escapeHtml(words.fallback)}</span>` : '')
-    + `<span class="filters rd-seg" role="group" aria-label="${escapeHtml(words.modes)}">${seg('reading', words.reading, canRead)}${seg('original', words.original, mode !== 'loading')}</span>`
+    + `<span class="filters rd-seg" role="group" aria-label="${escapeHtml(words.modes)}">${stored ? seg('stored', words.stored, true) : seg('reading', words.reading, canRead)}${seg('original', words.original, mode !== 'loading')}</span>`
     + `<a class="btn quiet rd-btn" data-reader-action="browser" href="${action('browser')}">${glyph('external', look)} ${escapeHtml(words.browser)}</a>`
     + '</nav>'
   return page({ words, look, css, title: words.windowTitle, bodyClass: 'rd-bar-body', body })
@@ -274,6 +274,53 @@ export function readingPage({ article, words, look, css }) {
     + (meta.length ? `<p class="reader-meta rd-article__meta">${escapeHtml(meta.join(' · '))}</p>` : '')
     + `<div class="readable rd-article__body">${article.content}</div></article></div>`
   return page({ words, look, css, title: article.title || words.windowTitle, bodyClass: 'rd-page', lang: article.lang, dir: article.dir, body })
+}
+
+/** 1.1 W6a: the id of the marked sentence (the page is loaded at #MARK_ID, so it opens scrolled to it — no script needed). */
+export const MARK_ID = 'streams-mark'
+const fill = (t, v) => String(t).replace(/\{(\w+)\}/g, (m, k) => (Object.hasOwn(v, k) ? String(v[k]) : m))
+const localTime = iso => {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const p = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/**
+ * 1.1 W6a (A4): the page of the original Streams kept (_originals/<id>.md, read by the main process): its text in paragraphs,
+ * escaped (it is plain text — nothing of it is markup), and, when `mark` { start, end } is given (offsets in the text: the place
+ * of one point of the summary, core verify/original-check.mjs), that stretch wrapped in <mark id=MARK_ID>. `point` (0-based) is
+ * the point it was opened from.
+ */
+export function storedPage({ stored, mark = null, point = null, words, look, css }) {
+  const text = String(stored.text ?? '')
+  const m = mark && Number.isInteger(mark.start) && Number.isInteger(mark.end) && mark.start >= 0 && mark.end > mark.start && mark.end <= text.length ? mark : null
+  const paras = []
+  const re = /\n\s*\n/g
+  let at = 0
+  for (let x = re.exec(text); ; x = re.exec(text)) {
+    const end = x ? x.index : text.length
+    paras.push([at, end])
+    if (!x) break
+    at = x.index + x[0].length
+  }
+  let opened = false
+  const body = paras.filter(([a, b]) => text.slice(a, b).trim() !== '').map(([a, b]) => {
+    if (!m || m.end <= a || m.start >= b) return `<p>${escapeHtml(text.slice(a, b))}</p>`
+    const s = Math.max(a, m.start)
+    const e = Math.min(b, m.end)
+    const id = opened ? '' : ` id="${MARK_ID}"`
+    opened = true
+    return `<p>${escapeHtml(text.slice(a, s))}<mark class="rd-mark"${id}>${escapeHtml(text.slice(s, e))}</mark>${escapeHtml(text.slice(e, b))}</p>`
+  }).join('')
+  const vals = { when: localTime(stored.fetchedAt), method: words.methods?.[stored.method] ?? '', n: Number.isInteger(point) ? point + 1 : '' }
+  const note = fill(Number.isInteger(point) ? words.storedNoteFrom : words.storedNote, vals)
+  const html = '<style>.rd-mark{background:color-mix(in srgb,var(--accent) 20%,transparent);color:inherit;box-shadow:inset 0 -2px 0 var(--accent);border-radius:2px;padding:1px 0;scroll-margin-top:96px}</style>'
+    + '<div class="reader-scroll rd-scroll"><article class="reader-paper rd-article" data-reader-article data-reader-stored>'
+    + `<span class="eyebrow rd-article__note" data-reader-note-line>${escapeHtml(note)}</span>`
+    + `<h1 class="reader-title rd-article__title">${escapeHtml(stored.title || '')}</h1>`
+    + `<div class="readable rd-article__body">${body}</div></article></div>`
+  return page({ words, look, css, title: stored.title || words.windowTitle, bodyClass: 'rd-page', body: html })
 }
 
 /** A page as a data: URL (base64: Chinese text stays a third larger, not nine times). */
@@ -428,7 +475,7 @@ export function createReader({ BrowserWindow, WebContentsView, session, shell, l
   const load = (contents, url) => contents.loadURL(url).catch(err => log(`reader: load of ${short(url.startsWith('data:') ? 'a page of its own' : url)}: ${String(err?.code ?? err?.message ?? err)}`))
   const renderBar = () => {
     if (!win || win.isDestroyed() || !state) return
-    load(win.webContents, dataUrl(barPage({ url: state.url, mode: state.mode, canRead: Boolean(state.article), fallback: state.fallback, words: words(), look: theme(), css })))
+    load(win.webContents, dataUrl(barPage({ url: state.url, mode: state.mode, canRead: Boolean(state.article), fallback: state.fallback, words: words(), look: theme(), css, stored: Boolean(state.stored) })))
   }
   const showReading = () => {
     const html = readingPage({ article: state.article, words: words(), look: theme(), css })
@@ -438,6 +485,16 @@ export function createReader({ BrowserWindow, WebContentsView, session, shell, l
     state.fallback = false
     renderBar()
     load(view.webContents, url)
+  }
+  // 1.1 W6a (A4): the kept original, at its marked sentence when opened from a point
+  const showStored = () => {
+    const html = storedPage({ ...state.stored, words: words(), look: theme(), css })
+    const url = dataUrl(html)
+    if (url.length > MAX_DATA_URL) { log('reader: the kept original is too large to show; the original page instead'); state.stored = null; showOriginal(true); return }
+    state.mode = 'stored'
+    state.fallback = false
+    renderBar()
+    load(view.webContents, `${url}#${MARK_ID}`)
   }
   const showOriginal = fallback => {
     state.mode = 'original'
@@ -455,7 +512,8 @@ export function createReader({ BrowserWindow, WebContentsView, session, shell, l
     log(`reader: ${name}`)
     if (name === 'back') { onBack(); win?.close(); return }
     if (name === 'browser') { openExternal(state.url); return }
-    if (name === 'reading' && state.article) showReading()
+    if (name === 'stored' && state.stored) showStored()
+    else if (name === 'reading' && state.article) showReading()
     else if (name === 'original' && state.mode !== 'loading') showOriginal(false)
   }
 
@@ -530,11 +588,19 @@ export function createReader({ BrowserWindow, WebContentsView, session, shell, l
 
   return {
     /** Open `url` (http(s)) in the reading window: 阅读模式 when its text can be taken out, else the original page. */
-    async open(url) {
+    async open(url, { stored = null, mark = null, point = null } = {}) {
       if (!isWebUrl(url)) throw new Error(`reader: not an http(s) address: ${short(url)}`)
       ensureWindow()
       const token = ++seq
-      state = { url, article: null, mode: 'loading', fallback: false }
+      // 1.1 W6a (A4): an item whose original Streams kept opens on it — nothing is fetched from the web
+      if (stored && typeof stored.text === 'string' && stored.text !== '') {
+        state = { url, article: null, mode: 'stored', fallback: false, stored: { stored, mark, point } }
+        showStored()
+        if (!hidden) { win.show(); win.focus() }
+        log(`reader: ${short(url)}: stored${Number.isInteger(point) ? ` (point ${point + 1})` : ''}`)
+        return { mode: 'stored', fallback: false, marked: Boolean(mark) }
+      }
+      state = { url, article: null, mode: 'loading', fallback: false, stored: null }
       renderBar()
       load(view.webContents, dataUrl(waitPage({ words: words(), look: theme(), css })))
       if (!hidden) { win.show(); win.focus() }
@@ -557,6 +623,7 @@ export function createReader({ BrowserWindow, WebContentsView, session, shell, l
       if (!win || win.isDestroyed() || !state) return
       const look = theme()
       win.setBackgroundColor(windowColour(look.theme, look.scheme))
+      if (state.mode === 'stored' && state.stored) { showStored(); return }
       if (state.mode === 'reading' && state.article) { showReading(); return }
       renderBar()
       if (state.mode === 'loading' && view) load(view.webContents, dataUrl(waitPage({ words: words(), look, css })))

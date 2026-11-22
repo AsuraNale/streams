@@ -58,8 +58,10 @@ test('a broken definition file: the app does not start (exit code 1) and its log
   const p = join(dir, 'streams.json')
   writeFileSync(p, '{ "schema": "streams.ontology/1" }')
   const r = await startBroken('world-bad-def', { STREAMS_DEV_DEFINITION: p })
-  assert.equal(r.code, 1)
-  assert.match(r.log, /startup: the core's own files are not sound, not starting: ontology-invalid/)
+  // it failed once or twice in a full run only (never alone): say what the app did, so the next time tells why
+  const said = `exit code ${r.code}; log tail:\n${r.log.split('\n').slice(-12).join('\n')}`
+  assert.equal(r.code, 1, said)
+  assert.match(r.log, /startup: the core's own files are not sound, not starting: ontology-invalid/, said)
 })
 
 test('sound files in another folder: the app starts as usual (the other side of the two above)', async () => {

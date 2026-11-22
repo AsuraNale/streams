@@ -32,13 +32,22 @@ export function createReaderService({ library, reader, log, core = realCore }) {
   }
 
   const handlers = {
-    async openReader(url, how) {
+    async openReader(url, how, point) {
       known(url)
       if (how === 'browser') {
         reader.openExternal(url)
         return null
       }
-      log(`reader: open ${url.slice(0, 200)}`)
+      log(`reader: open ${url.slice(0, 200)}${Number.isInteger(point) ? ` at point ${point + 1}` : ''}`)
+      // 1.1 W6a (A4): an item of 待看 whose original Streams kept opens on it; from a point, at that point's place in it
+      const dir = library.require()
+      const item = call('readInboxItem', dir, url)
+      const id = item?.original?.saved === true ? item.original.id : null
+      const stored = id ? call('readOriginal', dir, id) : null
+      if (stored) {
+        const a = Number.isInteger(point) ? (item.summary?.anchors ?? []).find(x => x.point === point) : null
+        return reader.open(url, { stored: { title: stored.title || item.title || '', text: stored.text, fetchedAt: stored.fetchedAt, method: stored.method }, mark: a ? { start: a.start, end: a.end } : null, point: a ? point : null })
+      }
       return reader.open(url)
     },
   }

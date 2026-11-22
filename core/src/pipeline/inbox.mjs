@@ -4,7 +4,7 @@
 // writeInboxItem(libraryDir, item) -> { file }
 // readInboxItem(libraryDir, url)   -> item | null
 // removeInboxItem(libraryDir, url) -> { removed }
-// listInbox(libraryDir, { now })   -> cards sorted by relevance score desc, then substance desc
+// listInbox(libraryDir, { now })   -> cards newest first (1.1 W6a), then relevance score desc, then substance desc
 //   [{ url, title, source, date, scores:{ relevance:{score,reason}, substance:{…}, freshness:{value,reason} },
 //      summary:{ what, points, quote }, verification:{ passed, rounds, failed:[], aiInstruction? }, waitingDays, maybeDuplicateOf?,
 //      inboxAt, aiInstruction?, firstSeen, moved?, later?, laterAt? }]   aiInstruction:true = the material had 「写给 AI 的话」
@@ -17,6 +17,17 @@ import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
 import { replayLedger } from '../library/ledger.mjs';
 import { readLater } from './later.mjs';
+import { readOriginal } from '../read/original.mjs';
+
+// 1.1 W6a: how much of the original's opening a card shows (维护者 11-21: 「一百来字」, then 「打开存下的原文」)
+export const OPENING_CHARS = 120;
+
+/** The first OPENING_CHARS characters of an original's text, whitespace run together, ended with … when cut. */
+export function openingOf(text) {
+  const t = String(text ?? '').replace(/\s+/g, ' ').trim();
+  const chars = [...t];
+  return chars.length <= OPENING_CHARS ? t : `${chars.slice(0, OPENING_CHARS).join('')}……`;
+}
 
 export const INBOX_DIR = join('_pipeline', 'inbox');
 
@@ -90,6 +101,15 @@ export function listInbox(libraryDir, { now = () => new Date() } = {}) {
     if (item.materials) card.materials = item.materials;
     // 1.1 W5: the original kept or not (「原文没存下来」), a summary that was not written, the deadline and the agent's reason
     if (item.original) card.original = item.original;
+    // 1.1 W6a (A3): the opening of the kept original, when and how it was read — what the card shows under the summary
+    if (item.original?.saved === true && typeof item.original.id === 'string') {
+      const o = readOriginal(libraryDir, item.original.id);
+      if (o) {
+        card.opening = openingOf(o.text);
+        card.originalAt = o.fetchedAt;
+        card.originalMethod = o.method;
+      }
+    }
     if (item.summaryMissing) card.summaryMissing = item.summaryMissing;
     if (typeof item.due === 'string') card.due = item.due;
     if (typeof item.why === 'string') card.why = item.why;
@@ -99,6 +119,8 @@ export function listInbox(libraryDir, { now = () => new Date() } = {}) {
     cards.push(card);
   }
   const score = (c, k) => (typeof c.scores[k]?.score === 'number' ? c.scores[k].score : -1);
-  cards.sort((a, b) => score(b, 'relevance') - score(a, 'relevance') || score(b, 'substance') - score(a, 'substance') || (a.url < b.url ? -1 : 1));
+  // 1.1 W6a (E4): newest first — 1.1 keeps no score; for v1.0's items the scores only break a tie of the same moment
+  const t = (c) => Date.parse(c.inboxAt ?? '') || 0;
+  cards.sort((a, b) => t(b) - t(a) || score(b, 'relevance') - score(a, 'relevance') || score(b, 'substance') - score(a, 'substance') || (a.url < b.url ? -1 : 1));
   return cards;
 }

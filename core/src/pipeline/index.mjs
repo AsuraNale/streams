@@ -2,7 +2,7 @@
 export { DEFAULT_PIPELINE, DEFAULTS, pipelineConfig, pipelineFrom, savePipelineConfig, checkPipeline, cfgOf, gateNodes, summaryNode, lockedChecklist, resolveNodes, NODE_KINDS, MATERIALS, MAX_GATES, FIXED_NODE_IDS, BRIEF_GATE, briefOf } from './config.mjs';
 export { PREAMBLE, PREAMBLE_EN, RETRY_NOTE, RETRY_NOTE_EN, DEFAULT_REQUIREMENTS, LANGUAGES, gatePrompt, summaryPrompt, retryPrompt, materialBlock, materialText, relatedBlock, outputFormat, preambleFor, retryNoteFor } from './prompts.mjs';
 export { fetchBody, readCachedBody, cleanCache, cachePath, CACHE_DIR } from './cache.mjs';
-export { writeInboxItem, readInboxItem, removeInboxItem, listInbox, inboxPath, INBOX_DIR } from './inbox.mjs';
+export { writeInboxItem, readInboxItem, removeInboxItem, listInbox, inboxPath, INBOX_DIR, openingOf, OPENING_CHARS } from './inbox.mjs';
 export { buildQueue, nextStep, gateResult, verdictThreshold, oldVerdictPassed, laterSteps } from './queue.mjs';
 // redesign R5a: 重新评分 (N07)
 export { rescoreInfo, rescoreRejected, standardChange, standardChangedAt, STANDARD_FIELDS } from './rescore.mjs';

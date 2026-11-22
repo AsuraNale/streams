@@ -18,7 +18,9 @@ export const SETTINGS = Object.freeze({
     setup: 'Configure',
     probe: 'Test connection',
     apiHint: 'Any vendor; the vendor and its address are set under Configure',
-    agentUses: 'Scoring, summaries, questions and the main agent use the current connection’s main model; verification uses the verification model.',
+    agentUses: 'Building, updating and asking a library use the current connection’s main model; verification uses the verification model.',
+    // 1.1 W6a (A6)
+    onlyAsk: 'With this connection this version can only ask a library; building and updating need “Connect the Claude Code on this computer”.',
   }),
 
   root: Object.freeze({

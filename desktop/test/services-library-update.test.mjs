@@ -30,7 +30,7 @@ function fakeClock(start) {
   return { now: () => new Date(t), set: d => { t = d.getTime() }, timers: { set: () => ({}), clear: () => {} } }
 }
 
-async function setup({ kind = 'claude-code', card = true } = {}) {
+async function setup({ kind = 'claude-code', card = true, sign = { in: true } } = {}) {
   const w = testWorld('st-library-update-')
   worlds.push(w)
   const locale = () => w.locale
@@ -43,7 +43,7 @@ async function setup({ kind = 'claude-code', card = true } = {}) {
   if (card) writeCard(dir, CARD)
   const sessions = []
   const session = () => {
-    const s = { calls: 0, async detect() { return { installed: true, loggedIn: true } }, async send() { s.calls++; return { ok: true, json: { items: [] }, text: '{"items":[]}', sessionId: 's1', reads: [], searches: [] } } }
+    const s = { calls: 0, async detect() { return sign.in ? { installed: true, loggedIn: true } : { installed: true, loggedIn: false, code: 'login-expired' } }, async send() { s.calls++; return { ok: true, json: { items: [] }, text: '{"items":[]}', sessionId: 's1', reads: [], searches: [] } } }
     sessions.push(s)
     return s
   }
@@ -109,4 +109,19 @@ test('the catch-up: three slots missed while the app was shut -> one update, onl
   const rounds = listRounds(s.dir, 10)
   assert.equal(rounds.length, 2)
   assert.ok(rounds.every(r => r.kind === 'update'))
+})
+
+// 1.1 W6a (B12): 待看's banner — set when an update does not start because the sign-in ran out, gone after one that runs
+test('the sign-in banner: set when the update cannot start for the sign-in, cleared by the next update that runs', async () => {
+  const sign = { in: false }
+  const s = await setup({ sign })
+  assert.equal(s.pipeline.handlers.getInbox().updateProblem, null, 'nothing before')
+  await s.pipeline.startRoundIn({ id: s.id, path: s.dir })
+  await until(() => s.done.length === 1)
+  assert.equal(s.pipeline.handlers.getInbox().updateProblem?.code, 'login-expired')
+  assert.equal(s.sessions.every(x => x.calls === 0), true, 'the agent was not run')
+  sign.in = true
+  await s.pipeline.startRoundIn({ id: s.id, path: s.dir })
+  await until(() => s.done.length === 2)
+  assert.equal(s.pipeline.handlers.getInbox().updateProblem, null, 'cleared once an update ran')
 })

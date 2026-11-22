@@ -47,15 +47,16 @@ describe('待看: cards, 详情, J / K, 放弃 and its bar, 稍后处理, 未通
   const bar = () => s.page.evaluate(() => { const b = document.querySelector('[data-part="dismiss-bar"]'); return b ? { url: b.dataset.url, reasons: [...b.querySelectorAll('[data-reason]')].map(e => [e.dataset.reason, e.textContent]), actions: [...b.querySelectorAll('[data-action]')].map(e => e.dataset.action), text: b.textContent } : null })
   const mainLog = () => readFileSync(join(s.world.appData, 'logs', 'main.log'), 'utf8')
 
-  test('cards in the core\'s order, one line of source · date · scores, no reason on a card, the marks on it; the head and the keys', async () => {
+  test('cards in the core\'s order, one line of source · date (no scores: 1.1 W6a), no reason on a card, the marks on it; the head and the keys', async () => {
     const seed = s.world.seed
     assert.deepEqual(await cards(), seed.inbox.map(i => i.url))
     assert.equal(await current(), seed.inbox[0].url)
     const got = await s.page.evaluate(() => [...document.querySelectorAll('[data-card]')].map(c => ({ url: c.dataset.url, line: c.querySelector('[data-part="card-line"]')?.textContent ?? '', text: c.textContent })))
     for (const c of got) {
       const sc = seed.scores[c.url]
-      assert.ok(c.line.includes(`相关度 ${sc.relevance.score.toFixed(2)}`) && c.line.includes(`实质 ${sc.substance.score.toFixed(2)}`), c.line)
-      assert.ok(c.line.includes(INBOX.card.freshness[sc.freshness.value]), `freshness in the line: ${c.line}`)
+      // 1.1 W6a (A3; E4): the line is the source and the date only — no score of 1.0's scoring, no freshness word
+      assert.ok(!c.line.includes('相关度') && !c.line.includes('实质') && !c.line.includes(INBOX.card.freshness[sc.freshness.value]), c.line)
+      assert.ok(c.line.includes(`发布 ${seed.items?.find?.(x => x.url === c.url)?.date ?? ''}`.trim()) || /发布 d{4}-d{2}-d{2}/.test(c.line), c.line)
       assert.ok(c.line.startsWith('letta-blog'), c.line)
       // the reasons are 详情's, never the card's (control: the seed's reasons are not empty)
       assert.ok(sc.relevance.reason.length > 3 && sc.substance.reason.length > 3)

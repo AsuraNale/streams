@@ -71,6 +71,13 @@ export const PANEL = Object.freeze({
       reasons: 'Recent reasons for discarding',
       reasonsNone: 'No discard with a reason yet.',
       reasonLine: '{when} · {reason}',
+      // 1.1 W6a
+      why: 'Why it was taken',
+      reasonsOnly: 'Why this was picked',
+      sourceAndOriginal: 'Source and original',
+      inboxLine: '{source} · published {date} · in the Inbox {when}',
+      originalLine: 'Original: {method} · kept {when} · kept for good once you keep the item, removed 7 days after you discard it',
+      originalMissingLine: 'Original: not kept ({why})',
     }),
     ask: Object.freeze({
       cites: '{n} note{n?|s}',

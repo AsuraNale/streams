@@ -50,7 +50,7 @@ import { fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { TIcon } from '../lib/template-icons.js'
-import { ERRORS, FETCH_HINTS, FETCH_STATES, NEXT_WHEN, NODE_NAMES, PUNCT, SOURCE_KINDS, SOURCE_STATES, WHEN } from '../texts/common.js'
+import { ERRORS, FETCH_HINTS, FETCH_STATES, NEXT_WHEN, NODE_NAMES, PUNCT, SEP, SOURCE_KINDS, SOURCE_STATES, WHEN } from '../texts/common.js'
 import { PIPELINE } from '../texts/pipeline.js'
 import { ADVANCED as A, SOURCES as T } from '../texts/sources.js'
 import { SETTINGS } from '../texts/settings.js'
@@ -538,13 +538,102 @@ function ConfirmDialog({ name, title, onConfirm, onClose, confirm, cancel, close
 
 // ---- the screen ----------------------------------------------------------------------------------------------------------
 
+// ---- 1.1 W6a: a library with a card (A5), and one built by the last version (A6) ----------------------------------------------------
+const pad = n => String(n).padStart(2, '0')
+const LINES = ['purpose', 'scope', 'exclude', 'trust', 'rhythm', 'language', 'hard']
+const listOf = v => (Array.isArray(v) ? v : typeof v === 'string' && v.trim() !== '' ? [v] : [])
+
+/** The card's definition (a paragraph and its seven lines), and its other parts folded under 「建库卡全文」. */
+function CardPart({ card, history, onChange }) {
+  const C = T.card
+  const [open, setOpen] = useState(false)
+  const d = card.definition ?? {}
+  return html`<section class="st-src-part" data-part="card" aria-labelledby="src-card-h">
+    <div class="section-label"><span id="src-card-h">${C.heading}</span>${history ? html`<small class="muted" data-part="card-version">${history}</small>` : null}</div>
+    <p class="intro-copy" data-part="card-summary">${d.summary ?? ''}</p>
+    <dl class="decision-points" data-part="card-lines">${LINES.map((k, i) => html`<div key=${k} data-line=${k}><dt><span class="point-index">${pad(i + 1)}</span>${C.lines[k]}</dt><dd>${d[k] ?? ''}</dd></div>`)}</dl>
+    ${open ? html`<div class="st-src-card-full" data-part="card-full">
+      ${Array.isArray(card.decide) && card.decide.length ? html`<div class="section-label"><span>${C.parts.decide}</span></div><ol>${card.decide.map((x, i) => html`<li key=${i}>${x.what}${x.default ? `${PUNCT.open}${x.default}${PUNCT.close}` : ''}</li>`)}</ol>` : null}
+      ${['collect', 'skip', 'pick', 'write'].map(k => html`<div key=${k} data-card-part=${k}><div class="section-label"><span>${C.parts[k]}</span></div><ul>${listOf(card[k]).map((x, i) => html`<li key=${i}>${x}</li>`)}</ul></div>`)}
+      <div data-card-part="unreadable"><div class="section-label"><span>${C.parts.unreadable}</span></div><ul>${(card.unreadable ?? []).map((x, i) => html`<li key=${i}>${x.name}${SEP}${x.reason}</li>`)}</ul></div>
+      <div data-card-part="samples"><div class="section-label"><span>${C.parts.samples}</span></div><ul>${(card.samples ?? []).map((x, i) => html`<li key=${i}>${x.title}${x.date ? `${SEP}${x.date}` : ''}</li>`)}</ul></div>
+    </div>` : null}
+    <div class="form-footer st-src-footer">
+      ${open ? null : html`<span class="muted st-src-card-note">${C.restNote}</span>`}
+      <${Btn} name="card-full" kind="quiet" onClick=${() => setOpen(o => !o)}>${open ? C.fold : C.full}<//>
+      <${Btn} name="change-card" kind="primary" onClick=${onChange}>${C.change}<//>
+    </div>
+  </section>`
+}
+
+/** The card's sources: address or search word, state, 「原文」; a new one typed in, then 确认 (B3: nothing written before). */
+function CardSourcesPart({ rows, onAdded }) {
+  const S = T.cardSources
+  const [text, setText] = useState('')
+  const [pending, setPending] = useState(null)
+  const [note, setNote] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const propose = async () => {
+    const t = text.trim()
+    if (!t) return
+    setBusy(true); setNote(null)
+    try { setPending(await call('proposeCardSource', t)) } catch { setNote(S.badInput) } finally { setBusy(false) }
+  }
+  const settle = async yes => {
+    if (!pending) return
+    setBusy(true)
+    try {
+      await call('settleCardSource', pending.id, yes)
+      setPending(null)
+      if (yes) { setText(''); onAdded() }
+    } catch (err) { setNote(err?.code === 'bad_arguments' ? S.exists : S.failed); setPending(null) } finally { setBusy(false) }
+  }
+  const what = s => (s.url ? s.url : fmt(S.searchWord, { q: s.query }))
+  return html`<section class="st-src-part" data-part="card-sources" aria-labelledby="src-card-sources-h">
+    <div class="section-label"><span id="src-card-sources-h">${fmt(S.heading, { n: rows.filter(r => !r.unreadable).length })}</span></div>
+    <label class="search-field"><${TIcon} name="plus" />
+      <input data-field="card-source" aria-label=${S.placeholder} placeholder=${S.placeholder} value=${text} disabled=${busy || Boolean(pending)}
+        onInput=${e => setText(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); propose() } }} /></label>
+    ${pending ? html`<div class="progress-alert st-src-pending" data-part="source-pending" role="status">
+      <span>${fmt(S.confirmLine, { what: what(pending.source) })}</span>
+      <div class="row"><${Btn} name="drop-source" kind="quiet" disabled=${busy} onClick=${() => settle(false)}>${S.drop}<//><${Btn} name="confirm-source" kind="primary" disabled=${busy} onClick=${() => settle(true)}>${S.confirm}<//></div>
+    </div>` : null}
+    ${note ? html`<p class="limit-note" role="alert" data-part="source-note">${note}</p>` : null}
+    <div class="st-src-table" role="table" aria-labelledby="src-card-sources-h">
+      <div class="st-src-row st-src-head st-src-row--card" role="row"><span></span><span>${S.head.source}</span><span>${S.head.state}</span><span>${S.head.original}</span></div>
+      ${rows.map((r, i) => html`<div key=${i} class="file-row st-src-row st-src-row--card" role="row" data-card-row=${r.name} data-state=${r.state} data-original=${r.original}>
+        <span class="file-icon"><${TIcon} name=${r.query ? 'search' : 'globe'} fallback="file" /></span>
+        <span class="file-text st-src-cell">${r.name}<small>${r.url ?? fmt(S.searchWord, { q: r.query })}</small></span>
+        <span class="st-src-cell st-src-state"><span class="status-chip">${S.states[r.state] ?? r.state}</span>${r.unreadable ? html`<small>${S.unreadable}${r.reason ? `${SEP}${r.reason}` : ''}</small>` : null}</span>
+        <span class="st-src-cell"><span class="status-chip" data-original-word=${r.original}>${S.originals[r.original] ?? r.original}</span></span>
+      </div>`)}
+    </div>
+  </section>`
+}
+
+/** A library with no card: built by the last version — what still works, and the way on (A6). */
+function OldNotice({ connection, onRecheck }) {
+  const O = T.old
+  const can = connection === 'claude-code'
+  return html`<section class="st-src-part progress-alert st-src-old" data-part="old-library" data-can=${String(can)} role="note">
+    <div class="section-label"><span>${O.heading}</span></div>
+    <p class="limit-note">${O.text}</p>
+    <div class="row"><${Btn} name="recheck-sources" kind="primary" disabled=${!can} onClick=${onRecheck}>${O.action}<//>
+      ${can ? null : html`<small class="muted" data-part="recheck-why">${O.needsClaude}</small>`}</div>
+  </section>`
+}
+
 export function SourcesScreen({ params = {} }) {
   const { appState, navigate, libraries } = useApp()
   const library = appState?.data?.library ?? null
   const libraryId = library?.libraryId ?? null
   const advanced = params.view === 'advanced'
   const view = useLoad(() => call('getSources'), [])
-  useEvent('library-changed', () => view.reload())
+  // 1.1 W6a: the library's card and its sources (A5), or the notice of a library built by the last version (A6)
+  const cardView = useLoad(() => call('getCardView'), [libraryId])
+  useEvent('library-changed', () => { view.reload(); cardView.reload() })
+  const cv = cardView.data
+  const hasCard = Boolean(cv?.card)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [dialog, setDialog] = useState(null)
@@ -587,13 +676,15 @@ export function SourcesScreen({ params = {} }) {
         ${advanced ? html`<${AdvancedView} library=${library} onRemove=${() => setDialog({ kind: 'remove-library' })} />` : html`<div class="new-content st-src">
           <span class="eyebrow">${T.eyebrow}</span>
           <h2 id="sources-title">${T.heading}</h2>
-          <p>${T.lead}</p>
+          <p data-lead>${hasCard ? T.cardLead : cv?.old ? T.old.lead : T.lead}</p>
           ${view.status === 'error' && !d ? html`<div class="progress-alert" role="alert">${view.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}
             <${Btn} name="retry-sources" onClick=${() => view.reload()}>${ERRORS.retry}<//></div>` : null}
           ${error ? html`<p class="progress-alert" role="alert">${error}</p>` : null}
-          <${BriefPart} library=${library} />
+          ${cv?.old ? html`<${OldNotice} connection=${appState?.data?.activeConnection ?? null} onRecheck=${() => navigate('new-library', { from: libraryId })} />` : null}
+          ${hasCard ? html`<${CardPart} card=${cv.card} onChange=${() => navigate('chat')} />
+            <${CardSourcesPart} rows=${cv.rows ?? []} onAdded=${() => cardView.reload()} />` : html`<${BriefPart} library=${library} />
           ${d ? html`<${SourcesPart} view=${d} busy=${busy} act=${act} onDialog=${setDialog} />
-            <${TopicsPart} view=${d} busy=${busy} reload=${() => view.reload()} onDialog=${setDialog} />` : null}
+            <${TopicsPart} view=${d} busy=${busy} reload=${() => view.reload()} onDialog=${setDialog} />` : null}`}
           <${RunPart} libraryId=${libraryId} />
           <button type="button" class="document-link" data-action="go-advanced" onClick=${() => navigate('sources', { view: 'advanced' })}>
             <${TIcon} name="settings" /><span>${T.advancedLink}</span><${TIcon} name="arrow" />

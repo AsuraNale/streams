@@ -3,7 +3,7 @@
 export const INBOX = Object.freeze({
   title: 'Inbox',
   count: 'Inbox · {n} item{n?|s}',
-  sorted: 'Sorted by score',
+  sorted: 'Newest first',
   keys: 'J / K to move · C Keep · D Discard · L Later',
   addLink: 'Add a link',
   loadFailed: 'The Inbox could not be read.',
@@ -32,6 +32,20 @@ export const INBOX = Object.freeze({
     aiInstructionHint: 'The sentences found: {phrases}',
     aiInstructionPhrase: '“{phrase}”',
     aiInstructionNoPhrase: 'The sentences found are in the verification record under Details on the right.',
+    // 1.1 W6a (A3, A4)
+    saved: 'original kept',
+    published: 'published {date}',
+    pointLink: 'Paragraph {n} of the original · see the words',
+    opening: 'Opening of the original',
+    openingMeta: '{method} · kept {when}',
+    openStored: 'Open the kept original',
+    openWeb: 'Web page',
+    missing: 'Original not kept',
+    missingNote: 'Streams could not read this page ({why}), so there is no summary. Open the title to see the web page, or discard it.',
+    missingWhy: Object.freeze({ login: 'it needs a sign-in', check: 'the site asks for a human check', blocked: 'the site does not let programs read it', dead: 'the address is gone', failed: 'the site could not be reached', 'no-article': 'no article text in it' }),
+    summaryMissing: 'No summary written',
+    summaryMissingNote: 'The original is kept, but no summary was written for it this time. You can open the kept original.',
+    methods: Object.freeze({ direct: 'read directly', render: 'read after rendering', pdf: 'text of a PDF' }),
   }),
 
   bar: Object.freeze({
@@ -97,6 +111,11 @@ export const INBOX = Object.freeze({
     recentLine: '{source} · kept {when}',
   }),
 
+  // 1.1 W6a (B12)
+  banner: Object.freeze({
+    loginExpired: 'The connection’s sign-in has expired, so this library was not updated; the originals already fetched are all kept. Sign in again in Settings, then run it again.',
+    toSettings: 'Go to Settings',
+  }),
   running: Object.freeze({
     title: 'This run has not finished',
     note: 'Items that pass the filters appear here when the run is done. You can close the window; the run goes on in the background.',

@@ -19,8 +19,9 @@ export function updateActionsText(definition) {
   return [...lines, '你交回的 items 就是 submit_items 这个动作：流息逐条查重、核出处、存原文、核验摘要，过了的放进待看。别的都不用做。'].join('\n');
 }
 
-export function stateText({ lastAgentAt, today, known, unfinished, sources, sweep }) {
+export function stateText({ lastAgentAt, today, known, unfinished, sources, sweep, queries = [] }) {
   const out = [];
+  if (queries.length) out.push(`卡上的检索词（流息不替你搜，这一次用搜索查一遍）：${queries.join('、')}`);
   out.push(lastAgentAt ? `上次更新：${lastAgentAt.slice(0, 10)}。只找这之后的新东西。` : '这是这座库的第一次更新：找近期的新东西，日期核得到的才收。');
   if (sweep) out.push(`这一次请把建库卡上的来源自己读一遍${lastAgentAt ? `（离上次你读来源已经 ${sweep} 天，按卡上的节奏该读了）` : ''}：流息只能认出来源页上新出现的链接，单篇文章、项目页、数据页上的变化要你自己看。`);
   if (unfinished.length) out.push(`上一次额度用完没读到的来源：${unfinished.join('、')}`);

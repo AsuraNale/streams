@@ -114,6 +114,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
   // ({ libraryId, dir, at, problems }: the funnel's 「停 · 自检未通过」; memory only, the core writes nothing then)
   let held = null
   let failedAt = null
+  // 1.1 W6a (B12): library folder → { code, at } of an update that did not start for the login (cleared by one that ran)
+  const updateProblems = new Map()
 
   // 「n 条待看」: the cards the page lists — not the ones put aside (稍后处理), not the one held by 放弃
   const inboxCount = dir => {
@@ -278,6 +280,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       }
       last = { roundId, libraryId, result }
       lastProblems = result.started ? null : result.problems ?? null
+      if (result.status === 'login-expired') updateProblems.set(dir, { code: 'login-expired', at: now().toISOString() })
+      else if (result.started) updateProblems.delete(dir)
       running = null
       const counts = result.record?.counts ?? null
       progress({ ...base, phase: 'done', counts, calls: result.record?.calls ?? 0, done: true, result, ...(result.started ? {} : { problems: result.problems ?? [] }) })
@@ -423,6 +427,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
         manual: listManualWaiting(dir),
         held: h ? { url: h.url, title: h.title } : null,
         recentDismissReasons: recentDismissReasons(dir),
+        // 1.1 W6a (B12): the last update of this library did not start because the connection's login ran out
+        updateProblem: updateProblems.get(dir) ?? null,
       }
     },
     keepItem(url) {

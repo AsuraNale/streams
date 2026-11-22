@@ -134,6 +134,9 @@ const METHODS = [
   'applyAllHeaders',
   // interface B: the sources and the topics
   'getSources',
+  'getCardView',
+  'proposeCardSource',
+  'settleCardSource',
   'guessSource',
   'trySource',
   'addSource',

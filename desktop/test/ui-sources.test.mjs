@@ -79,7 +79,8 @@ const typeSource = async url => {
 test('R4b-1 four parts in order (要求 · 来源 · 主题 · 定时与上限) and the line to 高级设置; no 「谁定的」, no 贴一个链接进待看', async () => {
   await until(() => document.querySelector('[data-part="brief"][data-state="ready"]') !== null && document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule !== 'unknown')
   const parts = await s.page.evaluate(() => [...document.querySelectorAll('main[data-screen="sources"] .st-src > [data-part]')].map(e => e.dataset.part))
-  assert.deepEqual(parts, ['brief', 'sources', 'topics', 'run'])
+  // 1.1 W6a (A6): this library has no library card (built by the last version), so the page opens with that notice
+  assert.deepEqual(parts, ['old-library', 'brief', 'sources', 'topics', 'run'])
   assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="sources"] [data-action="go-advanced"]')?.textContent.trim()), SOURCES.advancedLink)
   const gone = await s.page.evaluate(() => ['[data-who]', '[data-action="add-link"]', '[data-dialog="add-link"]', '[data-part="gates"]', '[data-part="this-library"]', '.src-who']
     .filter(q => document.querySelector(`main[data-screen="sources"] ${q}`) !== null))

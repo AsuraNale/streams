@@ -347,7 +347,13 @@ app.whenReady().then(() => {
   // 1.1 W2: the page reader (direct -> rendered in a hidden window -> a PDF's text), for the update of W5
   const renderService = createRenderService({ BrowserWindow, session, log })
   const readPages = () => createPageReader({ render: renderService.render, pdfText })
-  libraryUpdate = createLibraryUpdateService({ readPages, readLinks: () => createLinkReader({ render: renderService.render }), log, now: clock })
+  // development and tests only (STREAMS_DEV_CONNECTION, not in a packaged app): the update agent is a stand-in that reads and
+  // searches nothing and hands in no item; its sign-in is the dev connection's (login-expired: not logged in → B12's banner)
+  const devWebSession = active => ({
+    detect: () => active.connector.detect(),
+    send: async () => ({ ok: true, json: { items: [] }, text: '{"items":[]}', sessionId: 'dev-update', resumed: false, reads: [], searches: [], otherTools: [] }),
+  })
+  libraryUpdate = createLibraryUpdateService({ readPages, readLinks: () => createLinkReader({ render: renderService.render }), log, now: clock, ...(DEV_CONNECTION ? { session: devWebSession } : {}) })
   closeReader = () => { reader.window()?.close() }
   restyleReader = () => reader.restyle()
   // v2 package K2: 「跟随系统」 follows Windows while the app runs — nativeTheme says when the system's light / dark changed (with
@@ -362,7 +368,7 @@ app.whenReady().then(() => {
     log(`appearance: Windows changed, the app is ${look.scheme} now (${look.appearance})`)
     emit('settings-changed', null)
   })
-  const sources = createSourcesService({ library, emit, log, rawErrors })
+  const sources = createSourcesService({ library, emit, log, rawErrors, pendingDir: join(layout.appData, 'pending') })
   // the library's chat box (v2 package E): a sentence routed to a change goes to the main agent (made below) with the library's id
   const ask = createAskService({ library, connections, log, agentSend: (text, options) => agent.handlers.agentSend(text, options) })
   const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell, schedule: () => scheduler?.view() ?? null, rawErrors })

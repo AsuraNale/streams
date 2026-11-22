@@ -59,7 +59,7 @@ export {
 } from './read/index.mjs';
 // 1.1 W3 / W5: updating a library (update/index.mjs). Named one by one: a name here would hide another module's
 export {
-  putInInbox, putMissingInInbox, runUpdate, linksOf, createLinkReader, FEW_LINKS,
+  putInInbox, putMissingInInbox, runUpdate, linksOf, createLinkReader, FEW_LINKS, sourceRows, sourceHandlers,
   readState as readUpdateState, writeState as writeUpdateState, statePath as updateStatePath, sweepDaysOf, STATE_FILE,
   UPDATE_BUDGET, UPDATE_TOOLS, UPDATE_OUTPUT, updateBudgetText, updateActionsText, stateText as updateStateText, newText as updateNewText,
 } from './update/index.mjs';

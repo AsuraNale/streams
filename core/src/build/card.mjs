@@ -99,7 +99,14 @@ export function checkCard(card, { reads } = {}) {
     if (card.decide.length > MAX_DECISIONS) problems.push({ code: 'too-many-decisions' });
     card.decide.forEach((d, index) => { if (!isObj(d) || !filled(d.what)) problems.push({ code: 'bad-entry', part: 'decide', index }); });
   }
-  if (Array.isArray(card.sources)) checkEntries(card, 'sources', ['name', 'url', 'status'], problems);
+  // a source is a web address the update reads for new links, or (1.1 W6a, A5) a search word the update agent searches with
+  if (Array.isArray(card.sources)) {
+    card.sources.forEach((e, index) => {
+      const ok = isObj(e) && filled(e.name) && filled(e.status)
+        && ((isWeb(e.url) && !filled(e.query)) || (filled(e.query) && (e.url === undefined || e.url === '')));
+      if (!ok) problems.push({ code: 'bad-entry', part: 'sources', index });
+    });
+  }
   if (Array.isArray(card.samples)) checkEntries(card, 'samples', ['title', 'url'], problems);
   if (Array.isArray(card.unreadable)) {
     card.unreadable.forEach((e, index) => {

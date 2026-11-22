@@ -73,13 +73,18 @@ function Mark({ attrs, title, children }) {
   return html`<span class="status-chip st-mark" title=${title}><span class="dot"></span><span ...${attrs} title=${title}>${children}</span></span>`
 }
 
-function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onPick }) {
+function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpenPoint = () => {}, onOpenWeb = () => {}, onPick }) {
   const waiting = typeof item.waitingDays === 'number' ? item.waitingDays : 0
   const scoreless = item.scoreless === true
   const moved = item.moved === 'rejected'
   const unverified = !scoreless && !moved && item.verification && item.verification.passed === false
-  const line = [item.source ?? '', item.date ?? '', ...scoreWords(item)].filter(Boolean).join(SEP)
-  const points = Array.isArray(item.summary?.points) ? item.summary.points : []
+  // 1.1 W6a (A3; E4): the line is the source, the date and whether the original was kept — no score of 1.0's scoring
+  const missing = item.original?.saved === false
+  const kept = item.original?.saved === true
+  const line = [item.source ?? '', item.date ? fmt(T.card.published, { date: item.date }) : '', kept ? T.card.saved : ''].filter(Boolean).join(SEP)
+  const points = missing ? [] : Array.isArray(item.summary?.points) ? item.summary.points : []
+  const anchors = Array.isArray(item.summary?.anchors) ? item.summary.anchors : []
+  const placeOf = i => anchors.find(a => a.point === i) ?? null
   return html`<article class=${`confirmation st-card${isCurrent ? ' st-current' : ''}`} data-card data-url=${item.url} data-current=${String(isCurrent)}
     aria-current=${isCurrent ? 'true' : undefined} aria-label=${T.card.label} tabindex="-1" onClick=${onPick}>
     <div class="confirm-top">
@@ -88,6 +93,8 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onPic
           <small data-part="card-line">${line}</small></div>
       </div>
       <div class="st-card__marks">
+        ${missing ? html`<${Mark} attrs=${{ 'data-original-missing': item.original.reason ?? '' }}>${T.card.missing}<//>` : null}
+        ${item.summaryMissing ? html`<${Mark} attrs=${{ 'data-summary-missing': '' }}>${T.card.summaryMissing}<//>` : null}
         ${item.aiInstruction === true ? html`<${Mark} attrs=${{ 'data-ai-instruction': '' }} title=${aiHint(item)}>${T.card.aiInstruction}<//>` : null}
         ${unverified ? html`<${Mark} attrs=${{ 'data-unverified': '' }}>${T.card.unverified}<//>` : null}
         ${item.materials === 'title-only' ? html`<${Mark} attrs=${{ 'data-title-only': '' }} title=${T.card.titleOnlyHint}>${T.card.titleOnly}<//>` : null}
@@ -98,9 +105,20 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onPic
       </div>
     </div>
     <div class="card-body">
-      ${item.summary?.what ? html`<p class="intro-copy" data-part="what"><b>${T.card.what}</b>${item.summary.what}</p>` : null}
+      ${missing ? html`<p class="intro-copy" data-part="missing-note">${fmt(T.card.missingNote, { why: T.card.missingWhy[item.original.reason] ?? T.card.missingWhy['no-article'] })}</p>` : null}
+      ${item.summaryMissing ? html`<p class="intro-copy" data-part="summary-missing-note">${T.card.summaryMissingNote}</p>` : null}
+      ${!missing && item.summary?.what ? html`<p class="intro-copy" data-part="what"><b>${T.card.what}</b>${item.summary.what}</p>` : null}
       ${(scoreless || moved) && item.excerpt ? html`<p class="intro-copy" data-part="excerpt"><b>${T.card.excerpt}</b>${item.excerpt}</p>` : null}
-      ${points.length ? html`<dl class="decision-points" data-part="points">${points.map((p, i) => html`<div key=${i}><dt><span class="point-index">${pad(i + 1)}</span></dt><dd>${p}</dd></div>`)}</dl>` : null}
+      ${points.length ? html`<dl class="decision-points" data-part="points">${points.map((p, i) => {
+        const at = placeOf(i)
+        return html`<div key=${i}><dt><span class="point-index">${pad(i + 1)}</span></dt><dd>${p}${at ? html`<br /><a href="#" class="muted st-card__place" data-action="open-point" data-point=${i} data-paragraph=${at.paragraph}
+          onClick=${e => { e.preventDefault(); e.stopPropagation(); onOpenPoint(i) }}>${fmt(T.card.pointLink, { n: at.paragraph + 1 })}</a>` : null}</dd></div>`
+      })}</dl>` : null}
+      ${item.opening ? html`<div class="st-card__opening" data-part="opening">
+        <div class="section-label"><span>${T.card.opening}</span><small class="muted" data-part="opening-meta">${fmt(T.card.openingMeta, { method: T.card.methods[item.originalMethod] ?? '', when: whenText(item.originalAt, WHEN) ?? '' })}</small></div>
+        <p>${item.opening}</p>
+        <p class="st-card__opening-links"><a href="#" class="muted" data-action="open-stored" onClick=${e => { e.preventDefault(); e.stopPropagation(); onOpen() }}>${T.card.openStored}</a>${SEP}<a href="#" class="muted" data-action="open-web" onClick=${e => { e.preventDefault(); e.stopPropagation(); onOpenWeb() }}>${T.card.openWeb}</a></p>
+      </div>` : null}
     </div>
     <div class="confirm-footer">
       <span class="muted">${scoreless ? T.card.scorelessNote : moved ? T.card.movedNote : waiting > 0 && waiting < LONG_WAIT ? html`<span data-waiting=${waiting}>${fmt(T.card.waiting, { n: waiting })}</span>` : ''}</span>
@@ -214,24 +232,29 @@ function CardDetail({ item, reasons }) {
   const ai = item.aiInstruction === true
   const seen = item.firstSeen ? whenText(item.firstSeen, WHEN) : null
   return html`<${DetailBlock} where=${D.eyebrow} title=${item.title} part="detail-inbox">
-    <div class="panel-section" data-part="detail-scores" data-url=${item.url}>
-      <div class="section-label"><span>${D.scores}</span></div>
-      ${ids.length ? html`<dl class="decision-points">${ids.map((id, i) => {
-        const sc = scores[id]
-        const value = typeof sc.score === 'number' ? num(sc.score) : Object.hasOwn(T.card.freshness, sc.value) ? T.card.freshness[sc.value] : String(sc.value ?? '')
-        return html`<div key=${id} data-detail-score=${id}><dt><span class="point-index">${pad(i + 1)}</span>${fmt(D.score, { name: nodeName(id), score: value })}</dt><dd>${sc.reason ?? ''}</dd></div>`
-      })}</dl>` : html`<p class="limit-note">${D.scoresNone}</p>`}
-    </div>
+    ${typeof item.why === 'string' && item.why !== '' ? html`<div class="panel-section" data-part="detail-why" data-url=${item.url}>
+      <div class="section-label"><span>${D.why}</span></div>
+      <p class="limit-note">${item.why}</p>
+    </div>` : html`<div class="panel-section" data-part="detail-scores" data-url=${item.url}>
+      <div class="section-label"><span>${D.reasonsOnly}</span></div>
+      ${ids.length ? html`<dl class="decision-points">${ids.filter(id => scores[id]?.reason).map((id, i) => html`<div key=${id} data-detail-score=${id}><dt><span class="point-index">${pad(i + 1)}</span></dt><dd>${scores[id].reason}</dd></div>`)}</dl>` : html`<p class="limit-note">${D.scoresNone}</p>`}
+    </div>`}
     <div class="panel-section" data-part="detail-check" data-verified=${verified} data-ai-instruction=${String(ai)}>
       <div class="section-label"><span>${D.check}</span></div>
       <div class="step-line"><${TIcon} name=${verified === 'passed' ? 'check' : 'clock'} /><span>${verified === 'passed' ? D.passed : verified === 'failed' ? D.failed : D.unchecked}</span></div>
       <div class="step-line"><${TIcon} name=${ai ? 'clock' : 'check'} /><span>${ai ? D.aiYes : D.aiNo}</span></div>
       <${VerdictFold} url=${item.url} />
     </div>
-    <div class="panel-section" data-part="detail-source">
+    ${item.original ? html`<div class="panel-section" data-part="detail-source" data-original=${item.original.saved ? 'kept' : 'missing'}>
+      <div class="section-label"><span>${D.sourceAndOriginal}</span></div>
+      <p class="limit-note">${fmt(D.inboxLine, { source: item.source ?? '', date: item.date ?? '', when: whenText(item.inboxAt, WHEN) ?? '' })}</p>
+      <p class="limit-note" data-part="detail-original">${item.original.saved
+        ? fmt(D.originalLine, { method: T.card.methods[item.originalMethod] ?? '', when: whenText(item.originalAt, WHEN) ?? '' })
+        : fmt(D.originalMissingLine, { why: T.card.missingWhy[item.original.reason] ?? T.card.missingWhy['no-article'] })}</p>
+    </div>` : html`<div class="panel-section" data-part="detail-source">
       <div class="section-label"><span>${D.source}</span></div>
       <p class="limit-note">${seen ? fmt(D.sourceLine, { source: item.source ?? '', date: item.date ?? '', when: seen }) : fmt(D.sourceLineNoSeen, { source: item.source ?? '', date: item.date ?? '' })}</p>
-    </div>
+    </div>`}
     <${Reasons} reasons=${reasons} />
   <//>`
 }
@@ -246,7 +269,7 @@ function Reasons({ reasons }) {
 }
 
 export function InboxScreen() {
-  const { appState, libraries, queue } = useApp()
+  const { appState, libraries, queue, navigate } = useApp()
   const libraryId = appState?.data?.library?.libraryId ?? null
   const row = (libraries?.data ?? []).find(r => r.id === libraryId) ?? null
   const inbox = useLoad(() => call('getInbox'), [libraryId])
@@ -294,6 +317,9 @@ export function InboxScreen() {
   const undo = () => act(async () => { await call('undoDismiss') }, focusCurrent)
   const move = url => act(async () => { await call('moveToInbox', url) })
   const open = url => { call('openReader', url, 'reader').catch(() => setError(T.failed)) }
+  // 1.1 W6a (A4): a point's place in the kept original; the web page itself in the system browser
+  const openAt = (url, point) => { call('openReader', url, 'reader', point).catch(() => setError(T.failed)) }
+  const openWeb = url => { call('openReader', url, 'browser').catch(() => setError(T.failed)) }
 
   // the keys: one listener for the screen's life, reading the newest state from a ref (see v2's notes in git history)
   const latest = useRef(null)
@@ -351,13 +377,16 @@ export function InboxScreen() {
         </div>
         ${inbox.status === 'error' && !d ? html`<div class="progress-alert" role="alert">${inbox.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed} <button type="button" class="btn quiet" onClick=${() => inbox.reload()}>${ERRORS.retry}</button></div>` : null}
         ${error ? html`<div class="progress-alert" role="alert">${error}</div>` : null}
+        ${d?.updateProblem?.code === 'login-expired' ? html`<div class="progress-alert" data-part="update-banner" data-code="login-expired" role="alert">${T.banner.loginExpired}
+          <span class="st-act" data-action="to-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.banner.toSettings}</button></span></div>` : null}
         ${running ? html`${items.length ? null : html`<div class="empty-state" data-part="run-pending"><${TIcon} name="clock" /><b>${T.running.title}</b>${T.running.note}</div>`}
           <${RunSteps} running=${running} sources=${row?.sources ?? 0} />` : null}
         ${d && !items.length && !running ? (problem && (h?.toScore ?? 0) > 0
           ? html`<div class="empty-state" data-part="caught-waiting" data-count=${h.toScore}><${TIcon} name="clock" /><b>${fmt(T.empty.caughtTitle, { n: h.toScore })}</b>${T.empty.caughtNote}</div>`
           : html`<div class="empty-state" data-part="empty"><${TIcon} name="check" /><b>${T.empty.title}</b>${nextRun}</div>`) : null}
         ${items.length ? html`<div class="st-stack">${items.map((item, i) => html`<${Card} key=${item.url} item=${item} isCurrent=${i === current} busy=${busy}
-          onPick=${() => setCurrent(i)} onKeep=${() => { setCurrent(i); keep(item) }} onDismiss=${() => { setCurrent(i); dismiss(item) }} onLater=${() => { setCurrent(i); later(item) }} onOpen=${() => open(item.url)} />`)}</div>` : null}
+          onPick=${() => setCurrent(i)} onKeep=${() => { setCurrent(i); keep(item) }} onDismiss=${() => { setCurrent(i); dismiss(item) }} onLater=${() => { setCurrent(i); later(item) }} onOpen=${() => open(item.url)}
+          onOpenPoint=${p => openAt(item.url, p)} onOpenWeb=${() => openWeb(item.url)} />`)}</div>` : null}
         ${manual.length ? html`<div class="st-manual" data-part="manual">${manual.map(m => html`<div key=${m.url} class="file-row" data-manual=${m.url}>
           <span class="file-icon"><${TIcon} name="clip" fallback="file" /></span><span class="file-text">${m.url}<small>${m.title ? `${m.title}${SEP}` : ''}${T.manual.note}</small></span>
           <span class="status-chip">${T.manual.tag}</span></div>`)}</div>` : null}

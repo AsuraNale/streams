@@ -25,7 +25,9 @@ export const SETTINGS = Object.freeze({
     probe: '测试连接',
     apiHint: '支持任意厂商；厂商与接口地址在「配置」中设置',
     // the one sentence under the three rows (F63, F64: 主 Agent uses the current connection's main model)
-    agentUses: '评分、摘要、问库与主 Agent 均使用当前连接的主模型；核验使用核验模型。',
+    agentUses: '建库、更新和问库都用当前连接的主模型；核验用核验模型。',
+    // 1.1 W6a (A6; W4's live runs, contract C7): with these two, this version only asks the library
+    onlyAsk: '这一版用这种连接只能问库；建库和更新要用「连接你电脑上的 Claude Code」。',
   }),
 
   // 新建库默认存储位置 (getLibraryRoot / chooseLibraryRoot / setLibraryRoot)

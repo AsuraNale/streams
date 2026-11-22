@@ -84,6 +84,13 @@ export const PANEL = Object.freeze({
       reasons: '最近的放弃原因',
       reasonsNone: '暂无填写了原因的放弃。',
       reasonLine: '{when} · {reason}',
+      // 1.1 W6a: why the update agent took it (its words against the card), and the original's keeping
+      why: '为什么收',
+      reasonsOnly: '推荐理由',
+      sourceAndOriginal: '来源与原文',
+      inboxLine: '{source} · 发布 {date} · {when} 进待看',
+      originalLine: '原文：{method} · {when} 存下 · 收藏以后一直留着，放弃的 7 天后清掉',
+      originalMissingLine: '原文：没存下来（{why}）',
     }),
     ask: Object.freeze({
       cites: '{n} 篇笔记',

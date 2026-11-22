@@ -212,12 +212,17 @@ export const BRIDGE_METHODS = Object.freeze({
   // in the file manager (nothing in it is listed or opened)
   getLibraryOutline: Object.freeze({ args: 0 }),
   revealProgramRecords: Object.freeze({ args: 0 }),
-  openReader: Object.freeze({ args: 2, check: ([url, how]) => httpUrl(url) && (how === 'reader' || how === 'browser') }),
+  // 1.1 W6a (A4): a third argument, the summary's point (0-based) the reading window opens on
+  openReader: Object.freeze({ args: 3, optional: 1, check: ([url, how, point]) => httpUrl(url) && (how === 'reader' || how === 'browser') && (point === undefined || (Number.isInteger(point) && point >= 0 && point < 20)) }),
   // 待规范 (docs/desktop.md §4.3, S8): a file name the core lists as needing a header; the header the page edited, or null
   applyHeader: Object.freeze({ args: 2, check: ([file, header]) => nonEmptyShort(300)(file) && (header === null || smallObject(header, 20_000)) }),
   applyAllHeaders: Object.freeze({ args: 0 }),
   // the sources and the topics (services/sources.mjs): the shapes are the core's to judge; a name must be in streams.json
   getSources: Object.freeze({ args: 0 }),
+  // 1.1 W6a: a library's card and its sources' rows; a source typed by the user, held until 确认
+  getCardView: Object.freeze({ args: 0 }),
+  proposeCardSource: Object.freeze({ args: 1, check: ([t]) => typeof t === 'string' && t.trim() !== '' && t.length <= 2000 }),
+  settleCardSource: Object.freeze({ args: 2, check: ([id, yes]) => typeof id === 'string' && id.length <= 80 && typeof yes === 'boolean' }),
   guessSource: Object.freeze({ args: 1, check: ([input]) => nonEmptyShort(2000)(input) }),
   trySource: Object.freeze({ args: 1, check: ([source]) => smallObject(source, 10_000) }),
   addSource: Object.freeze({ args: 1, check: ([source]) => smallObject(source, 10_000) }),

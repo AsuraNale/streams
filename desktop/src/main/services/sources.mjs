@@ -22,6 +22,8 @@
  * @module desktop/main/services/sources
  */
 
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { BridgeError, coreCaller } from '../bridge-methods.mjs'
 import * as realCore from '../core.mjs'
 import { byYou } from './changes.mjs'
@@ -42,7 +44,7 @@ const SAMPLE = 3
  * @param {object} [o.fetchContext] - overrides for the core's fetch context (tests: fetchImpl, timeoutMs)
  * @param {{note: Function}|null} [o.rawErrors] - redesign R5a (O9): raw-errors.mjs
  */
-export function createSourcesService({ library, emit, log, core = realCore, now = () => new Date(), fetchContext = {}, rawErrors = null }) {
+export function createSourcesService({ library, emit, log, core = realCore, now = () => new Date(), fetchContext = {}, rawErrors = null, pendingDir = join(tmpdir(), 'streams-pending') }) {
   const call = coreCaller(core)
 
   const config = dir => {
@@ -65,7 +67,50 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
     return r
   }
 
+  // 1.1 W6a (A5 · B3): a source the user adds to a library with a card is the definition's add_source, held until 确认 (inline
+  // on 来源与要求), then written into the card by core sourceHandlers. Pending records outside the library folder.
+  const cardRunner = () => {
+    const dir = library.require()
+    return call('createActionRunner', {
+      definition: call('loadDefinition'),
+      handlers: call('sourceHandlers', { dirOfLibrary: () => dir }),
+      pendingDir,
+      logFile: () => join(dir, '_actions.jsonl'),
+      now,
+    })
+  }
+  const ownPending = id => typeof id === 'string' && /^[A-Za-z0-9-]{1,80}$/.test(id)
+
   const handlers = {
+    /**
+     * 1.1 W6a: what 来源与要求 shows of the library — its card and its sources' rows (core sourceRows) when it has a card; when
+     * it has none (built by the last version: A6), its brief, so the page can say how to go on.
+     */
+    getCardView() {
+      const dir = library.require()
+      const card = call('readCard', dir)
+      return card ? { card, rows: call('sourceRows', dir), old: false } : { card: null, rows: [], old: true, brief: call('readBrief', dir) }
+    },
+    /** 1.1 W6a: a web address or a search word typed on 来源与要求 → the add_source request, pending; nothing is written yet. */
+    async proposeCardSource(text) {
+      const t = String(text).trim()
+      const url = HTTP_URL.test(t) ? t : null
+      let name = t
+      if (url) { try { name = new URL(url).hostname.replace(/^www\./, '') } catch { throw new BridgeError('bad_arguments', 'not an address') } }
+      const r = await cardRunner().request('user', { action: 'add_source', params: { library: library.current()?.libraryId ?? 'current', source: { name: name.slice(0, 200), ...(url ? { url } : { query: t.slice(0, 500) }) } } })
+      if (r.status !== 'pending') throw new BridgeError('bad_arguments', (r.errors ?? []).join('; '))
+      log(`sources: a source proposed (${url ? 'address' : 'search word'}), waiting for the user to confirm it`)
+      return { id: r.pending.id, source: r.pending.params.source }
+    },
+    /** 1.1 W6a: 确认 (do it: the card gets the source) or 不加 (drop it) of a source proposed above. */
+    async settleCardSource(id, confirm) {
+      if (!ownPending(id)) throw new BridgeError('bad_arguments')
+      const runner = cardRunner()
+      if (!confirm) { runner.reject(id); return { dropped: true } }
+      const r = await runner.confirm(id)
+      if (r.status !== 'done') throw new BridgeError(r.errors?.some(e => /already/.test(e)) ? 'bad_arguments' : 'internal', (r.errors ?? []).join('; '))
+      return changed('a source added to the card', { added: r.result.after })
+    },
     getSources() {
       // redesign R5a (O9): each row's last fetch as a state and a hint — the fetcher's message and the HTTP code to the diagnostics
       const v = call('sourcesView', library.require())

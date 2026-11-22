@@ -10,3 +10,4 @@ export { readState, writeState, statePath, sweepDaysOf, STATE_FILE } from './sta
 export { UPDATE_BUDGET, UPDATE_TOOLS, UPDATE_OUTPUT, updateBudgetText, updateActionsText, stateText, newText } from './format.mjs';
 export { runUpdate } from './run.mjs';
 export { putInInbox, putMissingInInbox } from './inbox.mjs';
+export { sourceRows, sourceHandlers } from './sources.mjs';

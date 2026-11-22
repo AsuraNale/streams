@@ -96,6 +96,10 @@ export async function runUpdate(libraryDir, {
   }
   for (const f of take) {
     const r = await readPage(f.url);
+    // 1.1 W6a (A5): what the source's pages came to, for the 「原文」 column of 来源与要求 (sources.mjs sourceRows)
+    const e = state.sources[f.source];
+    e.pages = { read: 0, pdf: 0, missing: 0, ...(e.pages ?? {}) };
+    e.pages[r.ok ? (r.method === 'pdf' ? 'pdf' : 'read') : 'missing'] += 1;
     if (r.ok) {
       saveOriginal(libraryDir, { url: f.url, title: r.title ?? '', text: r.text, method: r.method, fetchedAt: now() });
       originals.push({ url: f.url, title: r.title ?? '', text: r.text, method: r.method, source: f.source });
@@ -108,6 +112,8 @@ export async function runUpdate(libraryDir, {
 
   const sweepDays = sweepDaysOf(card);
   const sweepDue = !state.lastAgentAt || now().getTime() - Date.parse(state.lastAgentAt) >= sweepDays * DAY_MS;
+  // an item's source is shown by the card's own name for it (W6a: the line of a 待看 card), not by its address
+  const nameOf = (url) => (url ? (card.sources ?? []).find((x) => x.url === url)?.name ?? url : '');
   const finish = (status, extra = {}) => {
     writeState(libraryDir, state);
     const record = { id, kind: 'update', startedAt, finishedAt: now().toISOString(), status, counts, unfinished: state.unfinished, sweep: sweepDue, ...extra };
@@ -125,7 +131,7 @@ export async function runUpdate(libraryDir, {
   const cardMd = existsSync(join(libraryDir, CARD_DIR, CARD_MD)) ? readFileSync(join(libraryDir, CARD_DIR, CARD_MD), 'utf8') : JSON.stringify(card, null, 2);
   const prompt = renderSop(loadSop('update', sopDir ? { dir: sopDir } : {}), {
     TODAY: startedAt.slice(0, 10), TOOLS: UPDATE_TOOLS, BUDGET: updateBudgetText(budget), CARD: cardMd,
-    STATE: stateText({ lastAgentAt: state.lastAgentAt, known, unfinished: state.unfinished, sources: state.sources, sweep: sweepDue ? (state.lastAgentAt ? Math.floor((now().getTime() - Date.parse(state.lastAgentAt)) / DAY_MS) : 1) : 0 }),
+    STATE: stateText({ lastAgentAt: state.lastAgentAt, known, unfinished: state.unfinished, sources: state.sources, queries: (card.sources ?? []).filter((s) => !s.url && s.query).map((s) => s.query), sweep: sweepDue ? (state.lastAgentAt ? Math.floor((now().getTime() - Date.parse(state.lastAgentAt)) / DAY_MS) : 1) : 0 }),
     NEW: newText(originals, missing), ACTIONS: updateActionsText(definition), OUTPUT: UPDATE_OUTPUT,
   });
   let sessionId;
@@ -187,7 +193,7 @@ export async function runUpdate(libraryDir, {
       const opened = reads.some((x) => sameUrl(x.url, url));
       if (!handed && !opened) { out.dropped.push({ url, why: 'not-read' }); continue; }
       const key = handed ? handed.url : url;
-      const item = { url: key, title: typeof it.title === 'string' ? it.title : handed?.title ?? '', date: typeof it.date === 'string' ? it.date : '', due: it.due, why: it.why, source: handed?.source ?? '' };
+      const item = { url: key, title: typeof it.title === 'string' ? it.title : handed?.title ?? '', date: typeof it.date === 'string' ? it.date : '', due: it.due, why: it.why, source: nameOf(handed?.source) };
       let stored = readOriginal(libraryDir, originalId(key));
       if (!stored) {
         const page = await readPage(key);

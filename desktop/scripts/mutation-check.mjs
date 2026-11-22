@@ -1621,6 +1621,61 @@ const MUTANTS = [
     edits: [['src/main/services/library-update.mjs', "export const UPDATE_KINDS = Object.freeze(['claude-code'])", "export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex'])"]],
     test: ['test/services-library-update.test.mjs', '--test-name-pattern=^only Claude Code'],
   },
+  // 1.1 W6a (docs/checks/2026-11-20-1.1/w6a/scorecard.json): the interface in the real window
+  {
+    id: 'w6a-card-no-opening',
+    what: 'the 待看 card shows no opening of the original under the summary',
+    edits: [['src/renderer/screens/inbox.js', '      ${item.opening ? html`<div class="st-card__opening"', '      ${false ? html`<div class="st-card__opening"']],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^A3'],
+  },
+  {
+    id: 'w6a-card-missing-silent',
+    what: 'an item whose original was not kept does not say so',
+    edits: [['src/renderer/screens/inbox.js', "      ${missing ? html`<p class=\"intro-copy\" data-part=\"missing-note\">", "      ${false ? html`<p class=\"intro-copy\" data-part=\"missing-note\">"]],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^A3'],
+  },
+  {
+    id: 'w6a-reader-web',
+    what: 'a point opens the web page instead of the kept original',
+    edits: [['src/main/services/reader.mjs', '      if (stored) {', '      if (false) {']],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^A4'],
+  },
+  {
+    id: 'w6a-mark-shifted',
+    what: 'the marked stretch starts one character late',
+    edits: [['src/main/reader.mjs', '    const s = Math.max(a, m.start)', '    const s = Math.max(a, m.start + 1)']],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^A4'],
+  },
+  {
+    id: 'w6a-source-no-confirm',
+    what: 'a source typed on 来源与要求 is written into the card before 确认',
+    edits: [['src/main/services/sources.mjs', "      log(`sources: a source proposed (${url ? 'address' : 'search word'}), waiting for the user to confirm it`)", "      await cardRunner().confirm(r.pending.id)"]],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^A5'],
+  },
+  {
+    id: 'w6a-settings-no-note',
+    what: '设置 says nothing under Codex and an API key',
+    edits: [['src/renderer/screens/settings.js', "          ${kind === 'codex' || kind === 'api' ? html`<small data-part=\"only-ask\">", "          ${false ? html`<small data-part=\"only-ask\">"]],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^A6'],
+  },
+  {
+    id: 'w6a-old-any-connection',
+    what: '「重新查一遍来源」 can be pressed on any connection',
+    edits: [['src/renderer/screens/sources.js', "  const can = connection === 'claude-code'", '  const can = true']],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^the notice'],
+  },
+  {
+    id: 'w6a-no-banner',
+    what: 'an update that did not start for the sign-in leaves no banner',
+    edits: [['src/main/services/pipeline.mjs', "      if (result.status === 'login-expired') updateProblems.set(dir, { code: 'login-expired', at: now().toISOString() })\n", '']],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^no banner before'],
+  },
+  {
+    id: 'w6a-banner-stays',
+    what: 'an update that ran does not clear the sign-in banner',
+    edits: [['src/main/services/pipeline.mjs', '      else if (result.started) updateProblems.delete(dir)\n', '']],
+    test: ['test/services-library-update.test.mjs', '--test-name-pattern=^the sign-in banner'],
+  },
 ]
 
 function runTest(desktop, test) {

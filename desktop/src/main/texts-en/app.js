@@ -20,6 +20,11 @@ export const APP = Object.freeze({
     loading: 'Extracting the article…',
     fallback: 'No article could be extracted from this page; showing the original page.',
     readingNote: 'Reading view: article only, navigation and ads removed',
+    // 1.1 W6a (A4)
+    stored: 'Kept original',
+    storedNote: 'Kept original · {when} · {method}',
+    storedNoteFrom: 'Kept original · {when} · {method} · opened from point {n}',
+    methods: Object.freeze({ direct: 'read directly', render: 'read after rendering', pdf: 'text of a PDF' }),
   }),
   startupBroken: Object.freeze({
     title: 'Streams cannot start',

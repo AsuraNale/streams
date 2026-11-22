@@ -85,3 +85,19 @@
   --st-fetch-blocked-bg: var(--well);
   --st-fetch-login-bg: var(--well);
 }
+
+/* 1.1 W6a (A3): under the summary of a 待看 card, the opening of the original Streams kept; under each point, its place in it */
+.st-card__opening { margin-top: 14px; padding: 12px 14px; border-left: 3px solid var(--line); background: var(--surface2); border-radius: 6px; }
+.st-card__opening p { margin: 0; line-height: 1.75; color: var(--secondary-ink, inherit); overflow-wrap: anywhere; }
+.st-card__opening .section-label { margin-bottom: 6px; }
+.st-card__opening-links { margin-top: 8px !important; }
+.st-card__opening a, .st-card__place { text-decoration: underline; font-size: 12px; }
+
+/* 1.1 W6a (A5): a card library's sources — icon, the source (its address or search word), its state, 「原文」 */
+.st-src-row.st-src-row--card { grid-template-columns: 22px minmax(0, 1.6fr) minmax(0, .9fr) minmax(0, .9fr); }
+.st-src-row--card .status-chip { white-space: normal; }
+.st-src-card-full { display: grid; gap: 10px; margin-top: 10px; }
+.st-src-card-full ul, .st-src-card-full ol { margin: 0; padding-left: 20px; }
+.st-src-card-note { margin-right: auto; }
+.st-src-pending { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.st-src-old { display: grid; gap: 8px; }

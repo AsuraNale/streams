@@ -43,7 +43,7 @@ import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { BridgeError, bridgeErrorOf } from '../bridge-methods.mjs'
 import {
   CONFIG_FILE, NO_OUTPUT_ROUNDS, REGISTRY_FILE, countFirstLevelMd, createLibrary, defaultIcon, homeNumbers, importFolder, libraryAt,
-  SETUP_BY, libraryOf, migrateRegistry, readBrief, readConfig, readRegistry, readSetup, rebuildIndex, recordSetupStep, usageTotal, withActive, withLibrary,
+  SETUP_BY, libraryOf, migrateRegistry, readBrief, readCard, readConfig, readRegistry, readSetup, rebuildIndex, recordSetupStep, usageTotal, withActive, withLibrary,
   withMeta, withoutLibrary, writeRegistry, readUsage, saveLibraryName,
 } from '../core.mjs'
 import { byYou } from './changes.mjs'
@@ -247,7 +247,11 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
     let brief = null
     try { brief = readBrief(l.path) } catch (err) { log(`library: ${l.id}: brief unreadable: ${String(err?.message ?? err)}`) }
     const topics = (Array.isArray(cfg.topics) ? cfg.topics : []).map(t => t?.name).filter(x => typeof x === 'string' && x !== '')
-    const sources = Array.isArray(cfg.sources) ? cfg.sources.length : 0
+    let sources = Array.isArray(cfg.sources) ? cfg.sources.length : 0
+    // 1.1 W6a: a library with a card is described by the card — its paragraph, and its sources (not 1.0's brief and list)
+    let card = null
+    try { card = readCard(l.path) } catch { card = null }
+    if (card) { brief = card.definition?.summary ?? brief; sources = Array.isArray(card.sources) ? card.sources.length : 0 }
     // redesign R2: a 放弃 held until its bar closes is off the list already (services/pipeline.mjs); later ones are not in n.inbox
     const h = held()
     const inbox = Math.max(0, n.inbox - (h && h.dir === l.path ? 1 : 0))

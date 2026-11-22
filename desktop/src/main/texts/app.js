@@ -25,6 +25,11 @@ export const APP = Object.freeze({
     loading: '正在提取正文…',
     fallback: '无法从该网页提取正文，已显示原网页。',
     readingNote: '阅读模式：仅保留正文，已移除导航与广告',
+    // 1.1 W6a (A4): the original Streams kept, opened from 待看 (from one point of the summary: its sentence marked)
+    stored: '存下的原文',
+    storedNote: '存下的原文 · {when} {method}',
+    storedNoteFrom: '存下的原文 · {when} {method} · 从要点 {n} 打开',
+    methods: Object.freeze({ direct: '直接取', render: '渲染后取', pdf: 'PDF 取字' }),
   }),
   // 1.1 W1 (C2 / C3): the app's own files (the definition of actions, the two instructions for the agents) are missing or
   // broken; the app does not start on them

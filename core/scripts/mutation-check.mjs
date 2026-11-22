@@ -888,6 +888,31 @@ const MUTANTS = [
     edits: [['src/update/run.mjs', '  const sweepDue = !state.lastAgentAt || now().getTime() - Date.parse(state.lastAgentAt) >= sweepDays * DAY_MS;', '  const sweepDue = !state.lastAgentAt;']],
     test: ['test/update-w5.test.mjs', '--test-name-pattern=^the card'],
   },
+  // 1.1 W6a (docs/checks/2026-11-20-1.1/w6a/scorecard.json): what the interface is given
+  {
+    id: 'w6a-no-opening',
+    what: 'a 待看 item carries no opening of its kept original',
+    edits: [['src/pipeline/inbox.mjs', '        card.opening = openingOf(o.text);\n', '']],
+    test: ['test/w6a.test.mjs', '--test-name-pattern=^A3'],
+  },
+  {
+    id: 'w6a-pdf-as-read',
+    what: 'a source whose pages are only PDFs reads as 「读得到」',
+    edits: [['src/update/sources.mjs', "  if ((p.pdf ?? 0) > 0) return 'pdf';", "  if ((p.pdf ?? 0) > 0) return 'read';"]],
+    test: ['test/w6a.test.mjs', '--test-name-pattern=^A5'],
+  },
+  {
+    id: 'w6a-source-at-once',
+    what: 'a source the user adds is written into the card at once, before 确认',
+    edits: [['src/ontology/streams.json', '"class": 2, "object": "source", "actors": ["main_agent", "user"], "confirm": true,\n      "about": "Add a source', '"class": 2, "object": "source", "actors": ["main_agent", "user"], "confirm": false,\n      "about": "Add a source']],
+    test: ['test/w6a.test.mjs', '--test-name-pattern=^B3'],
+  },
+  {
+    id: 'w6a-url-and-query',
+    what: 'a card source may have both a web address and a search word',
+    edits: [['src/build/card.mjs', '        && ((isWeb(e.url) && !filled(e.query)) || (filled(e.query) && (e.url === undefined || e.url === \'\')));', '        && (isWeb(e.url) || filled(e.query));']],
+    test: ['test/w6a.test.mjs', '--test-name-pattern=^a card source'],
+  },
   {
     id: 'w4-proposal-no-definition',
     what: 'a proposal card is made for an action the definition does not have',
