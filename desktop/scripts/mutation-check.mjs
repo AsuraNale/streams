@@ -1240,6 +1240,13 @@ const MUTANTS = [
     edits: [['src/renderer/screens/inbox.js', "        ${waiting >= LONG_WAIT ? html`<${Mark} attrs=${{ 'data-waiting': waiting }}>", "        ${html`<${Mark} attrs=${{ 'data-scoreless': '' }}>x<//>`}\n        ${waiting >= LONG_WAIT ? html`<${Mark} attrs=${{ 'data-waiting': waiting }}>"]],
     test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 待看'],
   },
+  // 1.1 W9: A6 names the API key — 「重新查一遍来源」 is off there too
+  {
+    id: 'w9-old-api-on',
+    what: 'on an API key, 「重新查一遍来源」 of a library of the last version can be pressed (only Codex is kept off)',
+    edits: [['src/renderer/screens/sources.js', "  const can = connection === 'claude-code'", "  const can = connection !== 'codex'"]],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=on an API key'],
+  },
 ]
 
 function runTest(desktop, test) {

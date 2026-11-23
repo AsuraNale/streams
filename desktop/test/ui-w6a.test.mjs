@@ -247,9 +247,11 @@ describe('W6a in English (E5)', () => {
 
 // ---- A6: a library built by the last version (no card), on Codex and on Claude Code ----
 describe('W6a: a library built by the last version (A6)', () => {
+  let oldWorld = null
   const o = worldSession({
     kind: 'seeded',
     waitFor: 'sources',
+    prepare: world => { oldWorld = world },
     settings: { connections: { active: 'codex' }, panel: { open: true, tab: 'detail' } },
     env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'sources', ...(SHOTS ? { STREAMS_WINDOW: 'shown' } : {}) }),
   })
@@ -265,6 +267,29 @@ describe('W6a: a library built by the last version (A6)', () => {
     assert.equal(await o.page.evaluate(() => document.querySelector('[data-action="recheck-sources"] button').disabled), false)
     assert.equal(await o.page.evaluate(() => document.querySelector('[data-part="recheck-why"]')), null)
     if (SHOTS) await o.page.screenshot({ path: join(SHOTS, 'sources-old-claude.png') })
+  })
+
+  // 1.1 W9 (A6 names the API key; B17's 换库): on an API key the button is off with the reason, and bringing the library
+  // over is refused with nothing written
+  test('on an API key: 「重新查一遍来源」 off with the reason; bringing the library over is refused; the folder byte for byte', async () => {
+    const tree = dir => {
+      const out = {}
+      const walk = d => { for (const n of readdirSync(d, { withFileTypes: true })) { const p = join(d, n.name); if (n.isDirectory()) walk(p); else out[p.slice(dir.length)] = createHash('sha256').update(readFileSync(p)).digest('hex') } }
+      walk(dir)
+      return out
+    }
+    const before = tree(oldWorld.library)
+    assert.ok(Object.keys(before).some(f => f.includes('notes')), 'control: the folder has its notes')
+    assert.ok((await o.page.evaluate(() => window.streams.setApiKey('anthropic', 'sk-test-w9-not-real'))).ok)
+    assert.ok((await o.page.evaluate(() => window.streams.setActiveConnection('api'))).ok)
+    await o.page.waitForFunction(() => document.querySelector('[data-part="old-library"]')?.dataset.can === 'false', null, POLL)
+    const off = await o.page.evaluate(() => ({ disabled: document.querySelector('[data-action="recheck-sources"] button').disabled, why: document.querySelector('[data-part="recheck-why"]')?.textContent ?? null }))
+    assert.deepEqual([off.disabled, off.why], [true, fmt(SOURCES.old.needsClaude, { cc: CONNECTIONS.names['claude-code'] })])
+    if (SHOTS) await o.page.screenshot({ path: join(SHOTS, 'sources-old-api.png') })
+    const id = (await o.page.evaluate(() => window.streams.getAppState())).data.library.libraryId
+    const r = await o.page.evaluate(x => window.streams.startBuild('换过来', x), id)
+    assert.equal(r.ok, false, JSON.stringify(r))
+    assert.deepEqual(tree(oldWorld.library), before, 'the library byte for byte')
   })
 })
 
