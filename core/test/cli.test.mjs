@@ -74,70 +74,56 @@ test('sentinel: a folder without streams.json exits 1 with a JSON error naming t
   assert.equal(existsSync(join(dir, 'index.jsonl')), false);
 });
 
-// 2026-11-02 evening: fetch / try-source / status for the Tuesday checkpoint demo. Offline: a local fake server.
-import { writeFileSync, readFileSync } from 'node:fs';
-import { startFakeServer } from './support/fake-server.mjs';
-import { RSS2 } from './support/feeds.mjs';
-import { spawn } from 'node:child_process';
+// 1.1 W7b: status / inbox / keep / dismiss / rounds over what core/src writes. v1.0's fetch / try-source / self-check /
+// estimate / run (its fetch round and its scoring pipeline) left with the scoring pipeline: they are usage errors now.
+import { appendFetchLog } from '../src/fetch/log.mjs';
+import { putMissingInInbox } from '../src/update/inbox.mjs';
+import { appendRoundRecord } from '../src/pipeline/rounds-log.mjs';
 
-// spawnSync would block this process's event loop, and the fake server lives in this process:
-// the child could never be answered. So these two tests spawn asynchronously.
-function runAsync(...args) {
-  return new Promise((resolve) => {
-    const child = spawn(process.execPath, [BIN, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '', stderr = '';
-    child.stdout.setEncoding('utf8').on('data', (d) => { stdout += d; });
-    child.stderr.setEncoding('utf8').on('data', (d) => { stderr += d; });
-    child.on('close', (status) => resolve({ status, stdout, stderr, json: stdout.trim() ? JSON.parse(stdout) : null }));
-  });
-}
-
-function withSources(dir, sources) {
-  const p = join(dir, 'streams.json');
-  const cfg = JSON.parse(readFileSync(p, 'utf8'));
-  cfg.sources = sources;
-  writeFileSync(p, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
-}
-
-test('fetch: one round writes fetch_log with one line per source and lists the per-source states', async (t) => {
-  const srv = await startFakeServer();
-  t.after(() => srv.close());
-  const ok = srv.route('/ok', { status: 200, body: RSS2 });
-  const gone = srv.route('/gone', { status: 404, body: 'nope' });
-  const dir = makeLibrary('cli-fetch');
-  withSources(dir, [
-    { name: 'okfeed', kind: 'rss', url: ok, topic: 'agent 记忆' },
-    { name: 'oldblog', kind: 'rss', url: gone, topic: 'agent 记忆' },
-    { name: 'resting', kind: 'rss', url: ok, topic: 'agent 记忆', paused: true },
-  ]);
-  const r = await runAsync('fetch', dir);
-  assert.equal(r.status, 0, r.stderr);
-  const states = Object.fromEntries(r.json.perSource.map((s) => [s.name, s.status]));
-  assert.deepEqual(states, { okfeed: 'ok', oldblog: 'gap', resting: 'paused' });
-  assert.ok(r.json.newItems > 0);
-  const log = readFileSync(join(dir, '_pipeline', 'fetch_log.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-  assert.equal(log.length, 3);
-  // the status command reads that log back
-  const s = await runAsync('status', dir);
+test('status reads the fetch log back; inbox / keep / dismiss / rounds work on items 1.1 put in 待看', () => {
+  const dir = makeLibrary('cli-inbox');
+  appendFetchLog(dir, { round: 'r1', source: 'okfeed', kind: 'rss', status: 'ok', count: 2, new: 2, message: '' });
+  appendFetchLog(dir, { round: 'r1', source: 'oldblog', kind: 'rss', status: 'gap', count: 0, new: 0, message: 'HTTP 404' });
+  const s = run('status', dir);
   assert.equal(s.status, 0, s.stderr);
   assert.equal(s.json.sources.oldblog.status, 'gap');
   assert.equal(s.json.health.level, 'warning');
+
+  const at = new Date('2026-11-21T10:00:00Z');
+  putMissingInInbox(dir, { item: { url: 'https://a.test/one', title: 'One about agent memory', source: 'okfeed', date: '2026-11-20' }, round: 'u1', now: () => at });
+  putMissingInInbox(dir, { item: { url: 'https://a.test/two', title: 'Two', source: 'okfeed', date: '2026-11-20' }, round: 'u1', now: () => at });
+  appendRoundRecord(dir, { id: 'u1', startedAt: at.toISOString(), finishedAt: at.toISOString(), counts: { inbox: 2 } });
+
+  const inbox = run('inbox', dir);
+  assert.equal(inbox.status, 0, inbox.stderr);
+  assert.deepEqual(inbox.json.items.map((i) => i.url), ['https://a.test/one', 'https://a.test/two']);
+
+  const k = run('keep', dir, 'https://a.test/one');
+  assert.equal(k.status, 0, k.stderr);
+  assert.equal(k.json.id, '2026-11-20-one-about-agent-memory');
+  assert.equal(existsSync(join(dir, 'notes', k.json.file)), true);
+
+  assert.equal(run('dismiss', dir, 'https://a.test/two').status, 2, 'dismiss without a reason is a usage error');
+  const d = run('dismiss', dir, 'https://a.test/two', 'not for this library');
+  assert.equal(d.status, 0, d.stderr);
+  const again = run('dismiss', dir, 'https://a.test/two', 'twice');
+  assert.equal(again.status, 1);
+  assert.equal(JSON.parse(again.stderr).error.code, 'not-in-inbox');
+  assert.deepEqual(run('inbox', dir).json.items, []);
+
+  const rounds = run('rounds', dir);
+  assert.equal(rounds.status, 0, rounds.stderr);
+  assert.deepEqual(rounds.json.rounds.map((r) => r.id), ['u1']);
 });
 
-test('try-source: fetches one source and writes nothing; an unknown name exits 1', async (t) => {
-  const srv = await startFakeServer();
-  t.after(() => srv.close());
-  const ok = srv.route('/ok', { status: 200, body: RSS2 });
-  const dir = makeLibrary('cli-try-source');
-  withSources(dir, [{ name: 'okfeed', kind: 'rss', url: ok, topic: 'agent 记忆' }]);
-  const r = await runAsync('try-source', dir, 'okfeed');
-  assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.json.status, 'ok');
-  assert.ok(r.json.count >= 1);
-  assert.equal(existsSync(join(dir, '_pipeline', 'fetch_log.jsonl')) && readFileSync(join(dir, '_pipeline', 'fetch_log.jsonl'), 'utf8') !== '', false, 'try-source must not write the fetch log');
-  const bad = await runAsync('try-source', dir, 'nobody');
-  assert.equal(bad.status, 1);
-  assert.equal(JSON.parse(bad.stderr).error.code, 'no-such-source');
-  // sentinel: try-source without a name is a usage error
-  assert.equal((await runAsync('try-source', dir)).status, 2);
+test('v1.0\'s fetch / try-source / self-check / estimate / run are gone: usage errors, nothing written', () => {
+  const dir = makeLibrary('cli-gone');
+  for (const args of [['fetch', dir], ['try-source', dir, 'okfeed'], ['self-check', dir, '--connection', 'fake'], ['estimate', dir], ['run', dir, '--connection', 'fake']]) {
+    const r = run(...args);
+    assert.equal(r.status, 2, args[0]);
+    assert.equal(r.stdout, '', args[0]);
+  }
+  assert.equal(existsSync(join(dir, '_pipeline', 'rounds.jsonl')), false);
+  // control: a command that is there runs on the same library
+  assert.equal(run('rounds', dir).status, 0);
 });

@@ -8,7 +8,6 @@ import { join } from 'node:path';
 import { libraryCounts, listLibrary, readNote, notePath } from '../src/library/browse.mjs';
 import { rebuildIndex } from '../src/library/index.mjs';
 import { appendEvent } from '../src/library/ledger.mjs';
-import { pipelineConfig, gateNodes, cfgOf } from '../src/pipeline/config.mjs';
 import { makeLibrary, keepNote, TEST_CONFIG } from './support/fixtures.mjs';
 import { writeRawNote } from './support/raw-notes.mjs';
 
@@ -26,7 +25,9 @@ function library(name) {
   return dir;
 }
 
-test('libraryCounts: kept / authored from the index, caught = ledger states not kept or dismissed, pending from listPending', () => {
+// 1.1 W7b: v1.0's 「抓到的」 (caught: the ledger items its scoring steps had seen) left with the scoring pipeline — neither a count
+// nor a view of it any more, however many ledger items a v1.0 library has
+test('libraryCounts: kept / authored from the index, pending from listPending; no count of ledger items without a file', () => {
   const dir = library('browse-counts');
   appendEvent(dir, { ev: 'seen', url: 'https://u/1', source: 'feed-a', title: 'one' });
   appendEvent(dir, { ev: 'seen', url: 'https://u/2', source: 'feed-a', title: 'two' });
@@ -38,9 +39,9 @@ test('libraryCounts: kept / authored from the index, caught = ledger states not 
   appendEvent(dir, { ev: 'inbox', url: 'https://u/4', round: 'r1', verified: true });
   appendEvent(dir, { ev: 'dismissed', url: 'https://u/4', reason: 'no' });
   writeRawNote(dir, 'loose.md', 'no header at all\n');
-  // u/1 (seen) and u/2 (inbox) are caught; u/3 kept and u/4 dismissed are not
   // redesign R3: libraryCounts also says how many files the library has (`all`: 资料库 「全部」)
-  assert.deepEqual(libraryCounts(dir), { kept: 3, authored: 2, caught: 2, pending: 1, all: 5 });
+  assert.deepEqual(libraryCounts(dir), { kept: 3, authored: 2, pending: 1, all: 5 });
+  assert.throws(() => listLibrary(dir, { view: 'caught' }), (e) => e.code === 'bad-view');
 });
 
 test('listLibrary kept: newest kept first; authored: newest date first; total = items after filters', () => {
@@ -61,50 +62,6 @@ test('listLibrary kept: newest kept first; authored: newest date first; total = 
   assert.deepEqual(listLibrary(dir, { view: 'kept', days: 3, now: NOW }).items.map((e) => e.id), ['k-mid'], '10-31 is inside 3 days, 10-30 is not');
   assert.throws(() => listLibrary(dir, { view: 'everything' }), (e) => e.code === 'bad-view');
   assert.throws(() => listLibrary(dir, { view: 'kept', days: -1 }), (e) => e.code === 'bad-argument');
-});
-
-test('listLibrary caught: newest first seen first, stoppedAt says where each one stopped, decided ones are left out', () => {
-  const dir = library('browse-caught');
-  const cfg = pipelineConfig(dir);
-  const [g1, g2] = gateNodes(cfg);
-  const at = (h) => new Date(2026, 10, 1, h).toISOString();
-  appendEvent(dir, { ts: at(1), ev: 'seen', url: 'https://u/below', source: 'feed-a', title: 'below', date: '2026-10-31' });
-  appendEvent(dir, { ts: at(1), ev: 'scored', url: 'https://u/below', node: g1.id, score: 0.2, reason: 'off topic', cfg: cfgOf(g1), round: 'r1' });
-  appendEvent(dir, { ts: at(2), ev: 'seen', url: 'https://u/queued', source: 'feed-b', title: 'queued' });
-  appendEvent(dir, { ts: at(3), ev: 'seen', url: 'https://u/stuck', source: 'feed-a', title: 'stuck' });
-  appendEvent(dir, { ts: at(3), ev: 'unscored', url: 'https://u/stuck', node: g1.id, reason: 'bad-format', cfg: cfgOf(g1), round: 'r1' });
-  appendEvent(dir, { ts: at(4), ev: 'seen', url: 'https://u/conn', source: 'feed-a', title: 'connection' });
-  appendEvent(dir, { ts: at(4), ev: 'unscored', url: 'https://u/conn', node: g1.id, reason: 'connection:login-expired', cfg: cfgOf(g1), round: 'r1' });
-  appendEvent(dir, { ts: at(5), ev: 'seen', url: 'https://u/below2', source: 'feed-a', title: 'below gate 2' });
-  appendEvent(dir, { ts: at(5), ev: 'scored', url: 'https://u/below2', node: g1.id, score: 0.9, reason: 'on topic', cfg: cfgOf(g1), round: 'r1' });
-  appendEvent(dir, { ts: at(5), ev: 'scored', url: 'https://u/below2', node: g2.id, score: 0.1, reason: 'thin', cfg: cfgOf(g2), round: 'r1' });
-  appendEvent(dir, { ts: at(6), ev: 'seen', url: 'https://u/inbox', source: 'feed-a', title: 'inbox' });
-  appendEvent(dir, { ts: at(6), ev: 'inbox', url: 'https://u/inbox', round: 'r1', verified: true });
-  appendEvent(dir, { ts: at(7), ev: 'seen', url: 'https://u/kept', source: 'feed-a', title: 'kept' });
-  appendEvent(dir, { ts: at(7), ev: 'kept', url: 'https://u/kept', id: 'k-new' });
-  appendEvent(dir, { ts: at(8), ev: 'seen', url: 'https://u/gone', source: 'feed-a', title: 'gone' });
-  appendEvent(dir, { ts: at(8), ev: 'dismissed', url: 'https://u/gone', reason: 'no' });
-
-  const r = listLibrary(dir, { view: 'caught' });
-  assert.deepEqual(r.items.map((i) => [i.url.slice(10), i.stoppedAt]), [
-    ['inbox', 'inbox'],
-    ['below2', g2.id],
-    ['conn', 'queued'], // no answer came back: it is retried next run, not stuck
-    ['stuck', 'unscored'],
-    ['queued', 'queued'],
-    ['below', g1.id],
-  ]);
-  assert.equal(r.total, 6);
-  const below = r.items.find((i) => i.url === 'https://u/below');
-  assert.deepEqual(Object.keys(below), ['url', 'title', 'source', 'date', 'firstSeen', 'stage', 'scores', 'unscored', 'topic', 'stoppedAt']);
-  assert.equal(below.scores[g1.id].score, 0.2);
-  assert.equal(below.firstSeen, at(1));
-  assert.equal(below.topic, 'agent 记忆');
-  // topics filter goes by the source's topic in streams.json
-  assert.deepEqual(listLibrary(dir, { view: 'caught', topics: ['MCP'] }).items.map((i) => i.url), ['https://u/queued']);
-  // days filter goes by first seen: 2026-11-03 12:00 minus 2 days = 11-01 12:00, nothing seen that late
-  assert.equal(listLibrary(dir, { view: 'caught', days: 2, now: NOW }).total, 0);
-  assert.equal(listLibrary(dir, { view: 'caught', days: 3, now: NOW }).total, 6);
 });
 
 test('listLibrary pending: the listPending rows', () => {

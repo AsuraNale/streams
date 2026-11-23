@@ -23,9 +23,9 @@ import { editNote } from '../src/library/edit.mjs';
 import { readNote, listLibrary } from '../src/library/browse.mjs';
 import { search } from '../src/library/search.mjs';
 import { graph } from '../src/graph/graph.mjs';
-import { runRound } from '../src/pipeline/round.mjs';
+import { runRound } from '../legacy/pipeline/round.mjs';
 import { keep } from '../src/pipeline/decide.mjs';
-import { scriptedConnector } from '../src/pipeline/fake.mjs';
+import { scriptedConnector } from '../legacy/pipeline/fake.mjs';
 
 const MTIME = new Date('2026-10-20T15:00:00.000Z');
 const sha = (b) => createHash('sha256').update(b).digest('hex');
@@ -115,7 +115,8 @@ test('importFolder: streams.json (notesDir ".") and _pipeline/ beside the files,
   assert.equal(cfg.ok, true);
   assert.equal(cfg.config.notesDir, '.');
   assert.equal(cfg.config.name, '我的笔记');
-  assert.ok(Array.isArray(cfg.config.pipeline.nodes) && cfg.config.pipeline.nodes.length > 0, 'the default pipeline');
+  // 1.1 W7b: the library's language, no v1.0 scoring steps
+  assert.deepEqual(cfg.config.pipeline, { language: 'zh-CN' });
   assert.deepEqual(readIndex(dir).map((e) => e.id), ['fine']);
   assert.deepEqual(listPending(dir).map((p) => p.file), ['half.md', 'plain.md']);
   // reverse: the same comparison sees a one-byte change

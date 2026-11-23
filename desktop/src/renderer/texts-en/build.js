@@ -1,6 +1,7 @@
 // English (docs/desktop.md §六) for src/renderer/texts/build.js: the same keys.
 
 export const BUILD = Object.freeze({
+  speaker: Object.freeze({ name: 'Main agent', role: 'Looks after all libraries', newline: 'Shift + Enter for a new line' }),
   title: 'New library',
   editTitle: 'Change the library card',
   subtitle: 'Say what you want to follow. The main agent looks around the web, asks you a few questions and writes a library card for you to confirm.',

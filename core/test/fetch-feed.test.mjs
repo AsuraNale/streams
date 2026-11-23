@@ -1,6 +1,8 @@
+// 1.1 W7b: v1.0's feed fetchers left core/src for core/legacy/ (not shipped); still tested, since the fixtures of libraries
+// 'as 1.0 made them' run them.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFeed, atomLink, detectRoot, elementText } from '../src/fetch/feed.mjs';
+import { parseFeed, atomLink, detectRoot, elementText } from '../legacy/fetch/feed.mjs';
 import { decodeEntities, stripHtml, normalizeTitle, truncateText } from '../src/fetch/html.mjs';
 import { toIsoDate, localIsoDate, isRealDate } from '../src/fetch/dates.mjs';
 import { RSS2, ATOM, ARXIV_ATOM, EMPTY_RSS } from './support/feeds.mjs';

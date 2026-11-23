@@ -1,20 +1,18 @@
 // The library pages (core-api 5.1, mockup S6). Read only: nothing here writes anything.
 //
-// libraryCounts(libraryDir) -> { kept, authored, caught, pending, all }
+// libraryCounts(libraryDir) -> { kept, authored, pending, all }
 //   kept / authored  index entries with that status
 //   all              every index entry (redesign R3: 资料库's 「全部」 — only what is a file of the library)
-//   caught           ledger states whose stage is not kept / dismissed (not past a gate + not decided yet)
 //   pending          listPending().length
 // listLibrary(libraryDir, { view, topics?, days?, now? }) -> { view, items, total }
 //   kept      index rows with status kept, newest `kept` first (then date, then id)
 //   authored  index rows with status authored, newest date first (then id)
-//   caught    { url, title, source, date, firstSeen, stage, scores, unscored, topic, stoppedAt } newest first seen first;
-//             stoppedAt: '<gate id>' (below that gate's threshold) | 'unscored' | 'queued' | 'inbox'
-//             topic = the topic its source is filed under in streams.json (null when none)
 //   pending   listPending() rows; this view also has skippedDirs (scanLibrary's: the sub folders not read, core-api 5.9)
 //   all       redesign R3 (资料库 「全部」): every index row — kept, authored, archived; never a ledger item without a file —
 //             newest date first (then id)
-//   topics: any one matches. days: date >= today - days (caught: firstSeen within days * 24 h).
+//   topics: any one matches. days: date >= today - days.
+//   (1.1 W7b: v1.0's 「抓到的」 view and count — the ledger items its scoring steps had seen — left with the scoring pipeline;
+//   every view is of the library's files.)
 //   total = items.length after the filters.
 // readNote(libraryDir, id) -> { entry, body, backlinks:[{id,title}], sameSource:[{id,title,date}], file }
 // notePath(libraryDir, id) -> absolute path (id must be in the index)
@@ -23,17 +21,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
 import { readIndex } from './index.mjs';
-import { replayLedger, TERMINAL_STAGES } from './ledger.mjs';
 import { listPending, pendingView } from './pending.mjs';
-import { readConfig } from './config.mjs';
 import { parseFrontmatter } from './frontmatter.mjs';
 import { notesDir } from './scan.mjs';
 import { isNoteId } from './write-note.mjs';
 import { localIsoDate } from '../fetch/dates.mjs';
-import { pipelineFrom } from '../pipeline/config.mjs';
-import { nextStep } from '../pipeline/queue.mjs';
 
-export const LIBRARY_VIEWS = ['kept', 'authored', 'caught', 'pending', 'all'];
+export const LIBRARY_VIEWS = ['kept', 'authored', 'pending', 'all'];
 export const SAME_SOURCE_MAX = 5;
 const DAY_MS = 86_400_000;
 
@@ -41,12 +35,6 @@ export function cmp(a, b) {
   const x = String(a ?? '');
   const y = String(b ?? '');
   return x < y ? -1 : x > y ? 1 : 0;
-}
-
-function loadConfig(libraryDir) {
-  const r = readConfig(libraryDir);
-  if (!r.ok) throw new StreamsError(`config:${r.error.code}`, r.error.message);
-  return r.config;
 }
 
 function clockOf(now) {
@@ -74,13 +62,9 @@ export function dateCutoff(days, now) {
 
 export function libraryCounts(libraryDir) {
   const index = readIndex(libraryDir);
-  const { states } = replayLedger(libraryDir);
-  let caught = 0;
-  for (const s of states.values()) if (!TERMINAL_STAGES.includes(s.stage)) caught += 1;
   return {
     kept: index.filter((e) => e.status === 'kept').length,
     authored: index.filter((e) => e.status === 'authored').length,
-    caught,
     pending: listPending(libraryDir).length,
     all: index.length,
   };
@@ -92,8 +76,6 @@ export function listLibrary(libraryDir, { view, topics, days, now } = {}) {
   if (view === 'pending') {
     const p = pendingView(libraryDir);
     return { view, items: p.items, total: p.items.length, skippedDirs: p.skippedDirs };
-  } else if (view === 'caught') {
-    items = caughtItems(libraryDir, { topics, days, now });
   } else {
     const keep = entryFilter({ topics, days, now });
     items = readIndex(libraryDir).filter((e) => (view === 'all' || e.status === view) && keep(e));
@@ -101,60 +83,6 @@ export function listLibrary(libraryDir, { view, topics, days, now } = {}) {
     else items.sort((a, b) => cmp(b.date, a.date) || cmp(a.id, b.id));
   }
   return { view, items, total: items.length };
-}
-
-function stoppedAtOf(state, cfg) {
-  const step = nextStep(state, cfg);
-  if (step.kind === 'gate' || step.kind === 'summary') return 'queued';
-  if (step.why === 'inbox') return 'inbox';
-  if (step.why.startsWith('below:')) return step.why.slice('below:'.length);
-  if (step.why.startsWith('stuck:')) return 'unscored';
-  return 'queued';
-}
-
-function caughtItems(libraryDir, { topics, days, now }) {
-  const config = loadConfig(libraryDir);
-  const cfg = pipelineFrom(config);
-  const topicOfSource = new Map();
-  for (const s of Array.isArray(config.sources) ? config.sources : []) {
-    if (s && typeof s.name === 'string' && typeof s.topic === 'string' && s.topic.trim() !== '') topicOfSource.set(s.name, s.topic.trim());
-  }
-  const want = Array.isArray(topics) ? topics.filter((t) => typeof t === 'string' && t !== '') : [];
-  let sinceMs = null;
-  if (days !== undefined && days !== null) {
-    if (!Number.isFinite(days) || days < 0) throw new StreamsError('bad-argument', `days must be a non-negative number, got ${JSON.stringify(days)}`);
-    sinceMs = clockOf(now).getTime() - days * DAY_MS;
-  }
-  const { states } = replayLedger(libraryDir);
-  const rows = [];
-  let order = 0;
-  for (const s of states.values()) {
-    order += 1;
-    if (TERMINAL_STAGES.includes(s.stage)) continue;
-    const topic = topicOfSource.get(s.source) ?? null;
-    if (want.length && !want.includes(topic)) continue;
-    if (sinceMs !== null) {
-      const t = Date.parse(s.firstSeen ?? '');
-      if (Number.isNaN(t) || t < sinceMs) continue;
-    }
-    rows.push({
-      order,
-      item: {
-        url: s.url,
-        title: s.title ?? '',
-        source: s.source ?? '',
-        date: s.date ?? '',
-        firstSeen: s.firstSeen ?? null,
-        stage: s.stage,
-        scores: structuredClone(s.scores ?? {}),
-        unscored: { ...(s.unscored ?? {}) },
-        topic,
-        stoppedAt: stoppedAtOf(s, cfg),
-      },
-    });
-  }
-  rows.sort((a, b) => cmp(b.item.firstSeen, a.item.firstSeen) || b.order - a.order);
-  return rows.map((r) => r.item);
 }
 
 function noteFile(libraryDir, id) {

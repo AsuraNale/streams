@@ -5,16 +5,15 @@
 // v2 package I (contract I1; docs/desktop.md §五「首次打开」): when the app state first arrives and the app knows no library at all
 // (`libraryCount` 0 — not v1.0's 「no library open」), the app opens on 首次打开 (screens/first-run.js). Redesign R4a: it is the
 // route 'first-run' in the usual frame (one screen: the connection on top, what to track, 发送 → 主 Agent with the sentence,
-// 手动创建 → 新建库, 暂不创建 → 库架; docs/desktop.md §4.16).
+// 手动创建 → 新建库, 暂不创建 → 库架; docs/desktop.md §4.16; 1.1: 新建库 and 主 Agent are the build conversation, 'build').
 // With libraries registered and none current (a removed current library, say) the app opens on 库架 instead. It is decided once:
 // removing every library later does not bring 首次打开 back (库架 then says there is none). 新建库 (`newLibrary()`: the sidebar,
-// the shelf, the chat's guide) is the route 'new-library' (screens/new-library.js, v1.0's steps without the connection).
+// the shelf) is the route 'build' (screens/build.js).
 //
 // v2 package F (plan B; docs/desktop.md §五「界面结构」): the sidebar does not change with the library — 库架 ('shelf'),
-// 和主 Agent 聊 ('chat'), one line per library, 「新建库」, 设置. A library's page is four tabs, each a route of LIBRARY_ROUTES
+// 主 Agent (the build conversation; 'chat' is its alias), one line per library, 「新建库」, 设置. A library's page is four tabs, each a route of LIBRARY_ROUTES
 // (kit/library-sections.js): inbox · library (and its graph view, 'graph') · ask · sources (redesign R1: 概览 gone); all on the
-// current library (package A's 「当前库」). v1.0's ids still lead somewhere (ALIASES: 今日 and 运行状态 open 待看, 流水线 is
-// the 关卡 part of 来源与要求). Each library remembers, in memory, the route you were on and how far its page was scrolled
+// current library (package A's 「当前库」). v1.0's ids still lead somewhere (ALIASES: 今日 and 运行状态 open 待看). Each library remembers, in memory, the route you were on and how far its page was scrolled
 // (`memory`): a click on a library (openLibrary) makes it the current one (setActiveLibrary) and goes back to that route,
 // or to its 待看 the first time.
 import { html, render, useEffect, useRef, useState } from './lib/html.js'
@@ -23,8 +22,6 @@ import { call } from './lib/bridge.js'
 import { useEvent } from './lib/use-events.js'
 import { useLoad } from './lib/use-load.js'
 import { useLibraries } from './lib/libraries.js'
-// redesign R5b: what waits for you to confirm — every library's, one list (the right panel's 待确认, the 主 Agent page's head)
-import { useToConfirm } from './lib/agent.js'
 import { useBuild } from './lib/build.js'
 // v2 package L: the one queue of the rounds (the right panel, the sidebar, 库架, the library's head)
 import { useQueue } from './lib/queue.js'
@@ -94,10 +91,10 @@ function App() {
   useEvent('connections-changed', () => appState.reload())
   const shell = setup === false
   const libraries = useLibraries(shell)
-  // redesign R5b (P16, O5): the things waiting for you to confirm (listToConfirm; its count is the tab's number) and the queue
-  const toConfirm = useToConfirm(shell)
+  // v2 package L: the queue
   const queue = useQueue(shell)
-  // 1.1 W6b: the build conversation (新建库 and the right panel's 待确认); read in 首次打开 too, where it starts
+  // 1.1 W6b: the build conversation (新建库, 主 Agent and the right panel's 待确认: its card is what waits for you to confirm);
+  // read in 首次打开 too, where it starts
   const build = useBuild(true)
   const libraryId = appState.data?.library?.libraryId ?? null
   // the route of a library's page is that library's to remember
@@ -146,9 +143,8 @@ function App() {
   const value = {
     route, navigate, has, appState, libraries, openLibrary, memory: memory.current,
     // v2 package L: the right panel's lists, the queue; setPanel folds / unfolds the panel or picks a tab (settings.json)
-    toConfirm, queue, setPanel, build,
-    // 新建库, the manual way (v2 package I): its own route; 「取消」 comes back to the screen it was opened from
-    // 1.1 W6b: 新建库 is the build conversation ('build'); v1.0's form ('new-library') has no way in any more (W7 removes it)
+    queue, setPanel, build,
+    // 1.1 W6b: 新建库 is the build conversation ('build'); 「取消」 comes back to the screen it was opened from
     newLibrary: () => setRoute(r => (r.screen === 'build' ? r : { screen: 'build', params: { back: r.screen } })),
   }
   if (setup === null) return null

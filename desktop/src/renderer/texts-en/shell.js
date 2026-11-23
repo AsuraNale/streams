@@ -47,8 +47,6 @@ export const SHELL = Object.freeze({
       queued: 'Queued · position {n}',
       next: 'Next run {when}',
       nextNone: 'No scheduled run',
-      calls: 'Est. {lo}–{hi} model calls',
-      callsOne: 'Est. {n} model call{n?|s}',
       failed: 'The run could not start. Try again.',
       stopFailed: 'The run could not be stopped. Try again.',
     }),
@@ -77,26 +75,17 @@ export const SHELL = Object.freeze({
       sources: 'Source issues',
       'no-output': 'No new items in {n} runs',
     }),
-    emptyText: 'No library yet. Describe what you want to track to the main agent to get a proposal, or set one up manually.',
+    emptyText: 'No library yet. Describe what you want to track to the main agent; it writes a library card for you to confirm.',
     emptyChat: 'Drafted by the main agent',
     emptyManual: 'Set up manually',
     loadFailed: 'The list of libraries could not be read.',
   }),
 
 
-  newLibrary: Object.freeze({
-    title: 'New library',
-    cancel: 'Cancel',
-  }),
 
 
-  // redesign R5b: the confirmed proposal card's chip 「主 Agent 提的 · 你确认的」 is gone with that card (a decided 提议 is one line,
-  // texts/proposals.js PROPOSALS.states); who changed a setting is 高级设置's 变更记录 (texts/sources.js ADVANCED.log)
+  // who changed a setting is 高级设置's 变更记录 (texts/sources.js ADVANCED.log)
 
-  lastRun: Object.freeze({
-    title: 'This library · Last run',
-    run: 'Run status',
-  }),
 
   // redesign R4b: 「这个库」 (thisLibrary), 来源与要求's v2 words (sources) and 设置's 定时一览 / 用量 (settings) went with their
   // parts: texts/sources.js and texts/settings.js have the new pages' words

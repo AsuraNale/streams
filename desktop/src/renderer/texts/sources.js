@@ -1,7 +1,6 @@
 // 来源与要求 (screens/sources.js). Redesign R4b (docs/checks/2026-11-12-r4b/contract.md R4b-1 / R4b-2 / R4b-3; design 03-页面稿 P14,
-// P15, P21; the words of 05-措辞规范): four parts — 要求 (追踪要求, 库名称, 严格程度), 来源 (added in place: typed, recognised, tried,
-// then 添加; a table of three columns; 「⋯」 with four actions), 主题 (tags; one opened shows its keywords), 定时与上限 — and a line to
-// 高级设置 (评分环节, 变更记录, 库文件夹), with the template dialogs of 修改地址, 删除来源, 删除主题 and 移除该库.
+// P15, P21; the words of 05-措辞规范), 1.1 (W6a, W7b): a library's card and its sources, or — a library made by the last version —
+// its notice, its 追踪要求 and its sources read only; 定时; a line to 高级设置 (变更记录, 库文件夹) with the template dialog of 移除该库.
 // The five states' words: texts/common.js FETCH_STATES; what to do: FETCH_HINTS (V3's, as they are); the kinds: SOURCE_KINDS.
 // Source names, addresses, search words, topic names, the brief and the library's name are the library's data.
 
@@ -39,142 +38,56 @@ export const SOURCES = Object.freeze({
   // 1.1 W6a (A6): a library built by the last version
   old: Object.freeze({
     heading: '这座库是上一版建的',
-    lead: '这座库尚无建库卡：它按上一版的追踪要求和来源更新。',
+    lead: '这座库尚无建库卡：它是按上一版的追踪要求和来源建的，这一版不再按原来的方式更新它。',
     text: '笔记、资料库、问库都照常能用。要继续自动更新，先和主 Agent 把来源重新查一遍：它从这座库原来的追踪要求和来源起头，交一张建库卡给你；你确认之前，库里什么都不改。',
     action: '重新查一遍来源',
-    needsClaude: '要用「连接你电脑上的 Claude Code」才能重新查：当前连接这一版只能问库。',
+    needsClaude: '要用「{cc}」才能重新查：当前连接这一版只能问库。',
   }),
-  title: '{sources} 个来源 · {topics} 个主题',
-  titlePlain: '来源与要求',
   loadFailed: '未能读取来源与主题。',
   failed: '操作未成功，请重试。',
 
   // 要求 (F45, N01, N08)
   brief: Object.freeze({
     heading: '追踪要求',
-    name: '库名称',
-    nameBad: '库名称需为 1–100 个字。',
-    placeholder: '追踪什么、不需要什么，用一段话写清楚。',
     none: '尚未填写追踪要求。',
-    bad: '追踪要求需为 1–2000 个字。',
-    strictness: '严格程度',
-    levels: Object.freeze({ loose: '宽松', standard: '标准', strict: '严格', custom: '自定义' }),
-    levelNote: '{level}：相关度 ≥ {relevance} 且实质 ≥ {substance} 视为通过',
-    customHint: '通过阈值已在「高级设置」中手动修改；选择一档并保存后，按该档的阈值评分。',
-    save: '保存',
-    saving: '正在保存……',
-    saved: '已保存。',
-    unchanged: '没有需要保存的修改。',
-    failed: '未能保存，请重试。',
   }),
 
   // 来源 (F48, F49): added in place
   sourcesHeading: '来源 · {n} 个',
-  add: Object.freeze({
-    label: '添加来源',
-    placeholder: '输入 RSS 地址、arXiv 检索词或 Hacker News 关键词，按回车添加',
-    recognized: '已识别为 {kind}',
-    confirm: '添加',
-    cancel: '取消',
-    cannotAdd: '该地址当前无法抓取，修改后再添加。',
-    badInput: '未能识别，请换一种写法。',
-    duplicate: '该来源已在列表中。',
-    badSource: '未能添加：名称需为小写字母、数字和横线，且不能与已有来源重名。',
-  }),
-  table: Object.freeze({ source: '来源', state: '状态与处理建议', topic: '主题', more: '更多操作：{name}' }),
-  none: '尚无来源。在上面的输入框中输入地址或检索词即可添加。',
+  table: Object.freeze({ source: '来源', state: '状态与处理建议' }),
+  none: '尚无来源。',
   row: Object.freeze({
     address: '{kind} · {address}',
-    minPoints: '{kind} · {address} · ≥ {n} 分',
     count: '{state} · {n} 条',
     streakNoHttp: '{state} · 连续 {n} 次运行',
     lastOk: '上次成功抓取：{when}',
-    noTopic: '未标注',
-    try: '测试抓取',
-    trying: '正在测试抓取……',
-    pause: '暂停',
-    resume: '恢复',
-    editAddress: '修改地址',
-    editQuery: '修改检索词',
-    remove: '删除',
-  }),
-  // a test fetch (trySource): not written anywhere
-  tried: Object.freeze({
-    ok: '测试抓取：{state} · {n} 条',
-    latest: '最新：「{title}」（{date}）',
-    latestNoDate: '最新：「{title}」',
-    message: '测试抓取：{state} · {message}',
-    failed: '测试抓取未完成，请重试。',
-  }),
-  editDialog: Object.freeze({
-    title: '修改「{name}」',
-    urlLabel: '地址',
-    queryLabel: '检索词',
-    confirm: '保存',
-    cancel: '取消',
-    close: '关闭',
-    bad: '未能保存：地址或检索词不能为空。',
-  }),
-  removeDialog: Object.freeze({
-    title: '删除来源「{name}」？',
-    text: '删除后不再抓取该来源。已抓取的记录全部保留，已收藏的条目不受影响。',
-    confirm: '删除',
-    cancel: '取消',
   }),
 
-  // 主题 (F46)
-  topics: Object.freeze({
-    heading: '主题 · {n} 个',
-    chip: '{name} · {n} 篇',
-    keywordsOf: '「{name}」的关键词（固定，系统不会自动修改）：',
-    noKeywords: '尚无关键词，可稍后补充。',
-    editKeywords: '编辑关键词',
-    keywordsLabel: '「{name}」的关键词',
-    keywordsHint: '用逗号或顿号分隔',
-    save: '保存',
-    cancel: '取消',
-    remove: '删除主题',
-    addPlaceholder: '输入主题名称，按回车添加',
-    addLabel: '添加主题',
-    none: '尚无主题。',
-    bad: '未能保存：主题名称不能为空，也不能与已有主题重名。',
-  }),
-  removeTopicDialog: Object.freeze({
-    title: '删除主题「{name}」？',
-    text: '使用该主题的来源将不再标注主题；已收藏的条目不变，其中的该主题将显示为库中不存在的主题。',
-    confirm: '删除',
-    cancel: '取消',
-  }),
 
-  // 定时与上限 (F47)
+  // 定时 (F47)
   run: Object.freeze({
-    heading: '定时与上限',
+    heading: '定时',
     daily: '每天',
-    at: '自动运行 · 单次运行最多',
-    capAfter: '次模型调用',
+    at: '自动运行',
     timeLabel: '每天自动运行的时刻',
-    capLabel: '单次运行最多模型调用次数',
     save: '保存',
     saved: '已保存。',
     timeBad: '时刻需在 00:00 到 23:59 之间。',
-    capBad: '上限需为正整数。',
     next: '下次运行：{when}。',
     off: '未开启定时运行。',
-    rule: '需保持流息运行（窗口或托盘）；错过的运行将在下次启动时补上一次，不累加。达到上限后停止，剩余内容留待下次运行处理。',
+    rule: '需保持流息运行（窗口或托盘）；错过的运行将在下次启动时补上一次，不累加。',
     failed: '未能读取定时设置。',
   }),
 
-  advancedLink: '高级设置：评分环节与提示词 · 变更记录 · 库文件夹',
+  advancedLink: '高级设置：变更记录 · 库文件夹',
 })
 
-// 高级设置 (P15, F51–F55): three folds — 评分环节 (screens/pipeline.js; its words: texts/pipeline.js), 变更记录, 库文件夹
+// 高级设置 (P15, F51–F55): two folds — 变更记录, 库文件夹
 export const ADVANCED = Object.freeze({
   back: '返回来源与要求',
   eyebrow: '高级设置 / ADVANCED',
   heading: '高级设置',
-  lead: '通常无需修改。此处包含各评分环节的配置、设置的变更记录和库文件夹。',
-  gates: '评分环节',
-  gatesHint: '各环节的提示词、通过阈值与校验规则',
+  lead: '通常无需修改。此处包含设置的变更记录和库文件夹。',
   changes: '变更记录',
   changesHint: '该库各项设置的修改时间与操作来源',
   folder: '库文件夹',
@@ -193,10 +106,6 @@ export const ADVANCED = Object.freeze({
       nameNew: '库名称：{after}',
       brief: '追踪要求：{after}',
       briefNone: '追踪要求：已清空',
-      thresholds: '通过阈值：相关度 {r0} → {r1}，实质 {s0} → {s1}',
-      thresholdsNew: '通过阈值：相关度 {r1}，实质 {s1}',
-      cap: '单次运行上限：{before} → {after}',
-      capNew: '单次运行上限：{after}',
       schedule: '定时：{before} → {after}',
       scheduleNew: '定时：{after}',
       scheduleOn: '每天 {time}',
@@ -211,12 +120,11 @@ export const ADVANCED = Object.freeze({
       topicsRemoved: '主题：删除「{names}」',
       topicsKeywords: '主题：修改「{names}」的关键词',
       topicsSet: '主题：{n} 个',
-      prompts: '评分环节：修改「{names}」的提示词、材料或校验规则',
       other: '{field}：已修改',
       join: '、',
       sep: '；',
     }),
-    fieldNames: Object.freeze({ name: '库名称', brief: '追踪要求', sources: '来源', topics: '主题', thresholds: '通过阈值', schedule: '定时', cap: '单次运行上限', prompts: '评分环节' }),
+    fieldNames: Object.freeze({ name: '库名称', brief: '追踪要求', sources: '来源', topics: '主题', schedule: '定时' }),
     setup: '创建库 · {step}：{by}',
   }),
 
@@ -237,7 +145,7 @@ export const ADVANCED = Object.freeze({
     title: '移除「{name}」？',
     text: '仅取消登记：该库将不再显示在「我的库」中，也不再定时运行。',
     kept: '文件夹及其中的文件不会被删除。',
-    restore: '如需恢复，可在「新建库 → 手动填写 → 存储位置」中选择该文件夹。',
+    restore: '文件夹仍在原处。',
     confirm: '移除',
     cancel: '取消',
     close: '关闭',

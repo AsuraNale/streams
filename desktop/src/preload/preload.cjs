@@ -54,12 +54,8 @@ const METHODS = [
   'setApiVendor',
   'setApiKey',
   'removeApiKey',
-  // the pipeline
-  'applyStarterPack',
-  'getStarterPacks',
+  // the run and 待看
   'getHome',
-  'estimateRound',
-  'setRoundCap',
   'startRound',
   'cancelRound',
   'getRoundState',
@@ -69,9 +65,7 @@ const METHODS = [
   'settleDismiss',
   'undoDismiss',
   'laterItem',
-  'moveToInbox',
   'openItemUrl',
-  'getPipelineSettings',
   // the timed round
   'getSchedule',
   'setSchedule',
@@ -90,33 +84,8 @@ const METHODS = [
   'getLibraryRoot',
   'chooseLibraryRoot',
   'setLibraryRoot',
-  // redesign R4a: the one-page form of 新建库
-  'getNewLibraryDefaults',
-  'newLibraryFolder',
-  'estimateNewLibrary',
-  'createNewLibrary',
-  // redesign R4b: 严格程度 on 来源与要求, the 变更记录 of 高级设置
-  'getStrictness',
-  'setStrictness',
+  // redesign R4b: the 变更记录 of 高级设置
   'getChangeLog',
-  // the proposal cards (v2 package B)
-  'listProposals',
-  'confirmProposal',
-  'declineProposal',
-  'reviseProposal',
-  'getWhoDecided',
-  // the main agent and the suggestion cards (v2 package C)
-  'agentSend',
-  'getAgentTranscript',
-  'getAgentStatus',
-  'listSuggestions',
-  'dismissSuggestion',
-  'acceptSuggestion',
-  // one kind of 提议, the actions of a 系统检测, 重新评分 (redesign R5a)
-  'listToConfirm',
-  'actOnSuggestion',
-  'getRescore',
-  'startRescore',
   // interface B: the library and reading
   'getLibrary',
   'searchLibrary',
@@ -132,7 +101,7 @@ const METHODS = [
   // 待规范 (S8): writing headers onto the files of an imported folder
   'applyHeader',
   'applyAllHeaders',
-  // interface B: the sources and the topics
+  // the sources (read only), the card of a library and its sources, the build conversation (1.1 W6a, W6b)
   'getSources',
   'getCardView',
   'getBuild',
@@ -143,25 +112,7 @@ const METHODS = [
   'dropBuild',
   'proposeCardSource',
   'settleCardSource',
-  'guessSource',
-  'trySource',
-  'addSource',
-  'updateSource',
-  'removeSource',
-  'setSourcePaused',
-  'addManualLink',
-  'addTopic',
-  'updateTopic',
-  'removeTopic',
-  // the 「要求」 of the current library (v2 package F)
-  'getBrief',
-  'setBrief',
-  // interface B: the nodes of the pipeline
-  'getPipeline',
-  'savePipeline',
-  'previewNode',
-  // interface B: the run status, the graph, the verdicts
-  'getStatus',
+  // interface B: the run-log folder, the graph, the verdicts
   'openLogsFolder',
   'getGraph',
   'getVerdicts',
@@ -170,9 +121,6 @@ const METHODS = [
   'getDemands',
   'addDemand',
   'answerFeedback',
-  // v2 package E: the chat box of a library, routed (question / change / unsure), and your answer to 「这是要改这个库吗？」
-  'sendLibraryMessage',
-  'resolveLibraryMessage',
   // v2 package M: what is left of the plan or the API balance of the current connection (the corner above 设置)
   'getQuota',
 ]
@@ -181,7 +129,7 @@ const EVENT_TOPICS = [
   'open-screen',
   // the update: a check, the download, the setup program
   'update',
-  // the library, the connections, the pipeline
+  // the library, the connections, the run
   'library-changed',
   // the registry changed (v2 package A)
   'libraries-changed',
@@ -189,16 +137,10 @@ const EVENT_TOPICS = [
   'round-progress',
   'inbox-changed',
   'build-changed',
-  // a proposal card made or decided (v2 package B)
-  'proposals-changed',
-  // a turn of the main agent started or ended (v2 package C)
-  'agent-changed',
   // the quota of a connection changed (v2 package M)
   'quota-changed',
   // the queue of the rounds changed (v2 package L)
   'queue-changed',
-  // a 系统检测 made, dismissed, handed over, acted on or expired (redesign R5a)
-  'suggestions-changed',
 ]
 const EVENT_CHANNEL = 'streams:event'
 

@@ -1,6 +1,6 @@
 // The v2 shell (package F; docs/design/v2/streams-v2-design.html 导航, P1, P3, P7, P9): the sidebar of plan B (库架 · 和主
 // Agent 聊 · 我的库 · 新建库 · 设置), the shelf, a library's page (its head, the five tabs, the list / graph switch), 「新建库」
-// (和主 Agent 聊's words are package G's: texts/agent.js), 「谁定的」, 「要求」, 关卡 and this library's schedule on 来源与要求,
+// (1.1 W7b: 主 Agent is the build conversation, texts/build.js), 「谁定的」, 「要求」 and this library's schedule on 来源与要求,
 // the schedules and the month's use of every library on 设置. Placeholders: {name}, filled by fmt (lib/format.js).
 
 export const SHELL = Object.freeze({
@@ -60,8 +60,6 @@ export const SHELL = Object.freeze({
       queued: '排队中 · 第 {n} 位',
       next: '下次运行 {when}',
       nextNone: '未开启定时运行',
-      calls: '预计 {lo}–{hi} 次模型调用',
-      callsOne: '预计 {n} 次模型调用',
       failed: '未能开始运行，请重试。',
       stopFailed: '未能停止运行，请重试。',
     }),
@@ -92,30 +90,17 @@ export const SHELL = Object.freeze({
       sources: '来源异常',
       'no-output': '连续 {n} 次运行无新内容',
     }),
-    emptyText: '暂无库。向主 Agent 描述想追踪的内容即可生成建库提议，也可以手动创建。',
+    emptyText: '暂无库。向主 Agent 描述想追踪的内容，它会写一张建库卡给你确认。',
     emptyChat: '由主 Agent 生成',
     emptyManual: '手动创建',
     loadFailed: '未能读取库列表。',
   }),
 
 
-  // 「新建库」 (screens/new-library.js, the manual way — the sidebar, the shelf, 首次打开's 「手动创建」). Redesign R4a: one page (its words:
-  // texts/first-run.js NEW_LIBRARY); v1.0's four steps are gone. Here: its title and 「取消」 (kept for the bridge-free callers)
-  newLibrary: Object.freeze({
-    title: '新建库',
-    cancel: '取消',
-  }),
 
 
-  // redesign R5b: the confirmed proposal card's chip 「主 Agent 提的 · 你确认的」 is gone with that card (a decided 提议 is one line,
-  // texts/proposals.js PROPOSALS.states); who changed a setting is 高级设置's 变更记录 (texts/sources.js ADVANCED.log)
+  // who changed a setting is 高级设置's 变更记录 (texts/sources.js ADVANCED.log)
 
-  // redesign R1: what 概览 had — the last run, its numbers, the sources' state — sits in the right panel's 进度 under this (until
-  // R2 gives each its place)
-  lastRun: Object.freeze({
-    title: '当前库 · 上次运行',
-    run: '运行状态',
-  }),
 
   // redesign R4b: 「这个库」 (thisLibrary), 来源与要求's v2 words (sources) and 设置's 定时一览 / 用量 (settings) went with their
   // parts: texts/sources.js and texts/settings.js have the new pages' words

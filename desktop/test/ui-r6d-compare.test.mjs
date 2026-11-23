@@ -3,12 +3,14 @@
 // seen again in the real window on the screen and in the look where it was found. Every test here was red on the code
 // before its fix and fails again when the fix is taken out (scripts/mutation-check.mjs r6d-cmp-*).
 //   - 进度: the running library's step dots sit beside its state (the template styles them there only), not in the details
+//     (1.1 W7b: an update is one step, so one dot)
 //   - 图谱's 详情: 「n 篇 · 关键词 n 个」 is in the head block; no empty band above the node's rows; 我的笔记 has the note's icon
 //   - the template's dialog (编辑笔记, 移除该库, 输入 API key, 许可证与致谢): the body keeps the template's padding, a dialog that
 //     only says something shows the dialog's own surface, the close button is the theme's close; 许可证与致谢 scrolls inside
 //   - 缺少文件头: the card's label does not touch the card's head; its hint in the list is a line and a button below it
-//   - 来源与要求: 「追踪要求」 is written once in its block
-//   - 主 Agent: 「n 项待确认」 is as small as every other chip of a page's head; a small card's title is not smaller than its text
+//   - 来源与要求: 「追踪要求」 is written once in its block (1.1 W7b: a library of the last version shows it read only)
+//   - 待确认: a small card's title is not smaller than its text (1.1 W7b: the build's card; v2's 提议 and the 主 Agent page's
+//     「n 项待确认」 chip are gone)
 //   - 设置: the three connections' model boxes start at the same place; the icon lies inside its box (单线黑白's was squeezed)
 //   - 待看: a card's title is in the theme's display face (研究对话's serif)
 //   - 首次打开 in 单线黑白: the connection's icon is the theme's spark
@@ -196,14 +198,14 @@ test('R6d 对照 · 图谱: the node\'s line is in the head block of 详情, its
 test('R6d 对照 · 来源与要求: 「追踪要求」 is written once in its block; 移除该库 shows the dialog\'s own surface with the template\'s padding', async () => {
   const s = await libraryRun()
   await s.libTab('sources')
-  await s.until(() => document.querySelector('[data-part="brief"][data-state="ready"]') !== null)
+  await s.until(() => document.querySelector('main[data-screen="sources"][data-state="ready"] [data-part="old-brief"]') !== null)
   await s.look('glass-light')
-  const seen = await s.page.evaluate(() => { const b = document.querySelector('[data-part="brief"]'); const label = b.querySelector('textarea[data-field="brief"]').closest('label').querySelector('span').textContent.trim(); return [label, [...b.querySelectorAll('*')].filter(e => e.children.length === 0 && e.textContent.trim() === label && e.getClientRects().length > 0).length, document.getElementById(b.getAttribute('aria-labelledby'))?.textContent.trim() ?? null] })
+  const seen = await s.page.evaluate(() => { const b = document.querySelector('[data-part="old-brief"]'); const label = b.querySelector('.section-label span').textContent.trim(); return [label, [...b.querySelectorAll('*')].filter(e => e.children.length === 0 && e.textContent.trim() === label && e.getClientRects().length > 0).length, document.getElementById(b.getAttribute('aria-labelledby'))?.textContent.trim() ?? null] })
   assert.equal(seen[0], '追踪要求')
   assert.equal(seen[1], 1, 'the words are on the screen once')
   assert.equal(seen[2], '追踪要求', 'the block still has its name for a screen reader')
   await s.page.click('[data-action="go-advanced"]')
-  await s.until(() => document.querySelector('[data-part="gates"][data-state="ready"]') !== null)
+  await s.until(() => document.querySelector('[data-view="advanced"] [data-part="changes"][data-state="ready"]') !== null)
   await s.page.click('[data-action="remove-library"] button')
   await s.until(() => document.querySelector('dialog[data-dialog="remove-library"][open]') !== null)
   try {
@@ -223,45 +225,37 @@ test('R6d 对照 · 来源与要求: 「追踪要求」 is written once in its b
   assert.deepEqual(s.errors, [])
 })
 
-// ---- 问库 → 待确认 → 主 Agent ----------------------------------------------------------------------------------------------------------
-const askRun = lazySession({
-  start: 'ask', tab: 'decide',
-  prepare: ({ shelf, root }) => {
-    const askFile = join(root, 'ask-answer.json')
-    writeFileSync(askFile, JSON.stringify({ answer: [{ text: '库里的评测横向比较了五种 agent 记忆方案。', cites: [1] }], notInLibrary: false, missing: '', claimed: ['json-keys', 'cites-in-set', 'cited-sentences', 'claims-supported'] }), 'utf8')
-    const agentFile = join(root, 'agent-script.json')
-    writeFileSync(agentFile, JSON.stringify([{ reply: '已生成修改提议：单次运行上限从 120 次改为 30 次模型调用，确认后生效。', proposals: [{ kind: 'edit_cap', why: '你说 30 次就够了', params: { libraryId: shelf.ids[0], cap: 30 } }] }]), 'utf8')
-    return { env: { STREAMS_DEV_ASK_SCRIPT: askFile, STREAMS_DEV_AGENT_SCRIPT: agentFile } }
+// ---- 待确认: the build's card ---------------------------------------------------------------------------------------------------------
+// the build conversation's one reply: a whole card whose addresses were all read, so it waits for 确认 (lib/build.js waitingCard)
+const BUILD_CARD = {
+  name: '中国电动车',
+  definition: { summary: '给行业研究用的库：中国电动车和动力电池的月度销量、价格战、出海和固态电池进展。', purpose: '行业研究', scope: '对象：车企和电池厂；行业：电动车；地域：中国；规模：大中型', exclude: '自媒体和营销号', trust: '公司公告为准', rhythm: '每周一次', language: '中文简报', hard: '每条要有一手出处' },
+  decide: [{ what: '零跑只收销量', default: '收' }], collect: ['月度销量和交付'], skip: ['传闻'],
+  sources: [{ name: '甲来源', url: 'https://example-a.test/list', status: '读得到' }],
+  unreadable: [{ name: '某协会', url: 'https://example-c.test/members', reason: '要登录' }],
+  pick: ['新的先收'], write: ['写清数字'], samples: [{ title: '样例', url: 'https://example-b.test/samples/1', date: '2026-11-20' }],
+}
+const decideRun = lazySession({
+  start: 'inbox', tab: 'decide',
+  prepare: ({ root }) => {
+    const replies = join(root, 'build-replies.json')
+    writeFileSync(replies, JSON.stringify({ replies: [{ json: { say: '写好了建库卡，请看一下。', card: BUILD_CARD }, reads: ['https://example-a.test/list', 'https://example-b.test/samples/1', 'https://example-c.test/members'].map(url => ({ url, ok: true })) }] }), 'utf8')
+    return { env: { STREAMS_DEV_BUILD: replies } }
   },
 })
-test('R6d 对照 · 待确认 and 主 Agent: a small card\'s title is not smaller than its text; 「n 项待确认」 in the page\'s head is as small as any chip', async () => {
-  const s = await askRun()
+test('R6d 对照 · 待确认: a small card\'s title is not smaller than its text (the build\'s card waiting for 确认)', async () => {
+  const s = await decideRun()
   const { page, until } = s
-  await page.fill('textarea[data-field="question"]', '这个库单次运行最多调用 30 次就够了，帮我把上限改成 30。')
-  await page.click('[data-action="send"] button')
-  await until(() => document.querySelector('[data-turn="0"]')?.dataset.state === 'done' && document.querySelector('[data-turn="0"] [data-proposal]') !== null)
+  const r = await page.evaluate(() => window.streams.startBuild('跟踪中国电动车和动力电池'))
+  assert.equal(r.ok, true, JSON.stringify(r))
   await s.tab('decide')
-  await until(() => document.querySelector('[data-pane="decide"] [data-decide] h3') !== null && document.querySelector('[data-pane="decide"] [data-decide] .card-body p') !== null)
+  await until(() => document.querySelector('[data-pane="decide"] [data-part="build-waiting"] h3') !== null && document.querySelector('[data-pane="decide"] [data-part="build-waiting"] .card-body p') !== null)
   for (const id of ['precision-light', 'research-light']) {
     await s.look(id)
-    const sizes = await page.evaluate(() => [...document.querySelectorAll('[data-pane="decide"] [data-decide]')].map(c => `${Number.parseFloat(getComputedStyle(c.querySelector('h3')).fontSize)}/${Math.max(...[...c.querySelectorAll('.card-body p')].map(p => Number.parseFloat(getComputedStyle(p).fontSize)))}`))
-    assert.ok(sizes.length >= 1, 'a small card is there')
+    const sizes = await page.evaluate(() => [...document.querySelectorAll('[data-pane="decide"] [data-part="build-waiting"]')].map(c => `${Number.parseFloat(getComputedStyle(c.querySelector('h3')).fontSize)}/${Math.max(...[...c.querySelectorAll('.card-body p')].map(p => Number.parseFloat(getComputedStyle(p).fontSize)))}`))
+    assert.equal(sizes.length, 1, 'the small card is there, once')
     for (const pair of sizes) { const [h, p] = pair.split('/').map(Number); assert.ok(h >= p, `${id}: the title (${h}px) is not smaller than the text (${p}px)`) }
   }
-  await s.look('glass-light')
-  await page.click('a[data-nav="chat"]')
-  await ready(page, 'chat')
-  await until(() => document.querySelector('[data-part="to-confirm-chip"]') !== null)
-  const f = await page.evaluate(() => {
-    const chip = document.querySelector('[data-part="to-confirm-chip"]')
-    const probe = document.createElement('span'); probe.className = 'status-chip'; probe.textContent = 'x'
-    chip.parentElement.parentElement.append(probe)
-    const out = [getComputedStyle(chip).fontSize, getComputedStyle(probe).fontSize, getComputedStyle(chip).fontFamily, getComputedStyle(probe).fontFamily]
-    probe.remove()
-    return out
-  })
-  assert.equal(f[0], f[1], 'the chip that is a button has the size of a chip')
-  assert.equal(f[2], f[3], 'and its face')
   await s.look('research-light')
   assert.deepEqual(s.errors, [])
 })
@@ -361,9 +355,9 @@ test('R6d 对照 · 进度: the step dots of the library that runs, and of the o
   })
   assert.equal(r.beside, true, 'the running row\'s dots are in its state line')
   assert.equal(r.inDetails, false, 'and not in its details')
-  assert.equal(r.n, 6, 'one dot a step')
+  assert.equal(r.n, 1, 'one dot a step: an update is one step (1.1 W7a)')
   assert.ok(r.lit >= 1, 'the step it is at is marked')
-  assert.equal(r.waiting, 6, 'the waiting row has its dots')
+  assert.equal(r.waiting, 1, 'the waiting row has its dot')
   assert.equal(r.waitingLit, 0, 'none of them marked')
   assert.equal(r.total, 2)
   assert.match(r.text, /运行中/)

@@ -1,3 +1,5 @@
+// 1.1 W7b: v1.0's feed fetchers left core/src for core/legacy/ (not shipped); still tested, since the fixtures of libraries
+// 'as 1.0 made them' run them.
 // redesign R6b: 「next round」 reads 「next run」 here (comments, test names, the text of an assertion's message; in
 // fetch-round.test and the r5a fixtures also the fetch log's message, which core fetch/states.mjs now writes as 'retry next
 // run') — 05 统一用词 says 运行 / run, and the contract (R6b-1) wants the v1 处理建议's fragment 'next round' gone from the repository.
@@ -6,10 +8,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chmodSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { fetchRound } from '../src/fetch/round.mjs';
+import { fetchRound } from '../legacy/fetch/round.mjs';
 import { readFetchLog, fetchLogPath } from '../src/fetch/log.mjs';
 import { appendEvent, replayLedger, ledgerPath } from '../src/library/ledger.mjs';
-import { makeContext } from '../src/fetch/context.mjs';
+import { makeContext } from '../legacy/fetch/context.mjs';
 import { makeLibrary, TEST_CONFIG } from './support/fixtures.mjs';
 import { caseDir } from './support/tmp.mjs';
 import { startFakeServer } from './support/fake-server.mjs';

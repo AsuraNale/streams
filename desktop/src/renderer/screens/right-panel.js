@@ -7,16 +7,14 @@
 //             that runs (its library, why, the step it is at, calls / cap, when it started), the queue in order with why each
 //             waits, each library's next timed slot (getQueue, app.js useQueue; names from the libraries) — the one place the
 //             queue is told in full (F23). Redesign R2 (P07 · P16): the round that runs says why (创建库后的首次运行 · 手动触发 · 定时 ·
-//             补跑), when it started, its step, calls / cap and has 停止; each one waiting why, since when and 「前一任务完成后
+//             补跑), when it started, its step, its calls and has 停止; each one waiting why, since when and 「前一任务完成后
 //             自动开始」; the rule 「需保持流息运行…」; nothing running: 「当前无运行任务」. On a library's page, last: that
-//             library's last run as the same funnel 待看 shows when empty (screens/run-funnel.js, getHome().lastRun) — not the
-//             four numbers, the banners or 运行状态 of R1 any more.
-//   待确认    redesign R5b (P16, F59, O5): ONE list of every library's 主 Agent 提议 waiting and 系统检测 not handled (app.js
-//             useToConfirm: the bridge's listToConfirm, read again on its events — no reload of the page): the head 「全部库 · 待确认
-//             / n 项」 and 「以下事项均需确认后才会执行。」 (the template's panel-summary), then the small cards of the one kind
-//             (screens/proposal.js, compact): each done right where it is, whatever library it is of. Nothing waits: one
-//             sentence. The tab's number (st-count) is the list's length. (The list of the current library's findings that R1
-//             drew below it is gone: a card shows once.)
+//             library's last run in one line, the same line 待看 shows when empty (screens/run-steps.js LastRun,
+//             getHome().lastRound: when it ended, how many it put into 待看).
+//   待确认    1.1 (W6b, W7b): what waits for you to confirm is the build conversation's library card (lib/build.js waitingCard):
+//             BuildWaiting below — 不建了 · 看全文 · 确认 — with the head 「全部库 · 待确认 / n 项」 (the template's panel-summary).
+//             Nothing waits: one sentence. The tab's number (st-count) is the list's length. (v2's 主 Agent 提议 and redesign
+//             R5a's 系统检测 are gone with v2's main agent and v1.0's scoring pipeline.)
 //   详情      follows the main area: the screen gives it (`detail`); a screen with nothing chosen: one sentence
 //   文件      the current library told as a structure (getLibraryOutline; read only). Redesign R4b (P14 · P16): 「文件 · 库的文件
 //             结构」, its name and folder, 在资源管理器中显示 (revealLibrary), then four heads: ▾ 笔记（n）· 按主题 (its notes grouped by
@@ -27,11 +25,11 @@
 //             A page with no library of its own (库架, 主 Agent, 设置): one sentence.
 // Words: texts/panel.js PANEL / QUEUE. Test hooks: aside[data-part="right-panel"][data-open][data-tab],
 // [data-panel-tab=<id>][aria-current] with [data-panel-badge], [data-action="fold"|"unfold"], [data-rail-tab=<id>],
-// [data-pane=progress|decide|detail|files]; 进度: [data-part=progress-summary|running|order|next|last-run|keep-running], [data-queue-row=<id>]
-// [data-position][data-here][data-why], [data-part="running-phase"], [data-calls][data-cap], [data-next-row=<id>][data-at],
+// [data-pane=progress|decide|detail|files]; 进度: [data-part=progress-summary|running|order|next|last-run-here|keep-running], [data-queue-row=<id>]
+// [data-position][data-here][data-why], [data-part="running-phase"], [data-calls], [data-next-row=<id>][data-at],
 // [data-action="panel-stop"];
 // 待确认: [data-pane="decide"][data-count] with [data-part="decide-summary"] [data-part="decide-title"][data-count] [data-part="decide-lead"] (only with something in the list: precheck fix 9), [data-part="decide-none"],
-// the cards [data-decide=<item id>][data-from][data-kind][data-library] (screens/proposal.js);
+// the build's card article[data-part="build-waiting"][data-mode] (BuildWaiting);
 // 详情: [data-part="detail-none"]; 文件: [data-part=files-head|no-library], [data-tree=notes|inbox|requirements|records][data-open],
 // [data-tree-topic=<topic | "">], [data-tree-note=<id>] (.st-rp-tree__row), [data-action=reveal-library|reveal-records|
 // note-more], the menu's [data-menu-item=obsidian|folder].
@@ -42,17 +40,14 @@ import { fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { doingOf, queueWords } from '../lib/queue.js'
-import { RUN_STEPS, stepOf } from './run-steps.js'
+import { LastRun, UPDATE_STEPS, stepOf } from './run-steps.js'
 import { phaseWords } from '../lib/phase.js'
 import { TIcon, hasTabIcons } from '../lib/template-icons.js'
 import { LIBRARY_ROUTES, Menu } from '../kit/index.js'
 import { NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
 import { PANEL as T, QUEUE } from '../texts/panel.js'
-import { PROPOSALS } from '../texts/proposals.js'
 import { BUILD } from '../texts/build.js'
 import { confirmAndOpen, waitingCard } from '../lib/build.js'
-import { Proposal } from './proposal.js'
-import { RunFunnel } from './run-funnel.js'
 
 export { phaseWords }
 
@@ -84,7 +79,7 @@ function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
   const P = T.progress
   const why = doingOf(o.why, QUEUE.why)
   const steps = running
-    ? [['check', fmt(P.runningDetail, { why, when: whenText(r?.startedAt, WHEN) ?? '', phase: phaseWords(r?.phase) || phaseWords('self-check') })]]
+    ? [['check', fmt(P.runningDetail, { why, when: whenText(r?.startedAt, WHEN) ?? '', phase: phaseWords(r?.phase) || phaseWords('update') })]]
     : [['clock', fmt(P.waitingDetail, { why, since: whenText(o.since, WHEN) ?? '' })]]
   const state = running ? queueWords({ state: 'running' }, r?.phase) : queueWords({ state: 'queued', position: i + 1 })
   const at = running ? stepOf(r?.phase) : -1
@@ -92,7 +87,7 @@ function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
   // streams/app.js moves them there (「把进度点放到阶段状态旁」) and the template styles them only there (round11/workbench.css
   // .phase-label .step-dots; 单线黑白's line.css .phase-heading .step-dots). They were left in the details, where they lay
   // across the lower edge of the heading. The one waiting has its dots too, none marked, as the design's picture has.
-  const dots = html`<span class="step-dots" aria-hidden="true">${RUN_STEPS.map((id, k) => html`<i key=${id} class=${k < at ? 'complete' : k === at ? 'wait' : ''}></i>`)}</span>`
+  const dots = html`<span class="step-dots" aria-hidden="true">${UPDATE_STEPS.map((id, k) => html`<i key=${id} class=${k < at ? 'complete' : k === at ? 'wait' : ''}></i>`)}</span>`
   return html`<details class=${`phase-row${running ? ' current' : ''}`} open=${running} data-part=${running ? 'running' : undefined}
     data-library=${o.libraryId ?? ''} data-phase=${running ? r?.phase ?? '' : undefined}
     data-queue-row=${o.libraryId ?? ''} data-position=${i + 1} data-here=${String(o.libraryId === here)} data-why=${o.why ?? ''}>
@@ -103,21 +98,21 @@ function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
     </summary>
     <div class="phase-details">
       ${steps.map(([ic, t], k) => html`<div key=${k} class="step-line" data-part=${running && k === 0 ? 'running-phase' : undefined}><${TIcon} name=${ic} /><span>${t}</span></div>`)}
-      ${running ? html`<div class="mini-chart" data-part="running-calls"><div class="chart-row"><span>${P.calls}</span><div class="chart-track"><div class="chart-bar" style=${{ '--value': `${r && r.cap > 0 ? Math.min(100, Math.floor(((r.calls ?? 0) / r.cap) * 100)) : 0}%` }}></div></div>
-        <b data-calls=${r?.calls ?? 0} data-cap=${r?.cap ?? ''}>${r?.cap ? fmt(P.callsValue, { calls: r.calls ?? 0, cap: r.cap }) : fmt(P.callsNoCap, { calls: r?.calls ?? 0 })}</b></div></div>
+      ${running ? html`<div class="mini-chart" data-part="running-calls"><div class="chart-row"><span>${P.calls}</span>
+        <b data-calls=${r?.calls ?? 0}>${fmt(P.callsNoCap, { calls: r?.calls ?? 0 })}</b></div></div>
         <span class="st-act" data-action="panel-stop"><button type="button" class="btn" disabled=${stopping} onClick=${onStop}><${TIcon} name="stop" /> ${stopping ? P.stopping : P.stop}</button></span>` : null}
     </div>
   </details>`
 }
 
-/** The current library's last run (getHome().lastRun) as the funnel 待看 shows when empty: the same component, the same data. */
+/** The current library's last run in one line (getHome().lastRound): the line 待看 shows when empty, the same data. */
 function LastRunHere({ libraryId }) {
   const home = useLoad(() => call('getHome'), [libraryId])
   useEvent('inbox-changed', () => home.reload(), [libraryId])
   useEvent('library-changed', () => home.reload(), [libraryId])
   useEvent('round-progress', p => { if (p?.done) home.reload() }, [libraryId])
   return html`<div class="panel-section" data-part="last-run-here">
-    ${home.data ? html`<${RunFunnel} lastRun=${home.data.lastRun} outcome=${false} here=${true} />` : null}
+    ${home.data ? html`<${LastRun} record=${home.data.lastRound} here=${true} />` : null}
   </div>`
 }
 
@@ -205,21 +200,18 @@ function BuildWaiting({ view, turn }) {
   </article>`
 }
 
-/** 待确认: every library's, one list; the head says how many (the same number as the tab's). */
+/** 待确认: the build's card while it waits for 确认 (1.1 W6b) — the one thing to confirm; the head says how many (the tab's number). */
 function DecidePane() {
-  const { toConfirm, build } = useApp()
-  const L = PROPOSALS.list
-  const items = toConfirm?.items ?? []
-  // 1.1 W6b: the build's card waiting for 确认 is one of the list
+  const { build } = useApp()
+  const L = T.decide
   const waiting = waitingCard(build?.data)
-  const n = items.length + (waiting ? 1 : 0)
+  const n = waiting ? 1 : 0
   return html`<div class="st-rp-pane" data-pane="decide" data-count=${n}>
     <${PanelSummary} part="decide-summary" eyebrow=${L.eyebrow} title=${n ? html`<span data-part="decide-title" data-count=${n}>${fmt(L.title, { n })}</span>` : html`<span data-part="decide-none">${L.none}</span>`}>
-      ${n ? html`<p data-part="decide-lead">${waiting && !items.length ? BUILD.panelLead : L.lead}</p>` : null}
+      ${n ? html`<p data-part="decide-lead">${BUILD.panelLead}</p>` : null}
     <//>
-    ${toConfirm?.status === 'error' && !n ? html`<p class="progress-alert" role="alert">${L.loadFailed}</p>` : null}
-    ${toConfirm?.said ? html`<p class="progress-alert" role="status" data-part="decide-said">${toConfirm.said}</p>` : null}
-    ${n ? html`<div class="st-stack" data-part="decide-list">${waiting ? html`<${BuildWaiting} view=${build.data} turn=${waiting} />` : null}${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}
+    ${build?.status === 'error' && !n ? html`<p class="progress-alert" role="alert">${L.loadFailed}</p>` : null}
+    ${n ? html`<div class="st-stack" data-part="decide-list"><${BuildWaiting} view=${build.data} turn=${waiting} /></div>` : null}
   </div>`
 }
 
@@ -340,12 +332,12 @@ function FilesPane() {
 
 /** The panel itself. `detail`: what the screen shows in 详情 (null: one sentence). */
 export function RightPanel({ detail = null }) {
-  const { appState, setPanel, toConfirm, build } = useApp()
+  const { appState, setPanel, build } = useApp()
   const panel = appState?.data?.panel ?? null
   const open = panel?.open !== false
   const tab = TAB_IDS.includes(panel?.tab) ? panel.tab : 'detail'
-  // redesign R5b (O5): the number is the list's length, the same list 待确认 shows (1.1 W6b: and the build's waiting card)
-  const n = (toConfirm?.items?.length ?? 0) + (waitingCard(build?.data) ? 1 : 0)
+  // redesign R5b (O5): the number is the list's length, the same list 待确认 shows (1.1: the build's waiting card)
+  const n = waitingCard(build?.data) ? 1 : 0
   const icons = hasTabIcons()
   const badge = id => (id === 'decide' && n > 0 ? html` <small class="st-count" data-panel-badge=${id} aria-label=${fmt(T.decideBadge, { n })}>${n}</small>` : null)
   if (!open) {

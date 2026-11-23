@@ -336,7 +336,6 @@
 .st-src-body { flex: 1 1 auto; min-height: 0; }
 .st-src.new-content { overflow: visible; flex: none; padding-top: 28px; }
 .st-src .section-label { margin-top: 24px; }
-.st-src [data-part="brief"] > .section-label:first-child { display: none; }
 .st-src .field { margin: 12px 0 0; }
 .st-src .field textarea { min-height: 96px; }
 .st-src .filters { margin: 8px 0 0; }
@@ -488,9 +487,6 @@
 .st-faint { text-align: center; margin: 6px 0; }
 .st-more { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 12px; }
 .st-notice { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
-.st-guide { margin-bottom: 18px; }
-.st-guide .file-row { width: 100%; text-align: left; cursor: pointer; }
-.st-chip-button { cursor: pointer; }
 .st-proposal .confirm-title { min-width: 0; }
 .st-proposal .confirm-title h2 { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
 .st-proposal .confirm-number { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -500,21 +496,11 @@
 .st-trial { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .st-trial .status-chip { font-size: 11px; }
 .st-changed { font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
-.st-revise { padding: 0 20px 14px; }
-.st-revise .field { margin: 8px 0; }
-.st-revise .field textarea { width: 100%; font: inherit; min-height: 56px; }
-.st-revise .row { justify-content: flex-end; flex-wrap: wrap; }
-.st-proposal-done { flex-wrap: wrap; align-items: center; margin-top: 10px; }
-.st-proposal-done .ico { width: 14px; height: 14px; }
 .st-rp-decide { cursor: default; }
 .st-rp-decide .card-body p { margin: 4px 0 0; overflow-wrap: anywhere; }
 .st-rp-decide .card-body p[data-part="evidence"] { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .st-rp-decide .limit-note { margin: 0; padding: 0 16px 10px; }
 .st-rp-decide .card-body .limit-note { padding: 6px 0 0; }
-.st-rp-decide .st-revise { padding: 0 16px 12px; }
-.st-rescore { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-.st-rescore .btn { flex: none; }
-.inbox-body [data-rejected] .status-chip { flex: none; font-size: 11px; }
 .st-proposal .confirm-footer > .muted { flex: 1 1 280px; min-width: 0; overflow-wrap: anywhere; }
 .st-proposal .confirm-footer .row { margin-left: auto; }
 /* redesign R5b precheck fix 7: the small card's top line says a library's name and 「主 Agent」 as they are written (the
@@ -579,9 +565,6 @@
      inside (.st-tdialog__scroll) while its head and its buttons stay — the whole dialog scrolled, 许可证与致谢 lost its buttons.
    - .progress-alert .btn (7), dark: a notice takes the well (above) and so does the template's plain button: a button on a
      notice was words only. It takes the paper.
-   - [data-part="brief"] > .section-label:first-child (9): the block's name is the words of the field two lines below it
-     (「追踪要求」 twice, the first one over 「库名称」); the design has no such line. It stays in the page for aria-labelledby.
    - .st-set-conns (9): the three connections are rows of one grid (subgrid), so their model boxes start at the same place
      whatever the last column holds; the icon's column is as wide as the theme's icon box (it was a fixed width narrower
-     than 单线黑白's box, which was squeezed and its icon cut).
-   - .st-chip-button (11): 「n 项待确认」 is a chip that is a button; it no longer takes the page's font over the chip's own size. */
+     than 单线黑白's box, which was squeezed and its icon cut). */

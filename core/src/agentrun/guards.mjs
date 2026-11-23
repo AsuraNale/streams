@@ -13,8 +13,7 @@
 // checkSources: a source is kept only when its address was opened in this run (shape:url | not-read).
 // Pure: no disk, no network.
 import { normalizeTitle } from '../fetch/html.mjs';
-import { ageCutoff } from '../fetch/round.mjs';
-import { localIsoDate } from '../fetch/dates.mjs';
+import { ageCutoff, localIsoDate } from '../fetch/dates.mjs';
 
 export const QUOTE_MIN = 12;
 export const DEFAULT_MAX_ITEMS = 10;

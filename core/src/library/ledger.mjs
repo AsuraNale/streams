@@ -122,7 +122,8 @@ function apply(states, ev) {
       s.scores[ev.node] = typeof ev.score === 'number' ? { score: ev.score, reason: ev.reason } : { value: ev.value, reason: ev.reason };
       if (typeof ev.quote === 'string') s.scores[ev.node].quote = ev.quote;
       if (typeof ev.materials === 'string') s.scores[ev.node].materials = ev.materials;
-      // redesign R5a: the pass threshold the score was judged against (a verdict stays where it was when the standard changes)
+      // redesign R5a: the pass mark the score was judged against (a verdict stays where it was when the standard changes).
+      // 1.1 W7b: v1.0's `scored` events are only read back (a 1.0 library's ledger); nothing in core/src writes one any more
       if (typeof ev.threshold === 'number') s.scores[ev.node].threshold = ev.threshold;
       delete s.unscored[ev.node];
       rememberCfg(s, ev);

@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import {
   checkRule, checkSummary, originalChecklist, locateQuote, numbersIn, missingNumbers, QUOTE_MIN_CHARS,
   putInInbox, listInbox, saveOriginal, readOriginal, originalId, ORIGINAL_MISSING, verdictsFor,
-  baselineDescription, describeChecklist, replayLedger,
+  replayLedger,
 } from '../src/index.mjs';
 import { fakeConnector } from '../src/connect/fakes.mjs';
 import { caseDir } from './support/tmp.mjs';
@@ -290,17 +290,20 @@ test('a summary that never comes back readable is bad-format; a judge that canno
 
 // ---------- words ----------
 
+// 1.1 W7b: v1.0's describeChecklist / baselineDescription (which put a built-in item's words into the interface's language)
+// left core/src with the scoring pipeline; originalChecklist gives each language's words itself.
 test('words: the new items are described in both languages, from the item, not its id', () => {
   const zh = originalChecklist('zh-CN');
+  const en = originalChecklist('en');
   assert.deepEqual(zh.map((i) => i.id), ['what-nonempty', 'points-count', 'point-quotes', 'numbers-found', 'no-placeholder', 'no-banned-words', 'numbers-in-source']);
-  for (const id of ['point-quotes', 'numbers-found']) {
-    const it = zh.find((i) => i.id === id);
-    const cn = baselineDescription(it, 'zh-CN');
-    const en = baselineDescription(it, 'en');
-    assert.ok(cn && /[一-鿿]/.test(cn), `${id} zh: ${cn}`);
-    assert.ok(en && !/[一-鿿]/.test(en), `${id} en: ${en}`);
-    assert.equal(cn.includes(id) || en.includes(id), false);
+  assert.deepEqual(en.map((i) => [i.id, i.kind, i.rule]), zh.map((i) => [i.id, i.kind, i.rule]), 'the same items, only the words differ');
+  for (const [i, it] of zh.entries()) {
+    const cn = it.desc;
+    const e = en[i].desc;
+    assert.ok(typeof cn === 'string' && /[一-鿿]/.test(cn), `${it.id} zh: ${cn}`);
+    assert.ok(typeof e === 'string' && e !== '' && !/[一-鿿]/.test(e), `${it.id} en: ${e}`);
+    assert.equal(cn.includes(it.id) || e.includes(it.id), false);
   }
-  const shown = describeChecklist(zh, 'en');
-  assert.ok(shown.every((i) => !/[一-鿿]/.test(i.desc)), JSON.stringify(shown.map((i) => i.desc)));
+  // an unknown language is Chinese (the words a check runs with)
+  assert.deepEqual(originalChecklist('xx').map((i) => i.desc), zh.map((i) => i.desc));
 });

@@ -7,7 +7,7 @@ import { caseDir } from './support/tmp.mjs';
 
 const at = (d) => () => new Date(`2026-11-0${d}T10:00:00.000Z`);
 
-test('demands: grouped by topic with case and spaces folded, most asked first, suggest at the threshold', () => {
+test('demands: grouped by topic with case and spaces folded, most asked first, suggest from SUGGEST_AT on', () => {
   const dir = caseDir('demand-group');
   appendDemandLine(dir, { question: 'q1', topic: 'agent 记忆评测', notInLibrary: true, used: [] }, { now: at(1) });
   appendDemandLine(dir, { question: 'q2', topic: 'Agent  记忆评测 ', notInLibrary: true, used: [] }, { now: at(2) });
@@ -20,8 +20,8 @@ test('demands: grouped by topic with case and spaces folded, most asked first, s
     { topic: 'AGENT 记忆评测', count: 3, last: '2026-11-06T10:00:00.000Z', suggest: true },
     { topic: 'MCP 鉴权', count: 1, last: '2026-11-03T10:00:00.000Z', suggest: false },
   ]);
-  assert.equal(demands(dir, { threshold: 4 })[0].suggest, false);
-  assert.equal(demands(dir, { threshold: 1 })[1].suggest, true);
+  assert.equal(demands(dir, { suggestAt: 4 })[0].suggest, false);
+  assert.equal(demands(dir, { suggestAt: 1 })[1].suggest, true);
 });
 
 test('demands: equal counts -> the more recent first; an empty file -> []', () => {

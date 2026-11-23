@@ -1,7 +1,7 @@
 // 设置 (screens/settings.js). Redesign R4b (docs/checks/2026-11-12-r4b/contract.md R4b-4; design 03-页面稿 P17, P18, P19; F63–F69;
 // the words of 05-措辞规范): a line on top, four jumps and four parts — 连接 (the three connections, two model slots each, 测试连接,
 // 设为当前连接, 配置 for the API key) · 外观与语言 (the four themes, the appearance, the language) · 库与用量 (新建库默认存储位置, this
-// month's calls of every library and the main agent, the sum written out) · 关于 (the version and the update, Starry Digital, 许可证
+// month's calls of every library, the sum written out) · 关于 (the version and the update, Starry Digital, 许可证
 // 与致谢, ▾ 高级: 显示开发者信息 · 复制诊断信息 · 打开运行记录文件夹). v2 package I's 主 Agent part and 定时一览 are gone (维护者 第 10 题).
 // The connection names and the login loop: texts/common.js CONNECTIONS. 首次设置's step names (setupSteps / setupBy) are read by
 // 高级设置's 变更记录 (texts/sources.js ADVANCED).
@@ -27,7 +27,7 @@ export const SETTINGS = Object.freeze({
     // the one sentence under the three rows (F63, F64: 主 Agent uses the current connection's main model)
     agentUses: '建库、更新和问库都用当前连接的主模型；核验用核验模型。',
     // 1.1 W6a (A6; W4's live runs, contract C7): with these two, this version only asks the library
-    onlyAsk: '这一版用这种连接只能问库；建库和更新要用「连接你电脑上的 Claude Code」。',
+    onlyAsk: '这一版用这种连接只能问库；建库和更新要用「{cc}」。',
   }),
 
   // 新建库默认存储位置 (getLibraryRoot / chooseLibraryRoot / setLibraryRoot)
@@ -48,7 +48,6 @@ export const SETTINGS = Object.freeze({
     library: '{name} {calls}',
     librarySelfCheck: '{name} {calls}（含运行前自检 {n}）',
     missing: '{name} 0（文件夹不存在）',
-    agent: '主 Agent {calls}',
     sum: '= {parts}',
     plus: ' + ',
     failed: '未能读取用量。',

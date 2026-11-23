@@ -4,7 +4,8 @@ import { fakeConnector } from '../src/connect/fakes.mjs';
 import { RETRY_SUFFIX } from '../src/connect/complete-json.mjs';
 import { verifyOnce, verifyLoop } from '../src/verify/verify.mjs';
 import { judgeItems, buildJudgePrompt, JUDGE_PROMPT } from '../src/verify/judge.mjs';
-import { summaryBaseline, lockChecklist } from '../src/verify/checklist.mjs';
+// v1.0's checklist of its summary step, as a fixture for verifyLoop (1.1 W7b: core/legacy)
+import { summaryBaseline, lockChecklist } from '../legacy/verify/checklist.mjs';
 
 const SOURCE = '报告称试点覆盖 500 名用户，目标是 2026 年底扩到 5000。';
 const TASK = '写摘要';

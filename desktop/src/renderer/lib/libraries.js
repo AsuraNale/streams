@@ -7,8 +7,7 @@
 //     the end of a round (`round-progress` with done: true: its last round, its problem — v2 package J1);
 //     on `inbox-changed { libraryId, count }` only that one row's `inbox` changes (another library's event is not this one's
 //     count; an event without a libraryId: the whole list read again).
-//   (redesign R5b: what waits for you — v2 package L's useWaitingItems / useWaiting — is lib/agent.js useToConfirm now: the
-//   bridge's listToConfirm, read again on the events that change it.)
+//   (what waits for you to confirm is the build conversation's card: lib/build.js waitingCard, the right panel's 待确认.)
 //   tracking(row)          → what the library follows, for 「在追：…」: the brief's first sentence, else its topics' names; null
 //   firstSentence(text)    → the text up to its first full stop (。！？.!? or a line end), trimmed
 import { call } from './bridge.js'

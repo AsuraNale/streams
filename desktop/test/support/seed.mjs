@@ -2,7 +2,9 @@
 // fake feed on this machine, so every file the app reads (streams.json, the ledger, the inbox files, rounds.jsonl,
 // fetch_log.jsonl, notes/, the index) is what the core itself writes.
 //   const seed = await seedLibrary(dir)
-// What it does: createLibrary → three topics and two RSS sources (one served by a node:http server for the round, one at a
+// 1.1 W7b: a library exactly as v1.0 made it and ran it — v1.0's code is core/legacy (not shipped; tests and fixtures may use
+// it): createLibraryV1, its scripted connector, makeContext, runRound. The app only opens such a library (it is not updated).
+// What it does: createLibraryV1 → three topics and two RSS sources (one served by a node:http server for the round, one at a
 // port nobody listens on, so it fails in the round and the banner of 今日 has a line) → runRound with the core's scripted
 // connector (scores per item from SCORES below; item 7 fails relevance and stays 「抓到的」) → keep one, dismiss one, leave four
 // in the inbox, one of them with its inbox event moved 17 days back → the live source's address switched to the dead port, so
@@ -18,6 +20,7 @@ import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../../scripts/lib/paths.mjs'
 
 const CORE = pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href
+const LEGACY = pathToFileURL(join(REPO_DIR, 'core', 'legacy', 'index.mjs')).href
 const DAY_MS = 86_400_000
 export const LONG_WAIT_DAYS = 17
 export const DISMISS_REASON = '营销稿，没有技术内容'
@@ -70,7 +73,8 @@ const writeJson = (p, v) => writeFileSync(p, `${JSON.stringify(v, null, 2)}\n`, 
  */
 export async function seedLibrary(dir, { now = () => new Date() } = {}) {
   const core = await import(CORE)
-  core.createLibrary(dir, { name: basename(dir) })
+  const legacy = await import(LEGACY)
+  legacy.createLibraryV1(dir, { name: basename(dir) })
   const live = await serveFeed()
   const dead = await deadFeedUrl()
   const configFile = join(dir, 'streams.json')
@@ -83,7 +87,7 @@ export async function seedLibrary(dir, { now = () => new Date() } = {}) {
   writeJson(configFile, config)
 
   const byTitle = title => ITEMS.find(i => i.title === title.trim()) ?? null
-  const connector = core.scriptedConnector({
+  const connector = legacy.scriptedConnector({
     // item 4's summary never satisfies the checker: its card carries 「未通过核验」 (verification.passed false)
     judgePassed: (ids, prompt) => !prompt.includes(ITEMS[3].title),
     gate: (key, prompt) => {
@@ -99,10 +103,10 @@ export async function seedLibrary(dir, { now = () => new Date() } = {}) {
       return { what: `一条讲 ${title} 的材料，有代码示例，不是论文。`, points: ['把长期记忆拆成块', '暴露读写接口', '给了数字但没有第三方评测'], quote: title, claimed: [...new Set(ids)] }
     },
   })
-  const ctx = core.makeContext({ timeoutMs: 1500, now, sleep: async () => {} })
+  const ctx = legacy.makeContext({ timeoutMs: 1500, now, sleep: async () => {} })
   let round
   try {
-    round = await core.runRound(dir, { connector, ctx })
+    round = await legacy.runRound(dir, { connector, ctx })
   } finally {
     await live.close()
   }
@@ -251,7 +255,7 @@ export async function seedPlanB(world) {
   core.appendEvent(dir, { ts: at(0), ev: 'seen', url: B.evals.source, source: 'mcp-news', title: B.evals.title, date: B.evals.date })
   core.appendEvent(dir, { ts: at(1), ev: 'inbox', url: B.evals.source, round: 'seed-b', verified: true })
   core.appendEvent(dir, { ts: at(2), ev: 'kept', url: B.evals.source, id: B.evals.id })
-  const base = core.summaryBaseline()
+  const base = (await import(LEGACY)).summaryBaseline()
   const judge = base.find(i => i.kind === 'judge')
   core.appendVerdict(dir, {
     node: 'summary', url: B.evals.source, round: 1, ts: at(1),
@@ -337,12 +341,13 @@ export const SHELF = Object.freeze({
 
 export async function seedShelf(world) {
   const core = await import(CORE)
+  const legacy = await import(LEGACY)
   const ev = join(world.root, 'world', 'ev')
   const fashion = join(world.root, 'world', 'fashion')
-  core.createLibrary(ev, { name: 'ev' })
+  legacy.createLibraryV1(ev, { name: 'ev' })
   core.addTopic(ev, { name: '整车销量', keywords: ['月销', '交付'] })
   core.addTopic(ev, { name: '电池', keywords: ['装机量'] })
-  core.createLibrary(fashion, { name: 'fashion' })
+  legacy.createLibraryV1(fashion, { name: 'fashion' })
   const at = i => new Date(Date.now() - (4 - i) * 3_600_000).toISOString()
   writeFileSync(join(fashion, '_pipeline', 'rounds.jsonl'), [1, 2, 3].map(i => `${JSON.stringify({ id: `dry-${i}`, startedAt: at(i), finishedAt: at(i), counts: { fetched: 2, new: 0, maybeDuplicates: 0, summarized: 0, inbox: 0 }, gates: {}, calls: 0 })}\n`).join(''), 'utf8')
   core.saveBrief(world.library, SHELF.briefs[0])

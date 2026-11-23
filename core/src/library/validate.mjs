@@ -4,12 +4,13 @@
 //   { ok, meta, body, problems: [{ code, message, line? }], warnings: [{ code, message }] }
 //
 // problems  = not conforming: the note is refused from the index and listed as pending.
-// warnings  = still indexed, but flagged (unknown-topic:<name>, unknown-score:<key>). The core's own fallback topic
-//             (FALLBACK_TOPIC: 未分类 / uncategorized) is never an unknown topic (redesign R6d-4).
+// warnings  = still indexed, but flagged (unknown-topic:<name>). The core's own fallback topic (FALLBACK_TOPIC: 未分类 /
+//             uncategorized) is never an unknown topic (redesign R6d-4). 1.1 W7b: a v1.0 note's `scores` is kept as it is
+//             (its shape is still checked); its keys are no longer held against v1.0's scoring steps.
 // `config` may be null; then no warnings are computed.
 import { basename } from 'node:path';
 import { parseFrontmatter, isPlainObject } from './frontmatter.mjs';
-import { topicNames, nodeIds, FALLBACK_TOPIC } from './config.mjs';
+import { topicNames, FALLBACK_TOPIC } from './config.mjs';
 
 export const NOTE_STATUSES = ['kept', 'authored', 'archived'];
 export const REQUIRED_FIELDS = ['id', 'title', 'source', 'date', 'status', 'topics'];
@@ -86,12 +87,6 @@ export function validateNote({ fileName, text, config = null }) {
     const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC)]);
     for (const t of meta.topics) {
       if (!topics.has(t)) warnings.push({ code: `unknown-topic:${t}`, message: `topic "${t}" is not defined in streams.json` });
-    }
-    if (isPlainObject(meta.scores)) {
-      const nodes = new Set(nodeIds(config));
-      for (const k of Object.keys(meta.scores)) {
-        if (!nodes.has(k)) warnings.push({ code: `unknown-score:${k}`, message: `score key "${k}" is not a gate id in streams.json pipeline.nodes` });
-      }
     }
   }
 

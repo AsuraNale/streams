@@ -1,9 +1,11 @@
+// 1.1 W7b: v1.0's feed fetchers left core/src for core/legacy/ (not shipped); still tested, since the fixtures of libraries
+// 'as 1.0 made them' run them.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchSource, SOURCE_KINDS, sourceName } from '../src/fetch/source.mjs';
-import { fetchHn } from '../src/fetch/sources/hn.mjs';
-import { fetchArxiv, arxivSearchQuery, waitForArxivSlot } from '../src/fetch/sources/arxiv.mjs';
-import { makeContext, isContext } from '../src/fetch/context.mjs';
+import { fetchSource, SOURCE_KINDS, sourceName } from '../legacy/fetch/source.mjs';
+import { fetchHn } from '../legacy/fetch/sources/hn.mjs';
+import { fetchArxiv, arxivSearchQuery, waitForArxivSlot } from '../legacy/fetch/sources/arxiv.mjs';
+import { makeContext, isContext } from '../legacy/fetch/context.mjs';
 import { USER_AGENT, getText } from '../src/fetch/http.mjs';
 import { startFakeServer, deadUrl } from './support/fake-server.mjs';
 import { RSS2, EMPTY_RSS, ATOM, ARXIV_ATOM, HN_JSON } from './support/feeds.mjs';

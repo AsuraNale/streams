@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { DEV_LIBRARY_ID, createLibraryService } from '../src/main/services/library.mjs'
 import { createScheduleService } from '../src/main/services/schedule.mjs'
 import { BRIDGE_METHODS, checkArgs, runHandler } from '../src/main/bridge-methods.mjs'
-import { createLibrary, createUsageCounter, readRegistry, saveBrief } from '../src/main/core.mjs'
+import { createLibrary, createUsageCounter, readChanges, readConfig, readRegistry, saveBrief } from '../src/main/core.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { testWorld } from './support/services.mjs'
 import { seedLibrary } from './support/seed.mjs'
@@ -174,6 +174,10 @@ test('setLibraryMeta: name, icon, colour of one library (the current one: librar
   s.handlers.setLibraryMeta(ib, { name: 'AI 工具' })
   assert.deepEqual(w.eventsOf('library-changed').at(-1).payload, { libraryId: ib, path: b, name: 'AI 工具' })
   assert.equal(s.current().name, 'AI 工具')
+  // the name is the library's own too (streams.json `name`, N08), recorded as yours in 变更记录 (1.1 W7b: this test holds it —
+  // 来源与要求's 库名称 field, which v1.0's editing had, is gone)
+  assert.equal(readConfig(b).config.name, 'AI 工具')
+  assert.deepEqual(readChanges(b).entries.filter(e => e.field === 'name').map(e => [e.by, e.after]), [['you', 'AI 工具']])
   const reg = readFileSync(registryFile(w), 'utf8')
   for (const bad of [{ color: '#ff0000' }, { icon: 'abc' }, { name: '' }]) assert.throws(() => s.handlers.setLibraryMeta(ia, bad), err => err.code === 'bad_arguments', JSON.stringify(bad))
   assert.throws(() => s.handlers.setLibraryMeta('zzzzzzzz', { name: 'x' }), err => err.code === 'bad_arguments')

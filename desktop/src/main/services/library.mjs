@@ -92,8 +92,6 @@ function usable(path) {
  * @param {() => Date} [o.now]
  * @param {string|null} [o.devLibrary] - STREAMS_DEV_LIBRARY
  * @param {string|null} [o.devChooseFolder] - STREAMS_DEV_CHOOSE_FOLDER
- * @param {string|null} [o.agentUsageFile] - the main agent's usage.jsonl (v2 package C: <appData>/agent/usage.jsonl), counted in
- *   getUsageTotal on its own line (`agent`) and in the total
  * @param {string|null|(() => string)} [o.defaultLibraryRoot] - v2 package I: where a new library goes while settings.json has no libraryRoot
  *   (v2 package J2: or a function, asked each time the default is needed — main.mjs gives library-root.mjs's, worked out at first use)
  *   (main.mjs: Documents\Streams packaged; a development run: STREAMS_DEV_LIBRARY_ROOT or a folder in its app data)
@@ -105,7 +103,7 @@ function selfCheckOf(dir, month) {
   try { return readUsage(dir, { month }).byPurpose?.probe ?? 0 } catch { return 0 }
 }
 
-export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null, agentUsageFile = null, defaultLibraryRoot = null, protectedDirs = [dirname(settingsFile)], held = () => null }) {
+export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null, defaultLibraryRoot = null, protectedDirs = [dirname(settingsFile)], held = () => null }) {
   // the folder the last chooseLibraryFolder gave: the only path useChosenFolder and addLibrary act on
   let chosen = null
 
@@ -426,19 +424,18 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
       return entries().map(overviewOf)
     },
     /**
-     * 设置「全部库本月用量合计」 (维护者 11-05): core usageTotal over every library this month (UTC, the app's clock); v2 package C:
-     * the main agent's calls on their own line (`agent`, 「主 Agent」) and in the total.
+     * 设置「全部库本月用量合计」 (维护者 11-05): core usageTotal over every library this month (UTC, the app's clock). (1.1 W7b: v2
+     * package C's main agent, and its line, are gone.)
      */
     getUsageTotal() {
       const list = entries()
-      const t = usageTotal(list.map(l => l.path), { month: now().toISOString().slice(0, 7), ...(agentUsageFile ? { agentFile: agentUsageFile } : {}) })
+      const t = usageTotal(list.map(l => l.path), { month: now().toISOString().slice(0, 7) })
       const callsOf = new Map(t.libraries.map(l => [l.dir, l.calls]))
       return {
         month: t.month, calls: t.calls, inputTokens: t.inputTokens, outputTokens: t.outputTokens, costUsd: t.costUsd, byKind: t.byKind,
-        // redesign R4b (设置「库与用量」: 「= 各库 n（含运行前自检 n）+ … + 主 Agent n」): each library's self-check probes, from the
-        // same usage file its calls come from (purpose 'probe': the run's 运行前自检, R2's withFirstProbe)
+        // redesign R4b (设置「库与用量」: 「= 各库 n（含运行前自检 n）+ …」): each library's self-check probes, from the same usage
+        // file its calls come from (purpose 'probe': a run's 运行前自检 of v1.0, still in this month's lines of an old library)
         libraries: list.map(l => ({ id: l.id, name: l.name, calls: callsOf.get(l.path) ?? 0, missing: !callsOf.has(l.path), selfCheck: callsOf.has(l.path) ? selfCheckOf(l.path, t.month) : 0 })),
-        agent: t.agent ? { calls: t.agent.calls, inputTokens: t.agent.inputTokens, outputTokens: t.agent.outputTokens, costUsd: t.agent.costUsd } : { calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 },
       }
     },
   }
@@ -446,29 +443,12 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
   return {
     handlers, dir, current, require, entries, entryOf, usable,
     chosen: () => (chosen ? { ...chosen } : null),
-    /** Redesign R4a: 新建库's form forgets a folder chosen before it opened (services/new-library.mjs). */
-    clearChosen: () => { chosen = null },
-    /** Redesign R4a: 首次打开's connection record copied into a library 新建库's form made (as useChosenFolder does). */
-    inheritConnection: path => inheritConnection(path),
-    /** The library with this id (bridge-free: the scheduler, later the agent), or null. */
+    /** The library with this id (bridge-free: the scheduler, the build conversation), or null. */
     find: id => entries().find(l => l.id === id) ?? null,
     /**
-     * A library a confirmed proposal card made (v2 package B, services/proposals.mjs): registered under `name` and made the
-     * current one, the same way an open does. Bridge-free. → { libraryId, path, name }
+     * A library the build conversation made (1.1 W6b, services/build.mjs): registered under `name` and made the current one,
+     * the same way an open does. Bridge-free. → { libraryId, path, name }
      */
     adopt: (path, { name } = {}) => open(path, { name }),
-    /**
-     * The undo of adopt when a later step of the card failed: the registration dropped (nothing in the folder touched by
-     * this), and `back` the current library again when it is still registered.
-     */
-    forget(id, back = null) {
-      let reg = withoutLibrary(registry(), id)
-      if (back && back !== id && libraryOf(reg, back)) reg = withActive(reg, back)
-      save(reg)
-      if (devId === id) devId = null
-      log(`library: the registration of ${id} undone`)
-      emit('libraries-changed', { libraryId: id })
-      announce(`registration of ${id} undone`)
-    },
   }
 }

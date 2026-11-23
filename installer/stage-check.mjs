@@ -66,7 +66,9 @@ export function relativeImportProblems(stage, { devOnly = [] } = {}) {
   return { imports, files, unresolved, missingRoots }
 }
 
-const LEFTOVER_DIR = /^(test|tests|__tests__|fixtures|samples?|examples?|scripts|mock|mocks)$/i
+// 1.1 W7b: `legacy` too — core/legacy holds v1.0's fetch-and-score round for the tests' samples; the app never imports it
+// and the build copies core/src only, so a legacy folder in a stage means v1.0's pipeline got into an install
+const LEFTOVER_DIR = /^(test|tests|__tests__|fixtures|samples?|examples?|scripts|mock|mocks|legacy)$/i
 const LEFTOVER_FILE = /(\.test\.(mjs|js|cjs)$|\.spec\.(mjs|js|cjs)$)/i
 
 /** Tests, fixtures, samples, development scripts below our own folders of the stage (relative paths); [] = none. */

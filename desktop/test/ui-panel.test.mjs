@@ -1,8 +1,7 @@
 // v2 package L (docs/checks/2026-11-10-wp-l/contract.md 「测」) on the running app: the right panel's four tabs, the queue's
 // words and the 资料库's two columns. The world: the three libraries of seedShelf (plan B's extras on the current one, 「AI Agent
 // 记忆」), 维护者's morning of 11-10 (test/support/queue-world.mjs: 「中国电动车行业」 catching up its missed 08:30 round, its feeds held
-// on this machine so it stays in 抓取; 「中国时尚上市公司」 waiting behind it), two proposal cards made at start
-// (STREAMS_DEV_PROPOSALS). Each check has its control (the state before the click, the other library, the other screen).
+// on this machine so it stays in its update; 「中国时尚上市公司」 waiting behind it). Each check has its control (the state before the click, the other library, the other screen).
 //   - the queue: the sidebar's second lines, 库架's cards, 时尚's 概览 (banner 「排队中 · 第 2 位」, 「已排上」 not pressable); 开始 in a
 //     library not in the line → the dialog 「「中国电动车行业」正在补跑错过的那一轮；这个库排在第 3 位…」 (not 「没能开始。」); 进度 lists it;
 //   - the panel: four tabs switch; folded / unfolded and the tab are in settings.json and come back after a reload of the page;
@@ -16,9 +15,12 @@
 // (「等你决定」 renamed), its number counted on the 待确认 tab only (the sidebar's 主 Agent has none: [data-panel-badge="decide"] is
 // read where [data-badge="chat"] was); 概览 and the run dialog are gone — the queue tests below were rewritten for the head's run
 // button (no dialog, the button is the state); 详情's 「nothing chosen」 control is on 来源与要求 (was 概览).
+// 1.1 W7b: 待确认 holds only the build conversation's card (v2's proposal cards and 系统检测 are gone); the head's chip has no
+// estimate of model calls; the last run in 进度 is one line (screens/run-steps.js LastRun); 详情 of a card of a library made by the
+// last version has no scores, and 资料库's 详情 no 入选理由.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
@@ -42,15 +44,9 @@ const s = worldSession({
     W.shelf = await seedShelf(world)
     W.feed = await startHoldingFeed({ holdMs: 18_000 })
     W.q = await seedQueue(world, W.shelf, W.feed, { sources: 10 })
-    const cards = join(world.root, 'cards.json')
-    writeFileSync(cards, JSON.stringify([
-      { kind: 'edit_brief', params: { brief: '只追 agent 记忆的评测' }, why: '界面测试用' },
-      { kind: 'create_library', params: { name: '面板测试库', brief: '一个新库' }, why: '界面测试用' },
-    ]))
-    W.cards = cards
     return () => W.feed.close()
   },
-  env: world => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'shelf', STREAMS_DEV_NOW: W.q.now, STREAMS_DEV_PROPOSALS: W.cards, STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'new-libs') }),
+  env: world => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'shelf', STREAMS_DEV_NOW: W.q.now, STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'new-libs') }),
   settings: { connections: { active: 'claude-code' } },
 })
 after(() => W.feed?.release())
@@ -113,7 +109,7 @@ test('时尚 (waiting) → its page: the head\'s button is 「排队中 · 第 2
 // redesign R2 (contract R2-7, P07 · P16): the running library's 待看 says this run — when it started, why (补跑 here: its catch-up),
 // the six steps lit up to where it is — and the head's chip says 「运行中：<环节> · 模型调用 n / 上限 m」; the right panel's 进度: the
 // running one with why, when it started, its step and 停止; the one waiting with why, since when and 「前一任务完成后自动开始」; the
-// rule 「需保持流息运行…」; the current library's last run as the funnel.
+// rule 「需保持流息运行…」; the current library's last run in one line.
 test('R2 · the running library (its catch-up): 待看 says 本次运行 · … 开始 · 补跑 and six steps; the head\'s chip; 进度 has why, since when, 停止 and the rule', async () => {
   const { running, waiting } = W.q
   await open(running, 'inbox')
@@ -136,13 +132,13 @@ test('R2 · the running library (its catch-up): 待看 says 本次运行 · … 
     stop: document.querySelector('[data-part="running"] [data-action="panel-stop"]') !== null,
     waiting: document.querySelector('[data-queue-row][data-position="2"] .phase-details')?.textContent ?? '',
     rule: document.querySelector('[data-part="keep-running"]')?.textContent ?? '',
-    lastRun: document.querySelector('[data-pane="progress"] [data-part="last-run"]')?.dataset.complete ?? null,
+    lastRun: document.querySelector('[data-pane="progress"] [data-part="last-run-here"] [data-part="last-run"]')?.dataset.state ?? null,
   }))
   assert.ok(p.running.includes(QUEUE.why['catch-up']) && p.running.includes('开始') && p.running.includes('当前步骤：更新'), p.running)
   assert.equal(p.stop, true)
   assert.ok(p.waiting.includes(QUEUE.why['catch-up']) && p.waiting.includes('加入队列') && p.waiting.includes('前一任务完成后自动开始'), p.waiting)
   assert.equal(p.rule, PANEL.progress.keepRunning)
-  assert.equal(p.lastRun, 'none', 'this library has never run: its funnel says so')
+  assert.equal(p.lastRun, 'none', 'this library has never run: its line says so')
   void waiting
 })
 
@@ -152,10 +148,9 @@ test('立即运行 in a library not in the line (AI Agent 记忆): no dialog —
   await until(() => document.querySelector('[data-part="run-button"] button')?.disabled === false)
   const idle = await s.page.evaluate(() => { const b = document.querySelector('[data-part="run-button"]'); return [b.dataset.runState, b.querySelector('button').textContent.trim()] })
   assert.deepEqual(idle, ['idle', SHELL.head.run.now], 'control: not in the line yet')
-  // the chip beside it: the next run and the estimate of model calls (estimateRound)
-  const est = core.estimateRound(s.world.library)
+  // the chip beside it: the next run only (1.1 W7b: no estimate of model calls)
   const chip = await s.page.evaluate(() => document.querySelector('[data-part="next-run"]').textContent)
-  assert.ok(chip.includes(est.expectedCalls[0] === est.expectedCalls[1] ? fmt(SHELL.head.run.callsOne, { n: est.expectedCalls[0] }) : fmt(SHELL.head.run.calls, { lo: est.expectedCalls[0], hi: est.expectedCalls[1] })), chip)
+  assert.ok(chip.length > 0 && !chip.includes('模型调用'), chip)
   await s.page.click('[data-part="run-button"] button')
   await until(() => document.querySelector('[data-part="run-button"]')?.dataset.runState === 'queued')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-dialog]')), null, 'no dialog')
@@ -211,60 +206,45 @@ test('four tabs switch; folded into the rail and unfolded; open / folded and the
 
 // ---- 等你决定 ---------------------------------------------------------------------------------------------------------------
 
-// redesign R5b (R5b-1, R5b-3): a card of 待确认 is the one 提议's small card, done right where it is (P16: 「就地可点」) — a click on it
-// no longer goes to 主 Agent (the development hook's cards are in no conversation to scroll to); this test now checks that it
-// stays and carries its three buttons, the main one on the right. The count is checked against the bridge's listToConfirm (the
-// one list R5a gives) besides listProposals + listSuggestions.
-test('待确认: every library\'s cards, as many as the tab\'s number, each with its library; a 主 Agent 提议 is answered right there', async () => {
+// 1.1 W7b: what waits for you to confirm is the build conversation's library card (its tests: test/ui-w6b.test.mjs); with no
+// conversation going there is nothing — v2's proposal cards and 系统检测 are gone, from the panel and from the bridge.
+test('待确认: only the build conversation\'s card — none going, nothing to confirm and no number; v2\'s cards are no bridge method', async () => {
   await tabTo('decide')
-  await until(() => document.querySelectorAll('[data-decide]').length >= 2 && document.querySelector('[data-panel-badge="decide"]') !== null)
-  const both = await s.page.evaluate(() => ({ list: document.querySelectorAll('[data-decide]').length, pane: Number(document.querySelector('[data-pane="decide"]').dataset.count), badge: Number(document.querySelector('[data-panel-badge="decide"]').textContent), chat: document.querySelector('[data-nav="chat"] [data-nav-count], [data-badge="chat"]') }))
-  assert.equal(both.list, both.badge, JSON.stringify(both))
-  assert.equal(both.pane, both.badge)
-  assert.equal(both.chat, null, '主 Agent in the sidebar carries no number (F10)')
-  const pending = (await bridge('listProposals', { status: 'pending' })).data
-  const suggestions = (await bridge('listSuggestions', null)).data.filter(x => !x.status || x.status === 'open')
-  assert.equal(both.badge, pending.length + suggestions.length, 'the same source: pending cards + open suggestions')
-  assert.equal(both.badge, (await bridge('listToConfirm')).data.count)
-  const brief = pending.find(c => c.kind === 'edit_brief')
-  const sel = `[data-decide="agent:${brief.id}"]`
-  assert.equal(await s.page.evaluate(q => document.querySelector(q)?.dataset.library, sel), brief.libraryId, 'the card carries its library')
-  assert.ok((await s.page.evaluate(q => document.querySelector(q).textContent, sel)).includes(W.shelf.names[0]))
-  assert.deepEqual(await s.page.evaluate(q => [...document.querySelectorAll(`${q} [data-action]`)].map(a => a.dataset.action), sel), ['decline', 'revise', 'confirm'])
-  const screen = await s.page.evaluate(() => document.querySelector('main[data-screen]').dataset.screen)
-  await s.page.click(`${sel} [data-part="sentence"]`)
-  await new Promise(r => setTimeout(r, 500))
-  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen]').dataset.screen), screen, 'a click on the card goes nowhere')
+  await until(() => document.querySelector('[data-pane="decide"] [data-part="decide-summary"]') !== null)
+  const pane = await s.page.evaluate(() => ({ count: document.querySelector('[data-pane="decide"]').dataset.count, none: document.querySelector('[data-part="decide-none"]') !== null, cards: document.querySelectorAll('[data-pane="decide"] article, [data-decide]').length, badge: document.querySelector('[data-panel-badge="decide"]'), chat: document.querySelector('[data-nav="chat"] [data-nav-count], [data-badge="chat"]') }))
+  assert.deepEqual(pane, { count: '0', none: true, cards: 0, badge: null, chat: null })
+  assert.equal((await bridge('getBuild')).data, null, 'control: no build conversation going')
+  assert.equal(await s.page.evaluate(() => ['listProposals', 'listSuggestions', 'listToConfirm'].some(n => typeof window.streams[n] === 'function')), false)
 })
 
 // ---- 详情 ------------------------------------------------------------------------------------------------------------------
 
-test('详情 follows the main area: 和主 Agent 聊 (this turn) · 待看 (the current card\'s steps, check, source) · 资料库 (the old third column) · 问库 (the cited notes) · 来源与要求 (one sentence)', async () => {
+test('详情 follows the main area: 库架 (one sentence) · 待看 (the current card\'s check, source) · 资料库 (the old third column) · 问库 (the cited notes) · 来源与要求 (one sentence)', async () => {
   await tabTo('detail')
   const detail = () => s.page.evaluate(() => { const p = document.querySelector('[data-pane="detail"]'); return { parts: [...p.querySelectorAll('[data-part]')].map(e => e.dataset.part), text: p.textContent } })
-  const chat = await detail()
-  assert.ok(chat.parts.includes('detail-chat') || chat.parts.includes('detail-none'), JSON.stringify(chat.parts))
-  // 待看 of the current library: the first card, its scores and their reasons
+  const first = await detail()
+  assert.ok(first.parts.includes('detail-none'), JSON.stringify(first.parts))
+  // 待看 of the current library: the first card, its check and its source (1.1 W7b: no scores of v1.0)
   await open(W.q.current, 'inbox')
-  await until(() => document.querySelector('[data-part="detail-inbox"] [data-detail-score]') !== null)
+  await until(() => document.querySelector('[data-part="detail-inbox"] [data-part="detail-check"]') !== null)
   const card = await s.page.evaluate(() => { const c = document.querySelector('[data-card][data-current="true"]'); return { url: c.dataset.url, title: c.querySelector('[data-action="open"]').textContent } })
-  const inbox = await s.page.evaluate(() => ({ url: document.querySelector('[data-part="detail-scores"]').dataset.url, scores: [...document.querySelectorAll('[data-detail-score]')].map(e => e.dataset.detailScore), check: document.querySelector('[data-part="detail-check"]').dataset.verified, ai: document.querySelector('[data-part="detail-check"]').dataset.aiInstruction, source: document.querySelector('[data-part="detail-source"]').textContent, reasons: document.querySelector('[data-pane="detail"] [data-part="reasons"]') !== null }))
-  assert.equal(inbox.url, card.url, 'the current card')
-  assert.ok(inbox.scores.includes('relevance'), JSON.stringify(inbox))
+  const inbox = await s.page.evaluate(() => ({ title: document.querySelector('[data-part="detail-inbox"] h2').textContent, scores: document.querySelectorAll('[data-detail-score], [data-part="detail-scores"]').length, check: document.querySelector('[data-part="detail-check"]').dataset.verified, ai: document.querySelector('[data-part="detail-check"]').dataset.aiInstruction, source: document.querySelector('[data-part="detail-source"]').textContent, reasons: document.querySelector('[data-pane="detail"] [data-part="reasons"]') !== null }))
+  assert.equal(inbox.title, card.title, 'the current card')
+  assert.equal(inbox.scores, 0, JSON.stringify(inbox))
   assert.ok(['passed', 'failed', 'none'].includes(inbox.check))
   assert.ok(['true', 'false'].includes(inbox.ai))
   assert.equal(inbox.reasons, true, 'the recent reasons for letting go are still there')
   // J moves the current card: 详情 follows
   await s.page.keyboard.press('j')
-  await until(u => document.querySelector('[data-part="detail-scores"]')?.dataset.url !== u, card.url)
-  // 资料库: the note's panel, in 详情 — and only there. Redesign R3 (R3-1): only what the reading area has not — 入选理由, 文件,
+  await until(t => document.querySelector('[data-part="detail-inbox"] h2')?.textContent !== t, card.title)
+  // 资料库: the note's panel, in 详情 — and only there. Redesign R3 (R3-1): only what the reading area has not — 文件 (1.1 W7b: no 入选理由),
   // 反向链接, 同来源内容 (its topics are on the paper now, no 「主题」 row here); the row is a source-card (no <a> in it)
   await libTab('library')
   const id = s.world.planB.memgpt.id
   await s.page.click(`[data-part="list"] [data-row="${id}"]`)
   await until(i => document.querySelector(`[data-pane="detail"] [data-part="note-panel"][data-id="${i}"]`) !== null, id)
   const lib = await s.page.evaluate(() => ({ backlinks: document.querySelector('[data-pane="detail"] [data-part="backlinks"]') !== null, same: document.querySelector('[data-pane="detail"] [data-part="same-source"]') !== null, reasons: document.querySelector('[data-pane="detail"] [data-part="detail-reasons"]') !== null, topicsRow: document.querySelector('[data-panel-row="topics"]') !== null, paperTopics: document.querySelector('main [data-part="reader-source"]')?.textContent, inMain: document.querySelector('main [data-part="note-panel"], main .st-panel, .lib-page .st-panel') !== null }))
-  assert.deepEqual(lib, { backlinks: true, same: true, reasons: true, topicsRow: false, paperTopics: lib.paperTopics, inMain: false })
+  assert.deepEqual(lib, { backlinks: true, same: true, reasons: false, topicsRow: false, paperTopics: lib.paperTopics, inMain: false })
   assert.ok(lib.paperTopics.includes('agent 记忆'))
   // 问库: the notes the answer cites (redesign R3: 详情's 本次回答依据; nothing asked yet → none listed)
   await libTab('ask')

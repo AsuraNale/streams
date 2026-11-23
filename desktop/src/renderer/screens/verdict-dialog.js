@@ -2,13 +2,14 @@
 // gives them (getVerdicts(url): [{ node, round, ts, items: [{ item, kind, passed, evidence, claimed, claimedNotDone }] }]) — step by step,
 // round by round: passed or not, rule or model check, the evidence. An item the model said it had done (claimed) that the
 // check did not pass is marked on its own line: 「说做了其实没做」. The result line per step: passed or not and the
-// rounds (and the calls, when the core gives them). A check's words come from the pipeline's checklists (getPipeline:
-// the item's `desc`); one the pipeline does not list shows its id.
+// rounds (and the calls, when the core gives them). A check's words are the page's own (texts/library.js VERDICTS.items: the
+// built-in items of a summary's check, by id — 1.1 W7b: no longer read from v1.0's pipeline); an item it has no words for
+// shows its id. A step is named by VERDICTS.nodes; a step of the last version's scoring (an old library's record) is 「上一版的检查」.
 // Redesign R2 (F30): 待看 no longer opens the dialog — the right panel's 详情 folds the same record in (VerdictBody, the dialog's
 // content without the dialog), its summary line from verdictSummary (the check items of each step's last round).
 // Redesign R3 (R3-1): 资料库's 详情 folds it in the same way, so the fold itself is one component here (VerdictFold, the template's
-// phase-row: 「核验记录（相关度 n 项 · 实质 n 项 · 摘要 n 项）」, closed until you open it), used by both; the dialog is gone.
-// Words: texts/library.js VERDICTS; the steps' names: texts/common.js NODE_NAMES.
+// phase-row: 「核验记录（摘要 n 项）」, closed until you open it), used by both; the dialog is gone.
+// Words: texts/library.js VERDICTS.
 // Test hooks: .vd[data-state], [data-verdict-node=<node>], [data-round=<n>] inside it,
 // [data-check=<item>][data-passed][data-kind], [data-said-not-done=<item>], [data-part="verdict-result"][data-passed].
 // v2 package H: a group the core marked with 「写给 AI 的话」 (verdictsFor's aiInstruction) puts one block on top:
@@ -18,11 +19,11 @@ import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { TIcon } from '../lib/template-icons.js'
-import { NODE_NAMES, SEP } from '../texts/common.js'
+import { SEP } from '../texts/common.js'
 import { VERDICTS as T } from '../texts/library.js'
 import { PANEL } from '../texts/panel.js'
 
-const nodeName = id => (Object.hasOwn(T.nodes, id) ? T.nodes[id] : Object.hasOwn(NODE_NAMES, id) ? NODE_NAMES[id] : id)
+const nodeName = id => (Object.hasOwn(T.nodes, id) && id !== 'other' ? T.nodes[id] : T.nodes.other)
 
 /** The sentences of a 「写给 AI 的话」 mark (core aiInstructionMark): the rule's matched phrases, or the model check's evidence. */
 export function aiPhrases(mark) {
@@ -53,11 +54,8 @@ function AiMarks({ groups }) {
 /** 「说做了其实没做」 as the core marks it (verdictsFor: claimedNotDone = claimed and not passed). */
 const saidNotDone = it => it.claimedNotDone === true
 
-function descriptions(pipeline) {
-  const map = new Map()
-  for (const node of pipeline?.config?.nodes ?? []) for (const c of node.checklist ?? []) if (typeof c?.id === 'string' && typeof c.desc === 'string') map.set(`${node.id}\n${c.id}`, c.desc)
-  return map
-}
+/** A check item in words (the built-in items by id); one the page has no words for: its id. */
+const itemWords = id => (Object.hasOwn(T.items, id) ? T.items[id] : id)
 
 /** The groups per step, in the order the core wrote them (a step run again later is its own group); the last one is the result. */
 function byNode(groups) {
@@ -70,7 +68,7 @@ function byNode(groups) {
   return out
 }
 
-function Round({ node, group, next, words }) {
+function Round({ group, next }) {
   const items = Array.isArray(group.items) ? group.items : []
   const rules = items.filter(i => i.kind === 'rule').length
   const checks = items.length - rules
@@ -81,7 +79,7 @@ function Round({ node, group, next, words }) {
       ${items.map((it, i) => html`<li key=${`${it.item}-${i}`} class="vd-item" data-check=${it.item} data-passed=${String(it.passed === true)} data-kind=${it.kind ?? ''}>
         <span class=${`vd-mark vd-mark--${it.passed ? 'pass' : 'fail'}`}>${it.passed ? T.passed : T.notPassed}</span>
         <span class="vd-item__text">
-          <span>${words.get(`${node}\n${it.item}`) ?? it.item}</span>
+          <span>${itemWords(it.item)}</span>
           ${it.evidence ? html`<span class="st-t-small st-t-sub vd-item__evidence">${it.evidence}</span>` : null}
         </span>
         <span class="vd-kind st-t-tiny st-t-muted">${T.kinds[it.kind] ?? it.kind ?? ''}</span>
@@ -103,8 +101,7 @@ export function verdictSummary(groups) {
 /** The record itself (what the dialog shows), for a place of its own (redesign R2: 待看's 详情). */
 export function VerdictBody({ url }) {
   const data = useLoad(() => call('getVerdicts', url), [url])
-  const pipeline = useLoad(() => call('getPipeline').catch(() => null), [])
-  return html`<${Record} url=${url} data=${data} pipeline=${pipeline} />`
+  return html`<${Record} url=${url} data=${data} />`
 }
 
 /**
@@ -124,8 +121,7 @@ export function VerdictFold({ url }) {
   </details>`
 }
 
-function Record({ url, data, pipeline }) {
-  const words = descriptions(pipeline.data)
+function Record({ url, data }) {
   const nodes = byNode(data.data)
   const state = data.data ? 'ready' : data.status
   return html`
@@ -142,7 +138,7 @@ function Record({ url, data, pipeline }) {
         const result = fmt(hasCalls ? T.resultCalls : T.result, { passed: passed ? T.resultPassed : T.resultFailed, rounds: last.round ?? groups.length, calls })
         return html`<section key=${node} class="vd-node" data-verdict-node=${node} aria-label=${nodeName(node)}>
           <h3 class="vd-node__title st-t-strong">${nodeName(node)}</h3>
-          ${groups.map((g, i) => html`<${Round} key=${`${node}-${g.round}-${i}`} node=${node} group=${g} next=${i < groups.length - 1} words=${words} />`)}
+          ${groups.map((g, i) => html`<${Round} key=${`${node}-${g.round}-${i}`} group=${g} next=${i < groups.length - 1} />`)}
           <div class=${`vd-result${passed ? ' vd-result--pass' : ''}`} data-part="verdict-result" data-passed=${String(passed)} data-rounds=${last.round ?? groups.length}>${result}</div>
         </section>`
       })}

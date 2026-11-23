@@ -2,7 +2,8 @@
 // changed), its note [data-part="run-note"] (was [data-schedule-note]) and its words texts/sources.js SOURCES.run; the line under it
 // says the next run, that Streams has to be running, the missed run made up once and the cap (P14) — the close button's rule is not
 // on this page any more (design). Each test now presses 保存 after the change; what it checks is unchanged.
-// redesign R4a: session B no longer walks 新建库's four steps to its last screen (the wizard is gone): it checks the 定时 line of the one-page form (see below).
+// 1.1 W7b: session B (the 定时 line of v1.0's one-page 新建库 form) went with that form; a 1.1 library's schedule is set on its
+// 来源与要求 as here. The line has no cap any more (v1.0's 单次运行上限 went with its scoring pipeline).
 // 定时 on the running app (docs/desktop.md §4.3). Session A, the seeded world with the schedule on at 08:30: 设置「运行」 shows
 // the switch on, the time, the next run as getSchedule gives it and the two rules; a new time typed → settings.json; the
 // switch off → settings.json, 「定时没开」; 25:00 through the bridge → bad_arguments and nothing written, and a time the field
@@ -20,7 +21,6 @@ import { test } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NEXT_WHEN } from '../src/renderer/texts/common.js'
-import { NEW_LIBRARY } from '../src/renderer/texts/first-run.js'
 import { SOURCES } from '../src/renderer/texts/sources.js'
 import { SHELL } from '../src/renderer/texts/shell.js'
 import { fmt, nextText } from '../src/renderer/lib/format.js'
@@ -55,7 +55,9 @@ test('来源与要求「定时与每轮上限」 (v1.0: 设置「运行」): the
   assert.equal(next.text, `${fmt(SOURCES.run.next, { when: nextText(sched.nextRunAt, NEXT_WHEN) })}${SOURCES.run.rule}`)
   assert.ok(new Date(sched.nextRunAt).getTime() > Date.now(), 'the next run is ahead')
   const text = (await run('[data-schedule]')).text
-  for (const words of [SOURCES.run.daily, SOURCES.run.at, SOURCES.run.capAfter]) assert.ok(text.includes(words), words)
+  for (const words of [SOURCES.run.daily, SOURCES.run.at]) assert.ok(text.includes(words), words)
+  // 1.1 W7b: the cap of a run went with v1.0's scoring pipeline: the line is the schedule alone
+  assert.equal(await run('[data-field="cap"]'), null, 'no cap field')
 })
 
 test('a new time → the library streams.json (v1.0: settings.json) and the next run move; 25:00 through the bridge is bad_arguments; a time the field cannot hold is refused on the page', async () => {
@@ -179,37 +181,4 @@ test('the library head\'s chip: 「下次运行 …」 from getHome().nextRun wi
 
 test('no page errors (session A)', () => {
   assert.deepEqual(s.errors, [])
-})
-
-// redesign R4a: 新建库 is one page (screens/new-library.js; design P04, F47): 「定时」 is a line of the form — 每天 [时刻] 自动运行 · 单次运行
-// 最多 [n] 次模型调用 — not the last step of a wizard any more (v2 package I's four steps are gone), so session B checks that line:
-// it starts from the app's schedule (the world's settings.json: 08:30, off — the control), the time and the switch the user sets
-// are what the new library's streams.json gets, and so is the cap. The rule (the library's own schedule, in its streams.json) is
-// the one the old session checked.
-const b = worldSession({
-  kind: 'empty',
-  waitFor: 'new-library',
-  settings: { schedule: { enabled: false, time: '08:30' } },
-  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'new-libs'), STREAMS_START_SCREEN: 'new-library' }),
-})
-
-test("新建库 (redesign R4a): the 定时 line starts from the app's schedule (08:30, off); 每天 checked and 06:45 typed, the cap 30 → the new library's streams.json", async () => {
-  await b.page.waitForFunction(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] [data-part="folder-state"]')?.dataset.state !== '', null, POLL)
-  assert.deepEqual(await b.page.evaluate(() => [document.querySelector('[data-field="daily"]').checked, document.querySelector('[data-field="time"]').value, document.querySelector('[data-field="cap"]').value]), [false, '08:30', '120'], "control: the app's schedule, off")
-  assert.equal(await b.page.evaluate(w => document.querySelector('[data-part="schedule"]').textContent.includes(w), NEW_LIBRARY.capAfter), true)
-  await b.page.fill('[data-field="name"]', '定时库')
-  await b.page.fill('[data-field="brief"]', '追踪电池价格。')
-  await b.page.check('[data-field="daily"]')
-  await b.page.fill('[data-field="time"]', '06:45')
-  await b.page.fill('[data-field="cap"]', '30')
-  await b.page.click('[data-action="create-only"] button')
-  await ready(b.page, 'inbox')
-  const dir = join(b.world.root, 'new-libs', '定时库')
-  assert.deepEqual(scheduleOf(dir), { enabled: true, time: '06:45' })
-  assert.equal(JSON.parse(readFileSync(join(dir, 'streams.json'), 'utf8')).pipeline.cap, 30)
-  assert.deepEqual((await b.page.evaluate(() => window.streams.getSchedule())).data.enabled, true, "the new (current) library's")
-})
-
-test('no page errors (session B)', () => {
-  assert.deepEqual(b.errors, [])
 })

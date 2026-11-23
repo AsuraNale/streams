@@ -1,7 +1,9 @@
+// 1.1 W7b: v1.0's feed fetchers left core/src for core/legacy/ (not shipped); still tested, since the fixtures of libraries
+// 'as 1.0 made them' run them.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { addManual, MANUAL_SOURCE } from '../src/fetch/manual.mjs';
+import { addManual, MANUAL_SOURCE } from '../legacy/fetch/manual.mjs';
 import { appendEvent, replayLedger, ledgerPath } from '../src/library/ledger.mjs';
 import { makeLibrary } from './support/fixtures.mjs';
 

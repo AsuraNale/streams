@@ -24,8 +24,8 @@ const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v)
 const stringOrNull = v => v === null || typeof v === 'string'
 
 // interface B (docs/desktop.md §4.2): the views, the bounds of what the page may send. Redesign R3: 'all' (资料库 「全部」: every
-// file of the library); 'caught' stays for 来源与要求's single test (screens/pipeline.js), 'pending' is 缺少文件头's page
-const LIBRARY_VIEWS = ['kept', 'authored', 'caught', 'pending', 'all']
+// file of the library); 'pending' is 缺少文件头's page (1.1 W7b: v1.0's 'caught' went with its scoring pipeline)
+const LIBRARY_VIEWS = ['kept', 'authored', 'pending', 'all']
 const SEARCH_VIEWS = ['kept', 'authored', 'all']
 const shortString = max => v => typeof v === 'string' && v.length <= max
 const nonEmptyShort = max => v => nonEmpty(v) && v.length <= max
@@ -59,23 +59,11 @@ const question = v => typeof v === 'string' && v.trim().length >= 1 && v.trim().
 const libraryId = nonEmptyShort(40)
 const schedule = s => isObject(s) && onlyKeys(s, ['enabled', 'time']) && typeof s.enabled === 'boolean' && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)
 /** { name?, icon?, color? }, at least one, each a string (the core's withMeta judges the values) */
-// v2 package B: a proposal card's id, the filter of listProposals, the statuses a card has (core PROPOSAL_STATUSES)
-export const PROPOSAL_STATUSES = Object.freeze(['pending', 'confirmed', 'declined', 'revise', 'stale', 'failed'])
-const proposalId = nonEmptyShort(80)
-const proposalFilter = f => f === null || (isObject(f) && onlyKeys(f, ['status', 'libraryId']) && optional(f, 'status', v => PROPOSAL_STATUSES.includes(v)) && optional(f, 'libraryId', v => v === null || libraryId(v)))
 const libraryMeta = m => isObject(m) && Object.keys(m).length > 0 && onlyKeys(m, ['name', 'icon', 'color']) && Object.values(m).every(v => typeof v === 'string' && v.length <= 200)
-// v2 package C: the main agent and the suggestion cards. A trailing argument the page may leave out is `undefined` (or null)
+// a trailing argument the page may leave out is `undefined` (or null)
 const absent = v => v === undefined || v === null
-const agentText = v => nonEmpty(v) && [...v.trim()].length <= 4000
-const agentSendOptions = o => absent(o) || (isObject(o) && onlyKeys(o, ['libraryId']) && optional(o, 'libraryId', v => v === null || libraryId(v)))
-const transcriptQuery = q => absent(q) || (isObject(q) && onlyKeys(q, ['limit', 'before'])
-  && optional(q, 'limit', v => Number.isInteger(v) && v >= 1 && v <= 500) && optional(q, 'before', v => v === null || (Number.isInteger(v) && v >= 1)))
-const suggestionFilter = f => absent(f) || (isObject(f) && onlyKeys(f, ['libraryId']) && optional(f, 'libraryId', v => v === null || libraryId(v)))
-const suggestionKey = nonEmptyShort(300)
 // redesign R2: the quick reasons of the 放弃 bar (the core's DISMISS_QUICK)
 const DISMISS_QUICK_IDS = Object.freeze(['marketing', 'irrelevant', 'shallow', 'duplicate'])
-// redesign R5a: a 系统检测's actions (the core's SUGGESTION_ACTIONS)
-export const SUGGESTION_ACTION_IDS = Object.freeze(['pause-source', 'edit-address', 'set-strictness', 'forward', 'draft-proposal', 'dismiss'])
 
 /** name → how many arguments it takes, and a check for them. */
 export const BRIDGE_METHODS = Object.freeze({
@@ -124,26 +112,20 @@ export const BRIDGE_METHODS = Object.freeze({
   setApiVendor: Object.freeze({ args: 2, check: ([vendor, baseUrl]) => nonEmpty(vendor) && stringOrNull(baseUrl) }),
   setApiKey: Object.freeze({ args: 2, check: ([vendor, key]) => nonEmpty(vendor) && nonEmpty(key) }),
   removeApiKey: Object.freeze({ args: 1, check: ([vendor]) => nonEmpty(vendor) }),
-  // the pipeline (services/pipeline.mjs): the first run's pack, the numbers, one round, the inbox and its decisions
-  applyStarterPack: Object.freeze({ args: 2, check: ([packId, edits]) => nonEmpty(packId) && (edits === null || edits === undefined || isObject(edits)) }),
-  getStarterPacks: Object.freeze({ args: 0 }),
+  // the run and 待看 (services/pipeline.mjs): the numbers, one run, the inbox and its decisions
   getHome: Object.freeze({ args: 0 }),
-  estimateRound: Object.freeze({ args: 0 }),
-  setRoundCap: Object.freeze({ args: 1, check: ([cap]) => Number.isInteger(cap) && cap > 0 }),
   startRound: Object.freeze({ args: 0 }),
   cancelRound: Object.freeze({ args: 0 }),
   getRoundState: Object.freeze({ args: 0 }),
   getInbox: Object.freeze({ args: 0 }),
   keepItem: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
   // redesign R2 (N03): 放弃 is held until its bar closes — settleDismiss writes it (a reason in words up to 300 characters, a
-  // quick id, or neither), undoDismiss drops it; moveToInbox (N02) puts an item that did not pass into 待看
+  // quick id, or neither), undoDismiss drops it
   dismissItem: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
   settleDismiss: Object.freeze({ args: 2, check: ([reason, quick]) => (absent(reason) || shortString(300)(reason)) && (absent(quick) || DISMISS_QUICK_IDS.includes(quick)) }),
   undoDismiss: Object.freeze({ args: 0 }),
   laterItem: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
-  moveToInbox: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
   openItemUrl: Object.freeze({ args: 1, check: ([url]) => nonEmpty(url) }),
-  getPipelineSettings: Object.freeze({ args: 0 }),
   // the timed round (services/schedule.mjs; docs/desktop.md §4.3): { enabled, time: 'HH:MM' } with 00:00–23:59, nothing else
   getSchedule: Object.freeze({ args: 0 }),
   setSchedule: Object.freeze({ args: 1, check: ([s]) => schedule(s) }),
@@ -166,43 +148,8 @@ export const BRIDGE_METHODS = Object.freeze({
   getLibraryRoot: Object.freeze({ args: 0 }),
   chooseLibraryRoot: Object.freeze({ args: 0 }),
   setLibraryRoot: Object.freeze({ args: 1, check: ([path]) => path === null || nonEmptyShort(2000)(path) }),
-  // redesign R4a (services/new-library.mjs; docs/desktop.md §4.16): 新建库's one-page form — the defaults it opens with, the folder
-  // 创建 would use for a name, the first run's estimate from what the tries found, and the library made from the form (the
-  // form's shape is judged here, its values by the service and the core: an empty brief, a source the core would not store)
-  getNewLibraryDefaults: Object.freeze({ args: 0 }),
-  newLibraryFolder: Object.freeze({ args: 1, check: ([name]) => shortString(100)(name) }),
-  estimateNewLibrary: Object.freeze({ args: 2, check: ([items, cap]) => Number.isInteger(items) && items >= 0 && items <= 100_000 && Number.isInteger(cap) && cap > 0 && cap <= 10_000 }),
-  createNewLibrary: Object.freeze({ args: 1, check: ([form]) => smallObject(form, 60_000) && onlyKeys(form, ['name', 'brief', 'strictness', 'topics', 'sources', 'packId', 'schedule', 'cap', 'run'])
-    && nonEmptyShort(100)(form.name) && shortString(8000)(form.brief) && strings(form.topics, { items: 50, max: 100 }) && Array.isArray(form.sources) && form.sources.length <= 100
-    && (form.packId === null || nonEmptyShort(80)(form.packId)) && schedule(form.schedule) && typeof form.run === 'boolean' && Number.isInteger(form.cap) }),
-  // redesign R4b (services/sources.mjs; docs/desktop.md §4.17): 来源与要求's 严格程度 (the current library's level, a level saved:
-  // its two thresholds, recorded as the user's) and 高级设置's 变更记录 (read only)
-  getStrictness: Object.freeze({ args: 0 }),
-  setStrictness: Object.freeze({ args: 1, check: ([level]) => ['loose', 'standard', 'strict'].includes(level) }),
+  // 来源与要求's 高级设置: 变更记录 (services/sources.mjs; docs/desktop.md §4.17; read only)
   getChangeLog: Object.freeze({ args: 0 }),
-  // the proposal cards (v2 package B; services/proposals.mjs; docs/desktop.md §4.5): the list, the three answers — only
-  // confirmProposal changes anything, and only for a pending card — and 「谁定的」 of the current library
-  listProposals: Object.freeze({ args: 1, check: ([filter]) => proposalFilter(filter) }),
-  confirmProposal: Object.freeze({ args: 1, check: ([id]) => proposalId(id) }),
-  declineProposal: Object.freeze({ args: 1, check: ([id]) => proposalId(id) }),
-  reviseProposal: Object.freeze({ args: 2, check: ([id, text]) => proposalId(id) && nonEmptyShort(2000)(text) }),
-  getWhoDecided: Object.freeze({ args: 0 }),
-  // the main agent (v2 package C; services/agent.mjs; docs/desktop.md §4.6): one sentence → one turn (one at a time: a second
-  // waits for the first); the conversation's record; the state. `optional` = how many trailing arguments may be left out
-  agentSend: Object.freeze({ args: 2, optional: 1, check: ([text, o]) => agentText(text) && agentSendOptions(o) }),
-  getAgentTranscript: Object.freeze({ args: 1, optional: 1, check: ([q]) => transcriptQuery(q) }),
-  getAgentStatus: Object.freeze({ args: 0 }),
-  // the suggestion cards (v2 package D's, wired by package C): the open ones; 「不要」; 「要」 = recorded and handed to the main
-  // agent as a note for one turn (it decides whether to propose a card) — nothing else changes
-  listSuggestions: Object.freeze({ args: 1, optional: 1, check: ([f]) => suggestionFilter(f) }),
-  dismissSuggestion: Object.freeze({ args: 3, optional: 1, check: ([id, key, reason]) => libraryId(id) && suggestionKey(key) && (absent(reason) || shortString(500)(reason)) }),
-  acceptSuggestion: Object.freeze({ args: 2, check: ([id, key]) => libraryId(id) && suggestionKey(key) }),
-  // redesign R5a (services/agent.mjs, services/pipeline.mjs; docs/desktop.md §4.19): one kind of 提议 — every library's 主 Agent
-  // 提议 and 系统检测 in one view; a 系统检测's action on any library (core runSuggestionAction: the 动作表); 重新评分 of a library
-  listToConfirm: Object.freeze({ args: 0 }),
-  actOnSuggestion: Object.freeze({ args: 3, check: ([id, key, action]) => libraryId(id) && suggestionKey(key) && SUGGESTION_ACTION_IDS.includes(action) }),
-  getRescore: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
-  startRescore: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
   // interface B (docs/desktop.md §4.2). The library and reading (services/browse.mjs): an id must be in the index
   getLibrary: Object.freeze({ args: 2, check: ([view, filter]) => LIBRARY_VIEWS.includes(view) && libraryFilter(filter) }),
   searchLibrary: Object.freeze({ args: 2, check: ([q, filter]) => shortString(200)(q) && searchFilter(filter) }),
@@ -221,7 +168,8 @@ export const BRIDGE_METHODS = Object.freeze({
   // 待规范 (docs/desktop.md §4.3, S8): a file name the core lists as needing a header; the header the page edited, or null
   applyHeader: Object.freeze({ args: 2, check: ([file, header]) => nonEmptyShort(300)(file) && (header === null || smallObject(header, 20_000)) }),
   applyAllHeaders: Object.freeze({ args: 0 }),
-  // the sources and the topics (services/sources.mjs): the shapes are the core's to judge; a name must be in streams.json
+  // a library's sources with their last fetch (services/sources.mjs; read only: 1.1 W7b — a library made by the last version
+  // lists them, a library with a card has getCardView)
   getSources: Object.freeze({ args: 0 }),
   // 1.1 W6a: a library's card and its sources' rows; a source typed by the user, held until 确认
   getCardView: Object.freeze({ args: 0 }),
@@ -234,26 +182,7 @@ export const BRIDGE_METHODS = Object.freeze({
   retryBuild: Object.freeze({ args: 0 }),
   confirmBuild: Object.freeze({ args: 0 }),
   dropBuild: Object.freeze({ args: 0 }),
-  guessSource: Object.freeze({ args: 1, check: ([input]) => nonEmptyShort(2000)(input) }),
-  trySource: Object.freeze({ args: 1, check: ([source]) => smallObject(source, 10_000) }),
-  addSource: Object.freeze({ args: 1, check: ([source]) => smallObject(source, 10_000) }),
-  updateSource: Object.freeze({ args: 2, check: ([name, patch]) => name100(name) && smallObject(patch, 10_000) }),
-  removeSource: Object.freeze({ args: 1, check: ([name]) => name100(name) }),
-  setSourcePaused: Object.freeze({ args: 2, check: ([name, paused]) => name100(name) && typeof paused === 'boolean' }),
-  addManualLink: Object.freeze({ args: 2, check: ([url, title]) => httpUrl(url) && shortString(300)(title) }),
-  addTopic: Object.freeze({ args: 1, check: ([topic]) => smallObject(topic, 10_000) && name100(topic.name) }),
-  updateTopic: Object.freeze({ args: 2, check: ([name, patch]) => name100(name) && smallObject(patch, 10_000) }),
-  removeTopic: Object.freeze({ args: 1, check: ([name]) => name100(name) }),
-  // the library's 「要求」 (v2 package F, services/sources.mjs): the text the user typed; the core trims it and judges its length
-  getBrief: Object.freeze({ args: 0 }),
-  setBrief: Object.freeze({ args: 1, check: ([text]) => shortString(8000)(text) }),
-  // the pipeline's nodes (services/pipeline.mjs): the whole configuration back; a url to try must be in the ledger
-  getPipeline: Object.freeze({ args: 0 }),
-  savePipeline: Object.freeze({ args: 1, check: ([cfg]) => smallObject(cfg, 200_000) }),
-  // draft: the node being edited, not saved yet (null = the saved one); its id must be nodeId
-  previewNode: Object.freeze({ args: 3, check: ([nodeId, url, draft]) => name100(nodeId) && url2000(url) && (draft === null || (draft !== null && typeof draft === 'object' && !Array.isArray(draft) && draft.id === nodeId)) }),
-  // the run status, the graph, the verdicts (services/status.mjs)
-  getStatus: Object.freeze({ args: 0 }),
+  // the run-log folder, the graph, the verdicts (services/status.mjs)
   openLogsFolder: Object.freeze({ args: 0 }),
   getGraph: Object.freeze({ args: 1, check: ([filter]) => graphFilter(filter) }),
   getVerdicts: Object.freeze({ args: 1, check: ([url]) => url2000(url) }),
@@ -262,10 +191,6 @@ export const BRIDGE_METHODS = Object.freeze({
   getDemands: Object.freeze({ args: 0 }),
   addDemand: Object.freeze({ args: 2, check: ([topic, q]) => name100(topic) && shortString(500)(q) }),
   answerFeedback: Object.freeze({ args: 2, check: ([q, note]) => nonEmptyShort(500)(q) && nonEmptyShort(2000)(note) }),
-  // v2 package E (services/ask.mjs; docs/desktop.md §4.7): the library's chat box, one sentence (1–500 characters) routed to the
-  // library's answer or the main agent; your answer to 「这是要改这个库吗？」 takes the route you chose. One sentence at a time
-  sendLibraryMessage: Object.freeze({ args: 1, check: ([t]) => question(t) }),
-  resolveLibraryMessage: Object.freeze({ args: 2, check: ([t, route]) => question(t) && (route === 'question' || route === 'change') }),
   // v2 package M (services/quota.mjs; docs/desktop.md §4.11): the current connection's plan windows or API balance, or null
   getQuota: Object.freeze({ args: 0 }),
 })
@@ -275,7 +200,7 @@ export const ERROR_CODES = Object.freeze([
   'bad_arguments', // wrong number or kind of arguments
   'no_library', // no library folder opened yet
   'open_failed', // the system could not open the folder or the address
-  'no_connection', // a method that calls a model (askLibrary, previewNode, sendLibraryMessage / resolveLibraryMessage) with no connection chosen
+  'no_connection', // a method that calls a model (askLibrary) with no connection chosen
   'internal', // anything else; the details go to the app's log, not to the page
 ])
 
@@ -292,17 +217,13 @@ export class BridgeError extends Error {
  */
 export const CORE_BAD_ARGUMENT_CODES = Object.freeze([
   'bad-argument', 'bad-edit', 'invalid-note', 'not-editable', 'bad-source', 'bad-topic', 'bad-input', 'bad-url',
-  'bad-feedback', 'bad-question', 'bad-view', 'locked-node', 'bad-config', 'not-found',
+  'bad-feedback', 'bad-question', 'bad-view', 'not-found',
   // writing a header onto a file of an imported folder (core-api 5.9)
   'not-proposable', 'bad-file-name', 'already-conforming', 'bad-id',
   // a step of 首次设置 recorded with an unknown step or `by` (core recordSetupStep)
   'bad-setup',
   // a library id the registry does not hold (core withActive / withMeta / withoutLibrary; v2 package A)
   'unknown-library',
-  // a proposal card that does not fit (core draftProposal / reviseProposal), one that is not pending any more (v2 package B)
-  'bad-proposal', 'not-pending',
-  // a suggestion card that is not open (core dismissSuggestion / acceptSuggestion; v2 package D, wired by C)
-  'not-open',
 ])
 
 /** A core error as the bridge's: shape errors (and every `duplicate-*`) → bad_arguments, the rest → internal. */

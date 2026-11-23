@@ -60,7 +60,7 @@ const toTab = async id => {
 test('R3 nothing kept: 全部 0 · 已收藏 0 · 我的笔记 0, no caught item listed, no 抓到的 / 待规范 tab, no 添加链接, no line about files without a header', async () => {
   const counts = core.libraryCounts(dir())
   assert.deepEqual([counts.kept, counts.authored, counts.all, counts.pending], [0, 0, 0, 0], 'control: no file in this world')
-  const caught = core.listLibrary(dir(), { view: 'caught' }).items
+  const caught = [...core.replayLedger(dir()).states.values()].filter(x => x.stage !== 'kept' && x.title) // 1.1 W7b: the ledger's items without a file (v1.0's view 'caught' is gone)
   assert.ok(caught.length >= 4, 'control: the ledger has caught items a wrong 「全部」 would show')
   await s.page.waitForFunction(() => document.querySelector('[data-view="all"]')?.getAttribute('aria-current') === 'true' && document.querySelector('[data-part="list"] [data-part="empty"]') !== null, null, POLL)
   const shown = await s.page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-view]')].map(e => [e.dataset.view, Number(e.dataset.count)])))
@@ -97,7 +97,8 @@ test('待看: the card with words for the AI carries the amber mark (the sentenc
   const openRecord = async url => {
     await s.page.click(`[data-card][data-url="${url}"] .card-body`)
     if (await s.page.evaluate(() => document.querySelector('[data-part="right-panel"]')?.dataset.tab !== 'detail')) await s.page.click('[data-panel-tab="detail"]')
-    await s.page.waitForFunction(u => document.querySelector('[data-part="detail-scores"]')?.dataset.url === u, url, POLL)
+    // 1.1 W7b: 详情 has no scores part any more (it carried the url): the current card is this one and 详情 is its (its title)
+    await s.page.waitForFunction(u => { const c = document.querySelector('[data-card][data-current="true"]'); return c?.dataset.url === u && document.querySelector('[data-part="detail-inbox"] [data-part="detail-head"] h2')?.textContent === c.querySelector('[data-action="open"]')?.textContent }, url, POLL)
     if (await s.page.evaluate(() => document.querySelector('[data-part="detail-record"]')?.dataset.open !== 'true')) await s.page.click('[data-part="detail-record"] summary')
     await s.page.waitForFunction(() => document.querySelector('[data-part="detail-record"] .vd[data-state="ready"]') !== null, null, POLL)
   }

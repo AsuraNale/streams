@@ -4,6 +4,8 @@
 // texts/common.js CONNECTIONS.names (V7: the brand words only there).
 
 export const BUILD = Object.freeze({
+  // who speaks in the conversation (1.1 W7b: was texts/agent.js, v2's main agent chat, now gone)
+  speaker: Object.freeze({ name: '主 Agent', role: '管理全部库', newline: 'Shift + Enter 换行' }),
   title: '新建库',
   editTitle: '改建库卡',
   subtitle: '说一句想追踪什么，主 Agent 先上网看一眼，问你几个问题，写一张建库卡给你确认。',

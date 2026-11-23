@@ -93,10 +93,6 @@ export const LIBRARY = Object.freeze({
 
   panel: Object.freeze({
     eyebrow: 'Current note',
-    reasons: 'Why this was picked',
-    reasonsNone: 'This note has no scores (“My notes” are not scored).',
-    score: '{name} {score}',
-    freshness: Object.freeze({ new: 'new', followup: 'follow-up', duplicate: 'duplicate' }),
     check: 'Verification',
     file: 'File',
     backlinks: 'Backlinks',
@@ -104,7 +100,7 @@ export const LIBRARY = Object.freeze({
     sameSource: 'From the same source',
     sameSourceNone: 'Nothing else from this source.',
     authored: 'My notes',
-    none: 'Choose an item in the library: why it was picked, its verification record and its file show here.',
+    none: 'Choose an item in the library: its verification record and its file show here.',
   }),
 })
 
@@ -138,7 +134,16 @@ export const VERDICTS = Object.freeze({
   loading: 'Reading the verification record…',
   none: 'This item has no verification record.',
   failed: 'The verification record of this item could not be read.',
-  nodes: Object.freeze({ ask: 'Ask' }),
+  nodes: Object.freeze({ summary: 'Summary', ask: 'Ask', other: 'A check of the last version' }),
+  items: Object.freeze({
+    'what-nonempty': 'There is a one-line overview',
+    'points-count': 'There are exactly three points',
+    'point-quotes': 'Each point carries one sentence of the original, word for word as it is in the stored original',
+    'numbers-found': 'Every number in the summary is in the stored original, with the same unit',
+    'no-placeholder': 'No TODO / TBD / FIXME left in',
+    'no-banned-words': 'No internal terms',
+    'numbers-in-source': 'Every number and claim in the summary can be found in the material, and words such as target / expected / done are not upgraded',
+  }),
   round: 'Round {n} · {rules} rule{rules?|s} + {checks} model check{checks?|s}',
   passed: 'Passed',
   notPassed: 'Not passed',

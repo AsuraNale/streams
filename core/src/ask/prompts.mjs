@@ -7,7 +7,7 @@
 //   output + only the failed items) -> fixed output format
 // materialsText(materials) -> the numbered material exactly as it sits between the --- lines
 //   (the judge reads the same string)
-import { languageOf } from '../pipeline/prompts.mjs';
+import { languageOf } from '../library/language.mjs';
 
 export const ASK_PREAMBLE = [
   '你在回答一个关于个人资料库的问题。你只用下面编号的库内条目回答，不联网、不用自己的知识补。',

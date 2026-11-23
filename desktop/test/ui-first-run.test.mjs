@@ -37,7 +37,9 @@ const view = page => page.evaluate(() => document.querySelector('[data-part="fir
 const viewIs = (page, v) => until(page, x => document.querySelector('main[data-screen="first-run"][data-state="ready"] [data-part="first-run"]')?.dataset.view === x, v)
 const settingsOf = w => JSON.parse(readFileSync(join(w.appData, 'settings.json'), 'utf8'))
 const registryOf = w => (existsSync(join(w.appData, 'libraries.json')) ? JSON.parse(readFileSync(join(w.appData, 'libraries.json'), 'utf8')) : null)
-const transcriptOf = w => join(w.appData, core.AGENT_DIR, core.TRANSCRIPT_FILE)
+// 1.1 W7b: v2's main agent (and its transcript) is gone; a sentence sent starts the build conversation, which keeps its state in
+// <appData>/build/build.json (services/build.mjs) — nothing sent: no such file
+const conversationOf = w => join(w.appData, 'build', 'build.json')
 const mainLog = w => readFileSync(join(w.appData, 'logs', 'main.log'), 'utf8')
 const detectFile = w => join(w.root, 'detect.json')
 const writeDetect = (w, d) => writeFileSync(detectFile(w), JSON.stringify(d), 'utf8')
@@ -93,7 +95,7 @@ test('R4a-1 an example only fills the box: nothing is sent (no record of the mai
   await until(a.page, t => document.querySelector('textarea[data-field="track"]')?.value === t, T.examples[1])
   await until(a.page, () => document.activeElement?.matches('textarea[data-field="track"]') === true)
   await a.page.waitForTimeout(400)
-  assert.equal(existsSync(transcriptOf(a.world)), false, 'nothing went to the main agent')
+  assert.equal(existsSync(conversationOf(a.world)), false, 'nothing went to the main agent (no build conversation)')
   assert.equal(await view(a.page), 'home')
   assert.equal(await a.page.evaluate(() => document.querySelector('[data-action="send"] button').disabled), false)
 })
@@ -125,7 +127,7 @@ test('R4a-1 发送 → 新建库 with the sentence; on Codex it says why it cann
   const p = await a.page.evaluate(() => ({ view: document.querySelector('main[data-screen="build"]').dataset.view, box: document.querySelector('textarea[data-field="opener"]').value, why: Boolean(document.querySelector('[data-part="start-why"]')), start: document.querySelector('[data-action="start"] button').disabled }))
   assert.deepEqual(p, { view: 'start', box: sentence, why: true, start: true })
   assert.equal((await a.page.evaluate(() => window.streams.getBuild())).data, null, 'nothing sent')
-  assert.equal(existsSync(transcriptOf(a.world)), false, 'nothing went to the main agent')
+  assert.equal(existsSync(conversationOf(a.world)), false, 'nothing went to the main agent (no build conversation)')
   assert.deepEqual(registryOf(a.world)?.libraries ?? [], [], 'nothing made')
   assert.deepEqual(a.errors, [])
 })

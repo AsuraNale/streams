@@ -104,10 +104,6 @@ export const LIBRARY = Object.freeze({
   // the right panel's 详情 of the note being read: only what the reading area does not show
   panel: Object.freeze({
     eyebrow: '当前笔记',
-    reasons: '入选理由',
-    reasonsNone: '该笔记无评分记录（「我的笔记」不经评分）。',
-    score: '{name} {score}',
-    freshness: Object.freeze({ new: '新', followup: '后续', duplicate: '重复' }),
     check: '核验',
     file: '文件',
     backlinks: '反向链接',
@@ -115,7 +111,7 @@ export const LIBRARY = Object.freeze({
     sameSource: '同来源内容',
     sameSourceNone: '同一来源暂无其他内容。',
     authored: '我的笔记',
-    none: '在资料库中选择一条内容，这里显示它的入选理由、核验记录与文件。',
+    none: '在资料库中选择一条内容，这里显示它的核验记录与文件。',
   }),
 })
 
@@ -151,7 +147,19 @@ export const VERDICTS = Object.freeze({
   loading: '正在读取核验记录……',
   none: '该条内容暂无核验记录。',
   failed: '未能读取该条内容的核验记录。',
-  nodes: Object.freeze({ ask: '问库' }),
+  // the steps a record has: a summary's check (1.1's update; an old library's summary), 问库's answer; any other step is the
+  // last version's scoring of an old library
+  nodes: Object.freeze({ summary: '摘要', ask: '问库', other: '上一版的检查' }),
+  // the built-in check items by id (core verify/checklist.mjs originalChecklist, ask's checklist)
+  items: Object.freeze({
+    'what-nonempty': '有「这是什么」一句',
+    'points-count': '要点恰好三行',
+    'point-quotes': '每个要点带一句原文原话，逐字在存下的原文里',
+    'numbers-found': '摘要里的数字在存下的原文里都找得到，单位也一样',
+    'no-placeholder': '没有 TODO / TBD / FIXME 占位',
+    'no-banned-words': '没有内部用词',
+    'numbers-in-source': '摘要里的每个数字和断言都能在材料里找到，目标 / 预计 / 已完成这类状态词没被升级',
+  }),
   round: '第 {n} 轮 · {rules} 项规则 + {checks} 项判定',
   passed: '通过',
   notPassed: '未通过',

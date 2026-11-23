@@ -3,10 +3,10 @@
 export const ASK = Object.freeze({
   title: 'Answers only from this library',
   scope: 'Scope: {kept} kept · {authored} in my notes · offline',
-  empty: 'Each sentence of an answer carries the number of the note it comes from; choose a number to see which. To change the sources, topics or brief of this library, you can also describe it here.',
-  inputLabel: 'Ask a question, or describe a change to this library',
-  inputPlaceholder: 'Ask a question, or describe a change to this library',
-  inputHint: 'About {n} model calls per question · to change sources, topics or the brief, just describe it',
+  empty: 'Each sentence of an answer carries the number of the note it comes from; choose a number to see which.',
+  inputLabel: 'Ask this library a question',
+  inputPlaceholder: 'Ask this library a question',
+  inputHint: 'About {n} model calls per question',
   callsRange: '{lo}–{hi}',
   who: 'Ask',
   newline: 'Shift + Enter for a new line',
@@ -19,14 +19,6 @@ export const ASK = Object.freeze({
   failed: 'Not answered: {reason}',
   failedOther: 'Not answered. Try again.',
 
-  route: Object.freeze({
-    agent: 'Main agent',
-    routed: 'Forwarded to the main agent',
-    handing: 'Forwarding to the main agent…',
-    unsure: 'Is this a change to this library?',
-    yes: 'Yes, change this library',
-    no: 'No, it is a question',
-  }),
 
   answer: Object.freeze({
     citeLabel: 'Source {n}',

@@ -1,19 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runRound } from '../src/pipeline/round.mjs';
+// 1.1 W7b: the libraries here are filled the way v1.0 did it (core/legacy's runRound, its scripted connector) — what an
+// existing user's library holds; the numbers, the run records and the inbox list are core/src's. v1.0's estimates, its body
+// cache and its constant-score warning left with the scoring pipeline (their cases went with them).
+import { runRound } from '../legacy/pipeline/round.mjs';
 import { keep, dismiss } from '../src/pipeline/decide.mjs';
-import { homeNumbers, constantScoreWarning, noOutputStreak, NO_OUTPUT_ROUNDS } from '../src/pipeline/numbers.mjs';
+import { homeNumbers, noOutputStreak, NO_OUTPUT_ROUNDS } from '../src/pipeline/numbers.mjs';
 import * as coreIndex from '../src/index.mjs';
 import { roundLog, listRounds } from '../src/pipeline/rounds-log.mjs';
-import { estimateRound, recentNewCounts } from '../src/pipeline/estimate.mjs';
 import { listInbox } from '../src/pipeline/inbox.mjs';
-import { cleanCache, cachePath, fetchBody } from '../src/pipeline/cache.mjs';
 import { appendEvent } from '../src/library/ledger.mjs';
-import { scriptedConnector } from '../src/pipeline/fake.mjs';
+import { scriptedConnector } from '../legacy/pipeline/fake.mjs';
 import { startFakeServer } from './support/fake-server.mjs';
-import { serveItems, feedRoute, libraryWithFeed, ctx, ledgerLines, fetchLogLines, roundLines, setPipeline, CLOCK } from './support/pipeline.mjs';
+import { serveItems, feedRoute, libraryWithFeed, ctx, ledgerLines, roundLines, CLOCK } from './support/pipeline.mjs';
 import { makeLibrary } from './support/fixtures.mjs';
 
 // The test's own replay: last stage per url straight from the raw ledger lines.
@@ -99,35 +100,9 @@ test('roundLog / listRounds: the structured record of each round, newest first; 
   assert.equal(roundLog(dir, r2.round.id).fetch[0].status, 'empty');
 });
 
-test('estimateRound: sources / paused from streams.json, the new-item range of the last 7 rounds from fetch_log, queued items, cap from the configuration', async (t) => {
-  const srv = await startFakeServer();
-  t.after(() => srv.close());
-  const items = serveItems(srv, 3);
-  const feed = feedRoute(srv, items);
-  const dir = libraryWithFeed('numbers-estimate', feed, { sources: [
-    { name: 'feed-a', kind: 'rss', url: feed, topic: 'agent 记忆' },
-    { name: 'napping', kind: 'rss', url: feed, paused: true },
-  ] });
-  assert.deepEqual(estimateRound(dir), { sources: 2, paused: 1, recentRounds: 0, queued: 0, expectedItems: [0, 0], expectedCalls: [0, 0], cap: 120 });
-  await runRound(dir, { connector: scriptedConnector(), cap: 0, ctx: ctx() }); // 3 new, nothing scored
-  const e1 = estimateRound(dir);
-  assert.deepEqual([e1.recentRounds, e1.queued, e1.expectedItems, e1.expectedCalls], [1, 3, [3, 3], [6, 24]]);
-  await runRound(dir, { connector: scriptedConnector(), cap: 0, ctx: ctx() }); // 0 new
-  const e2 = estimateRound(dir);
-  assert.deepEqual([e2.recentRounds, e2.expectedItems, e2.expectedCalls], [2, [0, 3], [3, 24]]);
-  // the test's own recomputation from fetch_log: new per round
-  const byRound = {};
-  for (const l of fetchLogLines(dir)) byRound[l.round] = (byRound[l.round] ?? 0) + l.new;
-  assert.deepEqual([Math.min(...Object.values(byRound)), Math.max(...Object.values(byRound))], e2.expectedItems);
-  setPipeline(dir, { cap: 7 });
-  assert.equal(estimateRound(dir).cap, 7, 'cap follows the configuration');
-  // only the last seven rounds count
-  assert.deepEqual(recentNewCounts([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ round: `r${n}`, new: n }))), [3, 4, 5, 6, 7, 8, 9]);
-  assert.deepEqual(recentNewCounts([{ round: 'r1', new: 2 }, { round: 'r1', new: 3 }, { round: 'r2', new: 0 }]), [5, 0], 'summed per round');
-  assert.throws(() => estimateRound(join(dir, 'nowhere')), (e) => e.code === 'config:missing');
-});
-
-test('listInbox: relevance desc then substance desc, waitingDays from the inbox event, cards carry scores / summary / verification', async (t) => {
+// 1.1 W7b: cards of the same moment are in url order — a v1.0 item's scores no longer order the list (they would have put
+// Item 2 first: the highest relevance)
+test('listInbox: the same moment in url order, not by score; waitingDays from the inbox event, cards carry scores / summary / verification', async (t) => {
   const srv = await startFakeServer();
   t.after(() => srv.close());
   const items = serveItems(srv, 3);
@@ -137,49 +112,15 @@ test('listInbox: relevance desc then substance desc, waitingDays from the inbox 
   const twoDaysAgo = new Date(CLOCK.getTime() - 2 * 86_400_000 - 1000);
   await runRound(dir, { connector: conn, ctx: ctx({ now: () => twoDaysAgo }) });
   const list = listInbox(dir, { now: () => CLOCK });
-  assert.deepEqual(list.map((c) => c.title.slice(0, 6)), ['Item 2', 'Item 1', 'Item 3']);
+  assert.deepEqual(list.map((c) => c.title.slice(0, 6)), ['Item 1', 'Item 2', 'Item 3']);
   assert.deepEqual(list.map((c) => c.waitingDays), [2, 2, 2]);
-  assert.deepEqual(list[0].scores, { relevance: { score: 0.95, reason: 'scripted answer' }, substance: { score: 0.6, reason: 'scripted answer' }, freshness: { value: 'new', reason: 'scripted answer' } });
+  assert.deepEqual(list[1].scores, { relevance: { score: 0.95, reason: 'scripted answer' }, substance: { score: 0.6, reason: 'scripted answer' }, freshness: { value: 'new', reason: 'scripted answer' } }, 'v1.0 data is shown as it is');
   assert.deepEqual(list[0].summary.points.length, 3);
   assert.equal(list[0].verification.passed, true);
   assert.equal(list[0].inboxAt, twoDaysAgo.toISOString());
   assert.equal(list[0].materials, 'body');
   keep(dir, items[1].url);
   assert.deepEqual(listInbox(dir).map((c) => c.title.slice(0, 6)), ['Item 1', 'Item 3'], 'a kept item leaves the list');
-});
-
-test('cleanCache: files older than cacheDays go, newer stay; fetchBody caches and serves from cache', async (t) => {
-  const srv = await startFakeServer();
-  t.after(() => srv.close());
-  const dir = makeLibrary('numbers-cache');
-  const url = srv.route('/page', { status: 200, body: '<html><body><h1>Title</h1><script>bad()</script><p>Real text here.</p></body></html>', contentType: 'text/html' });
-  const b1 = await fetchBody(url, ctx(), { libraryDir: dir, bodyMaxChars: 6000 });
-  assert.deepEqual(b1, { ok: true, text: 'Title Real text here.', cached: false });
-  const b2 = await fetchBody(url, ctx(), { libraryDir: dir, bodyMaxChars: 10 });
-  assert.deepEqual(b2, { ok: true, text: 'Title Real', cached: true });
-  assert.equal(srv.hits('/page'), 1);
-  assert.deepEqual(await fetchBody(srv.route('/empty', { status: 200, body: '<p></p>', contentType: 'text/html' }), ctx(), { libraryDir: dir }), { ok: false, reason: 'empty' });
-  assert.deepEqual((await fetchBody(srv.route('/gone', { status: 404, body: 'x' }), ctx(), { libraryDir: dir })).reason, 'http:404');
-  assert.deepEqual((await fetchBody('ftp://x', ctx(), { libraryDir: dir })).reason, 'bad-url');
-  const old = cachePath(dir, 'https://old/1');
-  mkdirSync(join(dir, '_pipeline', 'cache'), { recursive: true });
-  writeFileSync(old, JSON.stringify({ url: 'https://old/1', ts: new Date(CLOCK.getTime() - 8 * 86_400_000).toISOString(), text: 'old' }), 'utf8');
-  writeFileSync(join(dir, '_pipeline', 'cache', 'junk.json'), 'not json', 'utf8');
-  assert.deepEqual(cleanCache(dir, { days: 7, now: () => CLOCK }), { removed: 2 });
-  assert.equal(existsSync(old), false);
-  assert.equal(existsSync(cachePath(dir, url)), true, 'the fresh one stays');
-  assert.deepEqual(cleanCache(makeLibrary('numbers-nocache'), { days: 7 }), { removed: 0 });
-});
-
-test('constantScoreWarning: >= 5 identical scores from one source warn; 4 do not; varied scores do not; non-numbers are ignored', () => {
-  const five = Array.from({ length: 5 }, (_, i) => ({ url: `u${i}`, source: 'feed-a', score: 0.15 }));
-  assert.equal(constantScoreWarning(five), 'constant-score: feed-a (5 items all at 0.15)');
-  assert.equal(constantScoreWarning(five.slice(0, 4)), '');
-  assert.equal(constantScoreWarning([...five.slice(0, 4), { url: 'u5', source: 'feed-a', score: 0.16 }]), '');
-  assert.equal(constantScoreWarning([...five, ...five.map((s) => ({ ...s, source: 'feed-b', score: 0.5 }))]), 'constant-score: feed-a (5 items all at 0.15); feed-b (5 items all at 0.5)');
-  assert.equal(constantScoreWarning([...five.slice(0, 4), { url: 'x', source: 'feed-a', score: 'high' }]), '');
-  assert.equal(constantScoreWarning(five, { min: 6 }), '');
-  assert.equal(constantScoreWarning(null), '');
 });
 
 // rounds.jsonl written by hand, oldest first (each line a round record with counts.inbox as given; null = no counts at all)

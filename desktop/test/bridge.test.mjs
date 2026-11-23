@@ -73,17 +73,20 @@ test('channels and argument checks', () => {
   ok('setApiVendor', ['custom', 'https://x/v1']); ok('setApiVendor', ['openai', null]); bad('setApiVendor', ['openai', 7]); bad('setApiVendor', ['', null])
   ok('setApiKey', ['anthropic', 'sk-x']); bad('setApiKey', ['anthropic', '']); bad('setApiKey', ['anthropic', 5]); bad('setApiKey', ['anthropic'])
   ok('removeApiKey', ['anthropic']); bad('removeApiKey', [''])
-  ok('applyStarterPack', ['blank', null]); ok('applyStarterPack', ['ai-agent-tools', { removeSources: [] }]); bad('applyStarterPack', ['', null]); bad('applyStarterPack', ['blank', 'x']); bad('applyStarterPack', ['blank'])
-  ok('setRoundCap', [1]); bad('setRoundCap', [0]); bad('setRoundCap', [1.5]); bad('setRoundCap', ['10'])
   ok('keepItem', ['https://x/1']); bad('keepItem', [''])
   // redesign R2 (N03): 放弃 is held, its reason comes when the bar closes (settleDismiss) — dismissItem takes the url alone
   ok('dismissItem', ['https://x/1']); bad('dismissItem', ['https://x/1', 'why']); bad('dismissItem', [''])
   ok('settleDismiss', [null, null]); ok('settleDismiss', ['写一句', null]); ok('settleDismiss', ['营销内容', 'marketing']); bad('settleDismiss', [null, 'made-up']); bad('settleDismiss', ['x'.repeat(301), null]); bad('settleDismiss', [7, null]); bad('settleDismiss', [null])
   ok('undoDismiss', []); bad('undoDismiss', ['x'])
-  ok('moveToInbox', ['https://x/1']); bad('moveToInbox', ['']); bad('moveToInbox', [])
   ok('laterItem', ['https://x/1']); bad('laterItem', [1])
   ok('openItemUrl', ['https://x/1']); bad('openItemUrl', [''])
-  for (const name of ['chooseLibraryFolder', 'rebuildIndex', 'revealLibrary', 'getConnections', 'detectConnections', 'getStarterPacks', 'getHome', 'estimateRound', 'startRound', 'cancelRound', 'getRoundState', 'getInbox', 'getPipelineSettings']) { ok(name, []); bad(name, ['x']) }
+  for (const name of ['chooseLibraryFolder', 'rebuildIndex', 'revealLibrary', 'getConnections', 'detectConnections', 'getHome', 'startRound', 'cancelRound', 'getRoundState', 'getInbox']) { ok(name, []); bad(name, ['x']) }
+  // 1.1 W7b: v1.0's scoring pipeline, v2's main agent, its cards and 系统检测 are gone from the bridge: such a name is no method
+  for (const name of ['applyStarterPack', 'estimateRound', 'setRoundCap', 'moveToInbox', 'getPipelineSettings', 'createNewLibrary', 'getStrictness', 'setStrictness',
+    'listProposals', 'confirmProposal', 'agentSend', 'listToConfirm', 'actOnSuggestion', 'startRescore', 'trySource', 'addSource', 'addManualLink', 'setBrief',
+    'getPipeline', 'savePipeline', 'previewNode', 'getStatus', 'sendLibraryMessage', 'resolveLibraryMessage']) {
+    assert.throws(() => checkArgs(name, []), err => err.code === 'internal', `${name} is still a bridge method`)
+  }
 })
 
 test('interface B: what the page may send to the new methods, and what it may not', () => {
@@ -91,7 +94,9 @@ test('interface B: what the page may send to the new methods, and what it may no
   const bad = (name, args) => assert.throws(() => checkArgs(name, args), err => err.code === 'bad_arguments', `${name}(${JSON.stringify(args)}) accepted`)
   const long = n => 'x'.repeat(n)
   // the library and reading
-  ok('getLibrary', ['kept', { topics: ['a'], days: 30 }]); ok('getLibrary', ['caught', { topics: [], days: null }]); ok('getLibrary', ['pending', null]); ok('getLibrary', ['authored', {}])
+  ok('getLibrary', ['kept', { topics: ['a'], days: 30 }]); ok('getLibrary', ['pending', null]); ok('getLibrary', ['authored', {}])
+  // 1.1 W7b: v1.0's 'caught' (fetched, not past its gates) went with the scoring pipeline
+  bad('getLibrary', ['caught', { topics: [], days: null }])
   // redesign R3: 'all' is a view now (资料库 「全部」: every file of the library)
   ok('getLibrary', ['all', {}]); bad('getLibrary', ['everything', {}]); bad('getLibrary', ['kept']); bad('getLibrary', ['kept', { topics: 'a' }]); bad('getLibrary', ['kept', { days: 0 }]); bad('getLibrary', ['kept', { days: 1.5 }])
   bad('getLibrary', ['kept', { topics: [1] }]); bad('getLibrary', ['kept', { path: 'C:\\' }]); bad('getLibrary', ['kept', { topics: Array(51).fill('a') }])
@@ -102,20 +107,10 @@ test('interface B: what the page may send to the new methods, and what it may no
   bad('editNote', ['id', {}]); bad('editNote', ['id', { source: 'https://x' }]); bad('editNote', ['id', { title: ' ' }]); bad('editNote', ['id', { topics: [''] }])
   bad('editNote', ['id', { topics: 'a' }]); bad('editNote', ['id', { body: 1 }]); bad('editNote', ['id', null]); bad('editNote', ['', { title: 't' }]); bad('editNote', ['id', { title: long(301) }])
   ok('openInObsidian', ['id']); bad('openInObsidian', ['']); bad('openInObsidian', [])
-  // the sources and the topics
-  ok('guessSource', ['https://x/feed']); ok('guessSource', ['arxiv: memory']); bad('guessSource', ['']); bad('guessSource', ['  ']); bad('guessSource', [long(2001)]); bad('guessSource', [{}])
-  for (const name of ['trySource', 'addSource']) { ok(name, [{ name: 'a', kind: 'rss', url: 'https://x/feed' }]); bad(name, [null]); bad(name, ['https://x']); bad(name, [[]]); bad(name, [{ big: long(10_001) }]) }
-  for (const name of ['updateSource', 'updateTopic']) { ok(name, ['a', { url: 'https://y' }]); bad(name, ['', {}]); bad(name, ['a', null]); bad(name, ['a', 'x']); bad(name, ['a']) }
-  for (const name of ['removeSource', 'removeTopic']) { ok(name, ['a']); bad(name, ['']); bad(name, [long(101)]); bad(name, [null]) }
-  ok('setSourcePaused', ['a', true]); ok('setSourcePaused', ['a', false]); bad('setSourcePaused', ['a', 'yes']); bad('setSourcePaused', ['a']); bad('setSourcePaused', ['', true])
-  ok('addManualLink', ['https://x/1', '']); ok('addManualLink', ['http://x/1', 'a title'])
-  bad('addManualLink', ['ftp://x/1', '']); bad('addManualLink', ['x/1', '']); bad('addManualLink', ['https://x/1', null]); bad('addManualLink', ['https://x/1']); bad('addManualLink', ['https://x/1', long(301)])
-  ok('addTopic', [{ name: 'agent 记忆', keywords: ['memory'] }]); bad('addTopic', [{ keywords: [] }]); bad('addTopic', [{ name: '' }]); bad('addTopic', ['agent']); bad('addTopic', [null])
-  // the pipeline's nodes
-  ok('savePipeline', [{ cap: 10, nodes: [] }]); bad('savePipeline', [null]); bad('savePipeline', [[]]); bad('savePipeline', ['{}']); bad('savePipeline', [{ big: long(200_001) }])
-  ok('previewNode', ['relevance', 'https://x/1', null]); ok('previewNode', ['relevance', 'https://x/1', { id: 'relevance', requirement: 'x' }]); bad('previewNode', ['', 'https://x/1', null]); bad('previewNode', ['relevance', '', null]); bad('previewNode', ['relevance', 'https://x/1']); bad('previewNode', ['relevance', 5, null])
-  bad('previewNode', ['relevance', 'https://x/1', { id: 'substance' }]); bad('previewNode', ['relevance', 'https://x/1', ['relevance']]); bad('previewNode', ['relevance', 'https://x/1', 'draft'])
-  // the run status, the graph, the verdicts
+  // a card library's source typed in (1.1 W6a), held until 确认
+  ok('proposeCardSource', ['https://x/feed']); ok('proposeCardSource', ['agent memory']); bad('proposeCardSource', ['']); bad('proposeCardSource', ['  ']); bad('proposeCardSource', [long(2001)]); bad('proposeCardSource', [{}])
+  ok('settleCardSource', ['p-1', true]); ok('settleCardSource', ['p-1', false]); bad('settleCardSource', ['p-1', 'yes']); bad('settleCardSource', ['p-1']); bad('settleCardSource', [long(81), true])
+  // the run-log folder, the graph, the verdicts
   // redesign R3 (F40): the graph's one filter is the time range — status, topics and links are refused
   ok('getGraph', [{ days: 30 }]); ok('getGraph', [{ days: null }]); ok('getGraph', [{}]); ok('getGraph', [null])
   bad('getGraph', [{ days: 30, status: 'kept' }]); bad('getGraph', [{ links: false }]); bad('getGraph', [{ topics: ['a'] }]); bad('getGraph', [{ status: 'caught' }]); bad('getGraph', [{ links: 'yes' }]); bad('getGraph', [{ days: -1 }]); bad('getGraph', [{ layout: 'force' }]); bad('getGraph', ['all']); bad('getGraph', [])
@@ -125,17 +120,18 @@ test('interface B: what the page may send to the new methods, and what it may no
   bad('askLibrary', ['']); bad('askLibrary', ['   ']); bad('askLibrary', [long(501)]); bad('askLibrary', [null]); bad('askLibrary', ['a', 'b'])
   ok('addDemand', ['agent 记忆', '']); ok('addDemand', ['agent 记忆', 'q']); bad('addDemand', ['', 'q']); bad('addDemand', ['t', null]); bad('addDemand', ['t'])
   ok('answerFeedback', ['q', 'the second sentence is wrong']); bad('answerFeedback', ['q', '']); bad('answerFeedback', ['', 'n']); bad('answerFeedback', ['q', long(2001)])
-  for (const name of ['getSources', 'getPipeline', 'getStatus', 'openLogsFolder', 'getDemands']) { ok(name, []); bad(name, ['x']) }
+  for (const name of ['getSources', 'getCardView', 'getChangeLog', 'openLogsFolder', 'getDemands']) { ok(name, []); bad(name, ['x']) }
 })
 
 test('core errors become bridge codes: shape errors → bad_arguments, the rest → internal; a missing core function → internal', async () => {
   assert.ok(ERROR_CODES.includes('no_connection'))
   assert.equal(new BridgeError('no_connection').code, 'no_connection')
   const coded = code => Object.assign(new Error(`core says ${code}`), { code })
-  for (const code of ['bad-edit', 'invalid-note', 'bad-source', 'duplicate-source', 'duplicate-topic', 'bad-topic', 'locked-node', 'bad-config', 'not-found', 'bad-url', 'bad-input', 'bad-feedback']) {
+  for (const code of ['bad-edit', 'invalid-note', 'bad-source', 'duplicate-source', 'duplicate-topic', 'bad-topic', 'not-found', 'bad-url', 'bad-input', 'bad-feedback']) {
     assert.equal(bridgeErrorOf(coded(code)).code, 'bad_arguments', code)
   }
-  for (const code of ['id-conflict', 'config:invalid-json', 'EACCES', 'bad-by']) assert.equal(bridgeErrorOf(coded(code)).code, 'internal', code)
+  // 1.1 W7b: the codes of v1.0's pipeline configuration and of v2's cards are no longer the page's to fix
+  for (const code of ['id-conflict', 'config:invalid-json', 'EACCES', 'bad-by', 'locked-node', 'bad-config', 'bad-proposal', 'not-pending', 'not-open']) assert.equal(bridgeErrorOf(coded(code)).code, 'internal', code)
   assert.equal(bridgeErrorOf(new Error('no code')).code, 'internal')
   assert.equal(bridgeErrorOf(new BridgeError('no_library')).code, 'no_library', 'a bridge error stays itself')
   assert.match(bridgeErrorOf(coded('bad-edit')).message, /bad-edit/, 'the core code reaches the log')

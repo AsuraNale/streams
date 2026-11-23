@@ -9,6 +9,8 @@
 // 核验记录 folded, 文件, 反向链接, 同来源内容); 编辑 is the template's dialog; 「待规范」 is a line that leads to its page (the
 // page's own checks: test/ui-import.test.mjs). Reverse checks: a 「全部」 that lists the caught items (mutant r3-all-lists-caught)
 // is red in the first test; with no file lacking a header the line is not there (test/ui-library-reader.test.mjs).
+// 1.1 W7b: 详情's 入选理由 (v1.0's scores) is gone; the caught items are the ledger's items without a file (v1.0's view 'caught'
+// left the core).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createHash } from 'node:crypto'
@@ -45,7 +47,7 @@ async function waitFor(fn, ms = 20_000) {
 test('R3-1 three filters with the core\'s counts; 全部 is every file (the index) and none of the caught items; 已收藏 and 我的笔记 the core\'s lists; no 抓到的 / 待规范 / 添加链接', async () => {
   const counts = core.libraryCounts(dir())
   assert.deepEqual([counts.all, counts.kept, counts.authored, counts.pending], [4, 3, 1, 1], 'control: the world is what seedPlanB says')
-  const caught = core.listLibrary(dir(), { view: 'caught' }).items
+  const caught = [...core.replayLedger(dir()).states.values()].filter(x => x.stage !== 'kept' && x.title) // 1.1 W7b: the ledger's items without a file (v1.0's view 'caught' is gone)
   assert.ok(caught.length >= 3, 'control: caught items a wrong 「全部」 would show')
   await s.page.waitForFunction(() => document.querySelector('[data-view="all"]')?.getAttribute('aria-current') === 'true', null, POLL)
   const shown = await s.page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-view]')].map(e => [e.dataset.view, Number(e.dataset.count)])))
@@ -101,7 +103,7 @@ test('the reading paper: 来源 / 主题, the title, 发布 · 收藏, the Markd
   assert.deepEqual(missing, [[B.missingLink, 'SPAN']])
 })
 
-test('R3-1 详情 has only what the paper has not: 入选理由 (each score with its reason), 核验记录 folded (verdictsFor), 文件 (its path), 反向链接, 同来源内容 — a click selects that note', async () => {
+test('R3-1 详情 has only what the paper has not: 核验记录 folded (verdictsFor), 文件 (its path), 反向链接, 同来源内容 — no score of v1.0 (1.1 W7b); a click selects that note', async () => {
   const B = s.world.planB
   await open(B.evals.id)
   if (await s.page.evaluate(() => document.querySelector('[data-part="right-panel"]')?.dataset.tab !== 'detail')) await s.page.click('[data-panel-tab="detail"]')
@@ -113,9 +115,11 @@ test('R3-1 详情 has only what the paper has not: 入选理由 (each score with
     parts: [...document.querySelectorAll('[data-part="note-panel"] > [data-part]')].map(e => e.dataset.part),
   }))
   assert.equal(got.title, want.entry.title)
-  assert.deepEqual(got.scores, Object.keys(want.scores).map(k => [k, want.scores[k].reason]))
+  // 1.1 W7b: v1.0's 入选理由 (each score with its reason) is gone, though this old note's header still has its scores
+  assert.ok(Object.keys(want.scores ?? {}).length > 0, 'control: the note has v1.0 scores')
+  assert.deepEqual(got.scores, [])
   assert.equal(got.file, join('notes', `${B.evals.id}.md`))
-  assert.deepEqual(got.parts, ['detail-reasons', 'detail-check', 'detail-file', 'backlinks', 'same-source'])
+  assert.deepEqual(got.parts, ['detail-check', 'detail-file', 'backlinks', 'same-source'])
   // what the paper shows (the source line, the dates, the topics) is not repeated here
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="note-panel"] [data-panel-row]')), null)
   // 核验记录: folded, its line says each step's items; opened, the rounds as verdictsFor gives them

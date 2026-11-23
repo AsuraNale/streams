@@ -109,21 +109,9 @@ export const CONNECTIONS = Object.freeze({
 })
 
 // the scoring steps by id (streams.json pipeline nodes): what each is called on the page; an unknown id shows as it is
-export const NODE_NAMES = Object.freeze({
-  relevance: '相关度',
-  substance: '实质',
-  freshness: '新鲜度',
-  summary: '摘要',
-})
-
-// the phases of a round (round-progress events)
+// the phases of a run (round-progress events): 1.1 W7a, an update of a library by its card is one agent run
 export const ROUND_PHASES = Object.freeze({
-  'self-check': '运行前自检',
-  fetch: '抓取',
-  gate: '评分',
-  summary: '摘要',
   done: '已完成',
-  // 1.1 W7a: an update of a library by its card (one agent run: no steps of 1.0)
   update: '更新',
 })
 

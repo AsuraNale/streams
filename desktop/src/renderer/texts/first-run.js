@@ -1,19 +1,19 @@
 // 首次打开 and 新建库 (redesign R4a; design 03-页面稿 P01, P02, P04, 07-模板版 首次打开 · 连接选择 · 新建库; words: 05-措辞规范).
 //   FIRST_RUN    首次打开's one screen (P01) and 连接选择 (P02): screens/first-run.js
-//   NEW_LIBRARY  新建库's one-page form (P04): screens/new-library.js
-//   HOW_IT_WORKS the right panel's 「流息怎样工作」 beside both (the template's home-context)
+//   HOW_IT_WORKS the right panel's 「流息怎样工作」 beside it (the template's home-context)
+// (1.1 W7b: v1.0's 新建库 form, NEW_LIBRARY, is gone; 新建库 is the build conversation, texts/build.js)
 // The three connections' names are texts/common.js CONNECTIONS.names (V7: the brand words only there); the five fetch states and
 // what to do about each are texts/common.js FETCH_STATES / FETCH_HINTS (V3).
 
 export const FIRST_RUN = Object.freeze({
   // P01: the work-header and the form
   title: '欢迎使用流息',
-  subtitle: '说一句想追踪的内容，主 Agent 会生成建库提议，确认后才会创建。',
+  subtitle: '说一句想追踪的内容，主 Agent 会写一张建库卡，确认后才会创建。',
   headChip: '当前连接：{name}',
   headChipNone: '未连接',
   eyebrow: '首次打开 / WELCOME',
   heading: '你想追踪什么内容？',
-  lead: '用一句话描述需求，主 Agent 将据此生成建库提议（来源、主题、严格程度），确认后才会创建。',
+  lead: '用一句话描述需求，主 Agent 将据此写一张建库卡（收什么、不收什么、看哪些来源），确认后才会创建。',
   connected: '已连接',
   current: '当前连接：{name}',
   version: '版本 {version}',
@@ -26,7 +26,7 @@ export const FIRST_RUN = Object.freeze({
   }),
   change: '更换连接',
   none: '未连接',
-  noneLine: '主 Agent 需要一种连接才能生成建库提议；也可以先手动创建。',
+  noneLine: '主 Agent 需要一种连接才能写建库卡。',
   pick: '选择连接',
   detecting: '正在检测这台电脑上的连接……',
   detectFailed: '未能检测连接。',
@@ -47,7 +47,7 @@ export const FIRST_RUN = Object.freeze({
   // P02: 连接选择 — only when no connection is usable, the one found is not logged in, or 更换连接 was pressed
   connect: Object.freeze({
     title: '连接模型',
-    subtitle: '流息通过该连接完成评分、摘要与问答。之后可在设置中更改。',
+    subtitle: '流息通过该连接建库、更新与问答。之后可在设置中更改。',
     eyebrow: '连接 / CONNECTION',
     heading: '选择一种连接方式',
     lead: '三种方式任选其一。点击「前往登录」将打开终端窗口，由该工具自行完成登录，流息不接触账号密码。',
@@ -72,80 +72,19 @@ export const FIRST_RUN = Object.freeze({
   }),
 })
 
-export const NEW_LIBRARY = Object.freeze({
-  title: '新建库',
-  subtitle: '由主 Agent 生成，或手动填写。两种方式的默认值相同。',
-  eyebrow: '新建库 / NEW LIBRARY',
-  heading: '这个库追踪什么',
-  modes: Object.freeze({ agent: '由主 Agent 生成', manual: '手动填写' }),
-  name: '库名称',
-  namePlaceholder: '例如：中国电动车',
-  brief: '追踪要求',
-  briefPlaceholder: '描述需要追踪的内容与需要排除的内容',
-  briefRequired: '必填：创建前请填写追踪要求。',
-  strictness: '严格程度',
-  levels: Object.freeze({ loose: '宽松（收录更多）', standard: '标准', strict: '严格（仅收录高度相关）' }),
-  levelNames: Object.freeze({ loose: '宽松', standard: '标准', strict: '严格' }),
-  levelNote: '{level}：相关度 ≥ {relevance} 且实质 ≥ {substance} 视为通过',
-  sources: '来源',
-  sourcePlaceholder: '输入 RSS 地址、arXiv 检索词或 Hacker News 关键词，按回车添加',
-  sourceLabel: '添加来源',
-  trying: '正在测试抓取……',
-  untried: '尚未测试抓取',
-  tryOne: '测试抓取',
-  tryFailed: '未能测试抓取，请重试。',
-  badInput: '无法识别该来源：请输入以 http:// 或 https:// 开头的 RSS 地址，或检索词。',
-  duplicate: '该来源已在列表中。',
-  sourceLine: '{kind} · {where}',
-  okCount: '{state} · {n} 条',
-  latest: '最新：「{title}」',
-  remove: '移除',
-  removeLabel: '移除来源「{name}」',
-  pack: '或 使用预设来源包：{name}',
-  packCounts: '{topics} 个主题 · {sources} 个来源 · 添加后可逐个移除',
-  packAdded: '已添加预设来源包「{name}」，可逐个移除。',
-  topics: '主题（选填）',
-  topicPlaceholder: '输入主题名称，按回车添加',
-  removeTopic: '移除主题「{name}」',
-  location: '存储位置',
-  change: '更改…',
-  folderStates: Object.freeze({
-    empty: '空文件夹，将在此创建库',
-    importable: '包含 {n} 个 .md 文件：将作为库打开，不移动、不修改原有文件',
-    library: '该文件夹中已有一个库：将直接打开该库，本表单的内容不会写入',
-    other: '该文件夹包含其他文件，请选择其他文件夹',
-  }),
-  locationNote: '也可选择已包含 .md 文件的文件夹：流息会将其作为库打开，不移动、不修改原有文件。',
-  schedule: '定时',
-  daily: '每天',
-  timeLabel: '自动运行的时间',
-  runAt: '自动运行 · 单次运行最多',
-  capLabel: '单次运行最多的模型调用次数',
-  capAfter: '次模型调用',
-  cancel: '取消',
-  estimate: '创建后立即开始首次运行，预计 {lo}–{hi} 次模型调用',
-  estimateUntried: '（未测试抓取的来源不计入）',
-  createOnly: '仅创建',
-  createRun: '创建并运行',
-  creating: '正在创建……',
-  failed: '未能创建该库。',
-  folderFailed: '无法使用该文件夹，请选择其他文件夹。',
-  nameRequired: '请填写库名称。',
-})
-
 export const HOW_IT_WORKS = Object.freeze({
   eyebrow: '流息怎样工作',
   titleFirst: '从一句话开始',
   titleNew: '把要求写清楚',
-  text: '每个库盯一组来源，按自己的定时运行。通过筛选的内容进入待看，由你决定是否收藏。',
-  stepsLabel: '一次运行做什么',
+  text: '每个库有一张建库卡，写明收什么、不收什么、看哪些来源、每条怎么写，按自己的定时更新。挑出的内容进入待看，由你决定是否收藏。',
+  stepsLabel: '一次更新做什么',
   steps: Object.freeze([
-    '抓取来源并去重',
-    '按追踪要求评分：相关度、实质',
-    '为通过筛选的内容生成摘要并核验',
+    '取回来源上的新文章，存下原文',
+    '更新 Agent 按建库卡挑选、写摘要',
+    '另一次独立调用对着原文核验摘要',
     '进入待看，可收藏或放弃',
   ]),
   note: '只有收藏的内容会写成库文件夹里的笔记。所有改动均需确认后才会执行。',
   usageLabel: '用量',
-  usage: '仅在调用模型时消耗用量；抓取、去重、排队不消耗。',
+  usage: '仅在调用模型时消耗用量；取回原文、排队不消耗。',
 })

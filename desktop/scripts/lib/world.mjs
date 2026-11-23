@@ -1,7 +1,8 @@
 // Development and test worlds: the folders one run of the app gets, under a root in the OS temp folder. A world is the
 // app-data folder, the local-data folder, and a library folder:
-//   kind 'empty'    the library folder holds an empty library the core made (createLibrary): the shell's own tests open it
-//                   and start on 今日; a test of 首次设置 passes STREAMS_DEV_LIBRARY='' to start without one
+//   kind 'empty'    the library folder holds an empty library as v1.0 made it (core/legacy createLibraryV1: 1.1 W7b keeps the
+//                   worlds as they were): the shell's own tests open it and start on 待看; a test of 首次设置 passes
+//                   STREAMS_DEV_LIBRARY='' to start without one
 //   kind 'seeded'   the library holds what one real round of the core left (test/support/seed.mjs): topics, two dead sources,
 //                   four cards in 待看, one kept, one dismissed, one card 17 days old — for the screen tests and the screenshots
 //   makeWorld({ root, kind })   the folders under `root` (which must not hold a world yet); writes world.json
@@ -12,7 +13,7 @@ import { basename, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from './paths.mjs'
 
-const CORE = pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href
+const LEGACY = pathToFileURL(join(REPO_DIR, 'core', 'legacy', 'index.mjs')).href
 
 const WORLD_FILE = 'world.json'
 export const WORLD_KINDS = Object.freeze(['empty', 'seeded'])
@@ -40,8 +41,8 @@ export async function makeWorld({ root, kind = 'empty' }) {
   for (const d of [dirs.appData, dirs.localData, dirs.library]) mkdirSync(d, { recursive: true })
   let seed
   if (kind === 'empty') {
-    const { createLibrary } = await import(CORE)
-    createLibrary(dirs.library, { name: basename(dirs.library) })
+    const { createLibraryV1 } = await import(LEGACY)
+    createLibraryV1(dirs.library, { name: basename(dirs.library) })
   }
   if (kind === 'seeded') {
     const { seedLibrary } = await import('../../test/support/seed.mjs')

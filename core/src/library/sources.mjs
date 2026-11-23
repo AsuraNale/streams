@@ -18,11 +18,13 @@ import { StreamsError } from '../errors.mjs';
 import { CONFIG_FILE, readConfig } from './config.mjs';
 import { isPlainObject } from './frontmatter.mjs';
 import { readIndex } from './index.mjs';
-import { SOURCE_KINDS } from '../fetch/source.mjs';
 import { readFetchLog } from '../fetch/log.mjs';
 import { hintOf } from '../fetch/states.mjs';
 
 export const SOURCE_NAME_RE = /^[a-z0-9-]{1,40}$/;
+// The kinds of a streams.json source (1.1 W7b: written out here — the fetchers that read them left core/src for core/legacy/,
+// whose fetch/source.mjs has the same list)
+export const SOURCE_KINDS = Object.freeze(['rss', 'arxiv', 'hn']);
 export const SOURCE_PATCH_KEYS = ['url', 'query', 'topic', 'min_points', 'name'];
 export const TOPIC_PATCH_KEYS = ['keywords', 'name'];
 

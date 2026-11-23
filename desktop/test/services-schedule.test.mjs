@@ -241,7 +241,7 @@ test('after a round: n > 0 new cards → one notification 「本次运行新增 
   assert.equal(lines[0].body, 'lib：本次运行新增 3 条待看。')
 })
 
-test('the pipeline service: getHome().nextRun and getPipelineSettings().schedule are the schedule\'s; a round in the background reports its end', async () => {
+test('the pipeline service: getHome().nextRun is the schedule\'s; a run in the background reports its end', async () => {
   const w = testWorld('st-schedule-'); worlds.push(w)
   const locale = () => w.locale
   const library = createLibraryService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, dialog: w.dialog, shell: w.shell, locale })
@@ -249,18 +249,28 @@ test('the pipeline service: getHome().nextRun and getPipelineSettings().schedule
   const time = fakeTime(at(2026, 11, 4, 9, 0))
   let scheduler = null
   const done = []
-  // v2: the end of a round goes to the schedule too (main.mjs wires onRoundDone the same way)
-  const pipeline = createPipelineService({ library, connections, emit: w.emit, log: w.log, shell: w.shell, locale, now: time.now, fetchContext: { timeoutMs: 2000, sleep: async () => {} }, schedule: () => scheduler?.view() ?? null, onRoundDone: d => { done.push(d); scheduler?.roundDone(d) } })
+  // v2: the end of a run goes to the schedule too (main.mjs wires onRoundDone the same way). 1.1 W7b: a run is the update of a
+  // library with a card — a stand-in of services/library-update.mjs that writes its run record (kind 'update') on the app's clock
+  const update = {
+    applies: () => true,
+    problemFor: () => null,
+    async run(dir, _a, { round }) {
+      const record = { id: round, kind: 'update', startedAt: time.now().toISOString(), finishedAt: time.now().toISOString(), status: 'done', counts: { inbox: 0 }, calls: 0 }
+      writeFileSync(join(dir, '_pipeline', 'rounds.jsonl'), `${JSON.stringify(record)}\n`, { flag: 'a' })
+      return { started: true, status: 'done', record }
+    },
+  }
+  const pipeline = createPipelineService({ library, connections, emit: w.emit, log: w.log, shell: w.shell, now: time.now, schedule: () => scheduler?.view() ?? null, onRoundDone: d => { done.push(d); scheduler?.roundDone(d) }, update: () => update })
   w.dialogAnswers.push(join(w.root, 'lib'))
   await library.handlers.chooseLibraryFolder()
   await library.handlers.useChosenFolder('lib')
   scheduler = createScheduleService({ settingsFile: w.settingsFile, library, pipeline, emit: w.emit, log: w.log, now: time.now, timers: time.timers })
   assert.equal(pipeline.handlers.getHome().nextRun, at(2026, 11, 5, 8, 30).toISOString())
-  assert.equal(pipeline.handlers.getPipelineSettings().schedule.nextRunAt, at(2026, 11, 5, 8, 30).toISOString())
+  assert.equal(pipeline.handlers.getPipelineSettings, undefined, '1.1 W7b: v1.0\'s pipeline settings are gone')
   scheduler.handlers.setSchedule({ enabled: false, time: '08:30' })
   assert.equal(pipeline.handlers.getHome().nextRun, null, 'off: none')
   scheduler.handlers.setSchedule({ enabled: true, time: '08:30' })
-  // the real catch-up on a library that never ran: one round, its start in rounds.jsonl at the app's clock, then none owed
+  // the real catch-up on a library that never ran: one run, its start in rounds.jsonl at the app's clock, then none owed
   const id = library.current().libraryId
   const r = await scheduler.start()
   assert.deepEqual(r, { owed: [id], queued: [id] })

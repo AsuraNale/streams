@@ -14,7 +14,7 @@
 //            'connection' · 'stopped'
 //   record   the line written to _pipeline/rounds.jsonl (kind 'update'): counts, the sources left unread, calls
 // One run = one session: the first call; once more when the answer was not readable; once more with the items whose
-// check failed. Each item's check has its own judge call. No score, no threshold: what to hand in is the agent's call.
+// check failed. Each item's check has its own judge call. No score, no pass mark: what to hand in is the agent's call.
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

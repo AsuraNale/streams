@@ -1,7 +1,7 @@
 /**
- * The run status, the graph and the verdicts (plan S11 / S9 / S15; docs/desktop.md §四, §4.2): the core's `statusView`
- * with the connections as `getConnections` gives them, the run-log folder in Explorer, the graph under a filter, one item's
- * verification record. A url the page sends must be one the ledger knows.
+ * The run-log folder, the graph and the verdicts (plan S11 / S9 / S15; docs/desktop.md §四, §4.2): the run-log folder in
+ * Explorer, the graph under a filter, one item's verification record. A url the page sends must be one the ledger knows.
+ * (1.1 W7b: v1.0's run status, getStatus, went with its scoring pipeline: the right panel's 进度 tells the runs.)
  *
  * The core's W5 functions are reached by name through `coreCaller` (bridge-methods.mjs): a stand-in core in the tests,
  * `internal` for a function not there yet. Pure Node apart from what is injected (`shell`): test/services-status.test.mjs.
@@ -12,7 +12,6 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { BridgeError, coreCaller } from '../bridge-methods.mjs'
 import * as realCore from '../core.mjs'
-import { publicResult, publicSourceRow } from '../public-data.mjs'
 
 /**
  * @param {object} o
@@ -30,14 +29,6 @@ export function createStatusService({ library, connections, log, hidden = false,
   const call = coreCaller(core)
 
   const handlers = {
-    async getStatus() {
-      const dir = library.require()
-      // 下次运行 (plan C8): the schedule's next slot (services/schedule.mjs view), null while the schedule is off
-      const s = schedule()
-      // redesign R5a (O9): no fetcher message, no HTTP code, no problem detail to the page
-      const v = call('statusView', dir, { now })
-      return { ...v, lastRound: publicResult(v.lastRound ?? null, { raw: rawErrors, where: 'last run' }), sources: (v.sources ?? []).map(s => publicSourceRow(s, { raw: rawErrors, where: 'status row' })), nextRun: s?.enabled ? s.nextRunAt ?? null : null, connections: await connections.handlers.getConnections() }
-    },
     async openLogsFolder() {
       const dir = library.require()
       const logs = join(dir, '_pipeline', 'logs')

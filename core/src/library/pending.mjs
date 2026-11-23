@@ -30,8 +30,8 @@ import { idFromFileName } from './validate.mjs';
 import { isPlainObject, splitNoteBytes } from './frontmatter.mjs';
 import { isNoteId, writeNoteFile } from './write-note.mjs';
 import { rebuildIndex } from './index.mjs';
-import { pipelineFrom } from '../pipeline/config.mjs';
-import { FALLBACK_TOPIC } from '../pipeline/decide.mjs';
+import { languageOfConfig } from './language.mjs';
+import { FALLBACK_TOPIC } from './config.mjs';
 
 /** sha256 (hex) of the body bytes of a note file's contents. */
 export function bodyHashOf(bytes) {
@@ -63,9 +63,7 @@ export function localDate(ms) {
 }
 
 function fallbackTopic(config) {
-  let language = 'zh-CN';
-  try { language = pipelineFrom(config ?? {}).language; } catch { /* the default */ }
-  return FALLBACK_TOPIC[language] ?? FALLBACK_TOPIC['zh-CN'];
+  return FALLBACK_TOPIC[languageOfConfig(config)] ?? FALLBACK_TOPIC['zh-CN'];
 }
 
 export function proposeHeader(p, config = null) {

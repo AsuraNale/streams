@@ -13,14 +13,14 @@ process.env.TZ = 'America/Toronto';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runRound } from '../src/pipeline/round.mjs';
+import { runRound } from '../legacy/pipeline/round.mjs';
 import { keep, FALLBACK_TOPIC } from '../src/pipeline/decide.mjs';
 import { FALLBACK_TOPIC as FALLBACK_IN_CONFIG } from '../src/library/config.mjs';
 import { validateNote } from '../src/library/validate.mjs';
 import { readIndex } from '../src/library/index.mjs';
 import { parseFrontmatter, serializeFrontmatter } from '../src/library/frontmatter.mjs';
 import { replayLedger } from '../src/library/ledger.mjs';
-import { scriptedConnector } from '../src/pipeline/fake.mjs';
+import { scriptedConnector } from '../legacy/pipeline/fake.mjs';
 import { startFakeServer } from './support/fake-server.mjs';
 import { serveItems, feedRoute, libraryWithFeed, ctx } from './support/pipeline.mjs';
 import { readRawNote } from './support/raw-notes.mjs';

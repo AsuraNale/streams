@@ -22,6 +22,14 @@ export function localIsoDate(d = new Date()) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+// ageCutoff(now, maxAgeDays) -> the first calendar day (YYYY-MM-DD, local) still taken in, or null for no limit (1.1 W7b: here
+// from v1.0's fetch round, which left core/src; the agent run's guards still cut old items by it)
+export function ageCutoff(now, maxAgeDays) {
+  if (!Number.isInteger(maxAgeDays) || maxAgeDays <= 0) return null;
+  const d = now instanceof Date ? now : new Date(now);
+  return localIsoDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() - maxAgeDays));
+}
+
 export function toIsoDate(str, { fallback = '' } = {}) {
   const raw = String(str ?? '').trim();
   if (raw === '') return fallback;

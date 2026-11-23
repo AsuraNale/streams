@@ -1,7 +1,7 @@
 // 立即运行 on the seeded world — rewritten for redesign R1 (维护者 11-11 第 6 题, N06, F22; the R1 contract 「立即运行」): the run
 // dialog of v1.0 (S12: its estimate rows, 改上限, 开始) is gone, so this file's old checks of it went with it (改上限 lives on
 // 来源与要求: test/ui-shell.test.mjs). Held now:
-//   - the library head's button is 「立即运行」 with the chip 「下次运行 … · 预计 a–b 次模型调用」 (the core's estimateRound);
+//   - the library head's button is 「立即运行」 with the chip 「下次运行 …」 (1.1 W7b: v1.0's estimate of model calls is gone);
 //   - a click starts the run at once: no dialog opens, the button turns 「运行中 · 停止」 while it runs, a new round lands in
 //     rounds.jsonl, the panel's 进度 shows the new last round, no 「not started」 card;
 //   - 「运行中 · 停止」 stops it: a source of the library is a feed on this machine that holds its answer, so the run is caught
@@ -16,7 +16,6 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { DESKTOP_DIR, REPO_DIR } from '../scripts/lib/paths.mjs'
 import { SHELL } from '../src/renderer/texts/shell.js'
-import { fmt } from '../src/renderer/lib/format.js'
 import { APP } from '../src/main/texts/app.js'
 import { APP as APP_EN } from '../src/main/texts-en/app.js'
 import { createTray } from '../src/main/tray.mjs'
@@ -47,14 +46,11 @@ const watchDialogs = () => s.page.evaluate(() => {
   new MutationObserver(() => { if (document.querySelector('[data-dialog], dialog[open]')) window.__dialogs++ }).observe(document.body, { childList: true, subtree: true })
 })
 
-test('the head: 「立即运行」, pressable, with the next run and the estimate of model calls (the core\'s estimateRound)', async () => {
+test('the head: 「立即运行」, pressable, with the next run only (1.1 W7b: no estimate of model calls)', async () => {
   await s.page.waitForFunction(() => document.querySelector('[data-part="next-run"]')?.textContent !== '', null, POLL)
   assert.deepEqual(await button(), { state: 'idle', text: R.now, disabled: false })
-  const est = core.estimateRound(s.world.library)
   const chip = await s.page.evaluate(() => document.querySelector('[data-part="next-run"]').textContent)
-  const calls = est.expectedCalls[0] === est.expectedCalls[1] ? fmt(R.callsOne, { n: est.expectedCalls[0] }) : fmt(R.calls, { lo: est.expectedCalls[0], hi: est.expectedCalls[1] })
-  assert.ok(chip.includes(calls), `${chip} has ${calls}`)
-  assert.ok(chip.startsWith(R.nextNone), 'the schedule is off in a test world')
+  assert.equal(chip, R.nextNone, 'the schedule is off in a test world; nothing after it')
 })
 
 test('立即运行: the run starts at once — no dialog; the button is the state while it runs; a new round on disk; 进度 shows it; no 「not started」 card', async () => {

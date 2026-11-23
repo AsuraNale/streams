@@ -1,6 +1,6 @@
 // The v2 shell (package F; docs/checks/2026-11-05-wp-f/contract.md F1–F4; docs/desktop.md §五「界面结构」) on the running app,
 // three registered libraries (test/support/seed.mjs seedShelf: the seeded one current, 「电动车」 with a brief, 「时尚」 with three
-// rounds without output) and one pending proposal card (the development hook STREAMS_DEV_PROPOSALS):
+// rounds without output; all three made as v1.0 made them — core/legacy — so they have no library card):
 //   - the sidebar of plan B: 库架 · 和主 Agent 聊 (its badge = the pending card) · 我的库 (each library's mark, name, 待看
 //     count from the core, the amber dot of its problem, the current one highlighted) · 新建库 · 设置; an inbox-changed of one
 //     library changes that line only (control: the others keep theirs);
@@ -8,8 +8,7 @@
 //     资料库's graph view; going back to a library brings back its tab and its scroll (each library its own);
 //   - 库架: one card per library with what the overview gives, the problem line, a click opens that library; the new card;
 //     with no library registered, one line and two buttons;
-//   - 来源与要求: the brief saved (streams.json and changes.jsonl by you), this library's schedule and cap here, 「谁定的」 for
-//     each (you / the main agent's card you confirmed / first setup);
+//   - 来源与要求: this library's schedule here, who changed it in 高级设置's 变更记录;
 //   - 设置: no schedule or cap to change; 「定时一览」 (each library, a click goes to its 来源与要求) and the month's use.
 // Each check first shows the input that makes it fail.
 // Redesign R1 (维护者 11-11 第 1、2、13 题; F10, F13; the R1 contract R1-3): the shell is the template's now — the sidebar's
@@ -17,36 +16,31 @@
 // is [data-panel-badge="decide"], was [data-badge="chat"]); each library's line has a line under its name ([data-library-line]);
 // a library's page has four tabs, 概览 is gone and a library opens on 待看 (the app too: the waits that were 'overview' are
 // 'inbox'); the tabs carry the template's icons (问库's speech bubble of feedback #1 is the template's own drawing now).
+// 1.1 W7b: v2's proposal cards, v1.0's brief editing, its cap and its 评分环节 are gone: nothing waits in 待确认 here (the badge
+// counts only the build conversation's card), the sidebar's 主 Agent and 库架's new card open the build conversation ('build'),
+// a library of the last version's 来源与要求 is read only (its notice, its brief, its sources) with its schedule.
 import assert from 'node:assert/strict'
-import { after, test } from 'node:test'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { test } from 'node:test'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
-import { removeTree } from '../scripts/lib/remove-tree.mjs'
-import { tempDir } from '../scripts/lib/temp.mjs'
 import { EVENT_CHANNEL } from '../src/main/events.mjs'
 import { SHELL } from '../src/renderer/texts/shell.js'
 import { SIDEBAR } from '../src/renderer/texts/common.js'
-import { PANEL } from '../src/renderer/texts/panel.js'
-import { ADVANCED } from '../src/renderer/texts/sources.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { firstSentence } from '../src/renderer/lib/libraries.js'
 import { ready } from './support/app.mjs'
 import { SHELF, seedShelf, worldSession } from './support/seed.mjs'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
-const here = tempDir('st-shell-cards-')
-const cardsFile = join(here, 'cards.json')
-writeFileSync(cardsFile, JSON.stringify([{ kind: 'edit_brief', params: { brief: '主 Agent 提的要求：只追 agent 记忆。' }, why: '界面测试用' }]))
 let shelf = null
 const s = worldSession({
   kind: 'seeded',
   waitFor: 'inbox',
   prepare: async world => { shelf = await seedShelf(world) },
-  env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_PROPOSALS: cardsFile }),
+  env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake' }),
 })
-after(() => removeTree(here, { waitMs: 5000 }))
 const POLL = { polling: 100, timeout: 60_000 }
 const until = (fn, arg) => s.page.waitForFunction(fn, arg, POLL)
 const send = (topic, payload) => s.app.evaluate(({ BrowserWindow }, [channel, m]) => { BrowserWindow.getAllWindows()[0].webContents.send(channel, m) }, [EVENT_CHANNEL, { topic, payload }])
@@ -80,9 +74,8 @@ test('the sidebar: 新建库 · 库架 · 主 Agent (no number) · 我的库 (th
   assert.deepEqual(got.map(r => [r.active, r.current]), [['true', 'page'], ['false', null], ['false', null]], 'the current library is highlighted on its page')
   assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar [data-action="add-library"]')?.textContent.trim()), SHELL.sidebar.newLibrary)
   assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar__footer-button')?.textContent.trim()), SIDEBAR.settings)
-  // the one pending card (made at start by the development hook): counted on the right panel's 待确认 tab, not after 主 Agent
-  await until(() => document.querySelector('[data-panel-badge="decide"]')?.textContent === '1')
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-panel-badge="decide"]').getAttribute('aria-label')), fmt(PANEL.decideBadge, { n: 1 }))
+  // nothing waits for you to confirm (no build conversation going): no number on the right panel's 待确认 tab, none after 主 Agent
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-panel-badge="decide"]')), null)
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-nav="chat"]').textContent.trim()), SIDEBAR.entries.chat, '主 Agent: no number after it')
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-nav-count="shelf"]')?.textContent), '3', '库架: how many libraries')
   // the line under each library's name (F10): its problem, else its 待看, else 暂无待看
@@ -168,25 +161,35 @@ test('each library remembers its tab and its scroll: back to one, back where it 
   await onPage('inbox', seeded)
   await tab('sources')
   await onPage('sources', seeded)
-  // redesign R4b: 关卡 (评分环节) is on 高级设置 now; the page has its data once 要求 and 定时与上限 have theirs (was: [data-part="gates"])
-  await until(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule !== 'unknown' && document.querySelector('[data-part="brief"][data-state="ready"]') !== null && document.querySelector('[data-part="topics"]') !== null)
+  // 1.1 W7b: a library of the last version — the page has its data once its sources and 定时 have theirs
+  await until(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule !== 'unknown' && document.querySelector('[data-part="old-sources"]') !== null)
   const room = await s.page.evaluate(sel => { const b = document.querySelector(sel); return b.scrollHeight - b.clientHeight }, body())
-  assert.ok(room > 300, `control: 来源与要求 can scroll (${room}px)`)
-  await s.page.evaluate(sel => { document.querySelector(sel).scrollTop = 300 }, body())
-  await until(sel => document.querySelector(sel).scrollTop === 300, body())
+  assert.ok(room > 40, `control: 来源与要求 can scroll (${room}px)`)
+  const AT = Math.min(300, room)
+  await s.page.evaluate(([sel, at]) => { document.querySelector(sel).scrollTop = at }, [body(), AT])
+  await until(([sel, at]) => document.querySelector(sel).scrollTop === at, [body(), AT])
   await s.page.waitForTimeout(300)
   await openRow(ev)
   await onPage('ask', ev)
   await openRow(seeded)
   await onPage('sources', seeded)
-  await until(sel => document.querySelector(sel).scrollTop === 300, body())
-  // another library's 来源与要求 starts at its own place (its own memory, none yet)
+  await until(([sel, at]) => document.querySelector(sel).scrollTop === at, [body(), AT])
+  // another library's 来源与要求 starts at its own place (its own memory, none yet). 1.1 W7b: its page is read only now and would
+  // be too short to scroll — it gets sources of its own for this check (taken off again after), so a memory shared by every
+  // library would show here as a scrolled page
+  const evDir = shelf.dirs[1]
+  const added = Array.from({ length: 10 }, (_, i) => `scroll-${i}`)
+  for (const name of added) core.addSource(evDir, { name, kind: 'rss', url: `https://example.test/${name}.xml` })
   await openRow(ev)
   await onPage('ask', ev)
   await tab('sources')
   await onPage('sources', ev)
+  await until(() => document.querySelectorAll('[data-part="old-sources"] [data-row]').length >= 10)
+  const evRoom = await s.page.evaluate(sel => { const b = document.querySelector(sel); return b.scrollHeight - b.clientHeight }, body())
+  assert.ok(evRoom > 40, `control: 电动车's 来源与要求 can scroll too (${evRoom}px)`)
   await s.page.waitForTimeout(500)
   assert.equal(await s.page.evaluate(sel => document.querySelector(sel).scrollTop, body()), 0)
+  for (const name of added) core.removeSource(evDir, name)
   // a library opened for the first time: its 待看
   await openRow(fashion)
   await onPage('inbox', fashion)
@@ -198,7 +201,7 @@ test('each library remembers its tab and its scroll: back to one, back where it 
   await onPage('inbox', seeded)
 })
 
-test('库架: a card per library (what it follows, last update, sources, 待看, the problem line); a click opens it; the new card goes to 和主 Agent 聊', async () => {
+test('库架: a card per library (what it follows, last update, sources, 待看, the problem line); a click opens it; the new card goes to the build conversation', async () => {
   const [seeded, ev, fashion] = shelf.ids
   await s.page.click('[data-nav="shelf"]')
   await ready(s.page, 'shelf')
@@ -222,94 +225,49 @@ test('库架: a card per library (what it follows, last update, sources, 待看,
   await onPage('inbox', fashion)
   await s.page.click('[data-nav="shelf"]')
   await ready(s.page, 'shelf')
+  // 1.1 W7b: the new card opens the build conversation; with none going, its one sentence — the sidebar marks 新建库, not 主 Agent
   await s.page.click('[data-action="new-card"]')
-  await ready(s.page, 'chat')
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-nav="chat"]').getAttribute('aria-current')), 'page')
-  // redesign R5b (F15): 「等你定的事 · n」 is gone from the page — its number is the head's 「n 项待确认」 (the right panel's list, every library's)
-  await until(() => document.querySelector('[data-part="to-confirm-chip"]')?.dataset.count === '1')
+  await ready(s.page, 'build')
+  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="build"]').dataset.view), 'start')
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-nav="chat"]').getAttribute('aria-current')), null)
+  assert.equal(await s.page.evaluate(() => document.querySelector('.st-sidebar [data-action="add-library"]').classList.contains('active')), true)
   await openRow(seeded)
   await onPage('inbox', seeded)
   assert.ok(ev)
 })
 
-// redesign R4b: 「谁定的」 beside each part is gone (维护者 第 10 题): who changed what is 高级设置's 变更记录, one row per line of
-// changes.jsonl with its 操作来源 (手动修改 / 主 Agent 提议 · 已确认); the brief's box is always open (no 改要求) and 保存 is the 要求 part's.
-// The test checks the same through them: nothing recorded at first, a confirmed card's brief → 主 Agent 提议 · 已确认, an empty brief
-// refused, the user's own → 手动修改, the head follows.
-test('来源与要求: the brief saved → streams.json and changes.jsonl (by you); 变更记录 says who (redesign R4b: was 「谁定的」 beside each part); a card you confirmed says so', async () => {
-  const seeded = shelf.ids[0]
-  const dir = shelf.dirs[0]
-  const changes = () => (existsSync(join(dir, '_pipeline', 'changes.jsonl')) ? readFileSync(join(dir, '_pipeline', 'changes.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : [])
-  const log = async () => {
-    await s.page.click('[data-action="go-advanced"]')
-    await until(() => document.querySelector('[data-part="changes"][data-state="ready"]') !== null)
-    const rows = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="changes"] [data-change-row]')].map(r => [r.dataset.field, r.dataset.by, r.querySelector('[data-part="by"]').textContent]))
-    await s.page.click('[data-action="back-sources"]')
-    await until(() => document.querySelector('[data-part="brief"][data-state="ready"]') !== null)
-    return rows
-  }
-  await tab('sources')
-  await onPage('sources', seeded)
-  await until(() => document.querySelector('[data-part="brief"][data-state="ready"] textarea[data-field="brief"]')?.value !== '')
-  assert.equal(await s.page.evaluate(() => document.querySelector('textarea[data-field="brief"]').value), SHELF.briefs[0])
-  assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-who]').length), 0, 'no 「谁定的」 mark on the page')
-  assert.deepEqual(await log(), [], 'nothing changed it since the setup: no row')
-  assert.deepEqual(changes(), [], 'control: no record yet')
-  // the card of the development hook confirmed (through the bridge, as package G's button will): 主 Agent 提议 · 已确认
-  const card = (await s.page.evaluate(() => window.streams.listProposals({ status: 'pending' }))).data[0]
-  assert.deepEqual([card.kind, card.libraryId], ['edit_brief', seeded])
-  const r = await s.page.evaluate(id => window.streams.confirmProposal(id), card.id)
-  assert.equal(r.data.status, 'confirmed', JSON.stringify(r))
-  await until(t => document.querySelector('textarea[data-field="brief"]')?.value === t, card.params.brief)
-  assert.deepEqual(await log(), [['brief', 'agent-confirmed', ADVANCED.log.bys['agent-confirmed']]])
-  await until(() => document.querySelector('[data-panel-badge="decide"]') === null)
-  // an empty brief is refused on the page: nothing written, nothing recorded
-  await s.page.fill('textarea[data-field="brief"]', '   ')
-  await s.page.click('[data-action="save-brief"] button')
-  await until(() => document.querySelector('[data-part="brief-note"]')?.dataset.kind === 'error')
-  assert.equal(core.readBrief(dir), card.params.brief)
-  assert.deepEqual(changes().map(l => [l.field, l.by]), [['brief', 'agent-confirmed']])
-  // the user's own words: streams.json, one line by you, 变更记录 = 手动修改 on top
-  const text = '只追 agent 的长期记忆与评测。不要融资新闻。'
-  await s.page.fill('textarea[data-field="brief"]', text)
-  await s.page.click('[data-action="save-brief"] button')
-  await until(() => document.querySelector('[data-part="brief-note"]')?.dataset.kind === 'saved')
-  assert.equal(JSON.parse(readFileSync(join(dir, 'streams.json'), 'utf8')).brief, text)
-  assert.deepEqual(changes().map(l => [l.field, l.by, l.before, l.after]), [['brief', 'agent-confirmed', SHELF.briefs[0], card.params.brief], ['brief', 'you', card.params.brief, text]])
-  assert.deepEqual((await log())[0], ['brief', 'you', ADVANCED.log.bys.you])
-  // the head follows (library-changed): 「在追」 is the new first sentence
-  await until(t => document.querySelector('[data-part="tracking"]')?.textContent === t, fmt(SHELL.head.tracking, { what: firstSentence(text) }))
-})
-
-// redesign R4b: 定时与上限 is one line with one 保存 (save-run; its note [data-part="run-note"]); who changed them is 变更记录; 评分环节
-// is 高级设置's first fold. What is checked is as before.
-test('来源与要求: this library\'s schedule and cap are changed here (streams.json, 变更记录 = 手动修改); 评分环节 is in its 高级设置', async () => {
+// redesign R4b: 定时 is one line with one 保存 (save-run; its note [data-part="run-note"]); who changed it is 变更记录. 1.1 W7b: v1.0's
+// cap and 评分环节 are gone; the old library's 来源与要求 shows its brief and sources read only.
+test('来源与要求: this library\'s schedule is changed here (streams.json, 变更记录 = 手动修改); its brief and sources are read only', async () => {
   const seeded = shelf.ids[0]
   const dir = shelf.dirs[0]
   const cfg = () => JSON.parse(readFileSync(join(dir, 'streams.json'), 'utf8'))
+  await tab('sources')
+  await onPage('sources', seeded)
+  await until(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule !== 'unknown' && document.querySelector('[data-part="old-sources"]') !== null)
+  // read only: the notice, its brief as written, its sources; nothing to type into but the schedule
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="old-library"]') !== null), true)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="old-brief"] .intro-copy')?.textContent), SHELF.briefs[0])
+  assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="old-sources"] [data-row]')].map(r => r.dataset.row)), cfg().sources.map(x => x.name))
+  assert.equal(await s.page.evaluate(() => document.querySelectorAll('main[data-screen="sources"] textarea, main[data-screen="sources"] input[data-field="cap"], main[data-screen="sources"] input[data-field="source"], [data-action="row-more"], [data-part="strictness"]').length), 0)
   assert.notEqual(cfg().schedule?.enabled, true, 'control: off before')
   await s.page.click('[data-part="run"] input[data-field="schedule-on"]')
   await s.page.click('[data-part="run"] [data-action="save-run"] button')
   await until(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule === 'on')
   assert.deepEqual(cfg().schedule, { enabled: true, time: '08:30' })
   assert.equal((await s.page.evaluate(id => window.streams.getLibrarySchedule(id), seeded)).data.enabled, true)
-  // the cap: a bad one is said and not written; a good one is
-  const capBefore = (await s.page.evaluate(() => window.streams.getPipelineSettings())).data.cap
-  await s.page.fill('[data-part="run"] input[data-field="cap"]', '0')
+  // a bad time is said and not written
+  await s.page.fill('[data-part="run"] input[data-field="schedule-time"]', '25:00')
   await s.page.click('[data-part="run"] [data-action="save-run"] button')
   await until(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'bad')
-  assert.equal((await s.page.evaluate(() => window.streams.getPipelineSettings())).data.cap, capBefore)
-  await s.page.fill('[data-part="run"] input[data-field="cap"]', '77')
-  await s.page.click('[data-part="run"] [data-action="save-run"] button')
-  await until(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'saved')
-  assert.equal((await s.page.evaluate(() => window.streams.getPipelineSettings())).data.cap, 77)
-  // 高级设置: 变更记录 has both, 手动修改; 评分环节 (v1.0's 流水线: the strip, the editor with the pass line, 单条测试) is its first fold
+  assert.deepEqual(cfg().schedule, { enabled: true, time: '08:30' })
+  await s.page.fill('[data-part="run"] input[data-field="schedule-time"]', '08:30')
+  // 高级设置: 变更记录 has it, 手动修改; two folds, no 评分环节
   await s.page.click('[data-action="go-advanced"]')
-  await until(() => document.querySelector('[data-part="changes"][data-state="ready"] [data-change-row][data-field="cap"]') !== null)
+  await until(() => document.querySelector('[data-part="changes"][data-state="ready"] [data-change-row][data-field="schedule"]') !== null)
   const rows = await s.page.evaluate(() => [...document.querySelectorAll('[data-change-row]')].map(r => [r.dataset.field, r.dataset.by]))
-  assert.deepEqual(rows.slice(0, 2), [['cap', 'you'], ['schedule', 'you']])
-  await until(() => document.querySelector('main[data-screen="sources"] [data-part="gates"][data-state="ready"] [data-flow-node="relevance"]') !== null)
-  assert.ok(await s.page.evaluate(() => document.querySelector('[data-part="gates"] input[data-field="threshold"]') !== null && document.querySelector('[data-part="gates"] [data-part="preview"]') !== null))
+  assert.deepEqual(rows[0], ['schedule', 'you'])
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="gates"], [data-part="gates-fold"]')), null)
   await s.page.click('[data-action="back-sources"]')
 })
 

@@ -3,17 +3,17 @@
 // their tests are replaced by the checks that they are gone; 来源与要求's 「这个库」 is 高级设置's 库文件夹 now (test/ui-advanced.test.mjs
 // has it and 移除该库). The tests of 新建库默认存储位置 and of the folders it refuses are v2 package I's, unchanged.
 // On the running app: the seeded library registered through settings.json (v1.0's libraryPath → the registry), the connections
-// faked, the main agent scripted (one turn, so 用量 has the main agent's line), the folder dialog answered by
-// STREAMS_DEV_CHOOSE_FOLDER (a folder outside the app data).
+// faked, the folder dialog answered by STREAMS_DEV_CHOOSE_FOLDER (a folder outside the app data). 1.1 W7b: v2's main agent is
+// gone, and with it its line in 用量 (the total is the libraries').
 //   - four parts in order with the four jumps; no 主 Agent part, no 定时一览, nothing of the current library; each connection row two
 //     model slots, 测试连接, 设为当前连接 (not on the current one), 配置 on the API row; the sentence under the rows;
-//   - 库与用量: 新建库默认存储位置 (the default → 更改… → written → 恢复默认), the refused folders; 本月用量合计 = each library + 主 Agent,
-//     the two sides equal, each library's number its own usage file's (the funnel's count), the main agent's its own file's;
+//   - 库与用量: 新建库默认存储位置 (the default → 更改… → written → 恢复默认), the refused folders; 本月用量合计 = each library,
+//     the two sides equal, each library's number its own usage file's; no line of a main agent;
 //   - 关于: the version, 检查更新, 由 Starry Digital 开发, 许可证与致谢; ▾ 高级 folded: 显示开发者信息, 复制诊断信息 (the one entry of the
 //     app: the banner's is gone), 打开运行记录文件夹.
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
 import { pathToFileURL } from 'node:url'
@@ -24,8 +24,6 @@ import { tempDir } from '../scripts/lib/temp.mjs'
 import { worldSession } from './support/seed.mjs'
 
 const here = tempDir('st-settings-i-')
-const scriptFile = join(here, 'agent-script.json')
-writeFileSync(scriptFile, JSON.stringify([{ reply: '好的，我记下了。' }]))
 after(() => removeTree(here, { waitMs: 5000 }))
 const s = worldSession({
   kind: 'seeded',
@@ -34,7 +32,7 @@ const s = worldSession({
   settings: world => ({ libraryPath: world.library }),
   env: world => ({
     STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: join(world.root, 'roots'),
-    STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'default-libraries'), STREAMS_DEV_AGENT_SCRIPT: scriptFile, STREAMS_START_SCREEN: 'settings',
+    STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'default-libraries'), STREAMS_START_SCREEN: 'settings',
   }),
 })
 const POLL = { polling: 100, timeout: 60_000 }
@@ -80,35 +78,32 @@ test('R4b-4 four parts in the design\'s order with the four jumps on top; 主 Ag
   await s.page.click('[data-part="jumps"] [data-jump="connection"]')
 })
 
-test('R4b-4 库与用量: 本月用量合计 = each library + 主 Agent, the two sides equal, each library the number its usage file has; the main agent\'s turn counts', async () => {
-  const r = await bridge('agentSend', '你好')
-  assert.equal(r.ok, true, JSON.stringify(r))
+test('R4b-4 库与用量: 本月用量合计 = each library, the two sides equal, each library the number its usage file has; no line of a main agent', async () => {
   const month = new Date().toISOString().slice(0, 7)
-  const agentFile = core.agentPaths(join(s.world.appData, core.AGENT_DIR)).usage
-  const agentCalls = core.readUsageFile(agentFile, { month }).calls
-  assert.ok(agentCalls > 0, `control: the main agent's turn made calls (${agentCalls})`)
   const regs = registry().libraries
-  const total = core.usageTotal(regs.map(l => l.path), { month, agentFile })
-  await until(([n, a]) => document.querySelector('[data-part="usage"]')?.dataset.calls === String(n) && document.querySelector('[data-usage-agent]')?.dataset.calls === String(a), [total.calls, agentCalls])
+  const total = core.usageTotal(regs.map(l => l.path), { month })
+  assert.ok(total.calls > 0, `control: the seeded library's run made calls this month (${total.calls})`)
+  await until(n => document.querySelector('[data-part="usage"]')?.dataset.calls === String(n), total.calls)
   const shown = await s.page.evaluate(() => ({
     total: Number(document.querySelector('[data-part="usage"]').dataset.calls),
     totalText: document.querySelector('[data-part="usage-total"]').textContent,
     sum: Number(document.querySelector('[data-part="usage-sum"]').dataset.sum),
     libs: [...document.querySelectorAll('[data-usage-library]')].map(e => [e.dataset.usageLibrary, Number(e.dataset.calls), Number(e.dataset.selfCheck)]),
-    agent: Number(document.querySelector('[data-usage-agent]').dataset.calls),
+    agent: document.querySelector('[data-usage-agent]') !== null,
     line: document.querySelector('[data-part="usage-sum"]').textContent,
   }))
   assert.equal(shown.totalText, fmt(SETTINGS.usage.total, { calls: total.calls }))
   assert.equal(shown.total, shown.sum, 'the two sides of the sum are equal')
-  assert.equal(shown.total, shown.libs.reduce((n, l) => n + l[1], 0) + shown.agent)
-  assert.equal(shown.agent, agentCalls, 'the main agent\'s own usage file')
+  assert.equal(shown.total, shown.libs.reduce((n, l) => n + l[1], 0), 'the total is the libraries\' calls')
+  assert.equal(shown.agent, false, 'no line of a main agent')
+  assert.equal(shown.libs.length, regs.length)
   for (const [id, calls, selfCheck] of shown.libs) {
     const path = regs.find(l => l.id === id).path
     const u = core.readUsage(path, { month })
-    assert.equal(calls, u.calls, `${id}: the number its usage file has (the run funnel's and the right panel's count)`)
+    assert.equal(calls, u.calls, `${id}: the number its usage file has`)
     assert.equal(selfCheck, u.byPurpose.probe ?? 0, `${id}: its 运行前自检 calls`)
   }
-  assert.ok(shown.line.startsWith('= ') && shown.line.includes(fmt(SETTINGS.usage.agent, { calls: agentCalls })), shown.line)
+  assert.ok(shown.line.startsWith('= '), shown.line)
 })
 
 test('R4b-4 关于: the version, 检查更新, Starry Digital, 许可证与致谢; ▾ 高级 folded: 显示开发者信息 · 复制诊断信息 · 打开运行记录文件夹 — 复制诊断信息 only here', async () => {

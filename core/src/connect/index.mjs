@@ -15,6 +15,8 @@ export { CLAUDE_CODE_MODELS, CODEX_MODELS, VENDORS, VENDOR_IDS, modelsFor, recom
 export { extractJson } from './json-output.mjs';
 export { completeJson, RETRY_SUFFIX } from './complete-json.mjs';
 export { fakeConnector, FAKE_MODES } from './fakes.mjs';
+// 1.1 W7b: the scripted stand-in that answers checks only (v1.0's, which also scored, is core/legacy's)
+export { scriptedConnector } from './scripted.mjs';
 export { createUsageCounter, createUsageRecorder, readUsage, readUsageFile, usageTotal, usagePath, USAGE_FILE } from './usage.mjs';
 export { findExecutable } from './which.mjs';
 export { createWorkdir, removeWorkdir, withWorkdir, DEFAULT_TMP_ROOT } from './workdir.mjs';

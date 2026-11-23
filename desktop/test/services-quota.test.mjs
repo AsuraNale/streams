@@ -93,12 +93,8 @@ test('Claude Code: a real call through the connections service records the strea
   assert.equal(r.ok, true)
   assert.deepEqual(withEv.quota.handlers.getQuota().windows, CLAUDE_Q.windows)
   assert.equal(w.eventsOf('quota-changed').length, 1)
-  // the main agent's session connector carries it too
-  w.events.length = 0
-  const cwd = join(w.root, 'agent-cwd')
-  const t = await withEv.connections.sessionConnector('claude-code', { cwd }).send({ prompt: 'hi', format: 'json' })
-  assert.equal(t.ok, true)
-  assert.equal(w.eventsOf('quota-changed').length, 1)
+  // (1.1 W7b: v2's main agent and its session connector are gone; the build conversation's quota comes back with the turn's end,
+  // main.mjs: build-changed done → quota.afterTurn)
 })
 
 test('Codex: read at start, every 10 minutes and after a round or a turn — only while Codex is the current connection', async () => {
@@ -217,7 +213,8 @@ test('main.mjs wires it: the connections hand it every call\'s quota, the events
   assert.match(main, /createQuotaService\(\{[^}]*devQuotaFile: DEV_QUOTA[^}]*\}\)/)
   assert.match(main, /\.\.\.quota\.handlers/)
   assert.match(main, /topic === 'round-progress' && payload\?\.done === true\) void quota\.afterTurn/)
-  assert.match(main, /topic === 'agent-changed' && payload\?\.phase === 'done'\) void quota\.afterTurn/)
+  assert.match(main, /topic === 'build-changed' && payload\?\.phase === 'done'\) void quota\.afterTurn/)
+  assert.doesNotMatch(main, /agent-changed/, 'v2\'s main agent is gone')
   assert.match(main, /topic === 'connections-changed'\) void quota\.connectionsChanged/)
   assert.match(main, /quota\.start\(\)/)
   const guarded = (src, name, env) => new RegExp(`^const ${name} = !app\\.isPackaged && [^\\n]*process\\.env\\.${env}`, 'm').test(src)

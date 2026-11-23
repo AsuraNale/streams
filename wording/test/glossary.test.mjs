@@ -85,12 +85,8 @@ test('the five fetch states: the shell\'s keys, in order, each with its words', 
     assert.equal(WORDS[s], fetchStateWord(s, 'zh'), `${s}: the page's Chinese word is the glossary's`)
     assert.equal(WORDS_EN[s], fetchStateWord(s, 'en'), `${s}: the page's English word is the glossary's`)
   }
-  // redesign R6b-1: and the words the main agent is given (core/src/agent/words.mjs STATE_WORDS) — one definition, the same in all three
-  const { STATE_WORDS } = await import('../../core/src/agent/words.mjs')
-  for (const s of FETCH_STATES) {
-    assert.equal(STATE_WORDS.zh[s], fetchStateWord(s, 'zh'), `${s}: the core's Chinese word is the glossary's`)
-    assert.equal(STATE_WORDS.en[s], fetchStateWord(s, 'en'), `${s}: the core's English word is the glossary's`)
-  }
+  // (redesign R6b-1 also held the v1.0 main agent's copy, core/src/agent/words.mjs STATE_WORDS, to the glossary; 1.1 W7b
+  // removed that agent and its word list, so the glossary and the shell's two tables are the definitions left.)
   // reverse: a glossary whose word for one state differs is seen by the same lookup
   const stale = { ...glossary, fetch_states: glossary.fetch_states.map(s => (s.id === 'gap' ? { ...s, zh: '地址出错' } : s)) }
   assert.notEqual(fetchStateWord('gap', 'zh', stale), WORDS.gap)

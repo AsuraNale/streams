@@ -27,16 +27,10 @@ export const EVENT_TOPICS = Object.freeze({
   'inbox-changed': 'the inbox of a library changed (a round wrote into it, a keep, a dismiss): { libraryId, count }',
   // 1.1 W6b (services/build.mjs): the build conversation
   'build-changed': 'a turn of the build conversation started or ended, or the conversation ended (built, dropped): { phase: "started" | "done" | "ended" }; the page re-reads getBuild',
-  // v2 package B (services/proposals.mjs): the proposal cards
-  'proposals-changed': 'a proposal card was made or decided (confirmed, declined, sent back, stale, failed): { libraryId, id, status }; libraryId null for a create_library card',
-  // v2 package C (services/agent.mjs): the main agent
-  'agent-changed': 'a turn of the main agent started or ended: { phase: "started" | "done", turn, libraryId }; the page re-reads getAgentTranscript / getAgentStatus',
   // v2 package M (services/quota.mjs): the corner above 设置
   'quota-changed': 'the plan quota or the API balance of a connection was read, came with a call, or is gone (or the current connection changed): { kind }; the page re-reads getQuota',
   // v2 package L (services/schedule.mjs): the one queue of the rounds
   'queue-changed': 'a library was queued, a round of the queue started or ended: { running, waiting } (library ids; running null when none runs); the page re-reads getQueue',
-  // redesign R5a (services/agent.mjs): the 系统检测
-  'suggestions-changed': 'a rule-based finding of a library was made, dismissed, handed to the main agent, acted on or expired: { libraryId, key, status } (status open · dismissed · accepted · acted · expired); the page re-reads listToConfirm',
 })
 
 /**

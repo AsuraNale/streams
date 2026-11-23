@@ -122,18 +122,6 @@ const MUTANTS = [
     test: ['test/ui-shell.test.mjs', '--test-name-pattern=inbox-changed with a libraryId'],
   },
   {
-    id: 'f-brief-not-yours',
-    what: 'saving the brief from 来源与要求 does not record it as the user\'s (no changes.jsonl line by you)',
-    edits: [['src/main/services/sources.mjs', "const r = byYou(dir, ['brief'], () => call('saveBrief', dir, text), { log, now })", "const r = call('saveBrief', dir, text)"]],
-    test: ['test/services-sources.test.mjs', '--test-name-pattern=getBrief / setBrief'],
-  },
-  {
-    id: 'f-brief-not-yours-ui',
-    what: 'the same, seen on the running app (streams.json and changes.jsonl read after 「保存」)',
-    edits: [['src/main/services/sources.mjs', "const r = byYou(dir, ['brief'], () => call('saveBrief', dir, text), { log, now })", "const r = call('saveBrief', dir, text)"]],
-    test: ['test/ui-shell.test.mjs', '--test-name-pattern=the brief saved'],
-  },
-  {
     id: 'f-tabs-one-memory',
     what: 'the page a library was left on is remembered once for all libraries, not per library',
     edits: [
@@ -149,35 +137,6 @@ const MUTANTS = [
     test: ['test/ui-shell.test.mjs', '--test-name-pattern=a click on a library|each library remembers'],
   },
   // v2 package G (docs/checks/2026-11-09-wp-g/contract.md): the proposal card, 和主 Agent 聊, 问库's routing
-  {
-    id: 'g-decline-confirms',
-    // redesign R5b: the card is screens/proposal.js (was proposal-card.js); its 拒绝 (was 不要) is the same call
-    what: 'the proposal\'s 拒绝 calls confirmProposal',
-    edits: [['src/renderer/screens/proposal.js', "async () => done(await call('declineProposal', id)))", "async () => done(await call('confirmProposal', id)))"]],
-    test: ['test/ui-agent.test.mjs', '--test-name-pattern=the proposal card'],
-  },
-  {
-    id: 'g-send-while-busy',
-    what: '和主 Agent 聊 lets you send while a turn of the main Agent runs',
-    edits: [['src/renderer/screens/chat.js', 'const busy = sending.length > 0 || agent.busy', 'const busy = false']],
-    test: ['test/ui-agent.test.mjs', '--test-name-pattern=a turn in progress'],
-  },
-  {
-    id: 'g-unsure-yes-question',
-    what: '问库\'s 「是，改这个库」 resolves the sentence as a question',
-    edits: [['src/renderer/screens/ask.js', "onClick=${() => onChoose('change')}", "onClick=${() => onChoose('question')}"]],
-    test: ['test/ui-agent.test.mjs', '--test-name-pattern=unsure'],
-  },
-  {
-    id: 'g-card-press-twice',
-    what: 'a proposal card\'s button can be pressed again before the bridge answers (no guard, never disabled)',
-    // redesign R5b: the guard is screens/proposal.js useActing (was proposal-card.js)
-    edits: [
-      ['src/renderer/screens/proposal.js', '    if (inFlight.current) return undefined\n    inFlight.current = true\n', ''],
-      ['src/renderer/screens/proposal.js', 'return { acting, busy: acting !== null, error, setError, run }', 'return { acting, busy: false, error, setError, run }'],
-    ],
-    test: ['test/ui-agent.test.mjs', '--test-name-pattern=the proposal card'],
-  },
   // v2 package H: the library page, the reading window, the 「写给 AI 的话」 mark
   // (redesign R3: h-obsidian-for-caught and h-default-kept are retired with what they broke — 资料库's 「抓到的」 tab and the page
   // opening on it when nothing is kept are gone; their reverse is r3-all-lists-caught below)
@@ -300,34 +259,10 @@ const MUTANTS = [
     test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-3'],
   },
   {
-    id: 'r2-move-writes-notes',
-    what: '移入待看 also keeps the item (a file in notes/) instead of only putting it in 待看',
-    edits: [['src/main/services/pipeline.mjs', '      try { moveToInbox(dir, url, { now }) } catch (err) {', '      try { moveToInbox(dir, url, { now }); keep(dir, url, { now }) } catch (err) {']],
-    test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-4'],
-  },
-  {
-    id: 'r2-calls-part-off',
-    what: 'one part of the funnel\'s 模型调用 is off by one (the last part, 核验, one more)',
-    edits: [['src/main/services/pipeline.mjs', '    return { funnel: runFunnel(rec), outcome: roundOutcome(dir, rec.id) }', '    return { funnel: (f => { if (f.calls.parts) f.calls.parts[f.calls.parts.length - 1].n += 1; return f })(runFunnel(rec)), outcome: roundOutcome(dir, rec.id) }']],
-    test: ['test/services-r2.test.mjs', '--test-name-pattern=R2-6'],
-  },
-  {
-    id: 'r2-reason-on-card',
-    what: 'the relevance reason is on the card again (it belongs to 详情 only)',
-    edits: [['src/renderer/screens/inbox.js', "  const line = [item.source ?? '', item.date ?? '', ...scoreWords(item)].filter(Boolean).join(SEP)", "  const line = [item.source ?? '', item.date ?? '', ...scoreWords(item), item.scores?.relevance?.reason ?? ''].filter(Boolean).join(SEP)"]],
-    test: ['test/ui-inbox.test.mjs', '--test-name-pattern=cards in the core'],
-  },
-  {
     id: 'r2-no-unverified-mark',
     what: 'the card no longer carries 「未通过核验」',
     edits: [['src/renderer/screens/inbox.js', "        ${unverified ? html`<${Mark} attrs=${{ 'data-unverified': '' }}>${T.card.unverified}<//>` : null}\n", '']],
     test: ['test/ui-inbox.test.mjs', '--test-name-pattern=cards in the core'],
-  },
-  {
-    id: 'r2-no-manual-row',
-    what: 'a link added by hand gets no 「待评分」 row in 待看',
-    edits: [['src/renderer/screens/inbox.js', '        ${manual.length ? html`<div class="st-manual" data-part="manual">', '        ${false ? html`<div class="st-manual" data-part="manual">']],
-    test: ['test/ui-inbox.test.mjs', '--test-name-pattern=添加链接'],
   },
   {
     id: 'r2-catch-up-said-scheduled',
@@ -367,13 +302,6 @@ const MUTANTS = [
     test: ['test/ui-ask-r3.test.mjs', '--test-name-pattern=an answer|加入待补充主题'],
   },
   {
-    id: 'r3-card-not-shared',
-    what: '待确认\'s 确认 / 拒绝 on a proposal call nothing (the card in 问库\'s conversation stays pending)',
-    // redesign R5b: 待确认's card is the one 提议's small card (screens/proposal.js, compact); its 确认 calls nothing
-    edits: [['src/renderer/screens/proposal.js', "    const next = done(await call('confirmProposal', id))", "    const next = done(compact ? null : await call('confirmProposal', id))"]],
-    test: ['test/ui-ask-r3.test.mjs', '--test-name-pattern=转交主 Agent'],
-  },
-  {
     id: 'r3-source-opens-browser',
     what: '资料库\'s 查看原文 opens the system browser instead of Streams\' reading window',
     edits: [['src/renderer/screens/library.js', "onClick=${() => doCall('openReader', e.source, 'reader')}", "onClick=${() => doCall('openReader', e.source, 'browser')}"]],
@@ -411,36 +339,6 @@ const MUTANTS = [
     test: ['test/ui-first-run.test.mjs', '--test-name-pattern=an example only fills'],
   },
   {
-    id: 'r4a-create-only-runs',
-    what: '仅创建 also puts the new library\'s first run in the queue',
-    edits: [['src/main/services/new-library.mjs', '      if (f.run) {', '      if (true) {']],
-    test: ['test/services-new-library.test.mjs', '--test-name-pattern=仅创建'],
-  },
-  {
-    id: 'r4a-empty-brief-creates',
-    what: 'a library can be made with an empty 追踪要求 (the main process fills in a placeholder)',
-    edits: [['src/main/services/new-library.mjs', '    try { stored = checkNewLibrary({ brief: form.brief, topics, sources }) }', "    try { stored = checkNewLibrary({ brief: String(form.brief ?? '').trim() || '（未填写）', topics, sources }) }"]],
-    test: ['test/services-new-library.test.mjs', '--test-name-pattern=empty brief'],
-  },
-  {
-    id: 'r4a-empty-brief-page',
-    what: '新建库\'s create buttons work with 追踪要求 empty (the page does not require it)',
-    edits: [['src/renderer/screens/new-library.js', "  const briefEmpty = brief.trim() === ''", '  const briefEmpty = false']],
-    test: ['test/ui-new-library.test.mjs', '--test-name-pattern=追踪要求 is required'],
-  },
-  {
-    id: 'r4a-raw-fetch-message',
-    what: 'a source row says the fetcher\'s own message instead of V3\'s 怎么办',
-    // redesign R6d (PM's check, 11-16): since R5a trySource does not hand the page the fetcher's message at all
-    // (services/sources.mjs), so the page's edit alone changed nothing — an equivalent mutant, whose earlier CAUGHT came from
-    // the test timing out. Both halves go back now: the main process hands the message over and the page shows it.
-    edits: [
-      ['src/main/services/sources.mjs', 'status: r.status, hint: r.hint ?? null, count: items.length,', 'status: r.status, hint: r.hint ?? null, count: items.length, message: r.message,'],
-      ['src/renderer/screens/new-library.js', ': hintWords(r.hint)', ': (r.message || hintWords(r.hint))'],
-    ],
-    test: ['test/ui-new-library.test.mjs', '--test-name-pattern=来源: typed'],
-  },
-  {
     id: 'r4a-edit-order-back',
     what: '编辑笔记\'s foot is 保存 · 取消 again (保存 not on the right, P11)',
     edits: [['src/renderer/screens/edit-dialog.js', /(<span class="st-act" data-action="cancel-edit">[^\n]*<\/span>)\n(\s*)(<span class="st-act" data-action="save-edit">[^\n]*<\/span>)/, '$3\n$2$1']],
@@ -449,36 +347,15 @@ const MUTANTS = [
   // redesign R4b (docs/checks/2026-11-12-r4b/contract.md 「测」: each 反向 named there, and a few more)
   {
     id: 'r4b-name-not-saved',
-    what: '库名称 saved on 来源与要求 changes the registry only — streams.json `name` is not written (nor recorded)',
+    what: '库名称 saved (setLibraryMeta) changes the registry only — streams.json `name` is not written (nor recorded); 1.1 W7b: held by the registry test (来源与要求\'s 库名称 field went with v1.0\'s editing)',
     edits: [['src/main/services/library.mjs', "        try { byYou(e.path, ['name'], () => saveLibraryName(e.path, meta.name), { log, now }) } catch (err) { throw bridgeErrorOf(err) }", '        void saveLibraryName']],
-    test: ['test/ui-sources.test.mjs', '--test-name-pattern=R4b-1 要求'],
+    test: ['test/services-registry.test.mjs', '--test-name-pattern=setLibraryMeta: name'],
   },
   {
     id: 'r4b-manual-not-recorded',
-    what: 'a change made on the page is written but 变更记录 misses it (byYou records no line)',
+    what: 'a change made on the page is written but 变更记录 misses it (byYou records no line); 1.1 W7b: the schedule saved on 来源与要求',
     edits: [['src/main/services/changes.mjs', "      const lines = recordChanges(dir, before, snapshot(dir, fields), { by: 'you', now })", '      const lines = []']],
-    test: ['test/ui-sources.test.mjs', '--test-name-pattern=R4b-1 要求'],
-  },
-  {
-    id: 'r4b-who-back',
-    what: 'a 「谁定的」 mark is back beside 来源与要求\'s 要求',
-    edits: [['src/renderer/screens/sources.js', '    <div class="section-label"><span id="src-brief-h">${T.brief.heading}</span></div>', '    <div class="section-label"><span id="src-brief-h">${T.brief.heading}</span><small class="muted" data-who="brief" data-by="setup">谁定的 · 首次设置</small></div>']],
-    test: ['test/ui-sources.test.mjs', '--test-name-pattern=R4b-1 four parts'],
-  },
-  {
-    id: 'r4b-baseline-removable',
-    what: 'a built-in rule of 校验规则 gets a delete button like the user\'s own',
-    edits: [['src/renderer/screens/pipeline.js', "      ${it.origin === 'streams' ? null : html`<${Btn} name=\"remove-check\"", "      ${false ? null : html`<${Btn} name=\"remove-check\""]],
-    test: ['test/ui-advanced.test.mjs', '--test-name-pattern=R4b-2 校验规则'],
-  },
-  {
-    id: 'r4b-preview-writes',
-    what: '单条测试 writes a line into the library\'s ledger',
-    edits: [
-      ['src/main/services/pipeline.mjs', "import { randomBytes } from 'node:crypto'\n", "import { randomBytes } from 'node:crypto'\nimport { appendFileSync } from 'node:fs'\n"],
-      ['src/main/services/pipeline.mjs', '      log(`pipeline: preview ${nodeId}:', "      appendFileSync(`${dir}/_pipeline/ledger.jsonl`, `${JSON.stringify({ ts: now().toISOString(), ev: 'previewed', url })}\\n`); log(`pipeline: preview ${nodeId}:"],
-    ],
-    test: ['test/ui-pipeline.test.mjs', '--test-name-pattern=试一条看结果'],
+    test: ['test/ui-sources.test.mjs', '--test-name-pattern=R4b-1 定时'],
   },
   {
     id: 'r4b-remove-deletes-file',
@@ -488,18 +365,6 @@ const MUTANTS = [
       ['src/main/services/library.mjs', '      save(withoutLibrary(registry(), id))', "      save(withoutLibrary(registry(), id)); unlinkSync(join(e.path, 'streams.json'))"],
     ],
     test: ['test/ui-advanced.test.mjs', '--test-name-pattern=R4b-3 移除该库'],
-  },
-  {
-    id: 'r4b-total-without-agent',
-    what: '设置\'s 本月用量合计 leaves the main agent\'s calls out of the total (its line still shown)',
-    edits: [['src/main/services/library.mjs', '        month: t.month, calls: t.calls, inputTokens:', '        month: t.month, calls: t.calls - (t.agent?.calls ?? 0), inputTokens:']],
-    test: ['test/ui-settings-i.test.mjs', '--test-name-pattern=R4b-4 库与用量'],
-  },
-  {
-    id: 'r4b-custom-not-shown',
-    what: 'thresholds changed by hand (no level) — 严格程度 does not say 自定义',
-    edits: [['src/renderer/screens/sources.js', "      ${savedLevel === 'custom' ? html`<button type=\"button\" role=\"radio\"", "      ${false ? html`<button type=\"button\" role=\"radio\""]],
-    test: ['test/ui-advanced.test.mjs', '--test-name-pattern=a threshold changed by hand'],
   },
   {
     id: 'r4b-copy-in-banner',
@@ -561,6 +426,8 @@ const MUTANTS = [
   // redesign R6a (docs/checks/2026-11-13-r6a/contract.md 「测」): the serif font, the four standards' sentences and the words that
   // follow them, the shelf's selected card — each test runs on its own (test/r6a.test.mjs, test/ui-r6a.test.mjs: every test sets
   // what it needs; the acceptance tests V6 / V8 / V9 / V10 run from the mirror's copy of tests/acceptance on the mirror's desktop/)
+  // 1.1 W7b: the mutants that ran 1.0's acceptance tests (V3 / V6 / V8 / V9, tests/acceptance) are gone or point at a desktop
+  // test: that suite drives v1.0's round, which left core/src in W7b's core step (the suite itself is not the desktop step's)
   {
     id: 'r6a-font-family',
     what: 'the face is declared under a name the template does not ask for (Noto Serif SCx): 研究对话\'s headings fall to whatever the machine has',
@@ -623,55 +490,6 @@ const MUTANTS = [
     test: ['test/r6a.test.mjs', '--test-name-pattern=R6a-2 standards'],
   },
   {
-    id: 'r6a-v6-old-banner',
-    what: 'the banner\'s sentence before R6a is back (登录过期，这一轮没有打分。抓到的 n 条都在，没丢。)',
-    edits: [['src/renderer/texts/today.js', "      'login-expired': '{name} 登录已过期，本次运行未开始。已抓取的 {n} 条内容已保留。',", "      'login-expired': '{name} 登录过期，这一轮没有打分。抓到的 {n} 条都在，没丢。',"]],
-    test: ['../tests/acceptance/v06-login-expired.test.mjs', '--test-name-pattern=the banner on top of the library'],
-  },
-  {
-    id: 'r6a-v6-banner-below',
-    what: 'the banner is under the tab\'s screen, not on top of the library\'s page',
-    edits: [
-      ['src/renderer/screens/library-frame.js', "      ${problem ? html`<div class=\"st-banner\"><${ProblemCard} problem=${problem} busy=${busy} onRetry=${retry} onChange=${() => navigate('settings')} onRedetect=${redetect} /></div>` : null}\n", ''],
-      ['src/renderer/screens/library-frame.js', '        <${Main} inner screen=${screen} state=${state} label=${label} labelledby=${labelledby}>${children}<//>\n      </div>\n', "        <${Main} inner screen=${screen} state=${state} label=${label} labelledby=${labelledby}>${children}<//>\n      </div>\n      ${problem ? html`<div class=\"st-banner\"><${ProblemCard} problem=${problem} busy=${busy} onRetry=${retry} onChange=${() => navigate('settings')} onRedetect=${redetect} /></div>` : null}\n"],
-    ],
-    test: ['../tests/acceptance/v06-login-expired.test.mjs', '--test-name-pattern=the banner on top of the library'],
-  },
-  {
-    id: 'r6a-v8-old-word',
-    what: '缺少文件头 is 待规范 again on 资料库\'s line and on the page it opens',
-    edits: [
-      ['src/renderer/texts/library.js', "    hint: '{n} 个文件缺少文件头，尚未入库。',", "    hint: '{n} 个文件待规范，尚未入库。',"],
-      ['src/renderer/texts/library.js', "    heading: '{n} 个文件缺少文件头',", "    heading: '待规范 · {n} 个文件',"],
-    ],
-    test: ['../tests/acceptance/v08-bad-note-quarantined.test.mjs', '--test-name-pattern=the page it opens say 缺少文件头'],
-  },
-  {
-    id: 'r6a-v9-old-sentence',
-    what: '问库 answers 「库里没有。」 again',
-    edits: [['src/renderer/texts/ask.js', "    notInLibrary: '库内暂无相关内容。',", "    notInLibrary: '库里没有。',"]],
-    test: ['../tests/acceptance/v09-ask-citations.test.mjs', '--test-name-pattern=the sentence'],
-  },
-  {
-    id: 'r6a-v9-english',
-    what: 'the English dictionary keeps its old answer (not the core\'s English of the sentence)',
-    edits: [['src/renderer/texts-en/ask.js', "    notInLibrary: 'Nothing in this library on that.',", "    notInLibrary: 'Not in the library.',"]],
-    test: ['../tests/acceptance/v09-ask-citations.test.mjs', '--test-name-pattern=V9 the sentence'],
-  },
-  {
-    id: 'r6a-v10-per-round',
-    what: 'the cap\'s words are 每轮 / 下一轮 again where a run that stopped at it says why',
-    edits: [['src/renderer/texts/run.js', "    cap: '达到单次运行上限，剩余内容留待下次运行',", "    cap: '达到每轮上限，剩余条目下一轮接着跑',"]],
-    test: ['../tests/acceptance/v10-round-cap.test.mjs', '--test-name-pattern=V10 the words|the cap typed as 5'],
-  },
-  {
-    id: 'r6a-v10-agent-per-round',
-    what: 'the main agent\'s card says 每轮上限 again (another text table)',
-    // merged 11-13: R5b moved the main agent's card words to proposals.js
-    edits: [['src/renderer/texts/proposals.js', "      edit_cap: '修改单次运行上限',", "      edit_cap: '修改每轮上限',"]],
-    test: ['../tests/acceptance/v10-round-cap.test.mjs', '--test-name-pattern=V10 the words'],
-  },
-  {
     id: 'r6a-shelf-hover',
     what: 'the app\'s rule for the shelf\'s card under the pointer is gone (round 9\'s light surface under round 11\'s dark ink)',
     edits: [['src/renderer/styles/template-app.css', '.r11.r11.r11.r11 .project-tile:hover { color: var(--ink11); background: var(--pick); box-shadow: var(--float11); transform: none; }\n.r12-line.r11.r11.r11.r11 .project-tile:hover { background: var(--well); box-shadow: inset 4px 0 var(--ink11); }\n', '']],
@@ -691,66 +509,6 @@ const MUTANTS = [
   },
   // redesign R5a (docs/checks/2026-11-12-r5a/contract.md 「测」: each 反向 named there, and a few more)
   {
-    id: 'r5a-no-event',
-    what: 'a 系统检测 made or handled sends no suggestions-changed (the page would depend on the order things run in)',
-    edits: [['src/main/services/agent.mjs', "  const changed = (libraryId, key, status) => emit('suggestions-changed', { libraryId, key, status })", '  const changed = () => 0']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-1 listToConfirm'],
-  },
-  {
-    id: 'r5a-view-current-only',
-    what: 'the one view lists the current library\'s 系统检测 only',
-    edits: [['src/main/services/agent.mjs', '    const libs = libraryId ? [library.entryOf(libraryId)] : library.entries()', '    const libs = libraryId ? [library.entryOf(libraryId)] : library.entries().filter(l => l.id === library.current()?.libraryId)']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-1 listToConfirm'],
-  },
-  {
-    id: 'r5a-view-raw-evidence',
-    what: 'the one view hands the page a 系统检测\'s evidence as it is (the fetcher\'s message, the HTTP code)',
-    edits: [['src/main/services/agent.mjs', '    const evidence = suggestionFacts(s)\n', '    const evidence = s.evidence\n']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-1 listToConfirm'],
-  },
-  {
-    id: 'r5a-act-current-only',
-    what: 'actOnSuggestion acts on the current library whatever library id it is given',
-    edits: [['src/main/services/agent.mjs', '    async actOnSuggestion(libraryId, key, action) {\n      const e = library.entryOf(libraryId)', '    async actOnSuggestion(libraryId, key, action) {\n      const e = library.entryOf(library.current()?.libraryId ?? libraryId)']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-2 actOnSuggestion'],
-  },
-  {
-    id: 'r5a-confirm-no-collapse',
-    what: 'a confirmed 暂停该来源 leaves the same source\'s ① ③ open until something lists them',
-    edits: [['src/main/services/proposals.mjs', '    try { afterConfirmed(card) } catch', '    try { void afterConfirmed } catch']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=collapses that source'],
-  },
-  {
-    id: 'r5a-forward-raw',
-    what: '交由主 Agent 分析 hands the agent the card\'s evidence JSON (with the fetcher\'s message) beside the words',
-    edits: [['src/main/services/agent.mjs', "    const t = await turn(text, { libraryId: entry.id, as: 'note' })", "    const t = await turn(`${text} ${JSON.stringify(s.evidence)}`, { libraryId: entry.id, as: 'note' })"]],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=交由主 Agent 分析'],
-  },
-  {
-    id: 'r5a-dismiss-no-check',
-    what: 'rule ⑤ waits for the end of a run (nothing is checked when a 放弃 is written)',
-    edits: [['src/main/services/pipeline.mjs', '    try { afterDismiss({ dir: h.dir, libraryId: h.libraryId }) } catch', '    try { void afterDismiss } catch']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=right after a 放弃'],
-  },
-  {
-    id: 'r5a-rescore-no-cap',
-    what: '重新评分 from the page does not keep to the library\'s 单次运行上限',
-    edits: [['src/main/services/pipeline.mjs', "probe: counter.wrap(a.connector, 'probe').probe }, cap, ctx:", "probe: counter.wrap(a.connector, 'probe').probe }, cap: 100000, ctx:"]],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=重新评分 through the queue'],
-  },
-  {
-    id: 'r5a-rescore-no-queue',
-    what: '重新评分 starts at once, past the one queue of the runs',
-    edits: [['src/main/services/pipeline.mjs', '      if (rescoreGate) return rescoreGate({ id: e.id, path: e.path })', '      if (false) return rescoreGate({ id: e.id, path: e.path })']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=重新评分 through the queue'],
-  },
-  {
-    id: 'r5a-raw-try-message',
-    what: 'trySource hands the page the fetcher\'s message and the HTTP code again',
-    edits: [['src/main/services/sources.mjs', '        status: r.status, hint: r.hint ?? null, count: items.length,', "        status: r.status, hint: r.hint ?? null, http: r.http ?? null, message: r.message ?? '', count: items.length,"]],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6'],
-  },
-  {
     id: 'r5a-diag-no-raw',
     what: '复制诊断信息 leaves out the raw error texts the page was not given',
     edits: [['src/main/diagnostics.mjs', "    ...(rawErrors.length ? rawErrors : ['(none)']),", "    '(none)',"]],
@@ -763,12 +521,6 @@ const MUTANTS = [
     test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6'],
   },
   {
-    id: 'r5a-list-no-stale',
-    what: 'the one view lists a 系统检测 that no longer fits (no 过时 check before listing)',
-    edits: [['src/main/services/agent.mjs', '      if (!library.usable(l.path)) continue\n      checkLibrary(l.id)\n', '      if (!library.usable(l.path)) continue\n']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=no longer fits is not listed'],
-  },
-  {
     id: 'r5a-source-row-raw',
     what: 'getSources hands the page each row\'s fetcher message and HTTP code again',
     edits: [['src/main/services/sources.mjs', "      return { ...v, sources: (v.sources ?? []).map(s => publicSourceRow(s, { raw: rawErrors, where: 'source row' })) }", '      return v']],
@@ -777,173 +529,23 @@ const MUTANTS = [
   {
     id: 'r5a-home-raw-detail',
     what: 'getHome hands the page the last run record with its problems\' raw details',
-    edits: [['src/main/services/pipeline.mjs', "        lastRound: publicResult(listRounds(dir, 1)[0] ?? null, { raw: rawErrors, where: 'last run' }),\n        // redesign R2 (N10)", '        lastRound: listRounds(dir, 1)[0] ?? null,\n        // redesign R2 (N10)']],
+    edits: [['src/main/services/pipeline.mjs', "        lastRound: publicResult(listRounds(dir, 1)[0] ?? null, { raw: rawErrors, where: 'last run' }),\n        roundState", '        lastRound: listRounds(dir, 1)[0] ?? null,\n        roundState']],
     test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6 the sources'],
   },
-  {
-    id: 'r5a-list-raw-card',
-    what: 'listProposals hands the page a card\'s own try with the HTTP code and the fetcher\'s message',
-    edits: [['src/main/services/proposals.mjs', '(f.libraryId === undefined || c.libraryId === f.libraryId)).map(shown)', '(f.libraryId === undefined || c.libraryId === f.libraryId))']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a-6 trySource'],
-  },
   // redesign R5a, the two pre-checkers' findings (precheck fixes 1, 2, 3, 6, 8, 10, 11)
-  {
-    id: 'r5a-self-check-raw',
-    what: 'startRound\'s own answer (and the queue\'s) hands the page a failed self-check\'s problems with their raw detail',
-    edits: [['src/main/services/pipeline.mjs', "      return { started: false, problems: publicProblems(check.problems, { raw: rawErrors, where: `self-check ${roundId} of ${libraryId ?? '?'}` }) }", '      return { started: false, problems: check.problems }']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=a self-check that fails'],
-  },
   {
     id: 'r5a-probe-detail',
     what: '测试连接 hands the page the connection\'s own text (detail) again',
     edits: [['src/main/services/connections.mjs', "      out.code = r.code ?? 'unknown'\n", "      out.code = r.code ?? 'unknown'\n      out.detail = r.detail ?? ''\n"]],
     test: ['test/services-r5a.test.mjs', '--test-name-pattern=测试连接'],
   },
-  {
-    id: 'r5a-overlap-one-side',
-    what: 'rule ④ is recorded only in the library that was checked (the other one waits for a run of its own)',
-    edits: [['src/main/services/agent.mjs', '    recordOtherSide({ dir, libraryId }, why)\n', '']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=two-sided'],
-  },
-  {
-    id: 'r5a-unreadable-other-removed',
-    what: 'an other library that cannot be read now (a drive taken out) counts as removed: its overlap cards expire',
-    edits: [['src/main/services/agent.mjs', '  const othersOf = (libraryId, dir = null) => library.entries().filter(l => l.id !== libraryId && l.path !== dir).map(', '  const othersOf = (libraryId, dir = null) => library.entries().filter(l => l.id !== libraryId && l.path !== dir && library.usable(l.path)).map(']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=unreadable for now'],
-  },
-  {
-    id: 'r5a-forward-recorded-first',
-    what: '交由主 Agent 分析 is recorded as 已转交 although the turn had no answer (the connection failed)',
-    edits: [['src/main/services/agent.mjs', '    if (t.reply === null) {', '    if (false) {']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=with the connection failing'],
-  },
-  {
-    id: 'r5a-transcript-raw-rows',
-    what: 'getAgentTranscript hands the page the rows as they are on disk (an old row\'s code and raw text)',
-    edits: [['src/main/services/agent.mjs', '      const entries = upTo.slice(-limit).map(publicRow)', '      const entries = upTo.slice(-limit)']],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=getAgentTranscript'],
-  },
-  {
-    id: 'r5a-advice-not-the-page',
-    what: 'the page\'s 处理建议 and the one the main agent is given say different things',
-    // redesign R6b-1: anchored on the new sentence (the old one is gone); what it is replaced with is not the new sentence
-    edits: [['src/renderer/texts/common.js', "  'fix-address-or-remove': '该地址无效，重试无法解决。请修改地址，或移除该来源。',", "  'fix-address-or-remove': '该地址无效。请修改地址，或暂停该来源。',"]],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=precheck fix 10'],
-  },
   // redesign R5b (docs/checks/2026-11-12-r5b/contract.md 「测」): the one 提议, the 主 Agent page, 待确认, 重新评分, the page's words for
   // what went wrong — each test runs on its own (test/ui-r5b.test.mjs: a world per part, each test makes its own data)
   {
-    id: 'r5b-confirm-left',
-    what: 'the full card\'s buttons back to 确认 · 提出修改 · 拒绝 (the main one on the left)',
-    // 1.0.1 (PM): the main button is drawn by ConfirmButton since F4 (its test-fetch guard); the anchor follows it
-    edits: [['src/renderer/screens/proposal.js', `        <\${Btn} name="decline" kind="quiet" disabled=\${act.busy} onClick=\${act.decline}>\${T.actions.decline}<//>
-        <\${Btn} name="revise" disabled=\${act.busy} onClick=\${() => setReviseOpen(o => !o)}>\${T.actions.revise}<//>
-        <\${ConfirmButton} create=\${create} busy=\${act.busy} guard=\${guard} />
-      </div>
-    </div>`, `        <\${ConfirmButton} create=\${create} busy=\${act.busy} guard=\${guard} />
-        <\${Btn} name="revise" disabled=\${act.busy} onClick=\${() => setReviseOpen(o => !o)}>\${T.actions.revise}<//>
-        <\${Btn} name="decline" kind="quiet" disabled=\${act.busy} onClick=\${act.decline}>\${T.actions.decline}<//>
-      </div>
-    </div>`]],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 ten'],
-  },
-  {
-    id: 'r5b-system-main-left',
-    what: 'a 系统检测\'s buttons in the 动作表\'s order as given (the main one on the left, 忽略 on the right)',
-    edits: [['src/renderer/screens/proposal.js', 'const actions = list(item.actions).slice().reverse()', 'const actions = list(item.actions).slice()']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 ①'],
-  },
-  {
-    id: 'r5b-threshold-number',
-    what: '严格程度 on the card with the thresholds\' numbers again',
-    // redesign R5b precheck fix 1: the line it edits now says 自定义's place (customText)
-    edits: [['src/renderer/screens/proposal.js', "const levelText = t => (levelOf(t) === 'custom' ? customText(t) : C.levels[levelOf(t)])", "const levelText = t => `${levelOf(t) === 'custom' ? customText(t) : C.levels[levelOf(t)]} 相关度 ≥ ${t?.relevance} · 实质 ≥ ${t?.substance}`"]],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 ten'],
-  },
-  {
-    id: 'r5b-old-word',
-    what: '拒绝 is 不要 again (05 不再用)',
-    edits: [['src/renderer/texts/proposals.js', "    decline: '拒绝',\n    pauseSource", "    decline: '不要',\n    pauseSource"]],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 ten'],
-  },
-  {
-    id: 'r5b-raw-on-card',
-    what: 'a failed proposal\'s line says the raw error',
-    edits: [['src/renderer/screens/proposal.js', '>${failureText(card)}</span>', '>${card.failure?.message ?? failureText(card)}</span>']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 the states'],
-  },
-  {
-    id: 'r5b-waiting-back',
-    what: '「等你定的事」 is back above the conversation',
-    edits: [['src/renderer/screens/chat.js', '          <div class="thread" data-part="conversation">', '          <section data-part="waiting"><h2>等你定的事 · ${n}</h2></section><div class="thread" data-part="conversation">']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
-  },
-  {
-    id: 'r5b-panel-not-decide',
-    what: 'the 主 Agent page leaves the right panel on the tab it had (not 待确认)',
-    edits: [['src/renderer/screens/chat.js', "    if (panel && panel.tab !== 'decide') setPanel?.({ tab: 'decide' })", '']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
-  },
-  {
-    id: 'r5b-calls-design',
-    what: 'the line under the box says the design\'s 1–2 calls, not the core\'s 1–4',
-    edits: [['src/renderer/screens/proposal.js', 'export const AGENT_CALLS = Object.freeze({ lo: 1, hi: 4, max: 18 })', 'export const AGENT_CALLS = Object.freeze({ lo: 1, hi: 2, max: 18 })']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
-  },
-  {
-    id: 'r5b-create-stays',
-    what: '创建 leaves the page where it is (not the new library\'s 待看)',
-    edits: [['src/renderer/screens/proposal.js', "await app?.openLibrary?.(next.result.libraryId, { screen: 'inbox', params: {} })", 'void 0']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 创建'],
-  },
-  {
     id: 'r5b-count-fixed',
-    what: '待确认\'s number on the tab is written in, not the list\'s length',
-    edits: [['src/renderer/screens/right-panel.js', '  const n = toConfirm?.items?.length ?? 0', '  const n = 4']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 O5'],
-  },
-  {
-    id: 'r5b-no-event',
-    what: '待确认 is not read again on suggestions-changed (a new 系统检测 shows only after something else reloads it)',
-    edits: [['src/renderer/lib/agent.js', "  useEvent('suggestions-changed', again, [enabled])\n", '']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 O5'],
-  },
-  {
-    id: 'r5b-list-twice',
-    what: 'on a library\'s page its 系统检测 are listed again below the list',
-    edits: [['src/renderer/screens/right-panel.js', '    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}',
-      '    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}\n    <div data-part="suggestions">${items.filter(i => i.from === \'system\' && i.libraryId === useApp().appState?.data?.library?.libraryId).map(i => html`<${Proposal} key=${`again:${i.id}`} item=${i} size="compact" />`)}</div>']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 one list'],
-  },
-  {
-    id: 'r5b-sync-off',
-    what: 'the conversation\'s cards are not read again on proposals-changed (one decided in 待确认 stays pending there)',
-    edits: [['src/renderer/lib/agent.js', "  useEvent('proposals-changed', () => list.reload())\n", '']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 the same proposal'],
-  },
-  {
-    id: 'r5b-act-current-only',
-    what: 'a 系统检测\'s action is sent for the current library, whatever library the card is of',
-    edits: [['src/renderer/screens/proposal.js', "    try { r = await call('actOnSuggestion', item.libraryId, item.key, a.id) }", "    try { r = await call('actOnSuggestion', app?.appState?.data?.library?.libraryId ?? item.libraryId, item.key, a.id) }"]],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 a 系统检测 of a library'],
-  },
-  {
-    id: 'r5b-edit-address-no-dialog',
-    what: '修改地址 opens 来源与要求 without the row\'s 修改地址 dialog',
-    edits: [['src/renderer/screens/sources.js', "    if (source) setDialog({ kind: 'edit-source', source })", '    void source']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 修改地址'],
-  },
-  {
-    id: 'r5b-rescore-always',
-    what: '重新评分\'s notice and button also when nothing was judged under the old standard',
-    edits: [['src/renderer/screens/inbox.js', '  if (!rescore || !(rescore.total > 0)) return null', '  if (!rescore) return null']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-4 a library whose'],
-  },
-  {
-    id: 'r5b-code-funnel',
-    what: '运行漏斗 says the code it does not know, in brackets ({code} back)',
-    edits: [['src/renderer/screens/run-funnel.js', '  return T.what.other', "  return `${T.what.other}（${code ?? stop?.code ?? ''}）`"]],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9'],
+    what: '待确认\'s number on the tab is written in, not the list\'s length (1.1: the build\'s waiting card)',
+    edits: [['src/renderer/screens/right-panel.js', '  const n = waitingCard(build?.data) ? 1 : 0\n  const icons', '  const n = 4\n  const icons']],
+    test: ['test/ui-panel.test.mjs', '--test-name-pattern=待确认: only the build'],
   },
   {
     id: 'r5b-code-problem',
@@ -959,67 +561,15 @@ const MUTANTS = [
   },
   // redesign R5b precheck fixes (11-13): each fix's reverse, on the test that holds it (test/ui-r5b.test.mjs)
   {
-    id: 'r5b-custom-manual',
-    what: '自定义 on a proposal says 「通过阈值已在「高级设置」中手动修改」 again (no one edited it by hand)',
-    edits: [['src/renderer/screens/proposal.js', "const levelText = t => (levelOf(t) === 'custom' ? customText(t) : C.levels[levelOf(t)])", "const levelText = t => (levelOf(t) === 'custom' ? '自定义（通过阈值已在「高级设置」中手动修改）' : C.levels[levelOf(t)])"]],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 自定义'],
-  },
-  {
-    id: 'r5b-custom-no-delta',
-    what: '自定义 → 自定义 in the same place: 修改后 reads the same as 修改前, nothing says what changed',
-    edits: [['src/renderer/screens/proposal.js', '    return delta ? `${text}${C.delta.sep}${delta}` : text', '    return text']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 自定义'],
-  },
-  {
-    id: 'r5b-edit-address-remembered',
-    what: '修改地址\'s parameter stays in the route the library remembers (coming back to the library opens the dialog again)',
-    edits: [['src/renderer/screens/sources.js', "    const { editAddress: _done, ...rest } = params\n    navigate('sources', rest)\n", '']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-1 修改地址'],
-  },
-  {
-    id: 'r5b-calls-no-most',
-    what: 'the line under the box says the usual calls only (1–4), not the most (retries, the summary)',
-    edits: [['src/renderer/texts/agent.js', "    calls: '每条消息通常 {lo}–{hi} 次模型调用；回答需要重试或整理对话记录时会更多，最多 {max} 次模型调用',", "    calls: '每条消息预计 {lo}–{hi} 次模型调用（需要查询各库情况时次数较多）',"]],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
-  },
-  {
-    id: 'r5b-calls-most-wrong',
-    what: 'the most calls of one message is not the core\'s (4 instead of 18)',
-    edits: [['src/renderer/screens/proposal.js', 'export const AGENT_CALLS = Object.freeze({ lo: 1, hi: 4, max: 18 })', 'export const AGENT_CALLS = Object.freeze({ lo: 1, hi: 4, max: 4 })']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-2 the page'],
-  },
-  {
-    id: 'r5b-titles-again',
-    what: 'the right panel lists the proposals\' titles a second time (a plain list, none of the old markup)',
-    edits: [
-      ['src/renderer/screens/right-panel.js', "import { Proposal } from './proposal.js'", "import { Proposal, proposalTitle } from './proposal.js'"],
-      ['src/renderer/screens/right-panel.js', '    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}',
-        '    ${n ? html`<div class="st-stack" data-part="decide-list">${items.map(i => html`<${Proposal} key=${i.id} item=${i} size="compact" />`)}</div>` : null}\n    <ul>${items.map(i => html`<li key=${i.id}>${proposalTitle(i)}</li>`)}</ul>'],
-    ],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 one list'],
-  },
-  {
     id: 'r5b-code-drawn-problem',
     what: '问题卡 as drawn puts the code back in brackets after its sentence',
     edits: [['src/renderer/screens/problem-card.js', '<div class="today-problem__text">${text}</div>', '<div class="today-problem__text">${text}（${problem.connectionCode ?? problem.code}）</div>']],
     test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9 drawn'],
   },
   {
-    id: 'r5b-code-drawn-funnel',
-    what: '运行漏斗 as drawn puts the stop\'s code back in brackets after its line',
-    edits: [['src/renderer/screens/run-funnel.js', "data-code=${f.stop.connectionCode ?? f.stop.code ?? ''}>${stopLine(f.stop)}</p>", "data-code=${f.stop.connectionCode ?? f.stop.code ?? ''}>${stopLine(f.stop)}（${f.stop.connectionCode ?? f.stop.code}）</p>"]],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9 drawn'],
-  },
-  {
     id: 'r5b-code-drawn-library',
     what: '资料库\'s file card as drawn says each rule with its code in brackets',
     edits: [['src/renderer/screens/library.js', '<small data-part="card-codes">${[folder, codes.map(pendingWords).join(SEP)]', '<small data-part="card-codes">${[folder, codes.map(c => `${pendingWords(c)}（${c}）`).join(SEP)]']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9 drawn'],
-  },
-  {
-    id: 'r5b-why-raw',
-    what: '运行漏斗 says a stop\'s reason it has no words for as it is',
-    edits: [['src/renderer/screens/run-funnel.js', ': fmt(T.stopWhy.other, { what: stopWhat(stop) })', ': why']],
     test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-5 O9 drawn'],
   },
   {
@@ -1035,40 +585,9 @@ const MUTANTS = [
     test: ['test/ui-r5b.test.mjs', '--test-name-pattern=precheck fix 11'],
   },
   {
-    id: 'r5b-rescore-mark-all',
-    what: 'every row of 未通过筛选 is marked 按旧标准评分, also the one judged under the standard of now',
-    edits: [['src/renderer/screens/inbox.js', '${r.old === true ? html`<span class="status-chip" data-part="old">', '${true ? html`<span class="status-chip" data-part="old">']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-4 严格程度 changed'],
-  },
-  {
-    id: 'r5b-rescore-count-all',
-    what: '重新评分\'s notice counts every row of 未通过筛选, not the old ones',
-    edits: [['src/renderer/screens/inbox.js', '<${RescoreAlert} rescore=${d?.rescore ?? null}', '<${RescoreAlert} rescore=${d?.rescore ? { ...d.rescore, total: rejected.total } : null}']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-4 严格程度 changed'],
-  },
-  {
-    id: 'r5b-eyebrow-caps',
-    what: 'the small card\'s top line in the template\'s capitals again (「主 AGENT 提议 · AI AGENT 记忆」)',
-    edits: [['src/renderer/styles/template-app.css', '.st-rp-decide [data-part="from"] { text-transform: none; }\n', '']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 the small cards'],
-  },
-  {
-    id: 'r5b-buttons-left',
-    what: 'a small card whose buttons fit one row has them on the left again (the main one not at the right edge)',
-    edits: [['src/renderer/styles/template-app.css', '.st-rp-decide .confirm-footer .row { margin-left: auto; }\n', '']],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 the small cards'],
-  },
-  {
-    id: 'r5b-time-spliced',
-    what: 'a time spliced into the line with spaces round it again (「最近一次 今天 09:33」)',
-    // redesign R6b-1: anchored on the sentence with the new state word
-    edits: [['src/renderer/texts/proposals.js', "    'source-failing': '暂时失败 {failed} 次 · 访问被拒 {blocked} 次 · 最近一次：{when}',", "    'source-failing': '暂时失败 {failed} 次 · 访问被拒 {blocked} 次 · 最近一次 {when}',"]],
-    test: ['test/ui-r5b.test.mjs', '--test-name-pattern=R5b-3 the small cards'],
-  },
-  {
     id: 'r5b-lead-when-empty',
     what: '待确认 says 「以下事项均需确认后才会执行。」 with nothing below it',
-    edits: [['src/renderer/screens/right-panel.js', '      ${n ? html`<p data-part="decide-lead">${L.lead}</p>` : null}', '      <p>${L.lead}</p>']],
+    edits: [['src/renderer/screens/right-panel.js', '      ${n ? html`<p data-part="decide-lead">${BUILD.panelLead}</p>` : null}', '      <p>${BUILD.panelLead}</p>']],
     test: ['test/ui-r5b.test.mjs', '--test-name-pattern=precheck fix 9'],
   },
   // redesign R6b (docs/checks/2026-11-13-r6b/contract.md 「测」): R6b-1 the five states and the four 处理建议, R6b-2 05's last pass and
@@ -1078,7 +597,7 @@ const MUTANTS = [
     id: 'r6b-state-word-zh',
     what: 'a state\'s Chinese word on the page is not 05\'s (地址无效)',
     edits: [['src/renderer/texts/common.js', "  gap: '地址无效',", "  gap: '地址待查',"]],
-    test: ['../tests/acceptance/v03-five-fetch-states.test.mjs', '--test-name-pattern=V3 dictionaries: each'],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1 the five states'],
   },
   {
     id: 'r6b-state-word-v1',
@@ -1090,43 +609,25 @@ const MUTANTS = [
     id: 'r6b-state-word-en',
     what: 'a state\'s English word on the page is not the contract\'s (Access denied)',
     edits: [['src/renderer/texts-en/common.js', "  blocked: 'Access denied',", "  blocked: 'No access',"]],
-    test: ['../tests/acceptance/v03-five-fetch-states.test.mjs', '--test-name-pattern=V3 dictionaries: each'],
-  },
-  {
-    id: 'r6b-state-not-the-core',
-    what: 'the page\'s word for a state and the one the main agent is given differ (无更新)',
-    edits: [['src/renderer/texts/common.js', "  empty: '无更新',", "  empty: '暂无更新',"]],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=R5a words: every action'],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1 the five states'],
   },
   {
     id: 'r6b-hint-next-round',
     what: 'the 处理建议 of 暂时失败 says 下一轮 again where 05 says 下次运行',
     edits: [['src/renderer/texts/common.js', "  'retry-next-round': '下次运行时将自动重试，无需修改地址。',", "  'retry-next-round': '下一轮将自动重试，无需修改地址。',"]],
-    test: ['../tests/acceptance/v03-five-fetch-states.test.mjs', '--test-name-pattern=V3 dictionaries: each'],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1 the five states'],
   },
   {
     id: 'r6b-hint-failed-told-to-remove',
     what: 'a temporary failure is told what only 访问被拒 is told (请改用其他来源)',
     edits: [['src/renderer/texts/common.js', "  'retry-next-round': '下次运行时将自动重试，无需修改地址。',", "  'retry-next-round': '下次运行时将自动重试，无需修改地址。请改用其他来源。',"]],
-    test: ['../tests/acceptance/v03-five-fetch-states.test.mjs', '--test-name-pattern=V3 dictionaries: each'],
+    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1 the five states'],
   },
   {
     id: 'r6b-hint-en-old',
     what: 'the English 处理建议 of 无需处理 is another sentence than the contract\'s',
     edits: [['src/renderer/texts-en/common.js', "  none: 'No action needed.',", "  none: 'There is nothing to do.',"]],
     test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1 the five states'],
-  },
-  {
-    id: 'r6b-evidence-v1-word',
-    what: 'a 系统检测\'s evidence names the state with its v1 word again (texts/proposals.js)',
-    edits: [['src/renderer/texts/proposals.js', "    'source-failing-gap': '地址无效 {n} 次 · 最近一次：{when}',", "    'source-failing-gap': '" + '地址有' + "问题 {n} 次 · 最近一次：{when}',"]],
-    test: ['test/services-r5a.test.mjs', '--test-name-pattern=precheck fix 10'],
-  },
-  {
-    id: 'r6b-about-fetch-v1',
-    what: '高级设置\'s line about the fetch step lists a v1 state word again (texts/pipeline.js)',
-    edits: [['src/renderer/texts/pipeline.js', '（正常 / 无更新 / 地址无效 / 暂时失败 / 访问被拒）', '（正常 / ' + '没新' + '内容 / 地址无效 / 暂时失败 / 访问被拒）']],
-    test: ['test/r6b-words.test.mjs', '--test-name-pattern=R6b-1'],
   },
   {
     id: 'r6b-never-v1',
@@ -1204,8 +705,8 @@ const MUTANTS = [
   },
   {
     id: 'r6b-en-fullwidth-in-code',
-    what: 'a screen writes a full-width comma itself again (the keywords put into the edit box)',
-    edits: [['src/renderer/screens/sources.js', 'setWords(keywords.join(PUNCT.comma))', "setWords(keywords.join('，'))"]],
+    what: 'a screen writes a full-width bracket itself again (what is left to decide, on 来源与要求\'s card)',
+    edits: [['src/renderer/screens/sources.js', '`${PUNCT.open}${x.default}${PUNCT.close}`', "`（${x.default}）`"]],
     test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 no full-width punctuation'],
   },
   {
@@ -1220,26 +721,8 @@ const MUTANTS = [
     edits: [['src/renderer/texts-en/shell.js', "    title: 'Shelf',", "    title: '库架',"]],
     test: ['test/ui-english-screens.test.mjs', '--test-name-pattern=shelf · '],
   },
-  {
-    id: 'r6b-en-screen-fullwidth-mark',
-    what: 'the brackets round 内置规则 in 高级设置 are full-width again in every language',
-    edits: [['src/renderer/screens/pipeline.js', '${PUNCT.open}${T.editor.baseline}${PUNCT.close}', '（${T.editor.baseline}）']],
-    test: ['test/ui-english-screens.test.mjs', '--test-name-pattern=sources · advanced · remove'],
-  },
-  {
-    id: 'r6b-en-screen-rules-in-chinese',
-    what: 'the page is given the built-in rules as the pipeline runs them (Chinese) whatever the interface\'s language',
-    edits: [['src/main/services/pipeline.mjs', '        config: shown(config),\n', '        config,\n']],
-    test: ['test/ui-english-screens.test.mjs', '--test-name-pattern=sources · advanced · remove'],
-  },
   // redesign R6b precheck (adversarial M1): a short word put back in Chinese that the seeded world's sentences hold inside them
   // (「…评测的新动态」, 「追踪中国…」) — it passed as the user's own while a run was looked up as a bare substring of the world's files
-  {
-    id: 'r6b-en-screen-short-word',
-    what: 'one English word is its Chinese again, a word the world\'s briefs hold inside a sentence (待看\'s 新 badge)',
-    edits: [['src/renderer/texts-en/inbox.js', "freshness: Object.freeze({ new: 'new', followup: 'follow-up', duplicate: 'duplicate' }),", "freshness: Object.freeze({ new: '新', followup: 'follow-up', duplicate: 'duplicate' }),"]],
-    test: ['test/ui-english-screens.test.mjs', '--test-name-pattern=inbox · '],
-  },
   {
     id: 'r6b-en-screen-short-word-beside-user',
     what: 'the shelf card\'s line is 「追踪 {what}」 — a short Chinese word the brief itself starts with, beside the user\'s brief',
@@ -1255,24 +738,6 @@ const MUTANTS = [
   // redesign R6d-4 (docs/checks/2026-11-15-r6d/contract.md 「试评分失败项显示裸 id」): the fix put back, seen in each language
   // (redesign R6d precheck: the anchors follow pipeline.js, where the list's description now comes before a desc the failed
   // item carries itself — checkDesc(id, f.desc); the broken line each mutant puts back is the same as before)
-  {
-    id: 'r6d-preview-bare-id-zh',
-    what: '单条测试 shows a failed check by its bare id again (quote-in-source), Chinese interface',
-    edits: [['src/renderer/screens/pipeline.js', "{ item: checkDesc(f.id ?? f.item ?? '', f.desc), evidence: f.evidence ?? '' }", "{ item: f.desc ?? f.item ?? f.id ?? '', evidence: f.evidence ?? '' }"]],
-    test: ['test/ui-r6d.test.mjs', '--test-name-pattern=R6d-4 单条测试 .zh-CN.: a built-in rule'],
-  },
-  {
-    id: 'r6d-preview-bare-id-en',
-    what: '单条测试 shows a failed check by its bare id again (quote-in-source), English interface',
-    edits: [['src/renderer/screens/pipeline.js', "{ item: checkDesc(f.id ?? f.item ?? '', f.desc), evidence: f.evidence ?? '' }", "{ item: f.desc ?? f.item ?? f.id ?? '', evidence: f.evidence ?? '' }"]],
-    test: ['test/ui-r6d.test.mjs', '--test-name-pattern=R6d-4 单条测试 .en.: a built-in rule'],
-  },
-  {
-    id: 'r6d-preview-builtin-only',
-    what: '单条测试 names only the built-in rules by their description; a failed rule of the user\'s own shows its id',
-    edits: [['src/renderer/screens/pipeline.js', ".find(c => c.id === id)?.desc ?? own ?? id\n", ".find(c => c.id === id && c.origin === 'streams')?.desc ?? own ?? id\n"]],
-    test: ['test/ui-r6d.test.mjs', '--test-name-pattern=R6d-4 单条测试 .zh-CN. control'],
-  },
   // redesign R6d-6 (total acceptance; found by the v2 draft's UC3 step 4 picture): 来源与要求 ⇄ 高级设置 no longer resets the
   // scroll of their one body — 高级设置 opened from the link at the bottom shows its middle (test/ui-r6d-scroll.test.mjs)
   {
@@ -1296,22 +761,10 @@ const MUTANTS = [
     test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 待看 in 精密国际主义 and 研究对话, light'],
   },
   {
-    id: 'r6d-contrast-pack-line',
-    what: '研究对话, light: the second line of a document-link is left in round 9\'s #5b708a again',
-    edits: [['src/renderer/styles/template-app.css', '.r11-research:not([data-appearance="dark"]) .document-link small { color: var(--sub11); }\n', '']],
-    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 新建库 in 研究对话, light'],
-  },
-  {
     id: 'r6d-contrast-activity-row',
     what: 'dark: .activity-row is left in round 6\'s #666 again',
     edits: [['src/renderer/styles/template-app.css', '.r11[data-appearance="dark"] .activity-row { color: var(--sub11); }\n', '']],
     test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 待看 in the four dark looks'],
-  },
-  {
-    id: 'r6d-contrast-section-button',
-    what: '研究对话, dark: a section-label\'s buttons are left in the light theme\'s blue again',
-    edits: [['src/renderer/styles/template-app.css', '.r11.r11-research[data-appearance="dark"] .section-label button { color: var(--sub11); }\n', '']],
-    test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 待看 in 研究对话, dark'],
   },
   {
     id: 'r6d-contrast-glass-chosen',
@@ -1407,12 +860,6 @@ const MUTANTS = [
     test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 来源与要求'],
   },
   {
-    id: 'r6d-cmp-brief-twice',
-    what: '来源与要求\'s first block shows its name over 库名称 again (追踪要求 twice)',
-    edits: [['src/renderer/styles/template-app.css', '.st-src [data-part="brief"] > .section-label:first-child { display: none; }\n', '']],
-    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 来源与要求'],
-  },
-  {
     id: 'r6d-cmp-licenses-scroll',
     what: '许可证与致谢 scrolls as a whole again (its head and buttons go with the text)',
     edits: [['src/renderer/styles/template-app.css', '.dialog.st-tdialog { width: min(560px, 92vw); max-width: 92vw; overflow: hidden; }\n.dialog.st-tdialog[open] { display: flex; flex-direction: column; }', '.dialog.st-tdialog { width: min(560px, 92vw); max-width: 92vw; overflow: auto; }']],
@@ -1449,12 +896,6 @@ const MUTANTS = [
     test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 待确认'],
   },
   {
-    id: 'r6d-cmp-chip-font',
-    what: '「n 项待确认」 takes the page\'s font over the chip\'s size again',
-    edits: [['src/renderer/styles/template-app.css', '.st-chip-button { cursor: pointer; }', '.st-chip-button { cursor: pointer; font: inherit; }']],
-    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 待确认'],
-  },
-  {
     id: 'r6d-cmp-conn-grid',
     what: '设置\'s connections are three grids of their own again, the icon column 22px',
     edits: [['src/renderer/styles/template-app.css', '.st-set-conn.file-row { display: grid; grid-template-columns: subgrid; gap: 12px; align-items: center; }', '.st-set-conn.file-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 220px) auto; gap: 12px; align-items: center; }']],
@@ -1488,72 +929,6 @@ const MUTANTS = [
   // test/ui-v101-en.test.mjs, test/services-v101.test.mjs). The window tests' first test makes the cards the others read, so each
   // pattern takes it along ("F2 setup" / "English. setup"); every check after it reads the bridge and the page after a fixed wait,
   // so a broken copy fails on an assertion, not on a wait.
-  {
-    id: 'v101-f2-scroll-used-up',
-    what: 'F2: the conversation\'s first draw (the record not read yet) uses up the scroll to the end again: back on the page it stands at its top',
-    edits: [['src/renderer/screens/chat.js', 'if (toEnd.current && entries !== null && cardsDrawn) {', 'if (toEnd.current) {']],
-    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2'],
-  },
-  {
-    id: 'v101-f2-before-cards',
-    what: 'F2: the end is scrolled to before the cards are drawn (they make the conversation taller after it: the last line out of sight)',
-    edits: [['src/renderer/screens/chat.js', 'if (toEnd.current && entries !== null && cardsDrawn) {', 'if (toEnd.current && entries !== null) {']],
-    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2'],
-  },
-  {
-    id: 'v101-f4-one-press',
-    what: 'F4: a card whose test fetch did not pass is confirmed by the first press again (no second ask)',
-    edits: [['src/renderer/screens/proposal.js', '    if (warn && !armed) { setArmed(true); return undefined }\n', '']],
-    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: a card whose test fetch came back blocked'],
-  },
-  {
-    id: 'v101-f4-no-warning',
-    what: 'F4: no card says its test fetch did not pass (no line beside 确认, one press)',
-    edits: [['src/renderer/screens/proposal.js', '  const warn = trialsNotPassed(card).length > 0\n', '  const warn = false\n']],
-    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: a card whose test fetch came back gap'],
-  },
-  {
-    id: 'v101-f4-every-card',
-    what: 'F4: every card asks twice, a card whose test fetch passed too',
-    edits: [['src/renderer/screens/proposal.js', '  const warn = trialsNotPassed(card).length > 0\n', '  const warn = true\n']],
-    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: a card whose test fetch passed'],
-  },
-  {
-    id: 'v101-f4-compact-unguarded',
-    what: 'F4: the right panel\'s compact card confirms by one press whatever the test fetch said (only the conversation\'s card asks)',
-    edits: [['src/renderer/screens/proposal.js', '  const guard = useTrialGuard(item.card, act.confirm)\n', '  const guard = { warn: false, armed: false, press: act.confirm }\n']],
-    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: the right panel'],
-  },
-  {
-    id: 'v101-f4-failed-passes',
-    what: 'F4: 暂时失败 counts as a test fetch that passed (only 地址无效 and 访问被拒 are said)',
-    edits: [['src/renderer/screens/proposal.js', "export const TRIAL_NOT_PASSED = Object.freeze(['gap', 'blocked', 'failed'])", "export const TRIAL_NOT_PASSED = Object.freeze(['gap', 'blocked'])"]],
-    test: ['test/ui-v101-en.test.mjs', '--test-name-pattern=English. setup|the right panel'],
-  },
-  {
-    id: 'v101-f4-en-one-press',
-    what: 'F4 in English: the first press confirms again',
-    edits: [['src/renderer/screens/proposal.js', '    if (warn && !armed) { setArmed(true); return undefined }\n', '']],
-    test: ['test/ui-v101-en.test.mjs', '--test-name-pattern=English. setup|Access denied'],
-  },
-  {
-    id: 'v101-f4-en-words',
-    what: 'F4 in English: the line beside Confirm is not the agreed sentence',
-    edits: [['src/renderer/texts-en/proposals.js', "trialWarn: 'This address did not pass the test fetch',", "trialWarn: 'Test fetch failed',"]],
-    test: ['test/ui-v101-en.test.mjs', '--test-name-pattern=English. setup|Access denied'],
-  },
-  {
-    id: 'v101-f4-add-unticked',
-    what: 'F4: an added source whose test fetch did not pass says 不添加 again on its card (it is added all the same)',
-    edits: [['src/renderer/screens/proposal.js', 'trial=${{ ...card.trial, include: true }} />', 'trial=${card.trial} />']],
-    test: ['test/ui-v101.test.mjs', '--test-name-pattern=v101 F2 setup|v101 F4: a card whose test fetch came back blocked'],
-  },
-  {
-    id: 'v101-f35-desktop-not-handed',
-    what: 'F3 · F5: the main process does not hand the interface\'s language and the connection to the turn (the situation says neither)',
-    edits: [['src/main/services/agent.mjs', ', language: language(), connection: connectionNow })', ' })']],
-    test: ['test/services-v101.test.mjs', '--test-name-pattern=v101 F3 · F5'],
-  },
   // 1.1 W1 (C2 / C3): the app checks its own files before it starts
   {
     id: 'w1-startup-ignored',
@@ -1678,12 +1053,6 @@ const MUTANTS = [
   },
   // 1.1 W7a: a library of the last version; the connections
   {
-    id: 'w7a-old-round-runs',
-    what: 'a library without a card still runs the last version\'s round',
-    edits: [['src/main/services/pipeline.mjs', '    if (u) {\n      const problem = { code: \'needs-build\' }', '    if (false) {\n      const problem = { code: \'needs-build\' }']],
-    test: ['test/services-library-update.test.mjs', '--test-name-pattern=^a library without a card'],
-  },
-  {
     id: 'w7a-convert-refused',
     what: 'a library without a card cannot be brought over (refused as before W7a)',
     edits: [['src/main/services/build.mjs', '        else convert = { library: libraryId }\n', "        else throw new BridgeError('bad_arguments', 'that library has no card')\n"]],
@@ -1692,7 +1061,7 @@ const MUTANTS = [
   {
     id: 'w7a-no-banner',
     what: 'the page shows no banner for a library that needs bringing over, nor for a connection that can only ask',
-    edits: [['src/renderer/screens/library-frame.js', "'config', 'needs-build', 'update-not-supported']", "'config']"]],
+    edits: [['src/renderer/screens/library-frame.js', "export const BANNER_CODES = Object.freeze(['needs-build', 'update-not-supported'])", 'export const BANNER_CODES = Object.freeze([])']],
     test: ['test/ui-w7a.test.mjs'],
   },
   {
@@ -1712,12 +1081,6 @@ const MUTANTS = [
     what: '停止 is not handed to the update',
     edits: [['src/main/services/pipeline.mjs', '        result = await u.run(dir, a, { round: roundId, signal: controller.signal })', '        result = await u.run(dir, a, { round: roundId })']],
     test: ['test/ui-run.test.mjs', '--test-name-pattern=^运行中'],
-  },
-  {
-    id: 'w7a-update-steps-six',
-    what: 'a running update is shown as the six steps of 1.0 (stuck at 运行前自检)',
-    edits: [['src/renderer/screens/run-steps.js', "const stepsOf = phase => (phase === 'update' ? UPDATE_STEPS : RUN_STEPS)", 'const stepsOf = () => RUN_STEPS']],
-    test: ['test/ui-panel.test.mjs', '--test-name-pattern=^R2 · the running library'],
   },
   // 1.1 W6b: 新建库 and the build conversation
   {
@@ -1767,6 +1130,115 @@ const MUTANTS = [
     what: '新建库 still opens v1.0\'s form',
     edits: [['src/renderer/app.js', "newLibrary: () => setRoute(r => (r.screen === 'build' ? r : { screen: 'build', params: { back: r.screen } })),", "newLibrary: () => setRoute(r => (r.screen === 'new-library' ? r : { screen: 'new-library', params: { back: r.screen } })),"]],
     test: ['test/ui-w6b.test.mjs', '--test-name-pattern=^W6b: 新建库'],
+  },
+  // 1.1 W7b: v1.0's scoring pipeline, v2's main agent chat, its proposal cards and 系统检测 left the product; what is left must
+  // hold — E4 (the interface's banned words in both languages), C1 (no scoring words in the code the product runs), the sidebar's
+  // 主 Agent opening the build conversation, 待确认 holding only the build's card, 问库 only answering, a library without a card
+  // not updated, one step for an update, a 1.0 library read only on 来源与要求
+  {
+    id: 'w7b-e4-blind-to-relevance-word',
+    what: 'E4\'s list no longer knows 相关度 — and a text table says it again (the empty 待看 line)',
+    edits: [
+      ['test/wording.test.mjs', "export const E4_WORDS = Object.freeze(['状态包', '四档', '交卷', '把关', '相关度', '实质', 'relevance', 'substance'])", "export const E4_WORDS = Object.freeze(['状态包', '四档', '交卷', '把关', '实质', 'relevance', 'substance'])"],
+      ['src/renderer/texts/inbox.js', "    title: '暂无待看内容',", "    title: '暂无待看内容（按相关度）',"],
+    ],
+    test: ['test/wording.test.mjs', '--test-name-pattern=^E4'],
+  },
+  {
+    id: 'w7b-e4-planted-en',
+    what: 'an English text table says relevance again (a card\'s label in 待看)',
+    edits: [['src/renderer/texts-en/inbox.js', "    label: 'An item to review',", "    label: 'An item to review by relevance',"]],
+    test: ['test/wording.test.mjs', '--test-name-pattern=^E4 · every interface text file'],
+  },
+  {
+    id: 'w7b-e4-planted-main',
+    what: 'a word of the discussions (把关) in a table of the main process (the notification of a run)',
+    edits: [['src/main/texts/notify.js', "    newItems: '{library}：本次运行新增 {n} 条待看。',", "    newItems: '{library}：本次运行新增 {n} 条待看，已把关。',"]],
+    test: ['test/wording.test.mjs', '--test-name-pattern=^E4 · every interface text file'],
+  },
+  {
+    id: 'w7b-e4-texts-en-skipped',
+    what: 'E4 reads the Chinese tables only (texts-en left out) — and an English table says substance',
+    edits: [
+      ['test/wording.test.mjs', 'const ALL_TEXT_DIRS = [TEXTS, EN_TEXTS, MAIN_TEXTS, MAIN_EN_TEXTS]', 'const ALL_TEXT_DIRS = [TEXTS, MAIN_TEXTS]'],
+      ['src/renderer/texts-en/inbox.js', "    label: 'An item to review',", "    label: 'An item of substance to review',"],
+    ],
+    test: ['test/wording.test.mjs', '--test-name-pattern=^E4 · every interface text file'],
+  },
+  {
+    id: 'w7b-c1-desktop-off',
+    what: 'the C1 scan of the desktop reads none of its files — and a screen judges by a relevance score again',
+    edits: [
+      ['test/c1-scan-desktop.test.mjs', "  const files = codeFiles('desktop/src', { repo: ROOT })\n", "  const files = codeFiles('desktop/src', { repo: ROOT }).filter(f => !f.includes('/screens/'))\n"],
+      ['src/renderer/screens/inbox.js', "  const unverified = Boolean(item.verification) && item.verification.passed === false\n", "  const unverified = Boolean(item.verification) && item.verification.passed === false\n  const strong = (item.scores?.relevance?.score ?? 0) >= 0.7\n"],
+    ],
+    test: ['test/c1-scan-desktop.test.mjs', '--test-name-pattern=^C1 desktop'],
+  },
+  {
+    id: 'w7b-c1-desktop-word',
+    what: 'a desktop service names a threshold of v1.0\'s scoring again (C1 must report it)',
+    edits: [['src/main/services/pipeline.mjs', "const HTTP_URL = /^https?:\\/\\/\\S+$/i\n", "const HTTP_URL = /^https?:\\/\\/\\S+$/i\nconst threshold = 0.7\n"]],
+    test: ['test/c1-scan-desktop.test.mjs', '--test-name-pattern=^C1 desktop'],
+  },
+  {
+    id: 'w7b-c1-desktop-legacy',
+    what: 'the desktop imports core/legacy again (v1.0\'s round, for a library without a card)',
+    edits: [['src/main/services/pipeline.mjs', "import { publicProblems, publicResult } from '../public-data.mjs'\n", "import { publicProblems, publicResult } from '../public-data.mjs'\nimport { runRound } from '../../../../core/legacy/index.mjs'\n"]],
+    test: ['test/c1-scan-desktop.test.mjs', '--test-name-pattern=^C1 desktop'],
+  },
+  {
+    id: 'w7b-sidebar-old-chat',
+    what: 'the sidebar\'s 主 Agent leads to a route of its own again (v2\'s chat, now no screen): the build conversation does not open',
+    edits: [['src/renderer/screens/index.js', "  chat: Object.freeze(['build', Object.freeze({})]),\n", '']],
+    test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 主 Agent opens'],
+  },
+  {
+    id: 'w7b-sidebar-talk-not-marked',
+    what: 'a build conversation going marks 新建库 in the sidebar, not 主 Agent',
+    edits: [['src/renderer/screens/build.js', '  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`}', '  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="build" />`}']],
+    test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 主 Agent opens'],
+  },
+  {
+    id: 'w7b-decide-not-build',
+    what: '待确认 shows something that is not the build\'s card (its count is never 0: a card while none waits)',
+    edits: [['src/renderer/screens/right-panel.js', '  const waiting = waitingCard(build?.data)\n  const n = waiting ? 1 : 0\n', '  const waiting = waitingCard(build?.data)\n  const n = 1\n']],
+    test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 主 Agent opens'],
+  },
+  {
+    id: 'w7b-ask-routes-change',
+    what: '问库 hands a sentence to an agent again (v2 package E\'s routing call instead of askLibrary)',
+    edits: [['src/renderer/screens/ask.js', "      const r = await call('askLibrary', q)", "      const r = await call('sendLibraryMessage', q)"]],
+    test: ['test/ui-ask-r3.test.mjs', '--test-name-pattern=W7b 问库 just answers'],
+  },
+  {
+    id: 'w7b-no-card-updated',
+    what: 'a library without a card is updated anyway (as if it had one) instead of needs-build',
+    edits: [['src/main/services/pipeline.mjs', '    if (u && u.applies(dir)) return startUpdateIn({ id: libraryId, path: dir }, u)', '    if (u) return startUpdateIn({ id: libraryId, path: dir }, u)']],
+    test: ['test/services-library-update.test.mjs', '--test-name-pattern=^a library without a card'],
+  },
+  {
+    id: 'w7b-update-steps-two',
+    what: 'a running update is shown as more than its one step (a self-check of v1.0 before it)',
+    edits: [['src/renderer/screens/run-steps.js', "export const UPDATE_STEPS = Object.freeze(['update'])", "export const UPDATE_STEPS = Object.freeze(['self-check', 'update'])"]],
+    test: ['test/ui-panel.test.mjs', '--test-name-pattern=^R2 · the running library'],
+  },
+  {
+    id: 'w7b-old-library-editable',
+    what: 'a library made by the last version gets a field to edit its brief on 来源与要求 again',
+    edits: [['src/renderer/screens/sources.js', '    ${text ? html`<p class="intro-copy st-src-old-brief">${text}</p>` : html`<p class="limit-note">${T.brief.none}</p>`}', '    <textarea data-field="brief" value=${text}></textarea>']],
+    test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 来源与要求'],
+  },
+  {
+    id: 'w7b-last-run-wrong-count',
+    what: 'the last run\'s one line says another number than the run record\'s (counts.inbox)',
+    edits: [['src/renderer/screens/run-steps.js', '  const added = Number.isInteger(record.counts?.inbox) ? record.counts.inbox : 0\n', '  const added = (Number.isInteger(record.counts?.inbox) ? record.counts.inbox : 0) + 1\n']],
+    test: ['test/ui-status.test.mjs', '--test-name-pattern=^redesign R2: no 运行状态 block'],
+  },
+  {
+    id: 'w7b-inbox-score-back',
+    what: 'a card of 待看 carries v1.0\'s 未评分 mark again',
+    edits: [['src/renderer/screens/inbox.js', "        ${waiting >= LONG_WAIT ? html`<${Mark} attrs=${{ 'data-waiting': waiting }}>", "        ${html`<${Mark} attrs=${{ 'data-scoreless': '' }}>x<//>`}\n        ${waiting >= LONG_WAIT ? html`<${Mark} attrs=${{ 'data-waiting': waiting }}>"]],
+    test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 待看'],
   },
 ]
 

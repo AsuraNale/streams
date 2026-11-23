@@ -1,6 +1,7 @@
 // createLibrary(libraryDir, { name, language? }) -> { libraryDir }
 // Lays out an empty library:
-//   streams.json (with the default pipeline, core-api 4.0), the note folder, _pipeline/{inbox,cache,logs},
+//   streams.json (name, topics, sources and the library's language — 1.1 W7b: no v1.0 scoring steps), the note folder,
+//   _pipeline/{inbox,cache,logs},
 //   _pipeline/ledger.jsonl, _pipeline/fetch_log.jsonl
 // (the note folder is only created here, never written into: see write-note.mjs)
 // Refuses with code 'exists' when libraryDir already holds anything.
@@ -19,11 +20,21 @@ import { StreamsError } from '../errors.mjs';
 import { CONFIG_FILE } from './config.mjs';
 import { ensureNotesDir, scanLibrary, IMPORTED_NOTES_DIR } from './scan.mjs';
 import { INDEX_FILE, INDEX_META_FILE, rebuildIndex } from './index.mjs';
-import { DEFAULT_PIPELINE } from '../pipeline/config.mjs';
-import { LANGUAGES } from '../pipeline/prompts.mjs';
+import { LANGUAGES, languageConfig } from './language.mjs';
 
-// The score keys a kept note carries by default (gate ids + gate 2's freshness enum).
-export const DEFAULT_NODE_IDS = ['relevance', 'substance', 'freshness'];
+const RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+/**
+ * A library name as a folder name: the characters Windows does not take in one become '-'; never empty or reserved.
+ * (1.1 W7b: here from v2's proposal cards, which left core/src; 新建库 still names a new library's folder by it.)
+ */
+export function libraryFolderName(name) {
+  let s = String(name ?? '').normalize('NFC').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').trim().replace(/[. ]+$/g, '');
+  if (s === '') s = 'library';
+  if (RESERVED_NAME.test(s.split('.')[0])) s = `${s}-`;
+  return s;
+}
+
 const PIPELINE_DIRS = ['inbox', 'cache', 'logs'];
 const PIPELINE_FILES = ['ledger.jsonl', 'fetch_log.jsonl'];
 
@@ -32,7 +43,8 @@ export function defaultConfig(name, language = 'zh-CN') {
     name,
     topics: [],
     sources: [],
-    pipeline: DEFAULT_PIPELINE(language),
+    // 1.1 W7b: only the language (library/language.mjs) — where v1.0 kept it, beside its scoring steps, which 1.1 has not
+    pipeline: languageConfig(language),
   };
 }
 

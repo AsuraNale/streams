@@ -31,7 +31,7 @@ import { createBrowseService } from './services/browse.mjs'
 import { createSourcesService } from './services/sources.mjs'
 import { createAskService } from './services/ask.mjs'
 import { createStatusService } from './services/status.mjs'
-import { AGENT_DIR, agentPaths, createUsageCounter } from './core.mjs'
+import { createUsageCounter } from './core.mjs'
 import { createNotifier } from './services/notify.mjs'
 import { wireUpdate } from './update-wiring.mjs'
 import { appVersion } from './version.mjs'
@@ -39,9 +39,6 @@ import { endHelpers } from './quit.mjs'
 import { APP_USER_MODEL_ID, TOAST_ACTIVATOR_CLSID } from './app-id.mjs'
 import { iconPath } from './icon.mjs'
 import { createScheduleService } from './services/schedule.mjs'
-import { createProposalsService } from './services/proposals.mjs'
-import { createNewLibraryService } from './services/new-library.mjs'
-import { createAgentService } from './services/agent.mjs'
 import { createRawErrors } from './raw-errors.mjs'
 // v2 package M: the plan quota / API balance of the current connection
 import { createQuotaService } from './services/quota.mjs'
@@ -93,16 +90,10 @@ const DEV_CONNECTION = !app.isPackaged && DEV_CONNECTION_MODES.includes(process.
 // the timed round (services/schedule.mjs; docs/desktop.md §4.3), development and tests only: 「now」 is this ISO time when the
 // app starts and runs on from there (the schedule, the catch-up and the rounds read this clock); a packaged app reads the real one
 const DEV_NOW = !app.isPackaged && typeof process.env.STREAMS_DEV_NOW === 'string' && !Number.isNaN(Date.parse(process.env.STREAMS_DEV_NOW)) ? Date.parse(process.env.STREAMS_DEV_NOW) : null
-// the proposal cards (services/proposals.mjs; docs/desktop.md §4.5), development and tests only: a JSON file of cards made at
-// start (by: 'dev'), for the page's tests and package G; where a new library goes when a card names no folder and
-// settings.json has no libraryRoot (a development run never falls back to the real Documents folder: without this, a folder in
-// its own app data). A packaged app ignores both: its cards come from the main agent, its default place is Documents\Streams
-const DEV_PROPOSALS = !app.isPackaged && typeof process.env.STREAMS_DEV_PROPOSALS === 'string' && isAbsolute(process.env.STREAMS_DEV_PROPOSALS) ? process.env.STREAMS_DEV_PROPOSALS : null
+// where a new library goes when settings.json has no libraryRoot, development and tests only (a development run never falls back
+// to the real Documents folder: without this, a folder in its own app data). A packaged app ignores it: its default place is
+// Documents/Streams
 const DEV_LIBRARY_ROOT = !app.isPackaged && typeof process.env.STREAMS_DEV_LIBRARY_ROOT === 'string' && isAbsolute(process.env.STREAMS_DEV_LIBRARY_ROOT) ? process.env.STREAMS_DEV_LIBRARY_ROOT : null
-// the main agent (services/agent.mjs; docs/desktop.md §4.6), development and tests only: with STREAMS_DEV_CONNECTION=fake the
-// agent's scripted answers, a JSON file (for the page's tests and package G). A packaged app ignores it: its agent talks to the
-// chosen connection
-const DEV_AGENT_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_AGENT_SCRIPT === 'string' && isAbsolute(process.env.STREAMS_DEV_AGENT_SCRIPT) ? process.env.STREAMS_DEV_AGENT_SCRIPT : null
 // redesign R3 (services/connections.mjs), development and tests only: with STREAMS_DEV_CONNECTION=fake, what 问库's prompt is answered
 // (a JSON file: the answer of the core's ask). A packaged app ignores it
 const DEV_ASK_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_ASK_SCRIPT === 'string' && isAbsolute(process.env.STREAMS_DEV_ASK_SCRIPT) ? process.env.STREAMS_DEV_ASK_SCRIPT : null
@@ -303,8 +294,6 @@ app.whenReady().then(() => {
     // 新建库默认放在 (v2 package I): shown and changed on 设置, never inside the protected folder
     defaultLibraryRoot, protectedDirs: layout.protectedDirs,
     settingsFile: layout.settingsFile, registryFile: layout.librariesFile, emit, log, hidden: HIDDEN, dialog, shell, locale: currentLocale, now: clock, devLibrary: DEV_LIBRARY, devChooseFolder: DEV_CHOOSE_FOLDER,
-    // the main agent's calls count in 「全部库本月用量合计」 on their own line (v2 package C)
-    agentUsageFile: agentPaths(join(layout.appData, AGENT_DIR)).usage,
     // redesign R2: 「n 条待看」 leaves out the 放弃 held by the pipeline (made below) until its bar closes
     held: () => pipelineHeld(),
   })
@@ -322,18 +311,13 @@ app.whenReady().then(() => {
   // the schedule and the queue (services/schedule.mjs) are made below; the pipeline reaches them through these three
   // (getHome's nextRun; the end of a round: the notification, the next one in the queue; the page's startRound: the queue)
   let scheduler = null
-  // the main agent (made below): after every round it records the library's rule-based suggestion cards (v2 package C)
-  let agent = null
   // 1.1 W5: made below, once the render service is there (the pipeline asks for it only when a round starts)
   let libraryUpdate = null
   const pipeline = createPipelineService({
-    library, connections, emit, log, hidden: HIDDEN, shell, locale: currentLocale, now: clock,
+    library, connections, emit, log, hidden: HIDDEN, shell, now: clock,
     schedule: () => scheduler?.view() ?? null, onRoundDone: done => scheduler?.roundDone(done),
     roundGate: () => scheduler.startCurrent('the page'),
-    afterRound: r => agent?.afterRound(r),
-    // redesign R5a: rule ⑤ right after a 放弃 is written; 重新评分 through the queue; raw errors out of the page
-    afterDismiss: r => agent?.afterDismiss(r),
-    rescoreGate: entry => scheduler.startRescore(entry),
+    // redesign R5a: raw errors out of the page
     rawErrors,
     update: () => libraryUpdate,
   })
@@ -375,9 +359,9 @@ app.whenReady().then(() => {
     emit('settings-changed', null)
   })
   const sources = createSourcesService({ library, emit, log, rawErrors, pendingDir: join(layout.appData, 'pending') })
-  // the library's chat box (v2 package E): a sentence routed to a change goes to the main agent (made below) with the library's id
-  const ask = createAskService({ library, connections, log, agentSend: (text, options) => agent.handlers.agentSend(text, options) })
-  const status = createStatusService({ library, connections, log, hidden: HIDDEN, shell, schedule: () => scheduler?.view() ?? null, rawErrors })
+  // 问库 (1.1 W7b: it answers; nothing goes to an agent from there)
+  const ask = createAskService({ library, connections, log })
+  const status = createStatusService({ library, log, hidden: HIDDEN, shell })
   const services = createAppServices({
     layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets, applyTheme, scheme: () => currentLook().scheme,
     // 许可证与致谢 (licenses.mjs): the packaged app reads its own copies (resources/app, beside Streams.exe), a development run the repository's
@@ -393,25 +377,8 @@ app.whenReady().then(() => {
   // the timed rounds, the queue and the tray (docs/desktop.md §4.3–4.4): the timer, the catch-up, the close button into the tray
   scheduler = createScheduleService({ settingsFile: layout.settingsFile, library, pipeline, notifier, emit, log, now: clock })
   closeToTray = () => scheduler.enabled()
-  // the proposal cards (v2 package B): made by the main agent later (createProposal, not on the bridge), confirmed on the page;
-  // a confirm reaches the registry and the queue through the library service and the scheduler
-  const proposals = createProposalsService({
-    appDataDir: layout.appData, library, scheduler: () => scheduler, emit, log, now: clock, locale: currentLocale,
-    libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
-    fallbackSchedule: () => readSettings(layout.settingsFile).schedule,
-    devProposals: DEV_PROPOSALS,
-    // redesign R5a: a confirmed card changed a library — its 系统检测 that no longer fit are expired (暂停该来源 → ① ③)
-    afterConfirmed: card => agent?.afterProposal(card),
-    rawErrors,
-  })
-  // redesign R4a: 新建库's one-page form — the same core function as a confirmed create_library card (services/new-library.mjs)
-  const newLibrary = createNewLibraryService({
-    library, scheduler: () => scheduler, settingsFile: layout.settingsFile, locale: currentLocale, log, now: clock,
-    libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
-  })
-  // the main agent (v2 package C): one conversation, one turn at a time; its cards go through createProposal above, so only
-  // the user's 「确认」 changes anything
-  // 1.1 W6b: building a library (and changing a library's card) as one conversation with the main agent
+  // 1.1 W6b: building a library (and changing a library's card) as one conversation with the main agent; only the user's
+  // 「确认」 makes or changes anything (W7b: the sidebar's 主 Agent opens this conversation — v2's main agent chat is gone)
   const build = createBuildService({
     appDataDir: layout.appData, library, connections, emit, log, now: clock, locale: currentLocale,
     libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
@@ -419,7 +386,6 @@ app.whenReady().then(() => {
     // stand-in's one question
     ...(DEV_BUILD || DEV_CONNECTION ? { session: (active, callsSoFar) => devBuildSession(DEV_BUILD, callsSoFar) } : {}),
   })
-  agent = createAgentService({ appDataDir: layout.appData, library, connections, proposals, emit, log, now: clock, locale: currentLocale, devScript: DEV_AGENT_SCRIPT, rawErrors })
   // the tray's count is the current library's
   const inboxNow = () => { const d = library.dir(); if (!d) return 0; try { return listInbox(d).length } catch { return 0 } }
   const tray = createTray({
@@ -437,16 +403,14 @@ app.whenReady().then(() => {
       // … and when another library becomes the current one (redesign R2: 换库 closes the bar)
       const h = pipeline.held()
       if (h && h.dir !== library.dir()) pipeline.settlePending('another library is open')
-      // redesign R5a: the current library's configuration changed — its 系统检测 that no longer fit are expired
-      if (payload?.libraryId) agent.checkLibrary(payload.libraryId)
     }
     else if (topic === 'settings-changed') tray.refresh()
     // a library registered, removed or switched to: the timer again, for the libraries as they are now
     else if (topic === 'libraries-changed') scheduler.arm()
-    // v2 package M: Codex and the API read their quota again after a round, after a turn of the main agent, and for a new
-    // current connection (another one, a vendor, a key)
+    // v2 package M: Codex and the API read their quota again after a run, after a turn of the build conversation, and for a
+    // new current connection (another one, a vendor, a key)
     else if (topic === 'round-progress' && payload?.done === true) void quota.afterTurn('a round ended')
-    else if (topic === 'agent-changed' && payload?.phase === 'done') void quota.afterTurn('a turn of the main agent ended')
+    else if (topic === 'build-changed' && payload?.phase === 'done') void quota.afterTurn('a turn of the build conversation ended')
     else if (topic === 'connections-changed') void quota.connectionsChanged()
   })
   quota.start()
@@ -480,10 +444,7 @@ app.whenReady().then(() => {
       ...ask.handlers,
       ...status.handlers,
       ...scheduler.handlers,
-      ...proposals.handlers,
-      ...newLibrary.handlers,
       ...build.handlers,
-      ...agent.handlers,
       // v2 package M
       ...quota.handlers,
     },
@@ -492,8 +453,6 @@ app.whenReady().then(() => {
   createWindow()
   // the catch-up at start: the libraries are known by now (the registry, the development one)
   void scheduler.start()
-  // the development cards (STREAMS_DEV_PROPOSALS), once the libraries are known
-  void proposals.loadDev()
 
   // a second launch (the single-instance lock above): this app's window comes to the front instead
   app.on('second-instance', () => {

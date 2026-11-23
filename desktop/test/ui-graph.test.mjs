@@ -39,7 +39,7 @@ test('R3-2 only files are drawn — the index\'s entries, none of the ledger\'s 
   assert.deepEqual(got.map(n => n.id).sort(), g.nodes.map(n => n.id).sort())
   const items = got.filter(n => n.kind === 'item').map(n => n.id.replace(/^item:/, '')).sort()
   assert.deepEqual(items, core.readIndex(dir()).map(e => e.id).sort(), 'the items are the index (every file, kept and your own)')
-  const caught = core.listLibrary(dir(), { view: 'caught' }).items
+  const caught = [...core.replayLedger(dir()).states.values()].filter(x => x.stage !== 'kept' && x.title) // 1.1 W7b: the ledger's items without a file (v1.0's view 'caught' is gone)
   assert.ok(caught.length >= 3, 'control: the ledger has items without a file')
   for (const c of caught) assert.ok(!got.some(n => n.id === `item:${c.url}`), `${c.title}: not drawn`)
   for (const n of got) {

@@ -23,7 +23,7 @@
 
 import { readFileSync } from 'node:fs'
 import { BridgeError } from '../bridge-methods.mjs'
-import { ASK_PREAMBLE, ASK_PREAMBLE_EN, VENDORS, VENDOR_IDS, createConnector, createSessionConnector, fakeConnector, modelsFor, resolveModel, scriptedConnector } from '../core.mjs'
+import { ASK_PREAMBLE, ASK_PREAMBLE_EN, VENDORS, VENDOR_IDS, createConnector, fakeConnector, modelsFor, resolveModel, scriptedConnector } from '../core.mjs'
 
 /** Development only: the scripted connector, with 问库's prompt (the core's ask preamble first) answered by `answer`. */
 export function withAskAnswer(inner, answer) {
@@ -93,17 +93,6 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
     if (devConnection) return fakeConnector({ mode: devConnection })
     // v2 package M: every call's quota (Claude Code's stream) goes to the corner under this kind
     return createConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref), onQuota: q => onQuota(kind, q) })
-  }
-
-  /**
-   * The main agent's connector for a kind (v2 package C; core createSessionConnector): the same connection and key, in the
-   * session mode — Claude Code / Codex keep one conversation and run in `cwd` (still 「不能动手」), the API replays it.
-   * The development stand-ins are the agent service's own (services/agent.mjs), not made here.
-   */
-  const sessionConnector = (kind, { cwd, log: sessionLog = log } = {}) => {
-    checkKind(kind)
-    // v2 package M: the main agent's turns bring the plan's windows too
-    return createSessionConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref), log: line => sessionLog(`agent connection: ${line}`), onQuota: q => onQuota(kind, q) }, { cwd })
   }
 
   const keyState = () => {
@@ -318,5 +307,5 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
   // v2 package M: the current connection's kind, for the quota service (services/quota.mjs) — the setting only, no detection
   const activeKind = () => settings().connections.active ?? null
 
-  return { handlers, active, activeKind, connector, sessionConnector, connection, probeConnector, diagnosticLines, devConnection }
+  return { handlers, active, activeKind, connector, connection, probeConnector, diagnosticLines, devConnection }
 }

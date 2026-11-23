@@ -13,6 +13,8 @@ import { INBOX } from '../src/renderer/texts/inbox.js'
 import { INBOX as INBOX_EN } from '../src/renderer/texts-en/inbox.js'
 import { SOURCES } from '../src/renderer/texts/sources.js'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
+import { CONNECTIONS } from '../src/renderer/texts/common.js'
+import { fmt } from '../src/renderer/lib/format.js'
 import { worldSession } from './support/seed.mjs'
 import { seedCardLibrary, startCardSite } from './support/card-world.mjs'
 
@@ -173,7 +175,9 @@ describe('W6a: 待看, the reading window, 来源与要求, 设置', () => {
     await s.page.click('.st-sidebar__footer-button')
     await until(() => document.querySelectorAll('[data-part="only-ask"]').length > 0)
     const r = await s.page.evaluate(() => ({ notes: [...document.querySelectorAll('[data-connection]')].map(e => [e.dataset.connection, e.querySelector('[data-part="only-ask"]')?.textContent ?? null]), uses: document.querySelector('[data-part="agent-uses"]').textContent }))
-    assert.deepEqual(r.notes, [['claude-code', null], ['codex', SETTINGS.conn.onlyAsk], ['api', SETTINGS.conn.onlyAsk]])
+    const onlyAsk = fmt(SETTINGS.conn.onlyAsk, { cc: CONNECTIONS.names['claude-code'] })
+    assert.ok(onlyAsk.includes(CONNECTIONS.names['claude-code']) && !onlyAsk.includes('{cc}'), 'the note names the connection to use')
+    assert.deepEqual(r.notes, [['claude-code', null], ['codex', onlyAsk], ['api', onlyAsk]])
     assert.equal(r.uses, SETTINGS.conn.agentUses)
     assert.equal(r.uses.includes('评分'), false)
     await shot('settings-light')
@@ -252,7 +256,7 @@ describe('W6a: a library built by the last version (A6)', () => {
   test('the notice and 「重新查一遍来源」: off on Codex with the reason, on with Claude Code', async () => {
     await o.page.waitForSelector('[data-part="old-library"]', POLL)
     const off = await o.page.evaluate(() => ({ can: document.querySelector('[data-part="old-library"]').dataset.can, disabled: document.querySelector('[data-action="recheck-sources"] button').disabled, why: document.querySelector('[data-part="recheck-why"]')?.textContent ?? null, lead: document.querySelector('[data-lead]').textContent }))
-    assert.deepEqual([off.can, off.disabled, off.why], ['false', true, SOURCES.old.needsClaude])
+    assert.deepEqual([off.can, off.disabled, off.why], ['false', true, fmt(SOURCES.old.needsClaude, { cc: CONNECTIONS.names['claude-code'] })])
     assert.equal(off.lead, SOURCES.old.lead)
     if (SHOTS) await o.page.screenshot({ path: join(SHOTS, 'sources-old-codex.png') })
     const set = await o.page.evaluate(() => window.streams.setActiveConnection('claude-code'))

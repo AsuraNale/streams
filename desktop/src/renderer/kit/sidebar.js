@@ -1,7 +1,8 @@
 // The left sidebar — redesign R1: the template's parts, as the design's streams/app.js builds it (07-模板版/说明.md 「用了模板
 // 的哪些部件」: brand · navitem · project-item · side-footer, plus streams.css's st-quota):
 //   brand (流息's mark — the new logo's 五流 in the theme's ink, lib/brand-mark.js — · 流息 · 个人资料库) · 「新建库」 (navitem.new) · 库架 (with how many libraries) · 主 Agent (no number: what
-//   waits for you is counted on the right panel's 待确认 only, F10) · 「我的库」 · one project-item per library — its icon, its
+//   waits for you is counted on the right panel's 待确认 only, F10; 1.1 W7b: it opens the build conversation, the route 'build' —
+//   marked while that page shows a conversation, `current` 'chat'; 「新建库」 is marked while it shows its one sentence) · 「我的库」 · one project-item per library — its icon, its
 //   name, its 待看 count or an amber dot, one line under it: 运行中 · <当前环节> / 排队中 · 第 n 位 / 来源异常 / n 条待看 —
 //   then at the foot the current connection's 套餐用量 (v2 package M; nothing at all when there is none) and 设置.
 //   Everything comes from the app context (useApp: libraries, openLibrary, newLibrary, queue; app.js).
@@ -23,7 +24,8 @@ import { useQuota } from '../lib/quota.js'
 // v2 package L: a library's place in the queue (its line under the name)
 import { queueStateOf, queueWords } from '../lib/queue.js'
 
-/** The two entries under 「新建库」, in order, with the template's icons; the screen id is the key (screens/index.js). */
+/** The two entries under 「新建库」, in order, with the template's icons; the route id is the key (screens/index.js: 'chat' is the
+ * build conversation's alias). */
 export const NAV_ENTRIES = Object.freeze([['shelf', 'allProjects'], ['chat', 'note']])
 
 const current = on => (on ? 'page' : undefined)
@@ -138,7 +140,7 @@ export function AppSidebar({ current: where }) {
   const quota = useQuota()
   return html`<${Sidebar}>
     <nav class="side-nav" aria-label=${SIDEBAR.label}>
-      <${SidebarAdd} name="add-library" isCurrent=${here === 'new-library' || here === 'build'} onClick=${() => newLibrary?.()}>${SHELL.sidebar.newLibrary}<//>
+      <${SidebarAdd} name="add-library" isCurrent=${here === 'build'} onClick=${() => newLibrary?.()}>${SHELL.sidebar.newLibrary}<//>
       ${NAV_ENTRIES.map(([id, icon]) => html`<${SidebarNav} key=${id} id=${id} icon=${icon} isCurrent=${here === id}
         n=${id === 'shelf' && libraries?.data ? rows.length : null} onClick=${() => navigate(id)}>${SIDEBAR.entries[id]}<//>`)}
     </nav>

@@ -2,23 +2,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readConfig, topicNames, nodeIds } from '../src/library/config.mjs';
+import { readConfig, topicNames } from '../src/library/config.mjs';
 import { caseDir } from './support/tmp.mjs';
 import { makeLibrary, TEST_CONFIG } from './support/fixtures.mjs';
 
-test('readConfig reads topics and pipeline node ids', () => {
+test('readConfig reads topics', () => {
   const dir = makeLibrary('config-ok');
   const r = readConfig(dir);
   assert.equal(r.ok, true);
   assert.deepEqual(r.config, TEST_CONFIG);
   assert.deepEqual(topicNames(r.config), ['agent 记忆', 'MCP']);
-  assert.deepEqual(nodeIds(r.config), ['relevance', 'substance', 'freshness']);
 });
 
-test('topicNames / nodeIds tolerate missing sections', () => {
+test('topicNames tolerates missing sections', () => {
   assert.deepEqual(topicNames({}), []);
-  assert.deepEqual(nodeIds({}), []);
-  assert.deepEqual(nodeIds({ pipeline: {} }), []);
   assert.deepEqual(topicNames(null), []);
 });
 
@@ -49,8 +46,6 @@ test('wrong shape -> code invalid-shape naming the offending key', () => {
     ['{"topics": [{"keywords": []}]}', /topics\[0\]/],
     ['{"topics": [{"name": ""}]}', /topics\[0\]/],
     ['{"pipeline": []}', /"pipeline" must be an object/],
-    ['{"pipeline": {"nodes": {}}}', /pipeline\.nodes/],
-    ['{"pipeline": {"nodes": [{"name": "relevance"}]}}', /pipeline\.nodes\[0\]/],
   ];
   for (const [text, re] of cases) {
     const dir = caseDir('config-shape');
@@ -59,6 +54,12 @@ test('wrong shape -> code invalid-shape naming the offending key', () => {
     assert.equal(r.ok, false, text);
     assert.equal(r.error.code, 'invalid-shape', text);
     assert.match(r.error.message, re, text);
+  }
+  // 1.1 W7b: v1.0's scoring steps (pipeline.nodes) are not read any more, so not checked either: any shape of them is kept
+  for (const text of ['{"pipeline": {"nodes": {}}}', '{"pipeline": {"nodes": [{"name": "relevance"}]}}']) {
+    const dir = caseDir('config-shape-nodes');
+    writeFileSync(join(dir, 'streams.json'), text, 'utf8');
+    assert.equal(readConfig(dir).ok, true, text);
   }
 });
 

@@ -14,7 +14,6 @@ import {
   saveOriginal, readOriginal, originalFor, originalId, originalPath, pruneOriginals, ORIGINALS_DIR, ORIGINAL_MISSING,
   RETAIN_DISMISSED_DAYS, sourceStateOf, createLibrary, scanLibrary, appendEvent, hintOf,
 } from '../src/index.mjs';
-import { STATE_WORDS, ADVICE_WORDS } from '../src/agent/words.mjs';
 import { caseDir } from './support/tmp.mjs';
 
 const para = (n, word = 'The council approved the new budget after a long debate about schools and roads') => Array.from({ length: n }, (_, i) => `<p>${word}, part ${i + 1}, with enough words to be a real paragraph of the story.</p>`).join('\n');
@@ -278,12 +277,10 @@ test('states · six states, each from its own answer of the server; 403 tries th
   assert.equal(sourceStateOf(await r.read(`${base}/captcha`)).state, 'blocked');
 });
 
-test('states · 「要登录」 has its words and what to do, in Chinese and English, and says this version cannot read it', () => {
-  assert.equal(STATE_WORDS.zh.login, '要登录');
-  assert.equal(STATE_WORDS.en.login, 'Sign-in required');
+// 1.1 W7b: the words of 「要登录」 and what to do were checked here in v2's main agent's word list (agent/words.mjs), which left
+// core/src with the main agent; the page's own words are the desktop's (texts), checked there
+test('states · 「要登录」 has its own hint, saying this version cannot read it', () => {
   assert.equal(hintOf('login'), 'login-not-supported');
-  assert.match(ADVICE_WORDS.zh['login-not-supported'], /这一版还读不了要登录的网站/);
-  assert.match(ADVICE_WORDS.en['login-not-supported'], /cannot read such sites/);
   assert.notEqual(hintOf('login'), hintOf('blocked'));
 });
 
@@ -423,7 +420,8 @@ test('extract · short closing lines that only point elsewhere go, whatever they
 });
 
 test('states · a feed address that shows a sign-in page, or answers 401, is 「要登录」 in 试抓 (fetchSource), not a wrong address', async () => {
-  const { fetchSource, makeContext } = await import('../src/index.mjs');
+  // 1.1 W7b: v1.0's 试抓 is core/legacy's (its feed fetcher); the states it reports are core/src's (fetch/states.mjs)
+  const { fetchSource, makeContext } = await import('../legacy/index.mjs');
   const ctx = makeContext({ timeoutMs: 3000 });
   assert.equal((await fetchSource({ name: 'p', kind: 'rss', url: `${base}/login` }, ctx)).status, 'login');
   assert.equal((await fetchSource({ name: 'p', kind: 'rss', url: `${base}/private` }, ctx)).status, 'login');

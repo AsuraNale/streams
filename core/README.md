@@ -2,6 +2,8 @@
 
 流息 Streams 的核心层：纯 Node（≥ 24，ESM），无界面，零第三方依赖（`dependencies` 与 `devDependencies` 都为空）。W1 是「库」这一块：文件头解析与校验、索引重建、账本重放、缺少文件头的文件清单、建库、唯一的写 notes/ 入口。W2 是「抓取」：RSS / Atom、arXiv、Hacker News 三个抓取器、五态、礼貌规则、两层去重、手动投入、抓取日志与来源健康（见末尾「抓取」一节）。
 
+> **1.1 W7b：** 1.0 的评分流水线（一次运行、评分环节、摘要环节、严格程度三档、重新评分、预估、正文缓存、RSS / arXiv / Hacker News 抓取器、手动投入、新建库表单与预设来源包）已从 `src/` 移到 `legacy/`（不随安装包发出，只给测试和「1.0 建的库」的样本用；`legacy/index.mjs` 是它的出口，`src/` 不引用 `legacy/`，`test/c1-scan.test.mjs` 守着）。v2 的主 Agent（`src/agent/`）、提议卡（`src/proposals/`）、系统检测（`src/suggest/`）已删除；变更记录留在 `src/library/changes.mjs`。下文写到这些部分的地方是 1.0 / v2 时的样子。
+
 ## 跑测试
 
 ```
@@ -20,14 +22,12 @@ npm test            # = node --test "test/*.test.mjs"
 node bin/streams-core.mjs rebuild <libraryDir>   # 重建 index.jsonl + index.meta.json，列出被拒的文件
 node bin/streams-core.mjs pending <libraryDir>   # 缺少文件头的文件清单（含拟定文件头）
 node bin/streams-core.mjs replay  <libraryDir>   # 重放账本，输出每个 url 的当前状态
-node bin/streams-core.mjs fetch   <libraryDir>   # 运行一次抓取（只抓取登记，不评分）；try-source <dir> <name> 试抓不写盘；status <dir> 来源状态
-node bin/streams-core.mjs self-check <libraryDir> --connection <claude-code|codex|api|fake>      # 第 0 步自检
-node bin/streams-core.mjs run        <libraryDir> --connection <…> [--model id] [--cap n]        # 完整的一次运行：抓取→评分环节①→正文→评分环节②→摘要→待看
-node bin/streams-core.mjs estimate | inbox | rounds <libraryDir>                                   # 跑前预估 / 待看 / 运行记录
+node bin/streams-core.mjs status  <libraryDir>   # 来源状态（读抓取日志）
+node bin/streams-core.mjs inbox | rounds <libraryDir>                        # 待看 / 运行记录
 node bin/streams-core.mjs keep <libraryDir> <url>   ·   dismiss <libraryDir> <url> <reason>
 ```
 
-`api` 的 key 只从环境变量 `STREAMS_API_KEY` 读（命令行开发用；桌面版走 safeStorage）。
+1.1 W7b：1.0 的 fetch / try-source / self-check / estimate / run 随评分流水线去了 `legacy/`，命令行不再有。
 
 输出 JSON 到 stdout；出错时 stderr 是 `{"error":{"code","message"}}`，退出码 1；用法错误退出码 2。
 

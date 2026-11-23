@@ -2,27 +2,24 @@
 // was v1.0's 待看 test (the reason dialog, 「这一条的记录」 dialog, L that wrote nothing); redesign R2 changed what 待看 is — the
 // dialog is gone (放弃 is a bar, its reason optional), 稍后处理 is recorded, the record is in the right panel's 详情 — so the
 // file is rewritten for the new page; what it kept: the cards in the core's order, the marks, J / K and the focus, C writes a note.
-//   cards   one line 「来源 · 日期 · 相关度 · 实质 · 新鲜度」, no reason on the card (the reasons are 详情's), the marks on it, the
+//   cards   one line 「来源 · 日期」 (1.1 W6a: no score), no reason on the card, the marks on it, the
 //           title opens Streams' reading window (openReader: in a test run the main log says so), J / K / C / D / L
 //   放弃    off the list at once with nothing in the ledger; the bar: four quick reasons + 其他原因… + 撤销; 撤销 → back, no
 //           `dismissed`; 关闭 → written without a reason field; a quick reason → written with it; the next decision → the held
 //           one written (and the app quitting: the second session below)
 //   稍后    L → the row 「稍后处理 · n 条」 (opened: the item), _pipeline/later.json; after a restart still there; a run of this
 //           library that ended → back in 待看 (the third session)
-//   未通过筛选  folded by default; opened: the step, the score, the reason; 移入待看 → a card marked 未通过筛选 · 手动移入 with
-//           notes/ byte for byte unchanged; 收藏 then → a note the core validates and the index lists
-//   添加链接  a bad address says so; a good one is a 「待评分」 row at once; the same one again says it is known
-//   详情    推荐理由 (the three steps and their reasons), 核验, 核验记录 folded (opened: the record of verdicts.jsonl, no dialog),
-//           来源 · 发布 · 首次抓取
+//   详情    核验, 核验记录 folded (opened: the record of verdicts.jsonl, no dialog), 来源 · 发布 · 首次抓取
+//   empty   暂无待看内容, the last run in one line (the run record: when it ended, how many it put into 待看), 最近收藏
+// 1.1 W7b: v1.0's 未通过筛选 (and 移入待看), 添加链接 / 待评分, the scores in 详情 and the funnel of the last run are gone with its
+// scoring pipeline; the seeded world is a library as v1.0 made it (core/legacy), which 待看 still serves.
 // Each check is built to be able to fail: the state before is asserted first (a control) where it could already be true.
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { INBOX } from '../src/renderer/texts/inbox.js'
-import { PANEL } from '../src/renderer/texts/panel.js'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { closeApp, launch, ready } from './support/app.mjs'
 import { worldSession } from './support/seed.mjs'
@@ -35,9 +32,8 @@ const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs
 const POLL = { polling: 100, timeout: 60_000 }
 const settings = { connections: { active: 'claude-code' }, panel: { open: true, tab: 'detail' } }
 const jsonl = p => (existsSync(p) ? readFileSync(p, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : [])
-const notesHash = dir => readdirSync(join(dir, 'notes')).sort().map(f => `${f}:${createHash('sha256').update(readFileSync(join(dir, 'notes', f))).digest('hex')}`).join('|')
 
-describe('待看: cards, 详情, J / K, 放弃 and its bar, 稍后处理, 未通过筛选, 添加链接', () => {
+describe('待看: cards, 详情, J / K, 放弃 and its bar, 稍后处理, the empty page', () => {
   const s = worldSession({ kind: 'seeded', waitFor: 'inbox', settings, env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'inbox' }) })
   const dir = () => s.world.library
   const ledger = () => jsonl(join(dir(), '_pipeline', 'ledger.jsonl'))
@@ -56,7 +52,7 @@ describe('待看: cards, 详情, J / K, 放弃 and its bar, 稍后处理, 未通
     for (const c of got) {
       const sc = seed.scores[c.url]
       // 1.1 W6a (A3; E4): the line is the source and the date only — no score of 1.0's scoring, no freshness word
-      assert.ok(!c.line.includes('相关度') && !c.line.includes('实质') && !c.line.includes(INBOX.card.freshness[sc.freshness.value]), c.line)
+      assert.ok(!/\d\.\d{2}/.test(c.line) && !['新', '后续', '重复'].some(w => c.line.endsWith(w)), c.line)
       assert.ok(c.line.includes(`发布 ${seed.items?.find?.(x => x.url === c.url)?.date ?? ''}`.trim()) || /发布 d{4}-d{2}-d{2}/.test(c.line), c.line)
       assert.ok(c.line.startsWith('letta-blog'), c.line)
       // the reasons are 详情's, never the card's (control: the seed's reasons are not empty)
@@ -83,22 +79,23 @@ describe('待看: cards, 详情, J / K, 放弃 and its bar, 稍后处理, 未通
     while (!mainLog().includes(`reader: open ${url}`)) { if (Date.now() > end) throw new Error('the reading window was not asked for'); await s.page.waitForTimeout(100) }
   })
 
-  test('详情 is the current card: 推荐理由 (three steps, their reasons), 核验, 核验记录 folded — opened, the record of verdicts.jsonl (no dialog) — and 来源 · 发布 · 首次抓取', async () => {
+  test('详情 is the current card: 核验, 核验记录 folded — opened, the record of verdicts.jsonl (no dialog) — and 来源 · 发布 · 首次抓取; no score of v1.0', async () => {
     const seed = s.world.seed
     const url = await s.page.evaluate(() => document.querySelector('[data-card] [data-unverified]').closest('[data-card]').dataset.url)
+    const title = await s.page.evaluate(u => document.querySelector(`[data-card][data-url="${u}"] [data-action="open"]`).textContent, url)
     await s.page.click(`[data-card][data-url="${url}"] .card-body`)
-    await s.page.waitForFunction(u => document.querySelector('[data-part="detail-scores"]')?.dataset.url === u, url, POLL)
+    await s.page.waitForFunction(t => document.querySelector('[data-part="detail-inbox"] h2')?.textContent === t, title, POLL)
     const d = await s.page.evaluate(() => ({
-      ids: [...document.querySelectorAll('[data-detail-score]')].map(e => e.dataset.detailScore),
-      text: document.querySelector('[data-part="detail-scores"]').textContent,
+      text: document.querySelector('[data-part="detail-inbox"]').textContent,
+      scores: document.querySelectorAll('[data-part="detail-scores"], [data-detail-score]').length,
       check: document.querySelector('[data-part="detail-check"]').dataset.verified,
       record: document.querySelector('[data-part="detail-record"]').dataset.open,
       source: document.querySelector('[data-part="detail-source"]').textContent,
-      head: document.querySelector('[data-part="detail-scores"] .section-label').textContent,
     }))
-    assert.deepEqual(d.ids, ['relevance', 'substance', 'freshness'])
-    assert.equal(d.head, PANEL.detail.inbox.scores)
-    assert.ok(d.text.includes(seed.scores[url].relevance.reason) && d.text.includes(seed.scores[url].substance.reason), d.text)
+    // 1.1 W7b: v1.0's scores and their reasons are not shown (control: the seed's reasons are there in its data)
+    assert.ok(seed.scores[url].relevance.reason.length > 3)
+    assert.equal(d.scores, 0)
+    assert.equal(d.text.includes(seed.scores[url].relevance.reason) || d.text.includes(seed.scores[url].substance.reason), false, d.text)
     assert.equal(d.check, 'failed', 'the card that did not pass the check')
     assert.equal(d.record, 'false', 'folded by default')
     assert.ok(d.source.includes('letta-blog') && d.source.includes('发布') && d.source.includes('首次抓取'), d.source)
@@ -193,73 +190,19 @@ describe('待看: cards, 详情, J / K, 放弃 and its bar, 稍后处理, 未通
     await s.page.waitForFunction(u => document.querySelector(`[data-part="later"] [data-later="${u}"]`) !== null, urls[1], POLL)
   })
 
-  test('待看 empty: 暂无待看内容, the last run as a funnel (the run record\'s five cells; the calls by part add up), 最近收藏', async () => {
+  test('待看 empty: 暂无待看内容, the last run in one line (when it ended, how many it put into 待看), 最近收藏', async () => {
     await waitCards(0)
     await s.page.waitForFunction(() => document.querySelector('[data-part="empty"]') !== null && document.querySelector('main [data-part="last-run"]') !== null, null, POLL)
     const rec = core.listRounds(dir(), 1)[0]
+    assert.ok(rec && Number.isInteger(rec.counts?.inbox), 'control: the seed\'s run record')
     const f = await s.page.evaluate(() => {
       const p = document.querySelector('main [data-part="last-run"]')
-      return { cells: [...p.querySelectorAll('[data-funnel-cell]')].map(e => [e.dataset.funnelCell, e.dataset.value]), total: p.querySelector('[data-part="funnel-calls"]')?.dataset.total, parts: p.querySelector('[data-part="funnel-calls"]')?.dataset.parts, text: p.textContent, round: p.dataset.round }
+      return { state: p.dataset.state, round: p.dataset.round, added: p.dataset.added, complete: p.dataset.complete, text: p.textContent, funnel: document.querySelectorAll('[data-funnel-cell], [data-part="funnel-calls"]').length }
     })
-    assert.equal(f.round, rec.id)
-    assert.deepEqual(f.cells, [['fetched', String(rec.counts.fetched)], ['new', String(rec.counts.new)], ['gate:relevance', String(rec.gates.relevance.passed)], ['gate:substance', String(rec.gates.substance.passed)], ['inbox', String(rec.counts.inbox)]])
-    const by = rec.callsBy
-    assert.ok(by, 'control: the record has its parts')
-    const parts = [['self-check', by.selfCheck], ['gate:relevance', by.gates.relevance], ['gate:substance', by.gates.substance], ['summary', by.summary], ['verify', by.verify]]
-    assert.equal(f.parts, parts.map(([id, n]) => `${id}:${n}`).join(','))
-    assert.equal(Number(f.total), parts.reduce((a, [, n]) => a + n, 0), 'N = the sum of the parts')
-    assert.equal(Number(f.total), by.selfCheck + rec.calls)
-    assert.ok(f.text.includes(`模型调用 ${f.total} 次 = 运行前自检 ${by.selfCheck} + 相关度 ${by.gates.relevance}`), f.text)
+    assert.deepEqual([f.state, f.round, f.added, f.complete], ['ready', rec.id, String(rec.counts.inbox), 'true'])
+    assert.ok(f.text.startsWith('上次运行 · ') && f.text.endsWith(`新增 ${rec.counts.inbox} 条进入待看`), f.text)
+    assert.equal(f.funnel, 0, 'v1.0\'s funnel is gone')
     assert.ok(await s.page.evaluate(() => document.querySelectorAll('[data-part="recent"] [data-kept]').length >= 1))
-  })
-
-  test('未通过筛选: folded by default; opened, the step, score and reason; 移入待看 → a card marked 手动移入, notes/ unchanged; 收藏 → a valid note in the index', async () => {
-    const r = core.listRejected(dir())
-    assert.ok(r.total >= 1, 'control: the seed has an item below relevance')
-    assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="rejected"]').dataset.open), 'false')
-    assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="rejected"] [data-rejected]')), null, 'folded: no row drawn')
-    await s.page.click('[data-part="rejected"] summary')
-    await s.page.waitForFunction(() => document.querySelector('[data-part="rejected"] [data-rejected]') !== null, null, POLL)
-    const row = await s.page.evaluate(() => { const e = document.querySelector('[data-part="rejected"] [data-rejected]'); return { url: e.dataset.rejected, gate: e.dataset.gate, score: e.dataset.score, text: e.textContent } })
-    const want = r.items[0]
-    assert.deepEqual([row.url, row.gate, Number(row.score)], [want.url, want.gate, want.score])
-    assert.ok(row.text.includes(`未通过相关度 ${want.score.toFixed(2)}`) && row.text.includes(want.reason), row.text)
-    const notes = notesHash(dir())
-    await s.page.click(`[data-rejected="${row.url}"] [data-action="move"] button`)
-    await waitCards(1)
-    assert.equal(notesHash(dir()), notes, 'notes/ byte for byte')
-    assert.ok(await s.page.evaluate(u => document.querySelector(`[data-card][data-url="${u}"] [data-moved]`) !== null, row.url), 'the card says 未通过筛选 · 手动移入')
-    const keptBefore = readdirSync(join(dir(), 'notes')).length
-    await s.page.click(`[data-card][data-url="${row.url}"] [data-action="keep"] button`)
-    await waitCards(0)
-    const files = readdirSync(join(dir(), 'notes'))
-    assert.equal(files.length, keptBefore + 1)
-    const kept = ledger().filter(e => e.ev === 'kept' && e.url === row.url)
-    assert.equal(kept.length, 1)
-    const file = `${kept[0].id}.md`
-    const v = core.validateNote({ fileName: file, text: readFileSync(join(dir(), 'notes', file), 'utf8') })
-    assert.deepEqual(v.problems, [])
-    assert.ok(core.readIndex(dir()).some(e => e.id === kept[0].id), 'the index lists it')
-  })
-
-  test('＋ 添加链接: a bad address says so; a good one is a 待评分 row at once; the same one again says it is known', async () => {
-    const url = 'https://example.org/agent-memory-survey'
-    assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="manual"]')), null, 'control: no row')
-    await s.page.click('[data-action="add-link"] button')
-    await s.page.waitForSelector('[data-dialog="add-link"] [data-field="link-url"]')
-    await s.page.fill('[data-field="link-url"]', 'ftp://nope')
-    await s.page.click('[data-action="confirm-link"] button')
-    await s.page.waitForFunction(() => document.querySelector('[data-part="link-note"]')?.dataset.kind === 'bad', null, POLL)
-    await s.page.fill('[data-field="link-url"]', url)
-    await s.page.click('[data-action="confirm-link"] button')
-    await s.page.waitForFunction(u => document.querySelector(`[data-part="manual"] [data-manual="${u}"]`) !== null, url, POLL)
-    assert.ok(await s.page.evaluate(u => document.querySelector(`[data-manual="${u}"]`).textContent.includes('待评分') && document.querySelector(`[data-manual="${u}"]`).textContent.includes('将在下次运行时评分'), url))
-    assert.equal(ledger().filter(e => e.ev === 'seen' && e.url === url && e.source === 'manual').length, 1)
-    await s.page.click('[data-action="add-link"] button')
-    await s.page.fill('[data-field="link-url"]', url)
-    await s.page.click('[data-action="confirm-link"] button')
-    await s.page.waitForFunction(() => document.querySelector('[data-part="link-note"]')?.dataset.kind === 'seen', null, POLL)
-    await s.page.click('[data-action="cancel-link"] button')
   })
 
   test('no page errors', () => {

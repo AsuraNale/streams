@@ -3,19 +3,16 @@
 //   D2  an aggregator's link (news.google.com) is not fetched: the item is judged on its title, the card says so
 //   M4  an item dated before the library's age limit (pipeline.maxAgeDays, default 7) is not taken in
 // Every case below was run against the code before the fix and failed there (docs/checks/2026-11-18-pipeline-fix/evidence).
+// 1.1 W7b: the cases about v1.0's body cache, its prompts, its pipeline configuration and its round left with the scoring
+// pipeline; ageCutoff is core/src's (fetch/dates.mjs, the agent run's guards use it), fetchRound is core/legacy's.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { extractArticle, stripHtml, titleOnlyHost, ARTICLE_MIN } from '../src/fetch/html.mjs';
-import { makeContext } from '../src/fetch/context.mjs';
-import { fetchRound, ageCutoff } from '../src/fetch/round.mjs';
-import { fetchBody } from '../src/pipeline/cache.mjs';
-import { materialBlock, gatePrompt, summaryPrompt } from '../src/pipeline/prompts.mjs';
-import { pipelineFrom, DEFAULTS } from '../src/pipeline/config.mjs';
-import { runRound } from '../src/pipeline/round.mjs';
-import { listInbox } from '../src/pipeline/inbox.mjs';
-import { scriptedConnector } from '../src/pipeline/fake.mjs';
+import { makeContext } from '../legacy/fetch/context.mjs';
+import { fetchRound } from '../legacy/fetch/round.mjs';
+import { ageCutoff } from '../src/fetch/dates.mjs';
 import { makeLibrary, TEST_CONFIG } from './support/fixtures.mjs';
 import { rssWith } from './support/feeds.mjs';
 import { startFakeServer } from './support/fake-server.mjs';
@@ -66,15 +63,6 @@ test('P1 extractArticle: nothing long enough → the whole page through stripHtm
   assert.equal(extractArticle(broken), 'x'.repeat(ARTICLE_MIN));
 });
 
-test('P1 fetchBody: the body it caches is the article, not the menu', async () => {
-  const dir = makeLibrary('fix1118-body');
-  const page = `<body><nav>${MENU}</nav><article><p>${P1}</p><p>${P2}</p></article></body>`;
-  const ctx = makeContext({ fetchImpl: async () => new Response(page, { status: 200, headers: { 'content-type': 'text/html' } }) });
-  const b = await fetchBody('https://example.com/story', ctx, { libraryDir: dir });
-  assert.equal(b.ok, true);
-  assert.equal(b.text, `${P1} ${P2}`);
-});
-
 // ---------- D2: news.google.com is title-only ----------
 
 test('D2 titleOnlyHost: news.google.com (and its subdomains) only', () => {
@@ -83,27 +71,6 @@ test('D2 titleOnlyHost: news.google.com (and its subdomains) only', () => {
   assert.equal(titleOnlyHost('https://www.google.com/search?q=x'), null);
   assert.equal(titleOnlyHost('https://notnews.google.com.example.org/x'), null);
   assert.equal(titleOnlyHost('not a url'), null);
-});
-
-test('D2 fetchBody: a news.google.com link makes no request and says title-only', async () => {
-  const seen = [];
-  const ctx = makeContext({ fetchImpl: async (u) => { seen.push(u); return new Response('<p>Google News</p>', { status: 200 }); } });
-  const b = await fetchBody('https://news.google.com/rss/articles/CBMiabc?oc=5', ctx, {});
-  assert.deepEqual(b, { ok: false, reason: 'title-only' });
-  assert.equal(seen.length, 0);
-});
-
-test('D2 prompts: the material block says title only (zh and en); other materials unchanged', () => {
-  const item = { title: 'Canadian dollar falls below 70 cents U.S.', source: 'gnews', date: '2026-11-17', summary: 'Canadian dollar falls below 70 cents U.S. Financial Post' };
-  const zh = materialBlock({ item, body: null, language: 'zh-CN', materials: 'title-only' });
-  assert.match(zh, /只有标题（/);
-  assert.ok(zh.includes(item.summary));
-  assert.doesNotMatch(zh, /正文取不到，只看了摘要/);
-  assert.match(materialBlock({ item, body: null, language: 'en', materials: 'title-only' }), /Title only \(/);
-  assert.match(materialBlock({ item, body: null, language: 'zh-CN' }), /正文取不到，只看了摘要/);
-  const node = { requirement: 'r', output: { substance: 'score', reason: 'text', quote: 'text' } };
-  assert.match(gatePrompt({ node, item, body: null, materials: 'title-only', language: 'zh-CN' }), /只有标题（/);
-  assert.match(summaryPrompt({ node: { requirement: 'r', output: { what: 'text', points: 'list:3', quote: 'text' } }, item, body: null, materials: 'title-only', language: 'en' }), /Title only \(/);
 });
 
 // ---------- M4: age limit ----------
@@ -115,14 +82,6 @@ test('M4 ageCutoff: 7 days back from the local day; 0 or nonsense = no limit', (
   assert.equal(ageCutoff(new Date(2026, 10, 18), 0), null);
   assert.equal(ageCutoff(new Date(2026, 10, 18), -1), null);
   assert.equal(ageCutoff(new Date(2026, 10, 18), '7'), null);
-});
-
-test('M4 pipeline config: maxAgeDays defaults to 7, a library may set 0', () => {
-  assert.equal(DEFAULTS.maxAgeDays, 7);
-  assert.equal(pipelineFrom({}).maxAgeDays, 7);
-  assert.equal(pipelineFrom({ pipeline: { maxAgeDays: 0 } }).maxAgeDays, 0);
-  assert.equal(pipelineFrom({ pipeline: { maxAgeDays: 30 } }).maxAgeDays, 30);
-  assert.equal(pipelineFrom({ pipeline: { maxAgeDays: -3 } }).maxAgeDays, 7);
 });
 
 const NOW = new Date(2026, 10, 18, 12, 0, 0);
@@ -161,37 +120,4 @@ test('M4 fetchRound: no limit (0 or not given) takes every item in, as before', 
     const log = JSON.parse(readFileSync(join(dir, '_pipeline', 'fetch_log.jsonl'), 'utf8').trim().split('\n').at(-1));
     assert.equal(Object.hasOwn(log, 'old'), false, 'old is written only when > 0');
   }
-});
-
-test('M4 + D2 runRound: a library on the default limit skips the old item; a news.google.com item is scored on its title and its card says title-only', async (t) => {
-  const srv = await startFakeServer();
-  t.after(() => srv.close());
-  srv.route('/story', { body: `<body><nav>${MENU}</nav><article><p>${P1}</p><p>${P2}</p></article></body>`, contentType: 'text/html' });
-  const items = [
-    { title: 'Bank of Canada holds at 2.25 per cent - Financial Post', url: 'https://news.google.com/rss/articles/CBMiabc?oc=5', date: 'Tue, 17 Nov 2026 21:26:53 GMT', summary: 'Bank of Canada holds at 2.25 per cent Financial Post' },
-    { title: 'Rate held, Macklem watches rent', url: `${srv.base}/story`, date: 'Wed, 18 Nov 2026 08:00:00 GMT' },
-    { title: 'An old piece from February', url: `${srv.base}/old`, date: 'Tue, 03 Feb 2026 08:00:00 GMT' },
-  ];
-  srv.route('/feed', { body: rssWith(items) });
-  const cfg = { ...TEST_CONFIG, pipeline: { nodes: [{ id: 'relevance' }, { id: 'substance' }, { id: 'freshness' }] }, sources: [{ name: 'feed-a', kind: 'rss', url: `${srv.base}/feed`, topic: 'agent 记忆', max_results: 100 }] };
-  const dir = makeLibrary('fix1118-round', cfg);
-  const base = scriptedConnector({ score: 0.9 });
-  const prompts = [];
-  const connector = { ...base, complete: async (req) => { prompts.push(req.prompt); return base.complete(req); } };
-  const round = await runRound(dir, { connector, ctx: makeContext({ now: () => NOW, timeoutMs: 1500, sleep: async () => {} }) });
-  assert.equal(round.counts.old, 1);
-  assert.equal(srv.hits('/old'), 0);
-  const inbox = listInbox(dir, { now: () => NOW });
-  const cards = new Map((inbox.items ?? inbox).map((c) => [c.url, c]));
-  assert.equal(cards.get(items[0].url)?.materials, 'title-only');
-  assert.equal(cards.get(items[1].url)?.materials, 'body');
-  const gnewsPrompts = prompts.filter((p) => p.includes('Bank of Canada holds at 2.25'));
-  assert.ok(gnewsPrompts.some((p) => p.includes('只有标题（')), 'the substance step and the summary are told it is the title only');
-  const storyPrompts = prompts.filter((p) => p.includes('Rate held, Macklem'));
-  assert.ok(storyPrompts.some((p) => p.includes(P1) && !p.includes('Subscribe')), 'the story is read as its article, not its menu');
-  // the round log (rounds-log.mjs: one md per local day) carries the count
-  const logs = join(dir, '_pipeline', 'logs');
-  assert.ok(existsSync(logs));
-  const md = readdirSync(logs).filter((f) => f.endsWith('.md')).map((f) => readFileSync(join(logs, f), 'utf8')).join('\n');
-  assert.match(md, /· old 1/);
 });

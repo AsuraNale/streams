@@ -6,7 +6,7 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from '
 import { join, relative } from 'node:path';
 import { makeLibrary, TEST_CONFIG } from './fixtures.mjs';
 import { rssWith } from './feeds.mjs';
-import { makeContext } from '../../src/fetch/context.mjs';
+import { makeContext } from '../../legacy/fetch/context.mjs'; // v1.0's fetch context (1.1 W7b: core/legacy)
 
 export const CLOCK = new Date(2026, 10, 3, 12, 0, 0);
 

@@ -152,15 +152,13 @@ test('V9 reverse: on a core whose fallback keeps out-of-set cites, the same chec
 })
 
 // ---- Redesign R6a (contract R6a-2; 维护者 11-11 第 1 条): 库里没有的问题得到「库内暂无相关内容。」 ----
-test('V9 the sentence: the standard\'s, the core\'s (what the main agent is told the page says) and the two dictionaries\' are the same', async () => {
+// 1.1 W7b: the v1.0 main agent left with its chat, and with it the core's copy of the sentence (agent/words.mjs
+// NOT_IN_LIBRARY, UI_TERMS, the system prompt); the sentence is the standard's and the two dictionaries'.
+test('V9 the sentence: the standard\'s and the two dictionaries\' are the same', async () => {
   const { STANDARDS } = await import('./standards.mjs')
   assert.ok(STANDARDS.find(s => s.id === 'V9').standard.endsWith(`得到「${SENTENCE}」`), 'control: the sentence checked here is the standard\'s')
-  assert.equal(core.NOT_IN_LIBRARY.zh, SENTENCE)
   assert.equal(ASK.answer.notInLibrary, SENTENCE, 'the Chinese dictionary')
-  assert.equal(ASK_EN.answer.notInLibrary, core.NOT_IN_LIBRARY.en, 'the English dictionary is the core\'s English')
   assert.ok(ASK_EN.answer.notInLibrary.length > 0 && !/[一-鿿]/.test(ASK_EN.answer.notInLibrary), 'an English sentence')
-  assert.ok(core.UI_TERMS.some(([, zh, en]) => zh === SENTENCE && en === core.NOT_IN_LIBRARY.en), 'the main agent\'s word list has it')
-  assert.ok(String(core.AGENT_SYSTEM).includes(SENTENCE), 'the main agent\'s system prompt lists it')
   for (const old of ['库里没有。', '库里没有」']) assert.equal(JSON.stringify(ASK).includes(old), false, `the sentence before R6a is gone: ${old}`)
 })
 

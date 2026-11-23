@@ -26,10 +26,6 @@
  * The timer never waits longer than MAX_WAIT_MS at a time: on each tick it looks at the clock again, so a changed system
  * time or a late timer cannot skip a slot or run one twice; each library's slot that has fired is remembered and not
  * fired again. One timer, for the soonest slot of all the libraries.
- * Redesign R5a (N07): 重新评分 of a library (services/pipeline.mjs startRescoreIn) goes through the same queue as a run — one
- * thing at a time for the whole app: `startRescore(entry)` starts it now when idle, else puts the library at the end (its queue
- * entry has job 'rescore'; a library already running or waiting is not queued twice). Its end frees the queue like a run's
- * (roundDone), without the 「本次运行新增」 notification.
  * Pure Node apart from what is injected (the clock, the timers, the notifier), so the rules run in plain Node
  * (test/services-schedule.test.mjs, test/services-queue.test.mjs) with a fake clock.
  * @module desktop/main/services/schedule
@@ -58,7 +54,7 @@ export function whyOf(entry, kind) {
  * @param {object} o
  * @param {string} o.settingsFile - v1.0's schedule (read only: what a library without its own gets)
  * @param {{entries: () => object[], find: (id: string) => object|null, entryOf: (id: string) => object, current: () => {libraryId: string}|null, usable: (path: string) => boolean}} o.library - services/library.mjs
- * @param {{startRoundIn: (entry: {id: string, path: string}) => Promise<object>, startRescoreIn?: (entry: {id: string, path: string}) => Promise<object>, isRunning: () => boolean}} o.pipeline - services/pipeline.mjs
+ * @param {{startRoundIn: (entry: {id: string, path: string}) => Promise<object>, isRunning: () => boolean}} o.pipeline - services/pipeline.mjs
  * @param {{notice: (n: {kind: string, values?: object, screen: string}) => boolean}|null} [o.notifier] - services/notify.mjs
  * @param {(topic: string, payload?: unknown) => number} o.emit
  * @param {(line: string) => void} o.log
@@ -69,8 +65,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
   let timer = null
   let armed = new Map() // library id → the slot the timer waits for (a Date)
   const fired = new Map() // library id → the last slot of it that fired (ms): never fired again
-  const queue = [] // [{ id, why, kind, since, job? }]: the libraries waiting for their round, first come first (kind: QUEUE_WHY;
-  // job 'rescore': redesign R5a's 重新评分 instead of a run)
+  const queue = [] // [{ id, why, kind, since }]: the libraries waiting for their round, first come first (kind: QUEUE_WHY)
   let runningId = null // the library whose round runs (or is being started) through the queue, or null
   let runningKind = null // v2 package L: why that round runs (QUEUE_WHY), and since when
   let runningSince = null
@@ -141,7 +136,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
   /** The next library of the queue, when nothing runs: its round started; one that did not start lets the next one go. */
   async function pump() {
     if (runningId !== null || pipeline.isRunning() || queue.length === 0) return null
-    const { id, why, kind, job } = queue.shift()
+    const { id, why, kind } = queue.shift()
     const e = library.find(id)
     if (!e || !library.usable(e.path)) { log(`schedule: ${why}: ${id} is not a readable library any more, skipped`); changed(); return pump() }
     runningId = id
@@ -150,7 +145,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
     changed()
     let r
     try {
-      r = job === 'rescore' ? await pipeline.startRescoreIn(e) : await pipeline.startRoundIn(e)
+      r = await pipeline.startRoundIn(e)
     } catch (err) {
       log(`schedule: ${why}: ${id}: ${String(err?.stack ?? err)}`)
       r = { started: false, reason: 'error' }
@@ -164,7 +159,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
    * Put a library at the end of the queue (not when it is in it already, or its round runs). `kind`: why it waits
    * (QUEUE_WHY). → { queued: true, position } or { queued: false, reason: 'running' | 'queued' }.
    */
-  function enqueue(entry, why, kind = 'schedule', job = 'round') {
+  function enqueue(entry, why, kind = 'schedule') {
     if (runningId === entry.id || pipeline.runningLibrary?.() === entry.id) {
       log(`schedule: ${why}: ${entry.id}: a round of this library is running, no second one`)
       return { queued: false, reason: 'running' }
@@ -173,7 +168,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       log(`schedule: ${why}: ${entry.id} is in the queue already`)
       return { queued: false, reason: 'queued' }
     }
-    queue.push({ id: entry.id, why, kind: QUEUE_WHY.includes(kind) ? whyOf(entry, kind) : 'schedule', since: now().toISOString(), ...(job === 'rescore' ? { job } : {}) })
+    queue.push({ id: entry.id, why, kind: QUEUE_WHY.includes(kind) ? whyOf(entry, kind) : 'schedule', since: now().toISOString() })
     const position = positionOf(queue.length - 1)
     log(`schedule: ${why}: ${entry.id} queued (${queue.length} waiting${runningId ? `, ${runningId} running` : ''})`)
     changed()
@@ -226,7 +221,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       const c = pipeline.current?.() ?? null
       const mine = c && (rid === null || c.libraryId === rid) ? c : null
       running = {
-        libraryId: rid ?? mine?.libraryId ?? null, roundId: mine?.roundId ?? null, phase: mine?.phase ?? 'self-check',
+        libraryId: rid ?? mine?.libraryId ?? null, roundId: mine?.roundId ?? null, phase: mine?.phase ?? 'update',
         calls: mine?.calls ?? 0, cap: mine?.cap ?? null, startedAt: mine?.startedAt ?? runningSince, why: rid !== null && rid === runningId ? runningKind : null,
       }
     }
@@ -237,38 +232,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       if (at) next.push({ libraryId: l.id, at: at.toISOString() })
     }
     next.sort((a, b) => a.at.localeCompare(b.at))
-    return { running, waiting: queue.map(q => ({ libraryId: q.id, why: q.kind, since: q.since, ...(q.job ? { job: q.job } : {}) })), next }
-  }
-
-  /**
-   * Redesign R5a (N07): 重新评分 of the library `entry` — idle → started now; busy → at the end of the queue (job 'rescore'), or
-   * the answer that it runs / waits already. → startRescoreIn's answer, or { started: false, queued: true, position } / { already }.
-   */
-  async function startRescore(entry) {
-    if (busy()) {
-      const running = runningLibrary()
-      if (running === entry.id) return { started: false, already: 'running' }
-      const at = queue.findIndex(q => q.id === entry.id)
-      if (at >= 0) return { started: false, already: 'queued', position: positionOf(at) }
-      const q = enqueue(entry, 'rescore', 'manual', 'rescore')
-      return { started: false, queued: true, position: q.position, runningLibraryId: runningLibrary(), rescore: true }
-    }
-    runningId = entry.id
-    runningKind = 'manual'
-    runningSince = now().toISOString()
-    changed()
-    let r
-    try {
-      r = await pipeline.startRescoreIn(entry)
-    } catch (err) {
-      runningId = null
-      changed()
-      void pump()
-      throw err
-    }
-    log(`schedule: rescore: ${entry.id}: ${r.started ? `${r.roundId} started` : 'did not start'}`)
-    if (!r.started) { runningId = null; changed(); void pump() }
-    return r
+    return { running, waiting: queue.map(q => ({ libraryId: q.id, why: q.kind, since: q.since })), next }
   }
 
   /** The tray's 「现在跑一轮」: startCurrent, every failure in the log only. */
@@ -353,7 +317,6 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
     catchUp,
     startCurrent,
     startOne,
-    startRescore,
     /** At start, once the libraries are known: the timer, then the catch-up. */
     start() {
       const next = arm()
@@ -384,8 +347,7 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       if (runningId !== null && (libraryId === null || libraryId === runningId)) { runningId = null; runningKind = null; runningSince = null }
       changed()
       let shown = false
-      // redesign R5a: 重新评分 is not a run: no 「本次运行新增」 notification
-      const n = result?.started && !result?.rescore ? Number(result?.counts?.inbox ?? 0) : 0
+      const n = result?.started ? Number(result?.counts?.inbox ?? 0) : 0
       if (!(n > 0)) log(`schedule: round ${roundId}: nothing new in the inbox, no notification`)
       else if (notifier) {
         const name = (libraryId ? library.find(libraryId)?.name : null) ?? library.current()?.name ?? ''

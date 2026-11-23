@@ -11,7 +11,7 @@
 //   在资源管理器中显示 · 在浏览器中打开); 查看原文 opens Streams' reading window (openReader(url, 'reader')), the browser only from
 //   「更多」 (and the reading window itself). Then the paper (reader-paper): 来源 / 主题, the title, 发布 · 收藏, the text (its
 //   Markdown cut into elements by lib/markdown.js — 内容概述 is the text's own first paragraph; a [[link]] that names a note opens it).
-//   The right panel's 详情 (only what the reading area has not): 入选理由 (each score with its sentence), 核验 with the folded 核验记录
+//   The right panel's 详情 (only what the reading area has not; 1.1 W7b: no score of v1.0's scoring): 核验 with the folded 核验记录
 //   (verdict-dialog.js VerdictFold, the component 待看 uses), 文件 (its path in the library folder), 反向链接, 同来源内容 (a click
 //   selects that note here).
 //   编辑 (screens/edit-dialog.js): the template's dialog; title, topics, body, insert link — nothing else (core editNote, V2).
@@ -28,7 +28,7 @@
 // [data-part=list|reader|search-count|search-none|empty|pick-one], [data-row=<id>][data-current][data-status] (its
 // [data-snippet]), [data-reader=<id>] with [data-part=mark|reader-source|reader-meta|body], [data-part="item-actions"][data-id] with
 // [data-action=edit|source|more][data-items], the menu's [data-menu-item=obsidian|folder|browser]; 详情: [data-part="note-panel"]
-// [data-id] with [data-part=detail-reasons] [data-detail-score=<id>], [data-part="detail-record"], [data-part="detail-file"],
+// [data-id] with [data-part="detail-record"], [data-part="detail-file"],
 // [data-part=backlinks|same-source] [data-link=<id>]; 缺少文件头: [data-part="missing-header"][data-count], [data-action=back-to-library|
 // apply-all|apply|skip|show-skipped], [data-card=<file>][data-name-ok][data-proposable] with textarea[data-field="header"],
 // [data-card-error], [data-card-why], [data-part=skipped-dirs|apply-all-result|written|skipped-line|missing-none].
@@ -42,7 +42,7 @@ import { renderMarkdown } from '../lib/markdown.js'
 import { headerText, parseHeaderText } from '../lib/header-text.js'
 import { TIcon } from '../lib/template-icons.js'
 import { Menu } from '../kit/index.js'
-import { ERRORS, NODE_NAMES, SEP } from '../texts/common.js'
+import { ERRORS, SEP } from '../texts/common.js'
 import { LIBRARY as T } from '../texts/library.js'
 import { PANEL } from '../texts/panel.js'
 import { EditDialog } from './edit-dialog.js'
@@ -54,24 +54,8 @@ import { DetailBlock } from './right-panel.js'
 export const VIEWS = Object.freeze(['all', 'kept', 'authored'])
 const RECENT_DAYS = 30
 const SEARCH_DELAY_MS = 250
-const SCORE_ORDER = ['relevance', 'substance', 'freshness']
 
-const nodeName = id => (Object.hasOwn(NODE_NAMES, id) ? NODE_NAMES[id] : id)
 const isWeb = u => typeof u === 'string' && /^https?:\/\//i.test(u)
-const num = v => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : null)
-
-/** A score as the index or the header holds it: a number, an enum value, or { score | value, reason }. */
-export function scoreParts(v) {
-  if (v && typeof v === 'object') return { value: num(v.score) ?? (typeof v.value === 'string' ? v.value : null), raw: v.score ?? v.value ?? null, reason: typeof v.reason === 'string' ? v.reason : '' }
-  if (typeof v === 'number') return { value: num(v), raw: v, reason: '' }
-  if (typeof v === 'string') return { value: v, raw: v, reason: '' }
-  return { value: null, raw: null, reason: '' }
-}
-
-const scoreKeys = scores => {
-  const keys = Object.keys(scores ?? {})
-  return [...SCORE_ORDER.filter(k => keys.includes(k)), ...keys.filter(k => !SCORE_ORDER.includes(k))]
-}
 
 /** A file's rule not met, in words (exported for test/ui-r5b.test.mjs: never the code itself). */
 export function pendingWords(code) {
@@ -129,27 +113,14 @@ function Paper({ note, resolve, onWiki }) {
   </article>`
 }
 
-/** 详情 of the note being read: 入选理由, 核验 (the folded record), 文件, 反向链接, 同来源内容 — what the reading area does not show. */
+/** 详情 of the note being read: 核验 (the folded record), 文件, 反向链接, 同来源内容 — what the reading area does not show. */
 function NoteDetail({ note, onSelect }) {
   const e = note.entry ?? {}
   const P = T.panel
-  const scores = e.scores ?? {}
-  const reasons = note.scores ?? {}
-  const ids = scoreKeys({ ...scores, ...reasons })
   const backlinks = Array.isArray(note.backlinks) ? note.backlinks : []
   const same = Array.isArray(note.sameSource) ? note.sameSource : []
-  const pad = n => String(n).padStart(2, '0')
-  const value = (k, p) => (k === 'freshness' && Object.hasOwn(P.freshness, p.value ?? '') ? P.freshness[p.value] : p.value ?? '')
   return html`<${DetailBlock} where=${PANEL.detail.where.library} title=${e.title} part="detail-library">
     <div class="st-rp-detail" data-part="note-panel" data-id=${e.id}>
-      <div class="panel-section" data-part="detail-reasons">
-        <div class="section-label"><span>${P.reasons}</span></div>
-        ${ids.length ? html`<dl class="decision-points">${ids.map((k, i) => {
-          const p = scoreParts(reasons[k] ?? scores[k])
-          if (!p.reason) p.reason = scoreParts(scores[k]).reason
-          return html`<div key=${k} data-detail-score=${k} data-value=${String(p.raw ?? '')}><dt><span class="point-index">${pad(i + 1)}</span>${fmt(P.score, { name: nodeName(k), score: value(k, p) })}</dt><dd>${p.reason}</dd></div>`
-        })}</dl>` : html`<p class="limit-note">${P.reasonsNone}</p>`}
-      </div>
       ${e.status === 'kept' && isWeb(e.source) ? html`<div class="panel-section" data-part="detail-check">
         <div class="section-label"><span>${P.check}</span></div>
         <${VerdictFold} url=${e.source} />

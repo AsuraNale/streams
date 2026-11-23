@@ -49,15 +49,17 @@ const toSettings = async w => {
 
 // redesign R2 (contract R2-6: 「四个数字方块、运行状态块不再单独存在」): the 运行状态 part (screens/status.js: its numbers, the
 // sources of the last round, 复制诊断信息 / 打开运行记录文件夹) is gone from the right panel — the last run is the funnel
-// (test/ui-inbox.test.mjs, test/services-r2.test.mjs), the sources' state is on 来源与要求's rows (test/ui-sources.test.mjs), the
+// (1.1 W7b: one line, test/ui-inbox.test.mjs), the sources' state is on 来源与要求's rows (test/ui-sources.test.mjs), the
 // diagnostics are the banner's third button and the program records are 文件's 「在资源管理器中显示」 (test/ui-panel.test.mjs). The
 // three tests of that part are replaced by this one: none of it is drawn any more, on any tab.
-test('redesign R2: no 运行状态 block and no four number tiles in the right panel\'s 进度 (the funnel is there instead)', async () => {
+test('redesign R2: no 运行状态 block and no four number tiles in the right panel\'s 进度 (the last run\'s one line is there instead)', async () => {
   await s.page.click('[data-panel-tab="progress"]').catch(() => {})
   await s.page.waitForFunction(() => document.querySelector('[data-part="right-panel"] [data-part="last-run"][data-state="ready"]') !== null, null, POLL)
   const gone = await s.page.evaluate(() => ['[data-part="run"]', '[data-stat]', '[data-num]', '[data-part="numbers"]', '[data-part="source-status"]', '.today-numbers', '.stat-kv'].filter(sel => document.querySelector(sel) !== null))
   assert.deepEqual(gone, [])
-  assert.ok(await s.page.evaluate(() => document.querySelectorAll('[data-part="right-panel"] [data-funnel-cell]').length === 5), 'the funnel instead')
+  // 1.1 W7b: the last run is one line (when it ended, how many it put into 待看); v1.0's funnel is gone
+  assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-part="right-panel"] [data-funnel-cell]').length), 0)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="right-panel"] [data-part="last-run-here"] [data-part="last-run"]')?.dataset.added), String(core.listRounds(s.world.library, 1)[0].counts.inbox), 'the one line instead')
 })
 
 test('fake connection (设置): three rows, the chosen one in use, 现在试一次 answers; no row offers a sign-in (control)', async () => {

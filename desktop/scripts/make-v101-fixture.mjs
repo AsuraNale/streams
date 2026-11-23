@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 1.1 W7a (acceptance E3): makes test/fixtures/v101-library — a library as 1.0.1 left it, made once with 1.0's own round
-// (test/support/seed.mjs seedLibrary: a feed on this machine, the scripted connector) while that round is still in the code
-// (W7b removes it). Three items kept (one by the seed round, two here: notes/), two left in 待看. The folder is committed; the tests copy it, never change it.
+// (test/support/seed.mjs seedLibrary: a feed on this machine, the scripted connector; since W7b that round is core/legacy's,
+// which the product does not ship). Three items kept (one by the seed round, two here: notes/), two left in 待看. The folder is committed; the tests copy it, never change it.
 //   node scripts/make-v101-fixture.mjs        writes the folder again (it must not exist)
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'

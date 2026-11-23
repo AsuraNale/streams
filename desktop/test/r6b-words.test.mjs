@@ -1,7 +1,8 @@
 // Redesign R6b-1 / R6b-2 (docs/checks/2026-11-13-r6b/contract.md): the words of the interface after 05-措辞规范's last pass.
 //   1. the five fetch states and the four 处理建议 are the contract's two tables, word for word, in the page's two dictionaries
-//      and in the words the core gives the main agent; the sentences that spell the states out use the same words;
-//   2. none of the v1 state words or of the v1 处理建议's fragments is left in any dictionary value or in the core's words;
+//      (1.1 W7b: the words the core gave v2's main agent, core/src/agent/words.mjs, went with that agent; so did the sentences
+//      of v1.0's 评分环节 and 系统检测 that spelled the states out);
+//   2. none of the v1 state words or of the v1 处理建议's fragments is left in any dictionary value;
 //   3. the colloquial sentences 05 replaces (the ones the contract names, and the others its rules 2 / 4 / 5 / 6 found) are gone
 //      from both dictionaries; the notification's sentence is 05 第 173 行's;
 //   4. the placeholder screen (dead since v2), its style file, its two text tables and the one interim name only it used are
@@ -14,13 +15,8 @@ import { test } from 'node:test'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { ADVICE_WORDS, STATE_WORDS } from '../../core/src/agent/words.mjs'
 import { FETCH_HINTS, FETCH_STATES, SOURCE_STATES } from '../src/renderer/texts/common.js'
 import { FETCH_HINTS as FETCH_HINTS_EN, FETCH_STATES as FETCH_STATES_EN, SOURCE_STATES as SOURCE_STATES_EN } from '../src/renderer/texts-en/common.js'
-import { PIPELINE } from '../src/renderer/texts/pipeline.js'
-import { PIPELINE as PIPELINE_EN } from '../src/renderer/texts-en/pipeline.js'
-import { PROPOSALS } from '../src/renderer/texts/proposals.js'
-import { PROPOSALS as PROPOSALS_EN } from '../src/renderer/texts-en/proposals.js'
 import { NOTIFY } from '../src/main/texts/notify.js'
 import { NOTIFY as NOTIFY_EN } from '../src/main/texts-en/notify.js'
 
@@ -66,21 +62,12 @@ function tableProblems({ states, hints }, lang, where) {
   return problems
 }
 
-test('R6b-1 the five states and the four 处理建议 are the contract\'s tables word for word: the page\'s two dictionaries and the core\'s words', () => {
+test('R6b-1 the five states and the four 处理建议 are the contract\'s tables word for word: the page\'s two dictionaries', () => {
   assert.deepEqual(tableProblems({ states: FETCH_STATES, hints: FETCH_HINTS }, 'zh', 'page'), [])
   assert.deepEqual(tableProblems({ states: FETCH_STATES_EN, hints: FETCH_HINTS_EN }, 'en', 'page'), [])
-  assert.deepEqual(tableProblems({ states: STATE_WORDS.zh, hints: ADVICE_WORDS.zh }, 'zh', 'core'), [])
-  assert.deepEqual(tableProblems({ states: STATE_WORDS.en, hints: ADVICE_WORDS.en }, 'en', 'core'), [])
   assert.deepEqual(Object.keys(FETCH_STATES), FIVE, 'the six keys: the five as they were, and 要登录 of 1.1')
-  // 尚未抓取 (05 规则 4), the same in the core
-  assert.deepEqual([SOURCE_STATES.never, SOURCE_STATES_EN.never, STATE_WORDS.zh.never, STATE_WORDS.en.never], ['尚未抓取', 'Not fetched yet', '尚未抓取', 'Not fetched yet'])
-  // the sentences that spell the states out use the same words
-  assert.ok(PIPELINE.about.fetch.includes(FIVE.map(k => STATES.zh[k]).join(' / ')), PIPELINE.about.fetch)
-  assert.ok(PIPELINE_EN.about.fetch.includes(FIVE.map(k => STATES.en[k]).join(' / ')), PIPELINE_EN.about.fetch)
-  assert.ok(PROPOSALS.kinds['source-failing-gap'].includes(STATES.zh.gap) && PROPOSALS.evidence['source-failing-gap'].includes(STATES.zh.gap))
-  assert.ok(PROPOSALS.evidence['source-failing'].includes(STATES.zh.failed) && PROPOSALS.evidence['source-failing'].includes(STATES.zh.blocked))
-  assert.ok(PROPOSALS_EN.kinds['source-failing-gap'].includes(STATES.en.gap) && PROPOSALS_EN.evidence['source-failing-gap'].includes(STATES.en.gap))
-  assert.ok(PROPOSALS_EN.evidence['source-failing'].includes(STATES.en.failed) && PROPOSALS_EN.evidence['source-failing'].includes(STATES.en.blocked))
+  // 尚未抓取 (05 规则 4)
+  assert.deepEqual([SOURCE_STATES.never, SOURCE_STATES_EN.never], ['尚未抓取', 'Not fetched yet'])
   // reverse: a table with one word or one sentence changed is reported (each of the five, each of the four, both languages)
   for (const lang of ['zh', 'en']) {
     for (const k of FIVE) assert.equal(tableProblems({ states: { ...STATES[lang], [k]: `${STATES[lang][k]} ` }, hints: HINTS[lang] }, lang, 'x').length, 1, `${lang} ${k}`)
@@ -112,13 +99,11 @@ const OLD_STATES = [/没新[内]容/, /地址有[问]题/, /被[拒]绝/, /nothi
 const OLD_STATE_SAMPLES = ['没新' + '内容', '地址有' + '问题', '被' + '拒绝了', 'Nothing' + ' new', 'address' + ' problem', 'Failed for' + ' now', 'Blocked by the' + ' site',
   '重试' + '没用', '删掉这个' + '来源', '换一个' + '来源', '不需要' + '你改地址', 'next' + ' round', '还没' + '抓过']
 
-test('R6b-1 no v1 state word and no fragment of the v1 处理建议 in any dictionary value or in the core\'s words (中英)', async () => {
+test('R6b-1 no v1 state word and no fragment of the v1 处理建议 in any dictionary value (中英)', async () => {
   const values = await allValues()
   assert.ok(values.length > 1300, `control: the tables were read (${values.length} strings)`)
   assert.ok(values.some(v => v.lang === 'en') && values.some(v => v.path.startsWith('main/')), 'control: both languages, both processes')
   assert.deepEqual(hitsOf(values, OLD_STATES), [])
-  const core = Object.values({ ...STATE_WORDS.zh, ...ADVICE_WORDS.zh }).concat(Object.values({ ...STATE_WORDS.en, ...ADVICE_WORDS.en })).map((text, i) => ({ path: `core[${i}]`, lang: 'zh', text }))
-  assert.deepEqual(hitsOf(core, OLD_STATES), [])
   // control: each pattern sees a sentence that has its word
   assert.equal(OLD_STATE_SAMPLES.length, OLD_STATES.length)
   for (const [i, sample] of OLD_STATE_SAMPLES.entries()) assert.equal(hitsOf([{ path: 'sample', lang: 'zh', text: `来源 x：${sample}。` }], [OLD_STATES[i]]).length, 1, `${OLD_STATES[i]} sees its sample`)

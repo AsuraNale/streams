@@ -1,3 +1,5 @@
+// 1.1 W7b: the test of the cap of a run (定时与上限 on 来源与要求, the pass lines on 高级设置's 评分环节) went with v1.0's scoring
+// pipeline, and the test of 新建库 on a chosen folder with v1.0's one-page form (新建库 is the build conversation: test/ui-w6b.test.mjs).
 // redesign R4b: 设置 is the template's four parts (screens/settings.js): 「设为当前连接」 is a button on each row (was the radio
 // 打分用这一条), the current one says 「当前使用」 in a chip (was in the row's words); the key dialog opens on 「选择预设…」 (P18), so the
 // test picks the first preset; the cap is saved with 定时与上限's one 保存 ([data-action="save-run"], its note [data-part="run-note"]
@@ -25,7 +27,6 @@ import { basename, join } from 'node:path'
 import { CONNECTIONS } from '../src/renderer/texts/common.js'
 import { SETTINGS } from '../src/renderer/texts/settings.js'
 import { worldSession } from './support/seed.mjs'
-import { ready, openForm } from './support/app.mjs'
 
 const KEY = 'sk-test-ui-settings-key-0000-ab12'
 const s = worldSession({
@@ -100,49 +101,6 @@ test('设置… on the API row: a key saved → secrets/key-<vendor>.bin, the pa
   await click('[data-action="remove-key"]')
   await s.page.waitForFunction(() => document.querySelector('[data-connection="api"]')?.dataset.connState === 'no-key', null, POLL)
   assert.equal(existsSync(file), false, 'the key file is gone')
-})
-
-test('运行 (v2: on the library\'s 来源与要求, not 设置): the cap written to streams.json; control: 0 refused', async () => {
-  assert.equal(await s.page.evaluate(() => document.querySelector('main[data-screen="settings"] [data-part="run"], main[data-screen="settings"] [data-field="cap"]')), null, '设置 has no cap to change')
-  await s.page.click('[data-library-row][data-active="true"]')
-  await s.page.waitForFunction(() => document.querySelector('main[data-state="ready"]') !== null && document.querySelector('.st-lib-tabs') !== null, null, POLL)
-  await s.page.click('.st-lib-tabs [data-tab="sources"]')
-  await ready(s.page, 'sources')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="run"] [data-schedule]')?.dataset.schedule !== 'unknown' && document.querySelector('[data-part="run"] [data-field="cap"]')?.value !== '', null, POLL)
-  await s.page.fill('[data-part="run"] [data-field="cap"]', '0')
-  await click('[data-part="run"] [data-action="save-run"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'bad', null, POLL)
-  assert.equal(JSON.parse(readFileSync(join(s.world.library, 'streams.json'), 'utf8')).pipeline.cap, 120)
-  await s.page.fill('[data-part="run"] [data-field="cap"]', '42')
-  await click('[data-part="run"] [data-action="save-run"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="run-note"]')?.dataset.kind === 'saved', null, POLL)
-  assert.equal(JSON.parse(readFileSync(join(s.world.library, 'streams.json'), 'utf8')).pipeline.cap, 42)
-  // redesign R4b: the pass lines are on 高级设置's 评分环节
-  await s.page.click('[data-action="go-advanced"]')
-  await s.page.waitForFunction(() => document.querySelector('[data-part="gates"] input[data-field="threshold"]') !== null, null, POLL)
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="gates"] input[data-field="threshold"]').value), '0.7')
-  await s.page.click('.st-sidebar__footer-button')
-  await ready(s.page, 'settings')
-})
-
-// redesign R4a: 新建库 is one page (screens/new-library.js): 更改… takes the folder the hook gives, the name and 追踪要求 are typed,
-// 仅创建 makes it and the app goes to its 待看 (v2 package I's four steps — folder → pack → round → 定时 — are gone); what is checked
-// is as before: a library was made there, it is the current one, the sidebar carries its name
-test("库: 新建库 on the folder the hook gives → the sidebar carries the new name (v2 package I: through 新建库, not a settings part; redesign R4a: the one-page form)", async () => {
-  const another = join(s.world.root, 'another')
-  await openForm(s.app, s.page)
-  await click('[data-action="change-folder"]')
-  await s.page.waitForFunction(p => document.querySelector('[data-part="location"]')?.dataset.path === p, another, POLL)
-  await s.page.fill('[data-field="name"]', basename(another))
-  await s.page.fill('[data-field="brief"]', '追踪电池价格。')
-  await click('[data-action="create-only"]')
-  await ready(s.page, 'inbox')
-  assert.ok(existsSync(join(another, 'streams.json')), 'a library was made there')
-  assert.equal(activeLibrary(), another)
-  await s.page.waitForFunction(name => document.querySelector('[data-library-row][data-active="true"] .st-sidebar__lib-name')?.textContent === name, basename(another), POLL)
-  // back to 设置 for the next test (新建库 ends on the new library's page)
-  await s.page.click('.st-sidebar__footer-button')
-  await ready(s.page, 'settings')
 })
 
 test('关于: 「由 Starry Digital 开发」 is a link that opens https://starrydigital.ca through the bridge (a test run only writes the log)', async () => {

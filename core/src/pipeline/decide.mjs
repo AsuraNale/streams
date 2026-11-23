@@ -11,18 +11,12 @@
 //   稍后处理 in _pipeline/later.json (later.mjs; never the note folder, never the ledger); any other stage: nothing written
 // recentDismissReasons(libraryDir, n = 10)   -> [{ ts, reason, quick?, title, url }] newest first; a dismissal without a
 //   reason is skipped (redesign R2)
-// moveToInbox(libraryDir, url, { now? })     -> { url }   redesign R2 (N02): an item that did not pass a gate (stage seen,
-//   below a gate's threshold under the current configuration — read from the ledger) goes into the inbox as it is: an inbox
-//   file without a summary or a check (moved:'rejected') and an `inbox` event with moved:'rejected'. Never the note folder. Throws
-//   not-rejected for anything else (an item still waiting, unscored, in the inbox, kept, dismissed, unknown).
-// listRejected(libraryDir, { limit = 50 })   -> { total, old, items:[{ url, title, source, date, gate, score, threshold, reason,
-//   old, at, firstSeen }] }   the items below a gate (未通过筛选), the newest verdict first, at most `limit`; redesign R5a: `old`
-//   = the verdict was made under another 评分标准 (they stay here until 重新评分, rescore.mjs); the top-level `old` counts them
-// listManualWaiting(libraryDir)              -> [{ url, title, date, firstSeen, maybeDuplicateOf? }]   links added by hand
-//   (source 'manual') not scored yet: 「待评分」 rows (N09), first added first
+// (1.1 W7b: v1.0's moveToInbox / listRejected / listManualWaiting, about items its scoring steps had not passed, left core/src
+// with them: core/legacy/pipeline/decide.mjs.)
 // roundOutcome(libraryDir, roundId)          -> { inbox, kept, dismissed, later, waiting }   what became of the items that
 //   run put into the inbox (处理情况 of 上次运行); null roundId → all zero
-// The precondition is always read from the ledger (replayLedger), never from the caller's memory.
+// The precondition is always read from the ledger (replayLedger), never from the caller's memory: keep and dismiss take an
+// item at stage inbox only (not-in-inbox), whatever else the ledger says of it.
 import { createHash } from 'node:crypto';
 import { StreamsError } from '../errors.mjs';
 import { appendEvent, replayLedger, ledgerPath } from '../library/ledger.mjs';
@@ -30,12 +24,9 @@ import { writeNoteFile } from '../library/write-note.mjs';
 import { rebuildIndex } from '../library/index.mjs';
 import { readConfig, FALLBACK_TOPIC } from '../library/config.mjs';
 import { localIsoDate } from '../fetch/dates.mjs';
-import { readInboxItem, removeInboxItem, writeInboxItem } from './inbox.mjs';
-import { assertAllowed } from './invariants.mjs';
-import { gateNodes, pipelineFrom } from './config.mjs';
-import { nextStep, verdictThreshold } from './queue.mjs';
+import { languageOfConfig } from '../library/language.mjs';
+import { readInboxItem, removeInboxItem } from './inbox.mjs';
 import { markLater, readLater } from './later.mjs';
-import { MANUAL_SOURCE } from '../fetch/manual.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 
 export const SLUG_MAX = 60;
@@ -53,7 +44,7 @@ function stateOf(libraryDir, url) {
   return replayLedger(libraryDir).states.get(url) ?? null;
 }
 
-function requireInbox(libraryDir, url, cfg) {
+function requireInbox(libraryDir, url) {
   const s = stateOf(libraryDir, url);
   if (!s || s.stage !== 'inbox') throw new StreamsError('not-in-inbox', `${url} is not in the inbox (stage: ${s?.stage ?? 'unknown'})`);
   return s;
@@ -71,7 +62,7 @@ function topicsFor(config, item, state, given) {
   const src = (config.sources ?? []).find((s) => s && s.name === name);
   if (src && typeof src.topic === 'string' && src.topic.trim() !== '') return [src.topic.trim()];
   if (typeof item?.topic === 'string' && item.topic !== '') return [item.topic];
-  return [FALLBACK_TOPIC[pipelineFrom(config).language] ?? FALLBACK_TOPIC['zh-CN']];
+  return [FALLBACK_TOPIC[languageOfConfig(config)] ?? FALLBACK_TOPIC['zh-CN']];
 }
 
 function scoresFor(state) {
@@ -101,9 +92,8 @@ function collectedDay(firstSeen, now) {
 
 export function keep(libraryDir, url, { topics, now = () => new Date() } = {}) {
   const config = loadConfig(libraryDir);
-  const cfg = pipelineFrom(config);
-  const state = requireInbox(libraryDir, url, cfg);
-  assertAllowed(state, 'keep', cfg);
+  const language = languageOfConfig(config);
+  const state = requireInbox(libraryDir, url);
   const item = readInboxItem(libraryDir, url);
   const title = item?.title ?? state.title ?? '';
   const date = item?.date ?? state.date ?? localIsoDate(now());
@@ -119,7 +109,7 @@ export function keep(libraryDir, url, { topics, now = () => new Date() } = {}) {
     topics: topicsFor(config, item, state, topics),
     scores: scoresFor(state),
   };
-  const written = writeNoteFile(libraryDir, { id, header, body: bodyFor(item, cfg.language) }, { by: 'keep' });
+  const written = writeNoteFile(libraryDir, { id, header, body: bodyFor(item, language) }, { by: 'keep' });
   appendEvent(libraryDir, { ts: now().toISOString(), ev: 'kept', url, id });
   removeInboxItem(libraryDir, url);
   rebuildIndex(libraryDir);
@@ -131,9 +121,8 @@ export const DISMISS_QUICK = Object.freeze(['marketing', 'irrelevant', 'shallow'
 export function dismiss(libraryDir, url, reason, { quick, now = () => new Date() } = {}) {
   if (reason !== undefined && reason !== null && typeof reason !== 'string') throw new StreamsError('bad-argument', 'a reason must be a string');
   if (quick !== undefined && quick !== null && !DISMISS_QUICK.includes(quick)) throw new StreamsError('bad-argument', `quick must be one of ${DISMISS_QUICK.join(' | ')}`);
-  const cfg = pipelineFrom(loadConfig(libraryDir));
-  const state = requireInbox(libraryDir, url, cfg);
-  assertAllowed(state, 'dismiss', cfg);
+  loadConfig(libraryDir);
+  requireInbox(libraryDir, url);
   const words = typeof reason === 'string' ? reason.trim() : '';
   const ev = { ts: now().toISOString(), ev: 'dismissed', url };
   if (words !== '') ev.reason = words;
@@ -172,70 +161,7 @@ export function recentDismissReasons(libraryDir, n = 10) {
   return out.reverse().slice(0, limit);
 }
 
-// ---- redesign R2: 未通过筛选 (N02), 待评分 (N09), 处理情况 (N10) ---------------------------------------------------------
-
-/**
- * The gate an item is below under the current configuration, with its score and threshold; null when it is not below one.
- * Redesign R5a: `old` — the verdict was made under another 评分标准 (the cfg of that gate changed since); `threshold` is then
- * the one it was judged against (queue.mjs verdictThreshold).
- */
-function belowGate(state, cfg) {
-  const step = nextStep(state, cfg);
-  if (step.kind !== 'done' || !step.why.startsWith('below:')) return null;
-  const id = step.why.slice('below:'.length);
-  const node = gateNodes(cfg).find((n) => n.id === id);
-  const sc = state.scores?.[id];
-  const old = step.old === true;
-  const threshold = node ? (old ? verdictThreshold(sc, state.cfg?.[id], node) : node.threshold) : null;
-  return { gate: id, score: typeof sc?.score === 'number' ? sc.score : null, threshold, reason: typeof sc?.reason === 'string' ? sc.reason : '', old };
-}
-
-export function moveToInbox(libraryDir, url, { now = () => new Date() } = {}) {
-  const cfg = pipelineFrom(loadConfig(libraryDir));
-  const state = stateOf(libraryDir, url);
-  const below = state && state.stage === 'seen' ? belowGate(state, cfg) : null;
-  if (!below) throw new StreamsError('not-rejected', `${url} did not fail a gate (stage: ${state?.stage ?? 'unknown'})`);
-  const ts = now().toISOString();
-  const card = {
-    url, title: state.title ?? '', source: state.source ?? '', date: state.date ?? '',
-    scores: scoresFor(state),
-    // no model ran a summary: the feed's own lines stand in, as for an item without a connection
-    summary: { what: '', points: [], quote: '' }, excerpt: typeof state.summary === 'string' ? state.summary : '',
-    verification: { passed: false, rounds: 0, failed: [] },
-    moved: 'rejected', movedFrom: below.gate, inboxAt: ts,
-  };
-  if (state.maybeDuplicateOf) card.maybeDuplicateOf = state.maybeDuplicateOf;
-  writeInboxItem(libraryDir, card);
-  appendEvent(libraryDir, { ts, ev: 'inbox', url, moved: 'rejected', from: below.gate });
-  return { url };
-}
-
-export function listRejected(libraryDir, { limit = 50, onlyOld = false } = {}) {
-  const cfg = pipelineFrom(loadConfig(libraryDir));
-  const max = Number.isInteger(limit) && limit >= 0 ? limit : 50;
-  const rows = [];
-  let order = 0;
-  for (const s of replayLedger(libraryDir).states.values()) {
-    order += 1;
-    if (s.stage !== 'seen') continue;
-    const below = belowGate(s, cfg);
-    if (!below || (onlyOld && !below.old)) continue;
-    rows.push({ order, item: { url: s.url, title: s.title ?? '', source: s.source ?? '', date: s.date ?? '', ...below, at: s.lastTs ?? null, firstSeen: s.firstSeen ?? null } });
-  }
-  rows.sort((a, b) => String(b.item.at ?? '').localeCompare(String(a.item.at ?? '')) || b.order - a.order);
-  return { total: rows.length, old: rows.filter((r) => r.item.old).length, items: rows.slice(0, max).map((r) => r.item) };
-}
-
-export function listManualWaiting(libraryDir) {
-  const cfg = pipelineFrom(loadConfig(libraryDir));
-  const out = [];
-  for (const s of replayLedger(libraryDir).states.values()) {
-    if (s.stage !== 'seen' || s.source !== MANUAL_SOURCE) continue;
-    if (nextStep(s, cfg).kind !== 'gate') continue;
-    out.push({ url: s.url, title: s.title ?? '', date: s.date ?? '', firstSeen: s.firstSeen ?? null, ...(s.maybeDuplicateOf ? { maybeDuplicateOf: s.maybeDuplicateOf } : {}) });
-  }
-  return out;
-}
+// ---- redesign R2: 处理情况 (N10) ---------------------------------------------------------------------------------------
 
 export function roundOutcome(libraryDir, roundId) {
   const out = { inbox: 0, kept: 0, dismissed: 0, later: 0, waiting: 0 };

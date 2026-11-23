@@ -1,22 +1,21 @@
 // Redesign R2 (docs/checks/2026-11-11-r2/contract.md; docs/desktop.md §4.14) — the pipeline service's part of 待看 and the
-// run, in plain Node on real libraries the library service made, with the fake connection and feeds on a local server:
+// run, in plain Node on real libraries the library service made, with the fake connection; their 待看 is filled by v1.0's own
+// round over feeds on a local server (core/legacy, tests only), and a run of a library is a stand-in of the update service
+// (services/library-update.mjs) that writes its run record — 1.1 W7b: v1.0's round left the service:
 //   R2-2  放弃 is held (nothing in the ledger) until its bar closes: 撤销 leaves no `dismissed` at all; a reason chosen, no
 //         reason, the next decision, another library opened, the app quitting (settlePending — main.mjs before-quit) write it,
 //         each with the right reason (none → no reason field); one at a time
 //   R2-3  稍后处理: getInbox's `later`, in _pipeline/later.json; back in `items` when a run of this library has ended, not when
 //         another library's run has
-//   R2-4  未通过筛选 in getInbox; 移入待看 puts it in `items` as moved:'rejected' with the note folder untouched
-//   R2-5  a link added by hand is in `manual` at once
-//   R2-6  getHome().lastRun: the funnel of the run record; its 模型调用 N = the parts = this library's calls in 设置
-//         (getUsageTotal, the usage file) — one number everywhere; a self-check that failed: the funnel stops at its first cell
+// (R2-4 未通过筛选 / 移入待看, R2-5 待评分 and R2-6's funnel went with v1.0's scoring pipeline in 1.1 W7b.)
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { createHash } from 'node:crypto'
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createLibraryService } from '../src/main/services/library.mjs'
 import { createConnectionsService } from '../src/main/services/connections.mjs'
 import { createPipelineService } from '../src/main/services/pipeline.mjs'
+import { makeContext, runRound, scriptedConnector } from '../../core/legacy/index.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { testWorld } from './support/services.mjs'
 import { startFakeServer } from '../../core/test/support/fake-server.mjs'
@@ -38,17 +37,37 @@ const until = async (check, { timeoutMs = 20_000 } = {}) => {
 }
 const ledger = dir => { const p = join(dir, '_pipeline', 'ledger.jsonl'); return existsSync(p) ? readFileSync(p, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : [] }
 const dismissed = dir => ledger(dir).filter(e => e.ev === 'dismissed')
-const notesHash = dir => { const d = join(dir, 'notes'); return existsSync(d) ? readdirSync(d).sort().map(f => `${f}:${createHash('sha256').update(readFileSync(join(d, f))).digest('hex')}`).join('|') : '' }
 
-/** A world with two libraries (A current), the fake connection chosen; `score(title)` decides each item's relevance. */
-async function setup({ items = 4, score = () => 0.9, devConnection = 'fake' } = {}) {
+/** The library's 待看 filled the way v1.0 filled it: its own round over a feed (core/legacy; tests only). */
+async function fill(dir, name, feed) {
+  const cfgFile = join(dir, 'streams.json')
+  const cfg = JSON.parse(readFileSync(cfgFile, 'utf8'))
+  writeFileSync(cfgFile, `${JSON.stringify({ ...cfg, sources: [{ name, kind: 'rss', url: feed }] }, null, 2)}\n`)
+  const r = await runRound(dir, { connector: scriptedConnector(), ctx: makeContext({ timeoutMs: 2000, sleep: async () => {} }) })
+  assert.ok(r.started, `control: v1.0's round ran (${JSON.stringify(r.problems)})`)
+}
+
+/** A stand-in of the update service: every library has a card; a run writes its record (kind 'update') and adds nothing. */
+const standInUpdate = {
+  applies: () => true,
+  problemFor: a => (a ? null : { code: 'no_connection' }),
+  async run(dir, _active, { round }) {
+    const at = new Date().toISOString()
+    const record = { id: round, kind: 'update', startedAt: at, finishedAt: at, status: 'done', counts: { inbox: 0 }, calls: 0 }
+    appendFileSync(join(dir, '_pipeline', 'rounds.jsonl'), `${JSON.stringify(record)}\n`)
+    return { started: true, status: 'done', record }
+  },
+}
+
+/** A world with two libraries (A current, `items` in its 待看; B two), the fake connection chosen. */
+async function setup({ items = 4, devConnection = 'fake' } = {}) {
   const w = testWorld('st-r2-')
   worlds.push(w)
   const locale = () => w.locale
   let pipeline = null
   const library = createLibraryService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, dialog: w.dialog, shell: w.shell, locale, held: () => pipeline?.held() ?? null })
   const connections = createConnectionsService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, secrets: w.secrets, locale, devConnection, connectorDeps: { env: { PATH: '', PATHEXT: '.EXE' } } })
-  pipeline = createPipelineService({ library, connections, emit: w.emit, log: w.log, shell: w.shell, locale, fetchContext: { timeoutMs: 2000, sleep: async () => {} } })
+  pipeline = createPipelineService({ library, connections, emit: w.emit, log: w.log, shell: w.shell, update: () => standInUpdate })
   const open = async name => {
     w.dialogAnswers.push(join(w.root, name))
     await library.handlers.chooseLibraryFolder()
@@ -58,9 +77,9 @@ async function setup({ items = 4, score = () => 0.9, devConnection = 'fake' } = 
   const srv = await startFakeServer()
   servers.push(srv)
   const b = await open('B')
-  await pipeline.handlers.applyStarterPack('blank', { addRss: [{ name: 'feed-b', url: feedRoute(srv, serveItems(srv, 2, i => ({ url: `${srv.base}/b/${i}`, title: `B item ${i}` })), '/feed-b') }] })
+  await fill(b.path, 'feed-b', feedRoute(srv, serveItems(srv, 2, i => ({ url: `${srv.base}/b/${i}`, title: `B item ${i}` })), '/feed-b'))
   const a = await open('A')
-  await pipeline.handlers.applyStarterPack('blank', { addRss: [{ name: 'feed-a', url: feedRoute(srv, serveItems(srv, items, i => ({ title: `A item ${i}` })), '/feed-a') }] })
+  await fill(a.path, 'feed-a', feedRoute(srv, serveItems(srv, items, i => ({ title: `A item ${i}` })), '/feed-a'))
   connections.handlers.setActiveConnection('claude-code')
   return { w, srv, library, connections, pipeline, h: pipeline.handlers, a, b }
 }
@@ -75,7 +94,6 @@ async function runCurrent(s) {
 
 test('R2-2 放弃 is held: off the list, nothing in the ledger; 撤销 → back where it was, no dismissed at all', async () => {
   const s = await setup()
-  await runCurrent(s)
   const urls = s.h.getInbox().items.map(i => i.url)
   assert.equal(urls.length, 4, 'control: four cards')
   const before = readFileSync(join(s.a.path, '_pipeline', 'ledger.jsonl'), 'utf8')
@@ -95,7 +113,6 @@ test('R2-2 放弃 is held: off the list, nothing in the ledger; 撤销 → back 
 
 test('R2-2 the bar closes: a quick reason, written words, no reason (no field), the next decision, a second 放弃 — each written once with its reason', async () => {
   const s = await setup({ items: 6 })
-  await runCurrent(s)
   const urls = s.h.getInbox().items.map(i => i.url)
   // a quick reason
   s.h.dismissItem(urls[0])
@@ -120,7 +137,6 @@ test('R2-2 the bar closes: a quick reason, written words, no reason (no field), 
 
 test('R2-2 quitting and opening another library write the held 放弃 (settlePending; getInbox of another library)', async () => {
   const s = await setup()
-  await runCurrent(s)
   const urls = s.h.getInbox().items.map(i => i.url)
   s.h.dismissItem(urls[0])
   assert.deepEqual(dismissed(s.a.path), [], 'control: held')
@@ -136,7 +152,6 @@ test('R2-2 quitting and opening another library write the held 放弃 (settlePen
 
 test('R2-3 稍后处理: getInbox later (in _pipeline/later.json); another library\'s run leaves it; a run of this library gives it back', async () => {
   const s = await setup()
-  await runCurrent(s)
   const urls = s.h.getInbox().items.map(i => i.url)
   s.h.laterItem(urls[0])
   s.h.laterItem(urls[1])
@@ -157,63 +172,14 @@ test('R2-3 稍后处理: getInbox later (in _pipeline/later.json); another libra
   assert.equal(existsSync(join(s.a.path, '_pipeline', 'later.json')), false)
 })
 
-test('R2-4 / R2-5 未通过筛选 and 移入待看 (the note folder untouched); a link added by hand is 待评分 at once', async () => {
-  const s = await setup({ items: 4 })
-  // the dev fake scores every item the same: the relevance threshold is raised above that score, so every item is below it
-  const { pipelineConfig, savePipelineConfig } = await import('../src/main/core.mjs')
-  const high = structuredClone(pipelineConfig(s.a.path))
-  high.nodes.find(n => n.id === 'relevance').threshold = 0.99
-  savePipelineConfig(s.a.path, high)
-  await runCurrent(s)
-  let inbox = s.h.getInbox()
-  assert.equal(inbox.items.length, 0, 'control: nothing passed')
-  assert.equal(inbox.rejected.total, 4)
-  const r = inbox.rejected.items[0]
-  assert.deepEqual([r.gate, r.threshold, typeof r.score, typeof r.reason], ['relevance', 0.99, 'number', 'string'])
-  const notes = notesHash(s.a.path)
-  await assert.rejects(async () => s.h.moveToInbox('https://never/seen'), err => err.code === 'bad_arguments')
-  assert.deepEqual(s.h.moveToInbox(r.url), { url: r.url })
-  assert.equal(notesHash(s.a.path), notes, 'the note folder byte for byte')
-  inbox = s.h.getInbox()
-  assert.deepEqual(inbox.items.map(i => [i.url, i.moved]), [[r.url, 'rejected']])
-  assert.equal(inbox.rejected.total, 3)
-  // keep it: a note the index lists
-  const kept = s.h.keepItem(r.url)
-  assert.ok(existsSync(join(s.a.path, 'notes', kept.file)))
-  // a link by hand (the sources service's addManualLink writes through the core's addManual; here the core directly)
-  const { addManual } = await import('../src/main/core.mjs')
-  addManual(s.a.path, { url: `${s.srv.base}/by-hand`, title: '手动添加的一条' })
-  assert.deepEqual(s.h.getInbox().manual.map(m => [m.url, m.title]), [[`${s.srv.base}/by-hand`, '手动添加的一条']])
-})
-
-test('R2-6 getHome().lastRun: the funnel of the run record, N = the parts = this library\'s calls in 设置 (the usage file); a failed self-check stops at the first cell', async () => {
-  const s = await setup({ items: 3 })
-  await runCurrent(s)
-  const home = s.h.getHome()
-  const f = home.lastRun.funnel
-  const rec = home.lastRound
-  assert.deepEqual(f.cells.map(c => [c.id, c.n]), [['fetched', rec.counts.fetched], ['new', rec.counts.new], ['gate:relevance', rec.gates.relevance.passed], ['gate:substance', rec.gates.substance.passed], ['inbox', rec.counts.inbox]])
-  assert.equal(f.calls.parts.reduce((a, p) => a + p.n, 0), f.calls.total, 'the parts add up')
-  assert.equal(f.calls.parts[0].n, 1, '运行前自检 1')
-  const usage = s.library.handlers.getUsageTotal().libraries.find(l => l.id === s.a.id)
-  assert.equal(usage.calls, f.calls.total, '设置 says the same number for this library')
-  assert.deepEqual(home.lastRun.outcome, { inbox: 3, kept: 0, dismissed: 0, later: 0, waiting: 3 })
-  // a self-check that failed (the sign-in expired): the funnel of that attempt, stopped at its first cell
-  const t = await setup({ items: 1, devConnection: 'login-expired' })
-  const r = await t.h.startRound()
-  assert.equal(r.started, false)
-  const lr = t.h.getHome().lastRun
-  assert.deepEqual([lr.funnel.stop.cell, lr.funnel.stop.why, lr.funnel.stop.connectionCode, lr.funnel.complete], [0, 'self-check', 'login-expired', false])
-})
-
 test('without a library the R2 methods are no_library', async () => {
   const w = testWorld('st-r2-none-')
   worlds.push(w)
   const locale = () => w.locale
   const library = createLibraryService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, dialog: w.dialog, shell: w.shell, locale })
   const connections = createConnectionsService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, secrets: w.secrets, locale, devConnection: 'fake' })
-  const p = createPipelineService({ library, connections, emit: w.emit, log: w.log, shell: w.shell, locale })
-  for (const [name, args] of [['dismissItem', ['https://x/1']], ['settleDismiss', [null, null]], ['undoDismiss', []], ['moveToInbox', ['https://x/1']]]) {
+  const p = createPipelineService({ library, connections, emit: w.emit, log: w.log, shell: w.shell })
+  for (const [name, args] of [['dismissItem', ['https://x/1']], ['settleDismiss', [null, null]], ['undoDismiss', []]]) {
     await assert.rejects(async () => p.handlers[name](...args), err => err.code === 'no_library', name)
   }
 })
@@ -227,10 +193,14 @@ test('R2-7 why a run starts, the four said as they are: 创建库后的首次运
   assert.deepEqual(QUEUE.why, { first: '创建库后的首次运行', manual: '手动触发', schedule: '定时', 'catch-up': '补跑' })
   assert.deepEqual(Object.keys(QUEUE_EN.why).sort(), Object.keys(QUEUE.why).sort())
   const s = await setup({ items: 1 })
-  // B has never run: a run asked for is its first; A once it has run: manual; a slot and a catch-up stay what they are
-  assert.equal(whyOf(s.b, 'manual'), 'first')
+  // a library that has never run (C, made just now): a run asked for is its first; A once it has run: manual; a slot and a
+  // catch-up stay what they are (A and B were filled by a round of v1.0 at setup: they have run already)
+  const { createLibrary } = await import('../src/main/core.mjs')
+  const c = { id: 'c', path: join(s.w.root, 'C') }
+  createLibrary(c.path, { name: 'C' })
+  assert.equal(whyOf(c, 'manual'), 'first')
   await runCurrent(s)
   assert.equal(whyOf(s.a, 'manual'), 'manual')
-  assert.equal(whyOf(s.b, 'schedule'), 'schedule')
-  assert.equal(whyOf(s.b, 'catch-up'), 'catch-up')
+  assert.equal(whyOf(c, 'schedule'), 'schedule')
+  assert.equal(whyOf(c, 'catch-up'), 'catch-up')
 })

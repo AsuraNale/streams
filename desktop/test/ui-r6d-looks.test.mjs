@@ -4,18 +4,19 @@
 // (scripts/lib/contrast.mjs: every piece of text a person sees, its colour against the colour really behind it; 4.5 : 1,
 // large text 3 : 1; only disabled controls and placeholders are not counted).
 //   - 待看, 精密国际主义 dark: a card's body was white under the dark theme's light ink (1.26 : 1)
-//   - 待看, the four dark looks: .activity-row kept #666; 研究对话 dark: the section-label's buttons kept the light blue
+//   - 待看, the four dark looks: .activity-row kept #666 (1.1 W7b: 研究对话 dark's section-label button, 添加链接, is gone)
 //   - 待看 and 资料库, 澄明玻璃 dark: the chosen row's small lines; the library's mark in the sidebar (研究对话 light too)
 //   - 待看, 精密国际主义 and 研究对话 light: .chart-row and .step-line in round 6's #777
-//   - 新建库: 新建库 in the sidebar while it is the screen — white on white in 单线黑白 light, dark on dark in every dark look;
-//     研究对话 light: the preset pack's second line
-//   - 问库, the four light looks: .speaker small, .compose-help, .after-card, .confirm-footer .muted, .panel-summary p
+//   - 新建库: 新建库 in the sidebar while it is the screen — white on white in 单线黑白 light, dark on dark in every dark look
+//     (1.1 W7b: 新建库 is the build page's one sentence; v1.0's form and its preset pack's line are gone)
+//   - 问库, the four light looks: .speaker small, .compose-help, .after-card, .panel-summary p (1.1 W7b: no sentence of 问库 goes
+//     to the main agent any more, so no proposal under it)
 //   - 图谱, 单线黑白: a pressed node jumped away from the pointer and the click was lost
 // Each test here fails when its rule is taken out again (scripts/mutation-check.mjs r6d-contrast-* · r6d-graph-press). The
 // check itself is seen to fail first: a line of grey text put into the page is reported, the same line in a disabled
 // button is reported as exempt, and the page without them has nothing under the bar.
-// Worlds: under the OS temp folder (tempDir), the shelf's three libraries with plan B's notes, the fake connection, 问库 and
-// the main agent scripted; the window hidden (so every transition is brought to its end before the colours are read).
+// Worlds: under the OS temp folder (tempDir), the shelf's three libraries with plan B's notes, the fake connection, 问库
+// scripted; the window hidden (so every transition is brought to its end before the colours are read).
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import { writeFileSync } from 'node:fs'
@@ -158,11 +159,6 @@ test('R6d-3 待看 in the four dark looks: 最近的放弃原因 (.activity-row)
   await clean(s, ['precision-dark', 'glass-dark', 'research-dark', 'monoline-dark'], ['[data-part="reasons"] .activity-row'], '待看')
 })
 
-test('R6d-3 待看 in 研究对话, dark: 添加链接 (a section-label\'s button) is not left in the light theme\'s blue', async () => {
-  const s = await onInbox()
-  await clean(s, ['research-dark'], ['.section-label [data-action="add-link"] button'], '待看')
-})
-
 test('R6d-3 待看 in 澄明玻璃 dark and 研究对话 light: the current library\'s line and the libraries\' marks in the sidebar', async () => {
   const s = await onInbox()
   await clean(s, ['glass-dark', 'research-light', 'glass-light'], ['.project-item.active .project-meta', '.project-item .st-lib-mark'], '待看')
@@ -230,32 +226,25 @@ test('R6d a theme chosen while the app runs brings its own icons at once, not th
 })
 
 // ---- 新建库 ---------------------------------------------------------------------------------------------------------------------
-const newRun = lazySession({ start: 'new-library' })
+const newRun = lazySession({ start: 'build' })
 test('R6d-3 新建库 in 单线黑白 and the dark looks: 新建库 in the sidebar can be read while it is the screen', async () => {
   const s = await newRun()
   await clean(s, ['monoline-light', 'monoline-dark', 'precision-dark', 'glass-dark', 'research-dark'], ['.sidebar .navitem.new.active'], '新建库')
 })
 
-test('R6d-3 新建库 in 研究对话, light: the preset pack\'s second line (.document-link small)', async () => {
-  const s = await newRun()
-  await clean(s, ['research-light'], ['[data-part="pack-line"] small'], '新建库')
-})
-
 // ---- 问库 -----------------------------------------------------------------------------------------------------------------------
 const askRun = lazySession({
   start: 'ask',
-  prepare: ({ shelf, root }) => {
+  prepare: ({ root }) => {
     const askFile = join(root, 'ask-answer.json')
     writeFileSync(askFile, JSON.stringify({
       answer: [{ text: '库里的评测横向比较了五种 agent 记忆方案，作者自己的方案排第一。', cites: [1] }, { text: '分层记忆在长对话上的评测效果最好。', cites: [2] }],
       notInLibrary: false, missing: '「隔天回来」情形下各方案的直接排名', claimed: ['json-keys', 'cites-in-set', 'cited-sentences', 'claims-supported'],
     }), 'utf8')
-    const agentFile = join(root, 'agent-script.json')
-    writeFileSync(agentFile, JSON.stringify([{ reply: '已生成修改提议：单次运行上限从 120 次改为 30 次模型调用，确认后生效。', proposals: [{ kind: 'edit_cap', why: '你说 30 次就够了', params: { libraryId: shelf.ids[0], cap: 30 } }] }]), 'utf8')
-    return { STREAMS_DEV_ASK_SCRIPT: askFile, STREAMS_DEV_AGENT_SCRIPT: agentFile }
+    return { STREAMS_DEV_ASK_SCRIPT: askFile }
   },
 })
-test('R6d-3 问库 in the four light looks: the small notes round 6 draws in fixed greys (.speaker small, .compose-help, .after-card, .confirm-footer .muted, .panel-summary p)', async () => {
+test('R6d-3 问库 in the four light looks: the small notes round 6 draws in fixed greys (.speaker small, .compose-help, .after-card, .panel-summary p)', async () => {
   const s = await askRun()
   const { page, until } = s
   await page.fill('textarea[data-field="question"]', 'agent 记忆方案里哪种在长对话上表现最好？')
@@ -263,15 +252,15 @@ test('R6d-3 问库 in the four light looks: the small notes round 6 draws in fix
   await until(() => document.querySelector('[data-turn="0"]')?.dataset.state === 'done' && document.querySelector('[data-turn="0"] [data-sentence]') !== null)
   await page.click('[data-turn="0"] [data-action="add-demand"] button')
   await until(() => document.querySelector('[data-turn="0"] [data-part="demand-added"]') !== null)
-  await page.fill('textarea[data-field="question"]', '这个库单次运行最多调用 30 次就够了，帮我把上限改成 30。')
+  // a second question, so the conversation is long enough that the first answer's notes can be scrolled to the top of the
+  // view (as it was when the second sentence went to the main agent, before 1.1 W7b; 问库 only answers now)
+  await page.fill('textarea[data-field="question"]', '分层记忆的评测效果怎样？')
   await page.click('[data-action="send"] button')
-  await until(() => document.querySelector('[data-turn="1"]')?.dataset.state === 'done' && document.querySelector('[data-turn="1"] [data-proposal]') !== null)
+  await until(() => document.querySelector('[data-turn="1"]')?.dataset.state === 'done' && document.querySelector('[data-turn="1"] [data-sentence]') !== null)
   await s.tab('detail')
   await until(() => document.querySelector('[data-part="detail-ask"] [data-detail-cite]') !== null)
-  // the first answer's notes (库内缺少 · 已加入待补充主题) in view; the second turn's speaker line and proposal below it
+  // the answer's notes (库内缺少 · 已加入待补充主题) in view
   await page.evaluate(() => document.querySelector('[data-turn="0"] .after-card')?.scrollIntoView({ block: 'start' }))
   await clean(s, ['precision-light', 'glass-light', 'research-light', 'monoline-light'], ['[data-turn="0"] .after-card [data-part="missing"]', '.speaker small', '.compose-help', '.panel-summary p'], '问库')
-  await page.evaluate(() => { const b = document.querySelector('.st-ask .thread-scroll'); b?.scrollTo(0, b.scrollHeight) })
-  await clean(s, ['precision-light', 'glass-light', 'research-light', 'monoline-light'], ['[data-turn="1"] [data-proposal] .confirm-footer [data-part="note"]', '.speaker small[data-part="routed"]'], '问库')
   assert.deepEqual(s.errors, [])
 })

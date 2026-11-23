@@ -1,10 +1,9 @@
 /**
  * 「谁定的」 for what the user changes directly (v2 package B; docs/desktop.md §4.5, docs/core-api.md 5.13): the bridge methods
- * of v1.0 that change a library's sources, topics, thresholds, schedule or cap go through `byYou`, which reads those fields
- * before and after the change and writes one line by 'you' into the library's _pipeline/changes.jsonl for each field that
- * changed (core recordChanges). A change that fails writes no line (the error goes on up, as before); a line that cannot be
- * written is said in the log and the change stands. A confirmed proposal card writes its own lines (by 'agent-confirmed',
- * core confirmProposal).
+ * that change a library's schedule or name go through `byYou`, which reads those fields before and after the change and
+ * writes one line by 'you' into the library's _pipeline/changes.jsonl for each field that changed (core recordChanges). A
+ * change that fails writes no line (the error goes on up, as before); a line that cannot be written is said in the log and
+ * the change stands.
  * @module desktop/main/services/changes
  */
 

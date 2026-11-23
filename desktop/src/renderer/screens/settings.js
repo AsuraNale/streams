@@ -24,7 +24,7 @@
 // [data-part=connections|agent-uses|theme|appearance|language|library-root|usage|about|advanced|made-by]; [data-connection=<kind>]
 // [data-conn-state][data-active] with [data-conn-words], b (its name), select#settings-model-<kind>(-verify), [data-action=probe|
 // use-connection|setup-key|login|login-again], [data-probe]; [data-usage-library=<id>][data-calls][data-self-check],
-// [data-usage-agent][data-calls], [data-part="usage-sum"][data-sum]; [data-action=licenses|copy-diagnostics|open-logs]; the key
+// [data-part="usage-sum"][data-sum]; [data-action=licenses|copy-diagnostics|open-logs]; the key
 // dialog dialog[data-dialog="api-key"] with select[data-field="vendor"], input[data-field="base-url"|"key"], [data-action=save-key|
 // remove-key|cancel-key]; dialog[data-dialog="licenses"] with [data-part=own|license-text|font|font-license-text|components|notices|
 // licenses-made-by], [data-component=<name>], [data-action=open-notices|close-licenses]; the theme chips [data-theme-card=<id>]
@@ -202,7 +202,7 @@ function ConnectionsPart() {
         <span class="file-icon"><${TIcon} name="spark" /></span>
         <span class="file-text st-set-conn__name"><b>${CONNECTIONS.names[kind]}</b><small data-conn-words>${words.join(SEP)}</small>
           ${kind === 'api' ? html`<small>${T.conn.apiHint}</small>` : null}
-          ${kind === 'codex' || kind === 'api' ? html`<small data-part="only-ask">${T.conn.onlyAsk}</small>` : null}</span>
+          ${kind === 'codex' || kind === 'api' ? html`<small data-part="only-ask">${fmt(T.conn.onlyAsk, { cc: CONNECTIONS.names['claude-code'] })}</small>` : null}</span>
         <span class="st-set-slots">
           <${ModelSelect} id=${`settings-model-${kind}`} label=${T.conn.model} value=${k.model ?? null} models=${k.models} noneLabel=${CONNECTIONS.defaultModel} disabled=${busy} onChange=${v => setModels(kind, k, { model: v })} />
           <${ModelSelect} id=${`settings-model-${kind}-verify`} label=${T.conn.verify} value=${k.verifyModel ?? null} models=${k.models} noneLabel=${CONNECTIONS.sameAsMain} disabled=${busy} onChange=${v => setModels(kind, k, { verifyModel: v })} />
@@ -223,23 +223,20 @@ function ConnectionsPart() {
 }
 
 /**
- * 「本月用量合计」 (维护者 11-05; redesign R4b, F65): getUsageTotal — the calls and the tokens of every library this month and the main
- * agent's, and the sum written out. The two sides are the main process's numbers; `data-sum` is what the parts add up to (the
+ * 「本月用量合计」 (维护者 11-05; redesign R4b, F65): getUsageTotal — the calls and the tokens of every library this month, and the sum
+ * written out (1.1 W7b: v2's main agent, and its line, are gone). The two sides are the main process's numbers; `data-sum` is what the parts add up to (the
  * page shows the total the main process gives, and the parts it is made of — the test checks they are equal).
  */
 function UsagePart() {
   const usage = useLoad(() => call('getUsageTotal'), [])
   useEvent('inbox-changed', () => usage.reload())
   useEvent('libraries-changed', () => usage.reload())
-  useEvent('agent-changed', p => { if (p?.phase === 'done') usage.reload() })
   const u = usage.data
   const U = T.usage
   const libs = Array.isArray(u?.libraries) ? u.libraries : []
-  const agent = u?.agent?.calls ?? 0
-  const sum = libs.reduce((n, l) => n + (l.calls ?? 0), 0) + agent
+  const sum = libs.reduce((n, l) => n + (l.calls ?? 0), 0)
   const parts = u ? [
     ...libs.map(l => html`<span key=${l.id} data-usage-library=${l.id} data-calls=${l.calls} data-self-check=${l.selfCheck ?? 0}>${l.missing ? fmt(U.missing, { name: l.name }) : (l.selfCheck ?? 0) > 0 ? fmt(U.librarySelfCheck, { name: l.name, calls: l.calls, n: l.selfCheck }) : fmt(U.library, { name: l.name, calls: l.calls })}</span>`),
-    html`<span key="agent" data-usage-agent data-calls=${agent}>${fmt(U.agent, { calls: agent })}</span>`,
   ] : []
   return html`<div data-part="usage" data-calls=${u?.calls ?? ''} data-month=${u?.month ?? ''}>
     ${!u && usage.status === 'error' ? html`<p class="progress-alert" role="alert">${U.failed}</p>` : null}

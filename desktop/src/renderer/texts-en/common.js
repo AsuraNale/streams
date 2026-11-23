@@ -88,18 +88,7 @@ export const CONNECTIONS = Object.freeze({
   }),
 })
 
-export const NODE_NAMES = Object.freeze({
-  relevance: 'Relevance',
-  substance: 'Substance',
-  freshness: 'Freshness',
-  summary: 'Summary',
-})
-
 export const ROUND_PHASES = Object.freeze({
-  'self-check': 'pre-run check',
-  fetch: 'fetching',
-  gate: 'scoring',
-  summary: 'summarizing',
   done: 'done',
   update: 'updating',
 })

@@ -19,7 +19,6 @@ export const PANEL = Object.freeze({
     started: 'Started {when}',
     phase: 'Current step: {phase}',
     calls: 'Model calls',
-    callsValue: '{calls} / {cap}',
     callsNoCap: '{calls}',
     order: 'Queue order',
     orderNone: 'No library is queued.',
@@ -39,6 +38,13 @@ export const PANEL = Object.freeze({
     keepRunning: 'Keep Streams running (window or tray). A missed run is caught up once at the next start.',
   }),
 
+  decide: Object.freeze({
+    eyebrow: 'All libraries · To confirm',
+    title: '{n} item{n?|s}',
+    none: 'Nothing to confirm.',
+    loadFailed: 'Could not read what waits to be confirmed.',
+  }),
+
   detail: Object.freeze({
     eyebrow: 'Details · {where}',
     where: Object.freeze({
@@ -46,15 +52,11 @@ export const PANEL = Object.freeze({
       library: 'Current note',
       ask: 'Current answer',
       graph: 'Current node',
-      chat: 'Main agent · this conversation',
     }),
-    none: 'Nothing is selected on this page. Select an item in the Inbox, Library, Ask or Main agent to see its details here.',
+    none: 'Nothing is selected on this page. Select an item in the Inbox, Library or Ask to see its details here.',
     inbox: Object.freeze({
       eyebrow: 'Current item',
       empty: 'Nothing to review.',
-      scores: 'Why this was picked',
-      scoresNone: 'This one has no scores (without a model connection items are fetched, not scored).',
-      score: '{name} {score}',
       check: 'Verification',
       passed: 'Verified',
       failed: 'Verification failed',
@@ -73,7 +75,6 @@ export const PANEL = Object.freeze({
       reasonLine: '{when} · {reason}',
       // 1.1 W6a
       why: 'Why it was taken',
-      reasonsOnly: 'Why this was picked',
       sourceAndOriginal: 'Source and original',
       inboxLine: '{source} · published {date} · in the Inbox {when}',
       originalLine: 'Original: {method} · kept {when} · kept for good once you keep the item, removed 7 days after you discard it',
@@ -83,16 +84,6 @@ export const PANEL = Object.freeze({
       cites: '{n} note{n?|s}',
       citesNone: 'Nothing asked yet, or the answer cites no note.',
       hint: 'Click one to open it in the Library tab.',
-    }),
-    chat: Object.freeze({
-      title: 'Looked up and proposed in this message',
-      looked: 'Looked up ({n})',
-      lookedNone: 'Nothing was looked up for this message.',
-      cards: 'Proposals ({n})',
-      cardsNone: 'No proposal for this message.',
-      none: 'No conversation yet.',
-      cardState: Object.freeze({ pending: 'To confirm', confirmed: 'In effect', declined: 'Declined', revise: 'Changes requested', stale: 'No longer applies', failed: 'Could not be carried out' }),
-      see: 'Show the proposal',
     }),
   }),
 

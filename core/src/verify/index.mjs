@@ -1,17 +1,17 @@
 // Verification layer (product spec 4.11, core-api 4.3): a checker that does not do the task.
 //
 //   rules.mjs      deterministic rule operators, zero model calls
-//   checklist.mjs  lock a checklist (drop vague / duplicate / ruleless items, cap, append baseline)
-//                  and the baseline items for gates and for the summary
+//   checklist.mjs  the built-in items a summary is checked by against the stored original (1.1 W7b: v1.0's checklists of the
+//                  scoring steps are core/legacy's)
 //   judge.mjs      the one independent judge call per output (all judge items packed together)
 //   verify.mjs     verifyOnce (rules first, judge second) and verifyLoop (feedback = failed items only)
 //   verdicts.mjs   _pipeline/verdicts.jsonl, one line per item per round
 //   original-check.mjs   1.1 W3: where a point's sentence is in the stored original; the numbers of a text
 //   summary.mjs          1.1 W3: checkSummary, a summary checked against the original kept in the library
 //   ai-instructions.mjs  「写给 AI 的话」: the fixed-pattern rule, the judge fallback item, _pipeline/ai-instructions.jsonl
-// The pipeline layer (src/pipeline/) imports from here; nothing here writes the ledger or notes/.
+// Nothing here writes the ledger or notes/.
 export { checkRule, countWords, parseRule, RULE_OPS } from './rules.mjs';
-export { lockChecklist, gateBaseline, summaryBaseline, originalChecklist, baselineDescription, describeChecklist, BASELINE_LANGUAGES, BANNED_WORDS, CHECK_KINDS, MAX_CHECKLIST_ITEMS, MIN_DESC_CHARS } from './checklist.mjs';
+export { originalChecklist, BANNED_WORDS } from './checklist.mjs';
 export { judgeItems, buildJudgePrompt, JUDGE_PROMPT } from './judge.mjs';
 export { verifyOnce, verifyLoop } from './verify.mjs';
 export { detectAiInstructions, normalizeForDetect, AI_INSTRUCTION_PATTERNS, AI_JUDGE_ITEM, AI_INSTRUCTIONS_FILE, AI_INSTRUCTION_BY, aiInstructionsPath, readAiInstructions, recordAiInstruction, aiInstructionMark, recordMark } from './ai-instructions.mjs';

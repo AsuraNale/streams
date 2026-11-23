@@ -54,7 +54,7 @@ test('rebuildIndex: conforming notes in, non-conforming refused and listed, file
   assert.ok(pending[2].messages[0].startsWith('line 1: '));
   assert.equal(meta.count, 5);
   assert.equal(meta.pending_count, 3);
-  assert.equal(meta.warnings_count, 2);
+  assert.equal(meta.warnings_count, 1); // 'warned': its unknown topic (1.1 W7b: a score key no longer warns)
   assert.deepEqual(meta.problems, pending.map((p) => ({ file: p.file, codes: p.codes })));
   assert.match(meta.rebuilt_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 
@@ -105,7 +105,7 @@ test('index line: fixed key order, flattened scores, optional keys omitted, link
   assert.ok(!lines[3].includes('null'), 'absent fields are omitted, never written as null');
 
   const warned = entries[4];
-  assert.deepEqual(warned.warnings, ['unknown-topic:未知主题', 'unknown-score:oldgate']);
+  assert.deepEqual(warned.warnings, ['unknown-topic:未知主题']);
   assert.deepEqual(warned.scores, { relevance: 0.5, oldgate: 'x' });
 });
 

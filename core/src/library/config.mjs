@@ -1,5 +1,6 @@
-// streams.json: library configuration. Today the core only reads `topics[].name`,
-// `pipeline.nodes[].id` and `notesDir`; everything else is passed through untouched.
+// streams.json: library configuration. Here the core only reads `topics[].name` and `notesDir` (the library's language,
+// `pipeline.language`, is library/language.mjs's); everything else is passed through untouched. 1.1 W7b: v1.0's scoring steps
+// (`pipeline.nodes`) are no longer read or checked here — a library made by v1.0 keeps them as they are.
 //   notesDir (optional): the note folder, relative to the library folder; default "notes", "." = the library folder
 //   itself (an imported folder, core-api 5.9). An absolute path, a drive, a ".." step or a path outside the library
 //   folder is invalid-shape.
@@ -63,30 +64,10 @@ function checkShape(config) {
       if (!isPlainObject(t) || typeof t.name !== 'string' || t.name.trim() === '') return `topics[${i}] must be an object with a non-empty "name"`;
     }
   }
-  if (config.pipeline !== undefined) {
-    if (!isPlainObject(config.pipeline)) return '"pipeline" must be an object';
-    if (config.pipeline.nodes !== undefined) {
-      if (!Array.isArray(config.pipeline.nodes)) return '"pipeline.nodes" must be an array';
-      for (const [i, n] of config.pipeline.nodes.entries()) {
-        if (!isPlainObject(n) || typeof n.id !== 'string' || n.id.trim() === '') return `pipeline.nodes[${i}] must be an object with a non-empty "id"`;
-      }
-    }
-  }
+  if (config.pipeline !== undefined && !isPlainObject(config.pipeline)) return '"pipeline" must be an object';
   return null;
 }
 
 export function topicNames(config) {
   return (config?.topics ?? []).map((t) => t.name);
-}
-
-// The keys a note's `scores` may use: every node id, plus every enum output field of a gate
-// (gate 2's freshness is recorded as its own scored event and its own scores key, core-api 4.1).
-export function nodeIds(config) {
-  const out = [];
-  for (const n of config?.pipeline?.nodes ?? []) {
-    out.push(n.id);
-    const output = n && typeof n.output === 'object' && n.output !== null ? n.output : {};
-    for (const [k, v] of Object.entries(output)) if (typeof v === 'string' && v.startsWith('enum:') && !out.includes(k)) out.push(k);
-  }
-  return out;
 }

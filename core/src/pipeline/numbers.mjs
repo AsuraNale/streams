@@ -9,14 +9,13 @@
 //              (counts.inbox 0, missing, or not a number); the first round that did stops the count (plan C8: 今日 says so
 //              from NO_OUTPUT_ROUNDS on)
 //   sources    sourceHealth(lastRoundStatus)
-// constantScoreWarning(scored, { min }) -> '' | one line   (toolkit F3: one source, >= min items, all the same score)
+// (1.1 W7b: v1.0's constantScoreWarning, about a round's scores, left core/src with the scoring pipeline: core/legacy.)
 import { replayLedger } from '../library/ledger.mjs';
 import { lastRoundStatus } from '../fetch/log.mjs';
 import { sourceHealth } from '../fetch/health.mjs';
 import { readRounds } from './rounds-log.mjs';
 import { readLater } from './later.mjs';
 
-export const MIN_CONSTANT_RUN = 5;
 // 今日's banner 「连续 N 轮没有产出」 shows from this many rounds in a row without output (plan C8)
 export const NO_OUTPUT_ROUNDS = 3;
 
@@ -57,24 +56,4 @@ export function noOutputStreak(rounds) {
     n += 1;
   }
   return n;
-}
-
-// scored: [{ url, source, score }] of one round. A warning, never a rejection: a machine cannot tell a
-// lazy blanket score from a correct one (52 issue-index pages at 0.15 were right), so it reports and
-// a person decides. Sources are listed in alphabetical order so the line is stable.
-export function constantScoreWarning(scored, { min = MIN_CONSTANT_RUN } = {}) {
-  const bySource = new Map();
-  for (const s of Array.isArray(scored) ? scored : []) {
-    if (!s || typeof s.score !== 'number' || !Number.isFinite(s.score)) continue;
-    const src = typeof s.source === 'string' && s.source !== '' ? s.source : '?';
-    if (!bySource.has(src)) bySource.set(src, []);
-    bySource.get(src).push(s.score);
-  }
-  const flagged = [];
-  for (const [src, scores] of bySource) {
-    if (scores.length >= min && new Set(scores).size === 1) flagged.push(`${src} (${scores.length} items all at ${scores[0]})`);
-  }
-  if (flagged.length === 0) return '';
-  flagged.sort();
-  return `constant-score: ${flagged.join('; ')}`;
 }

@@ -1,6 +1,8 @@
 // 新建库 and the build conversation (1.1 W6b; acceptance A1, A2, B3; the before / after of W6 that 维护者 saw on 11-21): the route
 // 'build' (app.js newLibrary(): the sidebar's 「新建库」, the shelf, 首次打开; 来源与要求's 「改建库卡」 with params.edit, 上一版建的库's
-// 「重新查一遍来源」 with params.opener). v1.0's form ('new-library', screens/new-library.js) stays until W7 removes it.
+// 「重新查一遍来源」 with params.from). 1.1 W7b: the sidebar's 「主 Agent」 opens it too (the route 'chat' is an alias of it): the
+// sidebar marks 「新建库」 while the page shows its one sentence (data-view=start), 「主 Agent」 while it shows a conversation
+// (data-view=talk). v1.0's form ('new-library') is gone.
 //   No conversation going (getBuild null): the one-sentence page — what to follow (or, params.edit, what to change in that
 //   library's card), 「开始」 only with words in the box and only on 「连接你电脑上的 Claude Code」 (another connection: why, with
 //   去设置); params.send (首次打开's sentence) starts at once. The right panel's 详情 is 「流息怎样工作」.
@@ -12,7 +14,7 @@
 //   a card came before it (or the library's card, changing one), the lines that changed with 改前 / 改后 (A2). 「确认，建库」 only on
 //   the last card while the core can confirm it (whole, every address read: A2); 不建了 ends the conversation, nothing made (B3).
 //   A turn that failed (the connection): why, 再试一次 (and 去设置 for a sign-in). A build that stopped: why, 重新开始.
-// Words: texts/build.js BUILD (and texts/agent.js AGENT for the speaker, texts/common.js CONNECTIONS / DAY).
+// Words: texts/build.js BUILD (BUILD.speaker for the speaker; texts/common.js CONNECTIONS / DAY).
 // 1.1 W7a: params.from (with params.brief) — a library of the last version brought over: data-mode convert, its own words
 // (texts/build.js BUILD.convert), the opening words made from its old requirements and sources (getSources).
 // Test hooks: main[data-screen="build"][data-state][data-mode=create|edit|convert][data-view=start|talk]; [data-field=opener|message|other];
@@ -30,7 +32,6 @@ import { TIcon } from '../lib/template-icons.js'
 import { BrandMark } from '../lib/brand-mark.js'
 import { AppFrame, AppSidebar, Main, TopBar } from '../kit/index.js'
 import { CONNECTIONS, DAY, PUNCT, SEP } from '../texts/common.js'
-import { AGENT } from '../texts/agent.js'
 import { BUILD as T } from '../texts/build.js'
 import { RightPanel } from './right-panel.js'
 import { Btn } from './t-dialog.js'
@@ -43,7 +44,7 @@ const BUDGET = Object.freeze({ searches: 20, reads: 35, changeSearches: 5, chang
 const list = v => (Array.isArray(v) ? v : typeof v === 'string' && v.trim() ? [v] : [])
 
 function Speaker() {
-  return html`<div class="speaker"><span class="avatar"><${BrandMark} /></span>${AGENT.name} <small>${AGENT.role}</small></div>`
+  return html`<div class="speaker"><span class="avatar"><${BrandMark} /></span>${T.speaker.name} <small>${T.speaker.role}</small></div>`
 }
 
 /** 「流息怎样工作」 of the right panel's 详情 beside the page. */
@@ -315,7 +316,8 @@ function Talk({ view, onView }) {
   const placeholder = waiting ? T.placeholderCard : openQuestion >= 0 ? T.placeholderAnswer : T.placeholderSay
   const today = dayText(new Date().toISOString(), DAY)
 
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="build" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
+  // 1.1 W7b: a conversation going is 主 Agent's page (the sidebar marks 主 Agent, route alias 'chat')
+  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
     <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': view.mode, 'data-view': 'talk' }}>
       <${TopBar} title=${cv?.title ?? (edit ? T.editTitle : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.editSubtitle : T.talkSubtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
       <div class="st-chat">
@@ -352,7 +354,7 @@ function Talk({ view, onView }) {
               value=${text} disabled=${working} onInput=${e => setText(e.currentTarget.value)}
               onKeyDown=${e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send() } }}></textarea>
             <div class="composer-tools">
-              <span class="chip"><${TIcon} name="spark" /> ${AGENT.name}</span><small>${AGENT.chat.newline}</small><span class="spacer"></span>
+              <span class="chip"><${TIcon} name="spark" /> ${T.speaker.name}</span><small>${T.speaker.newline}</small><span class="spacer"></span>
               <span class="st-act" data-action="send"><button type="submit" class="send-btn" aria-label=${T.send} title=${T.send} disabled=${working || !text.trim()}><${TIcon} name="send" /></button></span>
             </div>
           </form>

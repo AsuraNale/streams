@@ -36,7 +36,7 @@ function standIn(over = {}) {
   const calls = []
   const rec = (name, answer) => (...args) => { calls.push([name, ...args]); return typeof answer === 'function' ? answer(...args) : answer }
   const fns = {
-    libraryCounts: { kept: 1, authored: 0, caught: 1, pending: 0 },
+    libraryCounts: { kept: 1, authored: 0, pending: 0 },
     listLibrary: (dir, o) => ({ view: o.view, items: [], total: 0 }),
     search: [],
     readNote: (dir, id) => ({ entry: { id }, body: 'b', backlinks: [], sameSource: [], file: `${id}.md` }),
@@ -66,11 +66,11 @@ test('getLibrary and searchLibrary: the core gets the view, the filter and the c
   const { w, dir, library } = shared
   const { core, of } = standIn()
   const h = createBrowseService({ library, emit: w.emit, log: w.log, shell: w.shell, core }).handlers
-  const r = h.getLibrary('caught', { topics: ['评测'], days: 30 })
-  assert.deepEqual(r, { counts: { kept: 1, authored: 0, caught: 1, pending: 0 }, view: 'caught', items: [], total: 0 })
+  const r = h.getLibrary('pending', { topics: ['评测'], days: 30 })
+  assert.deepEqual(r, { counts: { kept: 1, authored: 0, pending: 0 }, view: 'pending', items: [], total: 0 })
   const [, d, o] = of('listLibrary')[0]
   assert.equal(d, dir)
-  assert.deepEqual([o.view, o.topics, o.days, typeof o.now], ['caught', ['评测'], 30, 'function'])
+  assert.deepEqual([o.view, o.topics, o.days, typeof o.now], ['pending', ['评测'], 30, 'function'])
   h.getLibrary('kept', null)
   assert.deepEqual(Object.keys(of('listLibrary')[1][2]).sort(), ['now', 'view'], 'null filter: nothing but the view and the clock')
   assert.deepEqual(h.searchLibrary('记忆', { view: 'all', topics: [] }), [])
@@ -181,8 +181,8 @@ test('the real core W5: counts and lists, search, one note, an edit, the path', 
   assert.equal(kept.counts.kept, 1)
   assert.deepEqual(kept.items.map(i => i.id), [seed.kept.id])
   assert.equal(kept.total, 1)
-  const caught = h.getLibrary('caught', null)
-  assert.ok(caught.items.some(i => i.url === seed.caughtUrl), 'the item that failed the first gate is 「抓到的」')
+  // 1.1 W7b: v1.0's 「抓到的」 (fetched, below a gate) is no view of 资料库 any more
+  assert.throws(() => h.getLibrary('caught', null), err => err.code === 'bad_arguments')
   const note = h.readNote(seed.kept.id)
   assert.equal(note.entry.id, seed.kept.id)
   assert.equal(note.file, seed.kept.file)

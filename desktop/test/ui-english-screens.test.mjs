@@ -5,7 +5,10 @@
 //
 // How each screen is reached: as the pictures of R1–R6a reach it (docs/checks/2026-11-13-r6b/survey/shots.md §2 — scripts/
 // shots-r2 … r6a), on worlds under the OS temp folder: the shelf's three libraries (test/support/seed.mjs), the fake
-// connection, the detection / the main agent / 问库 scripted, feeds and a site on this machine. The dialogs are opened.
+// connection, the detection / the build conversation / 问库 scripted, feeds and a site on this machine. The dialogs are opened.
+// 1.1 W7b: 新建库 (new) and 主 Agent (agent) are the build page — its one sentence and its conversation; v1.0's 新建库 form, v2's
+// main agent chat, 系统检测, 未通过筛选, 待评分 and 评分环节 are gone. A library of the seed is one the last version made (it
+// opens, its 来源与要求 is read only); 运行与排队 and 连接出问题 run on libraries with a card.
 //
 // The user's own content. The seeded worlds are Chinese (library names, briefs, topics, item titles, summaries a model
 // wrote, notes): those words are the user's, shown as they are in any language (05 规则 10). They are told apart by where
@@ -48,15 +51,14 @@ import { seedPlanB, seedShelf } from './support/seed.mjs'
 import { seedQueue, startHoldingFeed } from './support/queue-world.mjs'
 import { seedReaderLibrary, startReaderSite } from './support/reader-site.mjs'
 import { BAR_HEIGHT, READER_PARTITION } from '../src/main/reader.mjs'
-import { describeChecklist, gateBaseline } from '../../core/src/verify/checklist.mjs'
+import { quietCard } from './support/card-world.mjs'
 import { SHELL as SHELL_ZH } from '../src/renderer/texts/shell.js'
-import { INBOX as INBOX_ZH } from '../src/renderer/texts/inbox.js'
 import { SHELL as SHELL_EN } from '../src/renderer/texts-en/shell.js'
 import { SETTINGS as SETTINGS_EN } from '../src/renderer/texts-en/settings.js'
 
 const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs')).href)
-const { startFakeServer } = await import(pathToFileURL(join(REPO_DIR, 'core', 'test', 'support', 'fake-server.mjs')).href)
-const { rssWith } = await import(pathToFileURL(join(REPO_DIR, 'core', 'test', 'support', 'feeds.mjs')).href)
+// v1.0's default steps in English, for a library of the last version made under an English interface (tests may use core/legacy)
+const legacy = await import(pathToFileURL(join(REPO_DIR, 'core', 'legacy', 'index.mjs')).href)
 
 // ---- the design's 21 screens -------------------------------------------------------------------------------------------------
 const LIST = JSON.parse(readFileSync(join(REPO_DIR, 'docs', 'design', 'redesign', 'source', '07-模板版', '画面清单.json'), 'utf8'))
@@ -200,7 +202,7 @@ function englishLibrary(dir) {
   const config = JSON.parse(readFileSync(file, 'utf8'))
   // the pipeline a library gets when it is made in English (createLibrary(dir, { language: 'en' })): its language and the
   // default instructions of its steps in English — what the seed wrote in Chinese is the default of a Chinese library
-  config.pipeline = { ...(config.pipeline ?? {}), ...core.DEFAULT_PIPELINE('en') }
+  config.pipeline = { ...(config.pipeline ?? {}), ...legacy.DEFAULT_PIPELINE('en') }
   writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
 }
 
@@ -301,63 +303,55 @@ test('shelf · 库架 in English', async () => {
   })
 })
 
+// the build conversation's replies (services/build.mjs devBuildSession): a question, then a whole card whose addresses were read
+const BUILD_CARD = {
+  name: 'Agent long-term memory',
+  definition: { summary: 'A library for long-term memory designs of AI agents and how they are evaluated; only pieces with technical detail or data.', purpose: 'Research', scope: 'Who: labs and tool makers; field: AI agents; region: anywhere; size: any', exclude: 'Marketing pieces', trust: 'Papers and project pages', rhythm: 'Once a day', language: 'English', hard: 'Each item names its source' },
+  decide: [{ what: 'Keep product announcements', default: 'No' }], collect: ['Memory designs', 'Memory evaluations'], skip: ['Marketing'],
+  sources: [{ name: 'memory feed', url: 'https://example-a.test/feed.xml', status: 'readable' }],
+  unreadable: [{ name: 'a members area', url: 'https://example-c.test/members', reason: 'sign-in required' }],
+  pick: ['New results first'], write: ['Give the numbers'], samples: [{ title: 'A memory benchmark', url: 'https://example-b.test/1', date: '2026-11-20' }],
+}
+const BUILD_REPLIES = { replies: [
+  { json: { say: 'One question first.', question: { text: 'What will you use the library for?', kind: 'input' } } },
+  { json: { say: 'The library card is ready. Have a look.', card: BUILD_CARD }, reads: ['https://example-a.test/feed.xml', 'https://example-b.test/1', 'https://example-c.test/members'].map(url => ({ url, ok: true })) },
+] }
+
 test('agent · 主Agent in English', async () => {
-  const srv = await startFakeServer()
-  try {
-    const feed = srv.route('/feed.xml', { body: rssWith(Array.from({ length: 5 }, (_, i) => ({ title: `agent memory note ${i + 1}`, url: `https://example.test/m/${i + 1}` }))) })
-    await session({
-      start: 'chat', settings: { panel: { open: true, tab: 'decide' } },
-      prepare: ({ shelf, root }) => {
-        // every library's 系统检测 as the app records them at the end of its runs (scripts/shots-r5b.mjs)
-        const others = me => shelf.ids.map((id, i) => ({ libraryId: id, dir: shelf.dirs[i] })).filter(o => o.dir !== me)
-        for (const dir of shelf.dirs) core.recordSuggestions(dir, core.suggestFor(dir, { otherLibraries: others(dir) }))
-        const script = join(root, 'agent-script.json')
-        writeFileSync(script, JSON.stringify([{
-          reply: 'A library proposal is ready. Its only source is the one you gave (test fetch: OK · 5 items); the strictness is Standard for now. Choose Create and Streams creates the library and starts its first run.',
-          proposals: [{ kind: 'create_library', why: 'the user wants to track long-term memory for agents', params: {
-            name: 'Agent long-term memory', brief: 'Track long-term memory for AI agents and its evaluations. Only pieces with technical detail or data; no marketing.',
-            topics: [{ name: 'Memory designs', keywords: ['agent memory', 'long-term memory'] }, { name: 'Memory evaluations', keywords: ['benchmark', 'MemBench'] }],
-            sources: [{ name: 'my-feed', kind: 'rss', url: feed, topic: 'Memory designs' }], schedule: { enabled: true, time: '08:00' },
-          } }],
-        }]), 'utf8')
-        return { env: { STREAMS_DEV_AGENT_SCRIPT: script } }
-      },
-    }, async t => {
-      const { page, until } = t
-      const sentence = `I want to follow long-term memory designs for AI agents and how they are evaluated, no marketing. For now only this feed: ${feed}`
-      t.typed.push(sentence)
-      await page.fill('textarea[data-field="message"]', sentence)
-      await page.click('[data-action="send"] button')
-      await until(() => document.querySelector('[data-part="conversation"] [data-proposal][data-kind="create_library"][data-status="pending"]') !== null
-        && document.querySelector('[data-part="compose"]')?.dataset.busy === 'false'
-        && document.querySelectorAll('[data-pane="decide"] [data-decide][data-from="system"]').length >= 1)
-      await page.evaluate(() => { const el = document.querySelector('.st-chat .thread-scroll'); if (el) el.scrollTop = el.scrollHeight })
-      await t.see('agent')
-    })
-  } finally { await srv.close() }
+  await session({
+    start: 'build', settings: { panel: { open: true, tab: 'decide' } },
+    prepare: ({ root }) => {
+      const replies = join(root, 'build-replies.json')
+      writeFileSync(replies, JSON.stringify(BUILD_REPLIES), 'utf8')
+      return { env: { STREAMS_DEV_BUILD: replies } }
+    },
+  }, async t => {
+    const { page, until } = t
+    const sentence = 'I want to follow long-term memory designs for AI agents and how they are evaluated, no marketing.'
+    t.typed.push(sentence)
+    await until(() => document.querySelector('main[data-screen="build"][data-view="start"] [data-action="start"] button') !== null)
+    await page.fill('textarea[data-field="opener"]', sentence)
+    await page.click('[data-action="start"] button')
+    await until(() => document.querySelector('main[data-screen="build"][data-view="talk"] [data-part="question"]') !== null && document.querySelector('textarea[data-field="message"]')?.disabled === false)
+    const answer = 'For research on agent memory.'
+    t.typed.push(answer)
+    await page.fill('textarea[data-field="message"]', answer)
+    await page.click('[data-action="send"] button')
+    await until(() => document.querySelector('article[data-part="build-card"][data-last="true"][data-can-confirm="true"]') !== null && document.querySelector('[data-pane="decide"] [data-part="build-waiting"]') !== null)
+    await page.evaluate(() => { const el = document.querySelector('main[data-screen="build"] .thread-scroll'); if (el) el.scrollTop = el.scrollHeight })
+    await t.see('agent')
+  })
 })
 
 test('new · 新建库 in English', async () => {
-  const srv = await startFakeServer()
-  try {
-    const ev = srv.route('/ev.xml', { body: rssWith([{ title: 'October retail of passenger cars', url: 'https://ev.test/1' }, { title: 'Battery installations in October', url: 'https://ev.test/2' }]) })
-    const notices = srv.route('/notices.xml', { status: 503, body: 'busy' })
-    await session({ start: 'new-library' }, async t => {
-      const { page, until } = t
-      await page.fill('[data-field="name"]', 'Chinese EVs')
-      await page.fill('[data-field="brief"]', 'Track the monthly numbers of new energy cars in China: retail and wholesale, share of sales, battery installations. No car reviews, no promotions.')
-      for (const url of [ev, notices]) {
-        await page.fill('[data-field="source"]', url)
-        await page.press('[data-field="source"]', 'Enter')
-      }
-      await until(() => [...document.querySelectorAll('[data-part="sources"] [data-source]')].map(r => r.dataset.fetchState).join() === 'ok,failed')
-      await page.fill('[data-field="topic"]', 'Monthly numbers')
-      await page.press('[data-field="topic"]', 'Enter')
-      await until(() => document.querySelector('[data-part="folder-state"]')?.dataset.state === 'empty' && document.querySelector('[data-part="estimate"]')?.dataset.lo !== '')
-      await page.evaluate(() => { document.querySelector('.st-first-body').scrollTop = 0 })
-      await t.see('new')
-    })
-  } finally { await srv.close() }
+  await session({ start: 'build' }, async t => {
+    const { page, until } = t
+    await until(() => document.querySelector('main[data-screen="build"][data-view="start"] [data-field="opener"]') !== null)
+    const sentence = 'Track the monthly numbers of new energy cars in China: retail and wholesale, share of sales, battery installations. No car reviews, no promotions.'
+    t.typed.push(sentence)
+    await page.fill('textarea[data-field="opener"]', sentence)
+    await t.see('new')
+  })
 })
 
 const sha1 = s => createHash('sha1').update(String(s)).digest('hex')
@@ -379,13 +373,8 @@ test('inbox · 待看 in English (and the controls of the check itself)', async 
     const urls = await page.evaluate(() => [...document.querySelectorAll('[data-card]')].map(e => e.dataset.url))
     await page.click(`[data-card][data-url="${urls[2]}"] [data-action="later"] button`)
     await until(() => document.querySelector('[data-part="later"]') !== null)
-    const r = await page.evaluate(() => window.streams.addManualLink('https://example.org/agent-memory-survey', ''))
-    assert.equal(r.ok, true, JSON.stringify(r))
-    await until(() => document.querySelector('[data-part="manual"] [data-manual]') !== null)
     await page.click(`[data-card][data-url="${urls[3]}"] [data-action="dismiss"] button`)
     await until(() => document.querySelector('[data-part="dismiss-bar"]') !== null)
-    if (await page.evaluate(() => document.querySelector('[data-part="rejected"] summary') !== null)) await page.click('[data-part="rejected"] summary')
-    await until(() => document.querySelector('[data-part="rejected"][data-open="true"] [data-rejected]') !== null)
     await page.click(`[data-card][data-url="${urls[0]}"] .card-body`)
     await until(u => document.querySelector(`[data-card][data-url="${u}"]`)?.dataset.current === 'true', urls[0])
     await t.tab('detail')
@@ -408,9 +397,10 @@ test('inbox · 待看 in English (and the controls of the check itself)', async 
     assert.deepEqual(wideProblems([{ where: 'control', text: topic }], corpus), [], 'the user\'s own word alone is not reported')
     const cjk = topic.match(WIDE_RUN)[0]
     assert.equal(wideProblems([{ where: 'control', text: `${cjk}（agent memory）` }], corpus).length >= 1, true, 'a full-width mark the app puts beside a user\'s word is reported')
-    // a short dictionary word in Chinese that the world's sentences hold inside them (「…的新动态」) is still reported, alone and
-    // beside a user's words (redesign R6b precheck: these passed before, the run was looked up as a bare substring)
-    const zhNew = INBOX_ZH.card.freshness.new
+    // a short word in Chinese that the world's sentences hold inside them (「…的新动态」) is still reported, alone and beside a
+    // user's words (redesign R6b precheck: these passed before, the run was looked up as a bare substring). It was v1.0's mark
+    // 新 (INBOX.card.freshness.new, gone with the scoring in 1.1 W7b); the check is the same with the word written here
+    const zhNew = '\u65b0'
     assert.ok(corpus.includes(zhNew) && !standsAlone(corpus, zhNew), `control: 「${zhNew}」 is inside the world's sentences, not a word of its own there`)
     assert.equal(wideProblems([{ where: 'control', text: zhNew }], corpus).length, 1, `「${zhNew}」 alone is reported`)
     assert.equal(wideProblems([{ where: 'control', text: `${zhNew} ${t.world.seed.inbox[0].title}` }], corpus).length, 1, `「${zhNew}」 beside a card's title is reported`)
@@ -474,23 +464,22 @@ test('run · 运行与排队 in English', async () => {
 
 test('expired · 连接出问题 in English', async () => {
   await session({
-    start: 'inbox', connection: 'login-expired', settings: { panel: { open: true, tab: 'decide' } },
+    start: 'inbox', connection: 'login-expired', settings: { panel: { open: true, tab: 'progress' } },
     prepare: ({ world }) => {
       const dir = world.library
-      // 待看 empty, one item fetched and not scored; three runs without output; one source 地址无效 twice in a row (scripts/shots-r5b.mjs)
+      // 1.1: the library has a card, so 立即运行 is an update — which finds the connection's sign-in expired (W6a B12)
+      core.writeCard(dir, quietCard('AI agent memory'))
+      // 待看 empty; three runs without output; one source 地址无效 twice in a row (scripts/shots-r5b.mjs)
       for (const it of core.listInbox(dir)) core.keep(dir, it.url)
-      core.appendEvent(dir, { ev: 'seen', url: 'https://example.org/ev/oct-retail', source: 'letta-blog', title: 'October retail of passenger cars', date: core.localIsoDate(new Date()) })
       const at = i => new Date(Date.now() - (4 - i) * 3_600_000).toISOString()
       appendFileSync(join(dir, '_pipeline', 'rounds.jsonl'), [1, 2, 3].map(i => `${JSON.stringify({ id: `dry-${i}`, startedAt: at(i), finishedAt: at(i), counts: { fetched: 2, new: 0, maybeDuplicates: 0, summarized: 0, inbox: 0 }, gates: {}, calls: 0 })}\n`).join(''), 'utf8')
       for (const i of [2, 3]) core.appendFetchLog(dir, { ts: at(i), round: `dry-${i}`, source: 'mcp-news', kind: 'rss', status: 'gap', hint: 'fix-address-or-remove', count: 0, new: 0, http: 404, message: 'HTTP 404: check the address' })
-      core.recordSuggestions(dir, core.suggestFor(dir))
     },
   }, async t => {
     const { page, until } = t
     await until(() => document.querySelector('[data-part="run-button"][data-run-state="idle"] button')?.disabled === false)
     await page.click('[data-part="run-button"] button')
-    await until(() => document.querySelector('.lib-page [data-part="problem"]') !== null)
-    await until(() => document.querySelectorAll('[data-pane="decide"] [data-decide]').length >= 2)
+    await until(() => document.querySelector('.lib-page [data-part="update-banner"][data-code="login-expired"]') !== null)
     await t.see('expired')
   })
 })
@@ -531,10 +520,9 @@ test('library · edit · header · graph — 资料库, 编辑笔记, 缺少文�
 
 test('ask · 问库 in English', async () => {
   const QUESTION = 'Which agent memory design does best on long conversations, and what does it cost?'
-  const CHANGE = 'Change the cap of this library to 30 model calls a run; that is enough.'
   await session({
     planB: true, start: 'ask',
-    prepare: ({ shelf, root }) => {
+    prepare: ({ root }) => {
       const askFile = join(root, 'ask-answer.json')
       writeFileSync(askFile, JSON.stringify({
         answer: [
@@ -546,21 +534,16 @@ test('ask · 问库 in English', async () => {
         missing: 'a direct ranking of the designs when the user comes back a day later',
         claimed: ['json-keys', 'cites-in-set', 'cited-sentences', 'claims-supported'],
       }), 'utf8')
-      const agentFile = join(root, 'agent-script.json')
-      writeFileSync(agentFile, JSON.stringify([{ reply: 'A proposal is ready: the per-run cap goes from 120 to 30 model calls once you confirm.', proposals: [{ kind: 'edit_cap', why: 'you said 30 model calls a run is enough for this library', params: { libraryId: shelf.ids[0], cap: 30 } }] }]), 'utf8')
-      return { env: { STREAMS_DEV_ASK_SCRIPT: askFile, STREAMS_DEV_AGENT_SCRIPT: agentFile } }
+      return { env: { STREAMS_DEV_ASK_SCRIPT: askFile } }
     },
   }, async t => {
     const { page, until } = t
-    t.typed.push(QUESTION, CHANGE)
+    t.typed.push(QUESTION)
     await page.fill('textarea[data-field="question"]', QUESTION)
     await page.click('[data-action="send"] button')
     await until(() => document.querySelector('[data-turn="0"]')?.dataset.state === 'done' && document.querySelector('[data-turn="0"] [data-sentence]') !== null)
     await page.click('[data-turn="0"] [data-action="add-demand"] button')
     await until(() => document.querySelector('[data-turn="0"] [data-part="demand-added"]') !== null)
-    await page.fill('textarea[data-field="question"]', CHANGE)
-    await page.click('[data-action="send"] button')
-    await until(() => document.querySelector('[data-turn="1"]')?.dataset.state === 'done' && document.querySelector('[data-turn="1"] [data-proposal]') !== null)
     await t.tab('detail')
     await until(() => document.querySelector('[data-part="detail-ask"] [data-detail-cite]') !== null)
     await page.evaluate(() => { const b = document.querySelector('.st-ask .thread-scroll'); b?.scrollTo(0, b.scrollHeight) })
@@ -568,70 +551,38 @@ test('ask · 问库 in English', async () => {
   })
 })
 
-test('sources · advanced · remove — 来源与要求, 高级设置, 移除该库 in English (the built-in rules in English, no full-width mark beside a name)', async () => {
-  const srv = await startFakeServer()
-  try {
-    const feed = srv.route('/memory.xml', { body: rssWith([{ title: 'Launch HN: a long-term memory benchmark for agents', url: 'https://hn.test/1' }]) })
-    await session({
-      start: 'sources', settings: { panel: { open: true, tab: 'files' } },
-      prepare: ({ world }) => {
-        core.saveStrictness(world.library, 'standard')
-        core.updateTopic(world.library, world.seed.topics[0], { keywords: ['agent memory', 'long-term memory', 'MemGPT'] })
-      },
-    }, async t => {
-      const { page, until, world } = t
-      await until(() => document.querySelector('[data-part="brief"][data-state="ready"]') && document.querySelectorAll('[data-part="sources"] [data-row]').length > 0)
-      await page.fill('[data-field="source"]', feed)
-      await page.press('[data-field="source"]', 'Enter')
-      await until(() => document.querySelector('[data-part="adding"]')?.dataset.fetchState === 'ok')
-      const first = await page.evaluate(() => document.querySelector('[data-part="sources"] [data-row]').dataset.row)
-      await page.click(`[data-row="${first}"] [data-action="row-more"] button`)
-      await until(() => document.querySelector('[data-part="row-menu"]') !== null)
-      const topic = await page.evaluate(() => document.querySelector('[data-topic-row]').dataset.topicRow)
-      await page.evaluate(n => document.querySelector(`[data-topic-row="${CSS.escape(n)}"]`).click(), topic)
-      await until(() => document.querySelector('[data-part="topic-detail"]') !== null)
-      await t.see('sources')
-      await page.keyboard.press('Escape')
+test('sources · advanced · remove — 来源与要求, 高级设置, 移除该库 in English (no full-width mark beside a name)', async () => {
+  await session({ start: 'sources', settings: { panel: { open: true, tab: 'files' } } }, async t => {
+    const { page, until } = t
+    // a library the last version made: the notice, its brief and its sources, read only
+    await until(() => document.querySelector('main[data-screen="sources"][data-state="ready"] [data-part="old-library"]') && document.querySelectorAll('[data-part="old-sources"] [data-row]').length > 0)
+    await t.see('sources')
 
-      // a little history, written the way the page writes it, so 变更记录 has lines (scripts/shots-r4b.mjs)
-      await page.evaluate(async name => {
-        await window.streams.setStrictness('strict')
-        await window.streams.updateTopic(name, { keywords: ['agent memory', 'long-term memory', 'MemGPT', 'LoCoMo'] })
-        await window.streams.setRoundCap(30)
-      }, world.seed.topics[0])
-      await page.click('[data-action="go-advanced"]')
-      await until(() => document.querySelector('[data-part="gates"][data-state="ready"]') && document.querySelector('[data-part="changes"][data-state="ready"]'))
-      // every fold open, so everything 高级设置 can say is on the screen
-      await page.evaluate(() => { for (const d of document.querySelectorAll('main details')) d.open = true })
-      await until(() => document.querySelectorAll('[data-part="checklist"] [data-check][data-origin="streams"]').length >= 4)
-      const { texts } = await t.see('advanced')
-      // the built-in rules of the step that is open are the core's English descriptions, each followed by the English bracket
-      const node = await page.evaluate(() => window.streams.getPipeline().then(r => r.data.config.nodes.find(n => n.kind === 'gate')))
-      const want = describeChecklist(gateBaseline(node), 'en').map(i => i.desc)
-      const shown = await page.evaluate(() => [...document.querySelectorAll('[data-part="checklist"] [data-check][data-origin="streams"] > span')].map(s => s.textContent))
-      assert.ok(want.length >= 4 && want.every(d => shown.some(s => s.startsWith(d))), `the built-in rules in English: ${JSON.stringify(shown)}`)
-      assert.ok(shown.every(s => / \(Built-in rule, cannot be removed\)$/.test(s)), `each with the English bracket: ${JSON.stringify(shown)}`)
-      assert.ok(texts.some(x => x.text.includes('Change history')) || texts.some(x => x.text.includes('Per-run cap')), 'the change history is on the screen')
-
-      await page.click('[data-action="remove-library"] button')
-      await until(() => document.querySelector('dialog[data-dialog="remove-library"][open]') !== null)
-      await t.see('remove')
+    // a little history, written the way the page writes it (the library's schedule saved twice), so 变更记录 has lines
+    await page.evaluate(async () => {
+      const id = (await window.streams.getAppState()).data.library.libraryId
+      await window.streams.setLibrarySchedule(id, { enabled: true, time: '07:30' })
+      await window.streams.setLibrarySchedule(id, { enabled: false, time: '07:30' })
     })
-  } finally { await srv.close() }
+    await page.click('[data-action="go-advanced"]')
+    await until(() => document.querySelector('[data-view="advanced"] [data-part="changes"][data-state="ready"] [data-change-row]') !== null)
+    // every fold open, so everything 高级设置 can say is on the screen
+    await page.evaluate(() => { for (const d of document.querySelectorAll('main details')) d.open = true })
+    const { texts } = await t.see('advanced')
+    assert.ok(texts.some(x => x.text.includes('Change history')), 'the change history is on the screen')
+    assert.ok(await page.evaluate(() => document.querySelectorAll('[data-change-row][data-field="schedule"][data-by="you"]').length) >= 2, 'the page\'s own changes are in it')
+
+    await page.click('[data-action="remove-library"] button')
+    await until(() => document.querySelector('dialog[data-dialog="remove-library"][open]') !== null)
+    await t.see('remove')
+  })
 })
 
 test('settings · apikey · licenses — 设置, 输入 API key, 许可证与致谢 in English', async () => {
   await session({
     start: 'settings', settings: { panel: { open: true, tab: 'progress' } },
-    prepare: ({ root }) => {
-      const script = join(root, 'agent-script.json')
-      writeFileSync(script, JSON.stringify([{ reply: 'Noted.' }]), 'utf8')
-      return { env: { STREAMS_DEV_AGENT_SCRIPT: script } }
-    },
   }, async t => {
     const { page, until } = t
-    t.typed.push('hello')
-    await page.evaluate(() => window.streams.agentSend('hello'))
     await until(() => document.querySelectorAll('[data-part="connections"] [data-connection]').length === 3 && document.querySelector('[data-part="usage-sum"]') !== null)
     await page.evaluate(() => { document.querySelector('[data-part="advanced"]').open = true })
     const { texts } = await t.see('settings', { glyph: true })

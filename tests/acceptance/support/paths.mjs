@@ -23,9 +23,13 @@ export const INSTALLER_DIR = join(REPO_DIR, 'installer')
 
 export const fileUrl = p => pathToFileURL(p).href
 
-export const core = await import(fileUrl(join(CORE_DIR, 'src', 'index.mjs')))
+// 1.1 W7b: v1.0's fetch-and-score round left core/src for core/legacy (not shipped). These checks of the 1.0 standards
+// still run it from there: the surface is src/index.mjs with legacy/index.mjs laid over it (legacy wins: its scriptedConnector is the 1.0 one).
+const shipped = await import(fileUrl(join(CORE_DIR, 'src', 'index.mjs')))
+const legacy = await import(fileUrl(join(CORE_DIR, 'legacy', 'index.mjs')))
+export const core = Object.freeze({ ...shipped, ...legacy })
 // the scripted connector's prompt readers (titleOf, scoreKeyOf, promptKind): not on the public surface
-export const fake = await import(fileUrl(join(CORE_DIR, 'src', 'pipeline', 'fake.mjs')))
+export const fake = await import(fileUrl(join(CORE_DIR, 'legacy', 'pipeline', 'fake.mjs')))
 
 export const SCRATCH_ROOT = join(tmpdir(), `streams-acceptance-${process.pid}-${randomBytes(4).toString('hex')}`)
 mkdirSync(SCRATCH_ROOT, { recursive: true })

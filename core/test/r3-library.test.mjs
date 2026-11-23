@@ -1,7 +1,8 @@
 // Redesign R3 (docs/checks/2026-11-11-r3/contract.md R3-1 … R3-4, 「测」): what the core says the library holds now that 资料库
 // only lists what is a file of the library.
 //   - listLibrary 'all' (资料库 「全部」) is every index row — kept, authored — and never a ledger item without a file; its count is
-//     libraryCounts().all. Control: the same library has caught items (the old 「抓到的」), so a view that took them in would show.
+//     libraryCounts().all. Control: the same library has ledger items without a file (what v1.0 called 「抓到的」), so a view that
+//     took them in would show. (1.1 W7b: the 'caught' view itself is gone; the control reads the ledger.)
 //   - graph (图谱) draws only index entries: its item nodes are exactly the index's ids, the caught urls are none of them.
 //   - a header written onto a file that has none (缺少文件头 → 写入): the body after the new header is the old file byte for byte
 //     (a BOM and CRLF kept), and before 写入 the file is in no index, graph or search.
@@ -15,7 +16,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { libraryCounts, listLibrary } from '../src/library/browse.mjs';
 import { rebuildIndex, readIndex } from '../src/library/index.mjs';
-import { appendEvent } from '../src/library/ledger.mjs';
+import { appendEvent, replayLedger, TERMINAL_STAGES } from '../src/library/ledger.mjs';
 import { graph } from '../src/graph/graph.mjs';
 import { applyProposedHeader, listPending } from '../src/library/pending.mjs';
 import { search } from '../src/library/search.mjs';
@@ -25,6 +26,9 @@ import { makeLibrary, keepNote, TEST_CONFIG } from './support/fixtures.mjs';
 import { hashNotes, writeRawNote } from './support/raw-notes.mjs';
 
 const CONFIG = { ...TEST_CONFIG, sources: [{ name: 'feed-a', kind: 'rss', url: 'https://a.test/feed', topic: 'agent 记忆' }] };
+
+// the ledger items without a file: not kept, not dismissed (what v1.0 listed as 「抓到的」)
+const fileless = (dir) => [...replayLedger(dir).states.values()].filter((s) => !TERMINAL_STAGES.includes(s.stage));
 
 function world(name) {
   const dir = makeLibrary(name, CONFIG);
@@ -44,8 +48,8 @@ function world(name) {
 
 test('R3-1 listLibrary all: every index row (kept and authored), newest date first; no ledger item without a file; counts.all = index rows', () => {
   const dir = world('r3-all');
-  const caught = listLibrary(dir, { view: 'caught' }).items.map((i) => i.url);
-  assert.equal(caught.length, 3, 'control: three caught items a wrong 「全部」 would show');
+  const caught = fileless(dir).map((s) => s.url);
+  assert.equal(caught.length, 3, 'control: three ledger items without a file a wrong 「全部」 would show');
   const all = listLibrary(dir, { view: 'all' });
   assert.deepEqual(all.items.map((e) => e.id), ['k-two', 'mine', 'k-one']);
   assert.deepEqual(all.items.map((e) => e.status).sort(), ['authored', 'kept', 'kept']);
@@ -65,8 +69,8 @@ test('R3-2 graph: the item nodes are exactly the index entries; no caught url is
   const g = graph(dir, { days: null, status: 'all', links: true });
   const items = g.nodes.filter((n) => n.kind === 'item').map((n) => n.id.replace(/^item:/, '')).sort();
   assert.deepEqual(items, readIndex(dir).map((e) => e.id).sort());
-  const caught = listLibrary(dir, { view: 'caught' }).items;
-  assert.ok(caught.length > 0, 'control: there are caught items');
+  const caught = fileless(dir);
+  assert.ok(caught.length > 0, 'control: there are ledger items without a file');
   for (const c of caught) assert.equal(g.nodes.some((n) => n.label === c.title || n.id === `item:${c.url}`), false, `${c.title} is not drawn`);
   // the [[link]] between two files is an edge of its own kind (drawn dashed)
   assert.deepEqual(g.edges.filter((e) => e.kind === 'link'), [{ from: 'item:k-one', to: 'item:mine', kind: 'link' }]);

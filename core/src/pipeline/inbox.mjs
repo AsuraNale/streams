@@ -4,8 +4,8 @@
 // writeInboxItem(libraryDir, item) -> { file }
 // readInboxItem(libraryDir, url)   -> item | null
 // removeInboxItem(libraryDir, url) -> { removed }
-// listInbox(libraryDir, { now })   -> cards newest first (1.1 W6a), then relevance score desc, then substance desc
-//   [{ url, title, source, date, scores:{ relevance:{score,reason}, substance:{…}, freshness:{value,reason} },
+// listInbox(libraryDir, { now })   -> cards newest first (1.1 W6a), then by url (1.1 W7b: no score decides an order)
+//   [{ url, title, source, date, scores:{ <v1.0 step>:{score,reason} | {value,reason} } ({} for 1.1's items),
 //      summary:{ what, points, quote }, verification:{ passed, rounds, failed:[], aiInstruction? }, waitingDays, maybeDuplicateOf?,
 //      inboxAt, aiInstruction?, firstSeen, moved?, later?, laterAt? }]   aiInstruction:true = the material had 「写给 AI 的话」
 //   (v2 D1; the ledger inbox event says so). Redesign R2: firstSeen (the ledger's first event), moved:'rejected' (moved in
@@ -118,9 +118,8 @@ export function listInbox(libraryDir, { now = () => new Date() } = {}) {
     if (card.moved === 'rejected') card.excerpt = typeof item.excerpt === 'string' ? item.excerpt : '';
     cards.push(card);
   }
-  const score = (c, k) => (typeof c.scores[k]?.score === 'number' ? c.scores[k].score : -1);
-  // 1.1 W6a (E4): newest first — 1.1 keeps no score; for v1.0's items the scores only break a tie of the same moment
+  // 1.1 W6a (E4): newest first — 1.1 keeps no score; 1.1 W7b: v1.0's scores no longer break a tie of the same moment either
   const t = (c) => Date.parse(c.inboxAt ?? '') || 0;
-  cards.sort((a, b) => t(b) - t(a) || score(b, 'relevance') - score(a, 'relevance') || score(b, 'substance') - score(a, 'substance') || (a.url < b.url ? -1 : 1));
+  cards.sort((a, b) => t(b) - t(a) || (a.url < b.url ? -1 : 1));
   return cards;
 }

@@ -51,6 +51,61 @@ async function textTables() {
 
 const TITLE = /<title>([^<]*)<\/title>/.exec(readFileSync(join(RENDERER, 'index.html'), 'utf8'))?.[1]
 
+// 1.1 acceptance E4 (W7b): the interface files of BOTH languages — the page's (src/renderer/texts, texts-en) and the main
+// process's (src/main/texts, texts-en). The wording scanner's own list (V7: Bronze · Silver · Gold · judge · keeper · gate ·
+// Medallion · pending · ledger, and the brand words outside 「连接你电脑上的 …」) goes over every value of all of them, and so
+// does E4's list: the words the discussions used (状态包, 四档, 交卷, 把关) and v1.0's scoring words no longer used (相关度, 实质;
+// in English relevance, substance — whole words, any case). E4's list is also read in each file's text as written (its keys
+// and comments included), so a word cannot hide in a key or a note.
+const EN_TEXTS = join(RENDERER, 'texts-en')
+const MAIN_EN_TEXTS = join(DESKTOP_DIR, 'src', 'main', 'texts-en')
+const ALL_TEXT_DIRS = [TEXTS, EN_TEXTS, MAIN_TEXTS, MAIN_EN_TEXTS]
+export const E4_WORDS = Object.freeze(['状态包', '四档', '交卷', '把关', '相关度', '实质', 'relevance', 'substance'])
+const E4 = new RegExp(E4_WORDS.map(w => (/^[a-z]+$/.test(w) ? `\\b${w}\\b` : w)).join('|'), 'gi')
+
+/** E4's words in a text: [{ word, at }]. */
+export function e4Hits(text) {
+  return [...String(text).matchAll(E4)].map(m => ({ word: m[0], at: m.index }))
+}
+
+/** Every string of every text table of `dirs`, by module and key. */
+async function tablesOf(dirs) {
+  const all = []
+  for (const dir of dirs) {
+    assert.ok(existsSync(dir), `control: ${relative(DESKTOP_DIR, dir)} is there`)
+    for (const file of files(dir, ['.js'])) {
+      const mod = await import(pathToFileURL(file).href)
+      for (const [name, value] of Object.entries(mod)) all.push(...strings(value, `${relative(DESKTOP_DIR, file)}:${name}`))
+    }
+  }
+  return all
+}
+
+test('E4 · controls: a planted banned word is reported, by the wording scanner and by E4\'s list, in either language', () => {
+  // the words E4 bans, as decided (1.1 W7b) — written out here, not read from E4_WORDS, so a word dropped from the list is seen
+  const DECIDED = ['状态包', '四档', '交卷', '把关', '相关度', '实质', 'relevance', 'substance']
+  for (const w of DECIDED) {
+    const planted = /^[a-z]+$/.test(w) ? `the ${w.toUpperCase()} of it` : `这一条的${w}很高`
+    assert.equal(e4Hits(planted).length, 1, `${w} planted in ${JSON.stringify(planted)}`)
+  }
+  assert.deepEqual(e4Hits('relevant, substantial, irrelevance and substances are other words'), [], 'whole English words only')
+  assert.deepEqual(e4Hits('这一条在待看里等你'), [])
+  // the scanner's own list in an English string, and a brand word outside the allowed sentence
+  assert.equal(wording.scanStrings({ a: 'this one is still pending in the ledger' }).ok, false)
+  assert.equal(wording.scanStrings({ a: '用 Anthropic 的模型' }).ok, false)
+})
+
+test('E4 · every interface text file of both languages: 0 hits of the wording scanner and of E4\'s list', async () => {
+  const all = await tablesOf(ALL_TEXT_DIRS)
+  const en = all.filter(s => s.path.includes('texts-en'))
+  assert.ok(all.length > 2000 && en.length > 1000, `control: ${all.length} strings, ${en.length} of them English`)
+  const result = wording.scanStrings(Object.fromEntries(all.map(s => [s.path, s.text])))
+  assert.deepEqual(result.hits.map(h => `${h.field}: ${h.text} (${h.label ?? h.rule})`), [])
+  assert.deepEqual(all.flatMap(s => e4Hits(s.text).map(h => `${s.path}: ${h.word}`)), [])
+  const raw = ALL_TEXT_DIRS.flatMap(dir => files(dir, ['.js'])).flatMap(f => readFileSync(f, 'utf8').split('\n').flatMap((line, i) => e4Hits(line).map(h => `${relative(DESKTOP_DIR, f)}:${i + 1}: ${h.word}`)))
+  assert.deepEqual(raw, [])
+})
+
 test('the scanner and the punctuation check can fail (controls)', () => {
   assert.equal(wording.scanStrings({ a: '这一条是 Silver，还 pending' }).ok, false, 'a banned term is found')
   assert.equal(wording.scanStrings({ a: '这一条在待看里等你' }).ok, true)

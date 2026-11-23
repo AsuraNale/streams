@@ -4,8 +4,8 @@
 //   P01 (`view` home): the template's work-header (欢迎使用流息 · a line · the current connection's chip); then a new-content form:
 //     a file-row 「当前连接：连接你电脑上的 Claude Code」 + 「版本 x · 已登录 · 用量计入你的套餐」 + 已连接 + 「更换连接」 (no
 //     connection: 未连接 + 「选择连接」); 「你想追踪什么内容？」 and its line; three examples (file-row: a click only fills the box,
-//     nothing is sent); the box (field); the form-footer: 发送 (→ 主 Agent, the sentence sent there: app.js route 'chat' with
-//     params.send — the first real call of the connection is that sentence; there is no separate 试一次), 手动创建 (→ 新建库),
+//     nothing is sent); the box (field); the form-footer: 发送 (→ the build conversation, the sentence sent there: route 'build'
+//     with params.send — the first real call of the connection is that sentence; there is no separate 试一次), 手动创建 (→ 新建库),
 //     暂不创建，先进入应用 (→ 库架).
 //   P02 (`view` pick): 连接选择 — shown only when no usable connection was found, the one found is not signed in, or 更换连接
 //     was pressed. Three file-rows: each connection's name (推荐 on the one the detection recommends), found or not and its

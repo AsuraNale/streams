@@ -26,6 +26,10 @@
 // 「手动创建」 (首次打开 is one screen now). What is checked of the folder is as it was (nothing written before, every file byte for
 // byte after, notesDir "."), and the files the import adds now include _pipeline/changes.jsonl (the form's settings are the user's
 // own: 「谁定的」, as every change the user makes).
+// 1.1 W7b: v1.0's one-page 新建库 form, which chose the folder with 「更改…」, is gone (新建库 is the build conversation). The main
+// process still imports a folder of .md files the way it did (chooseLibraryFolder · useChosenFolder, core importFolder): session
+// M starts with no library (首次打开) and imports the folder through the bridge itself, then checks 缺少文件头 as before. Session F
+// (首次打开 → 手动创建 → that form) went with the form.
 // redesign R6b-2: a test name or comment here quotes a sentence of the page as 05 has it now
 // (docs/checks/2026-11-13-r6b/05-对照.md 附表一); no assertion changed for it unless a line says so.
 import assert from 'node:assert/strict'
@@ -36,10 +40,9 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { REPO_DIR } from '../scripts/lib/paths.mjs'
 import { LIBRARY } from '../src/renderer/texts/library.js'
-import { NEW_LIBRARY } from '../src/renderer/texts/first-run.js'
 import { fmt } from '../src/renderer/lib/format.js'
 import { headerText, parseHeaderText } from '../src/renderer/lib/header-text.js'
-import { ready, openForm } from './support/app.mjs'
+import { ready } from './support/app.mjs'
 import { IMPORT_FILES, seedImportFolder, worldSession } from './support/seed.mjs'
 // v2 package F: 资料库 and 今日 (概览) are tabs of the library's page, reached through it, not v1.0's sidebar entries; the assertions are v1.0's
 
@@ -64,14 +67,14 @@ let before = null
 let pendingBefore = null
 const m = worldSession({
   kind: 'empty',
-  waitFor: 'new-library',
+  waitFor: 'inbox',
   settings: world => ({ libraryPath: world.library, ...NO_SCHEDULE }),
   prepare: world => {
     vault = join(world.root, 'vault')
     seeded = seedImportFolder(vault)
     before = hashTree(vault)
   },
-  env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: vault, STREAMS_START_SCREEN: 'new-library' }),
+  env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: vault }),
 })
 const page = () => m.page
 const click = sel => page().click(`${sel} button`)
@@ -83,8 +86,8 @@ const bodyHash = file => core.bodyHashOf(readFileSync(join(vault, file)))
 const untouched = files => { const now = hashTree(vault); for (const f of files) assert.equal(now[f], before[f], `${f} is byte for byte what it was`) }
 
 async function openPending() {
-  // v2 package I: from 新建库 (its own sidebar): the page loaded again opens on the current library, the folder just imported
-  if (await page().evaluate(() => document.querySelector('main[data-screen="new-library"]') !== null)) {
+  // from 首次打开 (the folder was imported through the bridge): the page loaded again opens on the current library, the folder
+  if (await page().evaluate(() => document.querySelector('main[data-screen="first-run"]') !== null)) {
     await page().evaluate(() => { location.hash = ''; location.reload() })
     await ready(page(), 'inbox')
   }
@@ -107,24 +110,19 @@ async function backToLibrary() {
   return Number(await page().evaluate(() => document.querySelector('[data-view="authored"]').dataset.count))
 }
 
-test("新建库 (v2 package I; redesign R4a: the one-page form's 更改…) on a folder of .md files: it says how many and writes nothing; 仅创建 imports it, every file as it was", async () => {
-  await until(() => document.querySelector('main[data-screen="new-library"][data-state="ready"] [data-part="folder-state"]')?.dataset.state !== '')
-  await click('[data-action="change-folder"]')
-  await until(p => document.querySelector('[data-part="location"]')?.dataset.path === p, vault)
-  assert.equal(await page().evaluate(() => document.querySelector('[data-part="folder-state"]').dataset.state), 'importable')
-  assert.equal(await text('[data-part="folder-state"]'), fmt(NEW_LIBRARY.folderStates.importable, { n: seeded.mdCount }))
+test('a folder of .md files imported (the bridge: chooseLibraryFolder says how many and writes nothing; useChosenFolder imports it), every file as it was', async () => {
+  const chosen = (await page().evaluate(() => window.streams.chooseLibraryFolder())).data
+  assert.deepEqual([chosen.path, chosen.state, chosen.mdCount], [vault, 'importable', seeded.mdCount])
   assert.equal(existsSync(join(vault, 'streams.json')), false, 'only said, nothing written yet')
   assert.deepEqual(hashTree(vault), before)
-  await page().fill('[data-field="name"]', 'vault')
-  await page().fill('[data-field="brief"]', '我自己的笔记。')
-  await click('[data-action="create-only"]')
-  await ready(page(), 'inbox')
+  const opened = await page().evaluate(() => window.streams.useChosenFolder('vault'))
+  assert.equal(opened.ok, true, JSON.stringify(opened))
   assert.equal((await page().evaluate(() => window.streams.getAppState())).data.library.path, vault)
   const cfg = JSON.parse(readFileSync(join(vault, 'streams.json'), 'utf8'))
   assert.equal(cfg.notesDir, '.')
   untouched(Object.keys(IMPORT_FILES))
   const added = Object.keys(hashTree(vault)).filter(k => !(k in before)).sort()
-  assert.deepEqual(added, ['_pipeline/changes.jsonl', '_pipeline/fetch_log.jsonl', '_pipeline/ledger.jsonl', 'index.jsonl', 'index.meta.json', 'streams.json'])
+  assert.deepEqual(added, ['_pipeline/fetch_log.jsonl', '_pipeline/ledger.jsonl', 'index.jsonl', 'index.meta.json', 'streams.json'])
   pendingBefore = Object.fromEntries(core.listPending(vault).map(p => [p.file, p]))
 })
 
@@ -231,43 +229,6 @@ test('「全部按拟的写入」 writes every file it can, says which it could 
   assert.deepEqual(core.readIndex(vault).map(e => e.id).sort(), ['2025-读书笔记', 'untitled', '已经合规范', '记忆方案选型'].sort())
   assert.deepEqual(readdirSync(vault).filter(f => f.endsWith('.tmp')), [])
   assert.deepEqual(m.errors, [])
-})
-
-// ---- 首次设置 with that folder ----
-
-let vaultF = null
-let beforeF = null
-const f = worldSession({
-  kind: 'empty',
-  waitFor: 'first-run',
-  settings: NO_SCHEDULE,
-  prepare: world => {
-    vaultF = join(world.root, 'vault')
-    seedImportFolder(vaultF)
-    beforeF = hashTree(vaultF)
-  },
-  env: () => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_CHOOSE_FOLDER: vaultF }),
-})
-
-test("首次打开 → 手动创建 → 新建库 (redesign R4a: one page) with 更改… on a folder of .md files: it says how many and that nothing is moved; 仅创建 opens it as a library, the files as they were", async () => {
-  await f.page.waitForFunction(() => document.querySelector('[data-part="first-run"]')?.dataset.view === 'home', null, POLL)
-  await openForm(f.app, f.page)
-  await f.page.waitForFunction(() => document.querySelector('[data-part="folder-state"]')?.dataset.state !== '', null, POLL)
-  await f.page.click('[data-action="change-folder"] button')
-  await f.page.waitForFunction(p => document.querySelector('[data-part="location"]')?.dataset.path === p, vaultF, POLL)
-  assert.equal(await f.page.evaluate(() => document.querySelector('[data-part="folder-state"]').dataset.state), 'importable')
-  assert.equal(await f.page.evaluate(() => document.querySelector('[data-part="folder-state"]').textContent), fmt(NEW_LIBRARY.folderStates.importable, { n: 6 }))
-  assert.equal(existsSync(join(vaultF, 'streams.json')), false)
-  await f.page.fill('[data-field="name"]', 'vault')
-  await f.page.fill('[data-field="brief"]', '我自己的笔记。')
-  assert.equal(await f.page.evaluate(() => document.querySelector('[data-action="create-only"] button').disabled), false)
-  await f.page.click('[data-action="create-only"] button')
-  await ready(f.page, 'inbox')
-  assert.equal(JSON.parse(readFileSync(join(vaultF, 'streams.json'), 'utf8')).notesDir, '.')
-  const now = hashTree(vaultF)
-  for (const [rel, h] of Object.entries(beforeF)) assert.equal(now[rel], h, rel)
-  assert.equal((await f.page.evaluate(() => window.streams.getAppState())).data.library.path, vaultF)
-  assert.deepEqual(f.errors, [])
 })
 
 // ---- the text box's format (plain Node) ----

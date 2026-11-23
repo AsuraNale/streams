@@ -5,7 +5,7 @@
 // _pipeline/feedback.jsonl  one line per 「这个回答哪里不对」 { ts, question, note }
 //
 // appendDemandLine(libraryDir, row)                -> row (ts filled in)
-// demands(libraryDir, { threshold = 3 })            -> [{ topic, count, last, suggest }]
+// demands(libraryDir, { suggestAt = 3 })            -> [{ topic, count, last, suggest }]
 //   grouped by topic with case and whitespace folded (the newest spelling is shown), lines whose topic
 //   is null / empty are not grouped; most asked first, then most recent, then topic. Never adds a topic.
 // addDemand(libraryDir, topic, { question?, now? }) -> { topic, count }   empty topic -> 'bad-topic'
@@ -19,7 +19,7 @@ import { StreamsError } from '../errors.mjs';
 
 export const DEMAND_FILE = join('_pipeline', 'demand.jsonl');
 export const FEEDBACK_FILE = join('_pipeline', 'feedback.jsonl');
-export const SUGGEST_THRESHOLD = 3;
+export const SUGGEST_AT = 3; // how many questions on a topic make it a suggestion (its name and the option's are 1.1 W7b's)
 
 function endsWithoutNewline(path) {
   if (!existsSync(path)) return false;
@@ -72,7 +72,7 @@ export function topicKey(topic) {
   return typeof topic === 'string' ? topic.trim().replace(/\s+/g, ' ').toLowerCase() : '';
 }
 
-export function demands(libraryDir, { threshold = SUGGEST_THRESHOLD } = {}) {
+export function demands(libraryDir, { suggestAt = SUGGEST_AT } = {}) {
   const groups = new Map();
   for (const row of readJsonLines(libraryDir, DEMAND_FILE)) {
     const key = topicKey(row.topic);
@@ -83,7 +83,7 @@ export function demands(libraryDir, { threshold = SUGGEST_THRESHOLD } = {}) {
     if (ts >= g.last) { g.last = ts; g.topic = row.topic.trim().replace(/\s+/g, ' '); }
     groups.set(key, g);
   }
-  const min = Number.isFinite(threshold) ? threshold : SUGGEST_THRESHOLD;
+  const min = Number.isFinite(suggestAt) ? suggestAt : SUGGEST_AT;
   return [...groups.values()]
     .sort((a, b) => b.count - a.count || (a.last < b.last ? 1 : a.last > b.last ? -1 : 0) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
     .map((g) => ({ topic: g.topic, count: g.count, last: g.last || null, suggest: g.count >= min }));

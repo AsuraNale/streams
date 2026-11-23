@@ -24,7 +24,6 @@ export const PANEL = Object.freeze({
     started: '{when} 开始',
     phase: '当前步骤：{phase}',
     calls: '模型调用',
-    callsValue: '{calls} / {cap}',
     callsNoCap: '{calls}',
     order: '队列顺序',
     orderNone: '队列中没有库。',
@@ -45,8 +44,13 @@ export const PANEL = Object.freeze({
     keepRunning: '需保持流息运行（窗口或托盘）。错过的运行将在下次启动时补上一次。',
   }),
 
-  // 待确认 (维护者 11-11 第 13 题: was 「等你决定」): redesign R5b — its list, its head and its cards are the one card's words
-  // (texts/proposals.js PROPOSALS.list, .card)
+  // 待确认 (维护者 11-11 第 13 题: was 「等你决定」): its head; the build's card is texts/build.js BUILD's
+  decide: Object.freeze({
+    eyebrow: '全部库 · 待确认',
+    title: '{n} 项',
+    none: '暂无待确认事项。',
+    loadFailed: '未能读取待确认事项。',
+  }),
 
   // 详情: follows the main area
   detail: Object.freeze({
@@ -57,17 +61,13 @@ export const PANEL = Object.freeze({
       library: '当前笔记',
       ask: '当前回答',
       graph: '当前节点',
-      chat: '主 Agent · 本次对话',
     }),
     // the other screens: one sentence
-    none: '当前页面未选中任何内容。在待看、资料库、问库或主 Agent 中选中一项，这里显示它的详情。',
-    // redesign R2 (P05 · P16 详情, F30): the current card — 推荐理由, 核验, 核验记录 (folded; what the record dialog had), 来源
+    none: '当前页面未选中任何内容。在待看、资料库或问库中选中一项，这里显示它的详情。',
+    // redesign R2 (P05 · P16 详情, F30): the current card — why it was picked, 核验, 核验记录 (folded; what the record dialog had), 来源
     inbox: Object.freeze({
       eyebrow: '当前条目',
       empty: '暂无待看内容。',
-      scores: '推荐理由',
-      scoresNone: '该条内容未评分（未连接模型时仅抓取，不评分）。',
-      score: '{name} {score}',
       check: '核验',
       passed: '核验通过',
       failed: '未通过核验',
@@ -86,7 +86,6 @@ export const PANEL = Object.freeze({
       reasonLine: '{when} · {reason}',
       // 1.1 W6a: why the update agent took it (its words against the card), and the original's keeping
       why: '为什么收',
-      reasonsOnly: '推荐理由',
       sourceAndOriginal: '来源与原文',
       inboxLine: '{source} · 发布 {date} · {when} 进待看',
       originalLine: '原文：{method} · {when} 存下 · 收藏以后一直留着，放弃的 7 天后清掉',
@@ -96,16 +95,6 @@ export const PANEL = Object.freeze({
       cites: '{n} 篇笔记',
       citesNone: '尚未提问，或本次回答未引用笔记。',
       hint: '点一篇，在资料库标签里打开。',
-    }),
-    chat: Object.freeze({
-      title: '本次查询与提议',
-      looked: '已查询（{n}）',
-      lookedNone: '本条消息未查询各库情况。',
-      cards: '提议（{n}）',
-      cardsNone: '本条消息未生成提议。',
-      none: '暂无对话。',
-      cardState: Object.freeze({ pending: '待确认', confirmed: '已生效', declined: '已拒绝', revise: '已提出修改', stale: '已失效', failed: '未能执行' }),
-      see: '查看提议',
     }),
   }),
 

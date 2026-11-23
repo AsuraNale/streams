@@ -69,6 +69,14 @@ test('a test file, a fixtures folder, a development script in a copy: developmen
   assert.deepEqual(developmentLeftovers(copy).sort(), ['resources/app/scripts', 'resources/app/src/fixtures', 'resources/core/src/index.test.mjs'])
 })
 
+// 1.1 W7b: v1.0's fetch-and-score round lives on in core/legacy only for the tests' samples; it must never be in an install
+test('v1.0\'s pipeline (core/legacy) in a copy: a development leftover; the stage as built has none', () => {
+  assert.equal(existsSync(join(STAGE, 'resources', 'core', 'legacy')), false, 'the stage as built has no core/legacy')
+  const copy = copyOfStage('legacy')
+  cpSync(join(REPO, 'core', 'legacy'), join(copy, 'resources', 'core', 'legacy'), { recursive: true })
+  assert.deepEqual(developmentLeftovers(copy), ['resources/core/legacy'])
+})
+
 test('a link in a copy: linksIn names it', () => {
   const copy = copyOfStage('link')
   symlinkSync(join(copy, 'resources', 'core'), join(copy, 'resources', 'core-link'), 'junction')

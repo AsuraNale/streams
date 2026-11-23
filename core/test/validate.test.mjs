@@ -130,14 +130,15 @@ test('no front matter / broken front matter -> problem with line number, meta nu
   assert.match(yaml.problems[0].message, /key: value/);
 });
 
-test('warnings: unknown topic / unknown score key are flagged but still ok', () => {
+// 1.1 W7b: a score key is no longer held against v1.0's scoring steps (unknown-score is gone); a v1.0 note's scores are data
+test('warnings: an unknown topic is flagged but still ok; a score key of any name is not', () => {
   const r = validateNote({ fileName: FILE, text: noteText({ topics: ['agent 记忆', '不存在的主题'], scores: { ...SPEC_META.scores, legacy: { score: 0.5, reason: 'old gate' } } }), config: TEST_CONFIG });
   assert.equal(r.ok, true);
   assert.deepEqual(r.problems, []);
-  assert.deepEqual(r.warnings.map((w) => w.code), ['unknown-topic:不存在的主题', 'unknown-score:legacy']);
+  assert.deepEqual(r.warnings.map((w) => w.code), ['unknown-topic:不存在的主题']);
   assert.match(r.warnings[0].message, /不存在的主题/);
-  assert.match(r.warnings[1].message, /legacy/);
-  // known topic + known gates -> no warning (the check is not firing on everything)
+  assert.deepEqual(r.meta.scores.legacy, { score: 0.5, reason: 'old gate' }, 'the score is kept as it is');
+  // known topic -> no warning (the check is not firing on everything)
   assert.deepEqual(validateNote({ fileName: FILE, text: SPEC_SAMPLE_COMMENTED, config: TEST_CONFIG }).warnings, []);
   // no config -> no warnings at all
   assert.deepEqual(validateNote({ fileName: FILE, text: noteText({ topics: ['不存在的主题'] }), config: null }).warnings, []);

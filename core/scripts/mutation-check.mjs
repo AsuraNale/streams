@@ -15,88 +15,15 @@ import { fileURLToPath } from 'node:url';
 const CORE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const MUTANTS = [
-  {
-    id: 'b-hash-whole-config',
-    what: 'a card\'s baseHash covers the whole configuration again, not only the part the card changes (v2 package G, 11-09)',
-    edits: [['src/proposals/proposals.mjs', 'hashOf(snapshot(libraryDir, HASH_FIELDS[kind]))', "hashOf(snapshot(libraryDir, ['brief', 'sources', 'topics', 'thresholds', 'schedule', 'cap']))"]],
-    test: ['test/proposals.test.mjs', '--test-name-pattern=UC3: an add_source'],
-  },
-  // redesign R6a (docs/checks/2026-11-13-r6a/contract.md 「测」): V9's sentence in the core
-  {
-    id: 'r6a-core-sentence',
-    what: 'the core\'s copy of 问库\'s 「库内暂无相关内容。」 is the sentence before R6a again (the main agent would say 库里没有。)',
-    edits: [['src/agent/words.mjs', "export const NOT_IN_LIBRARY = Object.freeze({ zh: '库内暂无相关内容。',", "export const NOT_IN_LIBRARY = Object.freeze({ zh: '库里没有。',"]],
-    test: ['test/r6a.test.mjs', '--test-name-pattern=R6a NOT_IN_LIBRARY'],
-  },
-  // redesign R6b-1 (docs/checks/2026-11-13-r6b/contract.md 「测」): the words the main agent is given for a source's state and
-  // what to do about it are the contract's tables (the page's are held to the same tables by the desktop's and V3's tests)
-  {
-    id: 'r6b-core-state-word',
-    what: 'the core\'s word for a state is not 05\'s (the main agent would say another word than the page)',
-    edits: [['src/agent/words.mjs', "gap: '地址无效', failed: '暂时失败', blocked: '访问被拒', login: '要登录',", "gap: '地址待查', failed: '暂时失败', blocked: '访问被拒', login: '要登录',"]],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=redesign R6b-1'],
-  },
-  {
-    id: 'r6b-core-advice-round',
-    what: 'the core\'s 处理建议 of 暂时失败 says 下一轮 again (a word 05 no longer uses; R5a took such sentences out of its scan)',
-    edits: [['src/agent/words.mjs', "    'retry-next-round': '下次运行时将自动重试，无需修改地址。',", "    'retry-next-round': '下一轮会自动重试，无需修改地址。',"]],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=redesign R6b-1'],
-  },
-  {
-    id: 'r6b-core-advice-en',
-    what: 'the core\'s English 处理建议 of 访问被拒 is not the contract\'s sentence',
-    edits: [['src/agent/words.mjs', "    'blocked-remove-source': 'This site does not allow programs to read it, so retrying will not help. Use a different source.',", "    'blocked-remove-source': 'This site does not allow programs to read it. Use another source.',"]],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=redesign R6b-1'],
-  },
-  {
-    id: 'r6b-core-connection-words',
-    what: 'the sentence of a connection that failed is the one before R6b again (连接出了问题 … 这条消息没有回答)',
-    edits: [['src/agent/words.mjs', '`连接出现问题：${why}，该消息未获得回答。`', '`连接出了问题：${why}，这条消息没有回答。`']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 2: a proposal not made'],
-  },
-  // redesign R6b-3 (docs/checks/2026-11-13-r6b/contract.md 「英文字典全量」): the English the core supplies
-  {
-    id: 'r6b-core-rule-desc-not-english',
-    what: 'the English description of a built-in rule is the Chinese one (an English interface would show 理由不超过 120 字)',
-    edits: [['src/verify/checklist.mjs', "    'reason-length': 'The reason is at most 120 characters',", "    'reason-length': '理由不超过 120 字',"]],
-    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 describeChecklist: the eleven'],
-  },
-  {
-    id: 'r6b-core-rule-desc-from-words',
-    what: 'describeChecklist rewords a user\'s own item that carries a built-in id',
-    edits: [['src/verify/checklist.mjs', "  if (!isPlainObject(item) || item.origin !== 'streams' || typeof item.id !== 'string') return null;", "  if (!isPlainObject(item) || typeof item.id !== 'string') return null;"]],
-    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 describeChecklist leaves'],
-  },
-  {
-    id: 'r6b-core-run-desc-changed',
-    what: 'the description the pipeline runs with (and tells the verifier) is the English one',
-    edits: [['src/verify/checklist.mjs', "export function summaryBaseline(language = 'zh-CN') {", "export function summaryBaseline(language = 'en') {"]],
-    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 describeChecklist: the eleven'],
-  },
-  {
-    id: 'r6b-core-inbox-case',
-    what: 'the English sentence the core writes into the conversation says inbox in lower case again',
-    edits: [['src/suggest/act.mjs', 'runs in a row put nothing new into the Inbox.', 'runs in a row put nothing new into the ' + 'in' + 'box.']],
-    test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 the proper names'],
-  },
+  // 1.1 W7b: the mutants of v1.0's scoring pipeline and of v2's main agent, proposal cards and suggestion cards (b-*, r2's
+  // moveToInbox and callsBy, r4a-*, r4b's prompts and tools, r5a-*, r6a-*, r6b-*, v101-*, w2-feed-sign-in-gap) went with the code
+  // they broke: it left core/src (core/legacy/, or deleted).
   // redesign R2 (docs/checks/2026-11-11-r2/contract.md 「测」)
   {
     id: 'r2-dismiss-placeholder',
     what: 'a dismissal without a reason gets a made-up placeholder reason in the ledger',
     edits: [['src/pipeline/decide.mjs', "  if (words !== '') ev.reason = words;", "  ev.reason = words !== '' ? words : '未说明';"]],
     test: ['test/r2-inbox.test.mjs', '--test-name-pattern=R2-2 dismiss with no reason'],
-  },
-  {
-    id: 'r2-move-writes-notes',
-    what: '移入待看 also keeps the item (a note file is written) instead of only putting it in the inbox',
-    edits: [['src/pipeline/decide.mjs', "  appendEvent(libraryDir, { ts, ev: 'inbox', url, moved: 'rejected', from: below.gate });\n  return { url };", "  appendEvent(libraryDir, { ts, ev: 'inbox', url, moved: 'rejected', from: below.gate });\n  keep(libraryDir, url, { now });\n  return { url };"]],
-    test: ['test/r2-inbox.test.mjs', '--test-name-pattern=R2-4 moveToInbox'],
-  },
-  {
-    id: 'r2-calls-part-off',
-    what: 'one part of the run\'s calls is off by one (核验 counts one call too many)',
-    edits: [['src/pipeline/round.mjs', '    callsBy.verify += judged;', '    callsBy.verify += judged + 1;']],
-    test: ['test/r2-inbox.test.mjs', '--test-name-pattern=R2-6 callsBy'],
   },
   {
     id: 'r2-later-kept',
@@ -107,16 +34,19 @@ const MUTANTS = [
   // redesign R3 (docs/checks/2026-11-11-r3/contract.md 「测」)
   {
     id: 'r3-all-lists-caught',
-    what: '资料库 「全部」 also lists the caught items that have no file (the old 「抓到的」)',
-    edits: [['src/library/browse.mjs', "    items = readIndex(libraryDir).filter((e) => (view === 'all' || e.status === view) && keep(e));", "    items = [...readIndex(libraryDir).filter((e) => (view === 'all' || e.status === view) && keep(e)), ...(view === 'all' ? caughtItems(libraryDir, { topics, days, now }) : [])];"]],
+    what: '资料库 「全部」 also lists the ledger items that have no file (what v1.0 called 「抓到的」; 1.1 W7b: read from the ledger, the caught view is gone)',
+    edits: [
+      ['src/library/browse.mjs', "import { readIndex } from './index.mjs';", "import { readIndex } from './index.mjs';\nimport { replayLedger, TERMINAL_STAGES } from './ledger.mjs';"],
+      ['src/library/browse.mjs', "    items = readIndex(libraryDir).filter((e) => (view === 'all' || e.status === view) && keep(e));", "    items = [...readIndex(libraryDir).filter((e) => (view === 'all' || e.status === view) && keep(e)), ...(view === 'all' ? [...replayLedger(libraryDir).states.values()].filter((s) => !TERMINAL_STAGES.includes(s.stage)).map((s) => ({ url: s.url, title: s.title ?? '', source: s.source ?? '' })) : [])];"],
+    ],
     test: ['test/r3-library.test.mjs', '--test-name-pattern=R3-1'],
   },
   {
     id: 'r3-graph-caught',
     what: 'the graph also draws the ledger items that have no file',
     edits: [
-      ['src/graph/graph.mjs', "import { cmp, entryFilter } from '../library/browse.mjs';", "import { cmp, entryFilter, listLibrary } from '../library/browse.mjs';"],
-      ['src/graph/graph.mjs', "  const items = readIndex(libraryDir).filter((e) => (status === 'all' || e.status === 'kept') && keep(e));", "  const items = [...readIndex(libraryDir), ...listLibrary(libraryDir, { view: 'caught' }).items.map((c) => ({ id: c.url, title: c.title, topics: [], source_name: c.source, date: c.date, status: 'kept' }))].filter((e) => (status === 'all' || e.status === 'kept') && keep(e));"],
+      ['src/graph/graph.mjs', "import { cmp, entryFilter } from '../library/browse.mjs';", "import { cmp, entryFilter } from '../library/browse.mjs';\nimport { replayLedger, TERMINAL_STAGES } from '../library/ledger.mjs';"],
+      ['src/graph/graph.mjs', "  const items = readIndex(libraryDir).filter((e) => (status === 'all' || e.status === 'kept') && keep(e));", "  const items = [...readIndex(libraryDir), ...[...replayLedger(libraryDir).states.values()].filter((s) => !TERMINAL_STAGES.includes(s.stage)).map((c) => ({ id: c.url, title: c.title, topics: [], source_name: c.source, date: c.date, status: 'kept' }))].filter((e) => (status === 'all' || e.status === 'kept') && keep(e));"],
     ],
     test: ['test/r3-library.test.mjs', '--test-name-pattern=R3-2'],
   },
@@ -138,25 +68,6 @@ const MUTANTS = [
     edits: [['src/library/edit.mjs', "export const EDITABLE_KEYS = ['title', 'topics', 'body'];", "export const EDITABLE_KEYS = ['title', 'topics', 'body', 'source'];"]],
     test: ['test/r3-library.test.mjs', '--test-name-pattern=R3-3'],
   },
-  // redesign R4a (docs/checks/2026-11-12-r4a/contract.md 「测」)
-  {
-    id: 'r4a-standard-0707',
-    what: '标准 is 0.7 / 0.7 instead of 0.5 / 0.6',
-    edits: [['src/pipeline/strictness.mjs', 'standard: Object.freeze({ relevance: 0.5, substance: 0.6 }),', 'standard: Object.freeze({ relevance: 0.7, substance: 0.7 }),']],
-    test: ['test/r4a-new-library.test.mjs', '--test-name-pattern=R4a-4'],
-  },
-  {
-    id: 'r4a-read-rewrites',
-    what: 'reading a library\'s strictness writes 标准 over numbers that are no level (an existing library\'s thresholds changed)',
-    edits: [['src/pipeline/strictness.mjs', '  const thresholds = thresholdsOf(pipelineConfig(libraryDir));\n  return { level: strictnessOf(thresholds), thresholds };', "  let thresholds = thresholdsOf(pipelineConfig(libraryDir));\n  if (strictnessOf(thresholds) === 'custom') { savePipelineConfig(libraryDir, withThresholds(pipelineConfig(libraryDir), STRICTNESS.standard)); thresholds = thresholdsOf(pipelineConfig(libraryDir)); }\n  return { level: strictnessOf(thresholds), thresholds };"]],
-    test: ['test/r4a-new-library.test.mjs', '--test-name-pattern=reading an existing library'],
-  },
-  {
-    id: 'r4a-card-old-default',
-    what: 'a create_library card that names no thresholds leaves the pipeline\'s 0.7 / 0.6 (the new library is not 标准)',
-    edits: [['src/library/new-library.mjs', "  step('thresholds', () => savePipelineConfig(dir, withThresholds(pipelineConfig(dir), spec.thresholds ?? STRICTNESS[DEFAULT_STRICTNESS])));", "  step('thresholds', () => { if (spec.thresholds && spec.thresholds !== STRICTNESS[DEFAULT_STRICTNESS]) savePipelineConfig(dir, withThresholds(pipelineConfig(dir), spec.thresholds)); });"], ['src/library/new-library.mjs', "    thresholds: { ...STRICTNESS[DEFAULT_STRICTNESS], ...(thresholds ?? {}) },", "    thresholds: thresholds ?? STRICTNESS[DEFAULT_STRICTNESS],"]],
-    test: ['test/r4a-new-library.test.mjs', '--test-name-pattern=new libraries start at'],
-  },
   // redesign R4b (docs/checks/2026-11-12-r4b/contract.md 「测」)
   {
     id: 'r4b-name-unsaved',
@@ -167,196 +78,8 @@ const MUTANTS = [
   {
     id: 'r4b-log-drops-setup',
     what: '变更记录 leaves out 首次设置\'s record',
-    edits: [['src/proposals/changes.mjs', '  for (const [step, s] of Object.entries(setup)) {', '  for (const [step, s] of Object.entries({})) {']],
+    edits: [['src/library/changes.mjs', '  for (const [step, s] of Object.entries(setup)) {', '  for (const [step, s] of Object.entries({})) {']],
     test: ['test/r4b-sources.test.mjs', '--test-name-pattern=变更记录'],
-  },
-  {
-    id: 'r4b-prompts-builtin',
-    what: 'the history\'s prompts count the built-in check items as the user\'s',
-    edits: [['src/proposals/changes.mjs', ".filter((c) => isPlainObject(c) && c.origin !== 'streams')", '.filter((c) => isPlainObject(c))']],
-    test: ['test/r4b-sources.test.mjs', '--test-name-pattern=the name and the prompts'],
-  },
-  {
-    id: 'r4b-tools-kept',
-    what: 'a scoring step keeps a `tools` list stored in streams.json (the model could be given a tool)',
-    edits: [['src/pipeline/config.mjs', "    for (const k of ['threshold', 'material', 'requirement']) if (stored[k] !== undefined) out[k] = stored[k];", "    for (const k of ['threshold', 'material', 'requirement', 'tools']) if (stored[k] !== undefined) out[k] = stored[k];"]],
-    test: ['test/r4b-sources.test.mjs', '--test-name-pattern=no tool'],
-  },
-  // redesign R5a (docs/checks/2026-11-12-r5a/contract.md 「测」: each 反向 named there, and a few more)
-  {
-    id: 'r5a-gap-threshold-3',
-    what: 'rule ① needs 地址无效 three times in a row (not two)',
-    edits: [['src/suggest/rules.mjs', 'export const SOURCE_GAP_ROUNDS = 2;', 'export const SOURCE_GAP_ROUNDS = 3;']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ①'],
-  },
-  {
-    id: 'r5a-free-text-counts',
-    what: 'rule ⑤ counts a dismissal with words only (「其他原因…」) as a reason of its own',
-    edits: [
-      ['src/suggest/rules.mjs', "typeof ev.url !== 'string' || !DISMISS_QUICK.includes(ev.quick)) continue;", "typeof ev.url !== 'string' || (!DISMISS_QUICK.includes(ev.quick) && typeof ev.reason !== 'string')) continue;"],
-      ['src/suggest/rules.mjs', "    out.push({ ts: typeof ev.ts === 'string' ? ev.ts : null, quick: ev.quick, url: ev.url });", "    out.push({ ts: typeof ev.ts === 'string' ? ev.ts : null, quick: ev.quick ?? ev.reason, url: ev.url });"],
-    ],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ⑤'],
-  },
-  {
-    id: 'r5a-target-custom',
-    what: 'rule ②\'s target level needs both thresholds lower (a custom 0.7 / 0.6 gets 宽松, not 标准)',
-    edits: [['src/suggest/act.mjs', '(L.relevance < r || L.substance < s)', '(L.relevance < r && L.substance < s)']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ②'],
-  },
-  {
-    id: 'r5a-stale-acts',
-    what: 'a 系统检测 that no longer fits (its source paused by hand) is still acted on',
-    edits: [['src/suggest/act.mjs', '  if (reason) return { done: false, stale: reason,', '  if (false) return { done: false, stale: reason,']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=no longer fits is expired'],
-  },
-  {
-    id: 'r5a-handoff-kind',
-    what: 'the handing over to the main agent names the card\'s kind (an internal name)',
-    edits: [['src/suggest/act.mjs', '  const what = suggestionText(s, { otherName, lang: l, thresholds });', '  const what = `${s.kind}: ${suggestionText(s, { otherName, lang: l, thresholds })}`;']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=the handing over'],
-  },
-  {
-    id: 'r5a-no-brief-in-prompt',
-    what: 'the 相关度 prompt does not carry the library\'s 追踪要求',
-    edits: [['src/pipeline/prompts.mjs', "  if (typeof brief === 'string' && brief.trim() !== '') lines.push(`${L.brief}${brief.trim()}`);", '']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a 追踪要求'],
-  },
-  {
-    id: 'r5a-brief-not-in-cfg',
-    what: 'the 追踪要求 is not part of the cfg (changing it is not a change of the 评分标准)',
-    edits: [['src/pipeline/config.mjs', 'output: node?.output, brief });', 'output: node?.output });']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a 追踪要求'],
-  },
-  {
-    id: 'r5a-auto-rescore',
-    what: 'a verdict made under another 评分标准 is scored again by the next run (the old behaviour)',
-    edits: [['src/pipeline/queue.mjs', "typeof scored.score === 'number' && !rescore) return", "typeof scored.score === 'number' && rescore === 'never') return"]],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=after 严格程度 changed'],
-  },
-  {
-    id: 'r5a-rescore-no-cap',
-    what: '重新评分 does not stop at the 单次运行上限',
-    edits: [['src/pipeline/rescore.mjs', "    if (calls >= limit) { stoppedAt = 'cap'; return true; }", "    if (false) { stoppedAt = 'cap'; return true; }"]],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=only the old ones, under'],
-  },
-  {
-    id: 'r5a-situation-old-word',
-    what: 'the situation says 建议卡 again',
-    edits: [['src/agent/situation.mjs', '  out.push(`未处理的系统检测：', '  out.push(`未处理的建议卡：']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a N11'],
-  },
-  {
-    id: 'r5a-situation-state-code',
-    what: 'the situation gives a source\'s state as its internal code (failed)',
-    edits: [['src/agent/situation.mjs', ' · ${W.failed} ${st.failed} · ', ' · failed ${st.failed} · ']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a N11'],
-  },
-  {
-    id: 'r5a-lookup-raw-message',
-    what: 'a source_log lookup hands the model the fetcher\'s message and the HTTP code again',
-    edits: [['src/agent/lookups.mjs', '...fetchFacts(e.status), count: e.count, new: e.new }));', '...fetchFacts(e.status), count: e.count, new: e.new, http: e.http, message: e.message }));']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a N11'],
-  },
-  {
-    id: 'r5a-paused-checked',
-    what: 'rule ① (and ③) also look at a paused source',
-    edits: [['src/suggest/rules.mjs', "    if (s && typeof s.name === 'string' && s.name !== '' && s.paused !== true) out.add(s.name);", "    if (s && typeof s.name === 'string' && s.name !== '') out.add(s.name);"]],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ①'],
-  },
-  {
-    id: 'r5a-loose-adjusts',
-    what: 'rule ② offers 将严格程度调整为「宽松」 when the library is loose already',
-    edits: [['src/suggest/act.mjs', "    if (L.relevance <= r && L.substance <= s && (L.relevance < r || L.substance < s)) return level;\n  }\n  return null;", "    if (L.relevance <= r && L.substance <= s && (L.relevance < r || L.substance < s)) return level;\n  }\n  return 'loose';"]],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ②'],
-  },
-  {
-    id: 'r5a-reason-before-ignore',
-    what: 'rule ⑤ after 忽略 still counts the dismissals from before it',
-    edits: [['src/suggest/rules.mjs', '  if (!newest.every((d) => after(d.ts, since))) return [];\n', '']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a rule ⑤'],
-  },
-  {
-    id: 'r5a-no-staleness',
-    what: 'no card is ever found to no longer fit (no 过时 check: a paused source\'s card can still be acted on)',
-    edits: [['src/suggest/act.mjs', '  if (!r.ok) return null; // an unreadable library', '  if (r.ok || !r.ok) return null; // an unreadable library']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=no longer fits is expired'],
-  },
-  {
-    id: 'r5a-rescore-every-rejected',
-    what: '重新评分 scores again every item of 未通过筛选, not only those judged under the old standard',
-    edits: [['src/pipeline/rescore.mjs', '  const targets = listRejected(libraryDir, { limit: Number.MAX_SAFE_INTEGER, onlyOld: true })', '  const targets = listRejected(libraryDir, { limit: Number.MAX_SAFE_INTEGER, onlyOld: false })']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=only the old ones, under'],
-  },
-  {
-    id: 'r5a-old-verdict-new-threshold',
-    what: 'an old verdict is judged against the threshold of now (a loosened 严格程度 would move it out of 未通过筛选 without 重新评分)',
-    // precheck fix 4: verdictThreshold no longer falls back to the threshold of now; the mutant puts it back the same way
-    edits: [['src/pipeline/queue.mjs', "  if (typeof scored?.threshold === 'number') return scored.threshold;\n  return thresholdOfStamp(stamp, node);", '  return node.threshold;']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=after 严格程度 changed'],
-  },
-  {
-    id: 'r5a-turn-old-heading',
-    what: 'the user\'s message reaches the model under the old heading 「## 这一轮」',
-    edits: [['src/agent/turn.mjs', '  return `## 这条消息\\n${from}用户：${text}`;', '  return `## 这一轮\\n${from}用户：${text}`;']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=what one turn sends'],
-  },
-  // redesign R5a, the two pre-checkers' findings (precheck fixes 2, 3, 4, 5, 7, 9)
-  {
-    id: 'r5a-legacy-now-threshold',
-    what: 'an old verdict whose threshold cannot be worked out is judged against the threshold of now again (a loosened 严格程度 moves it out of 未通过筛选 and the next run calls the model)',
-    edits: [['src/pipeline/queue.mjs', '  return later.some((id) => state?.scores?.[id] !== undefined || state?.unscored?.[id] !== undefined);', '  return scored.score >= node.threshold;']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 4'],
-  },
-  {
-    id: 'r5a-dropped-kind-in-note',
-    what: 'the row of the proposals not made names their kinds and keeps the refusals\' own texts (the next message hands them to the model)',
-    edits: [
-      ['src/agent/turn.mjs', "    write('note', droppedSentence(dropped, lang), { dropped: dropped.map((d) => ({ index: d.index, category: d.category })) });", "    write('note', `有 ${dropped.length} 张提议没出：${dropped.map((d) => d.kind).join('、')}`, { dropped });"],
-    ],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 2: a proposal not made'],
-  },
-  {
-    id: 'r5a-connection-code-note',
-    what: 'the row of a connection that failed says the internal code and keeps the connection\'s own text',
-    edits: [['src/agent/turn.mjs', "    write('note', connectionSentence(code, lang), { error: code });", "    write('note', `连接出了问题（${code}），这条消息没有回答`, { error: code, detail: clip(r?.detail, 300) });"]],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 2: a proposal not made'],
-  },
-  {
-    id: 'r5a-old-rows-as-they-are',
-    what: 'rows written before the fix reach the model (and the page) as they are: kind names, codes, raw texts',
-    edits: [['src/agent/turn.mjs', "  if (!r || r.role !== 'note' || !isObject(r.data)) return r;", '  return r;']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 2: rows written before'],
-  },
-  {
-    id: 'r5a-lookup-problem-codes',
-    what: 'the lookup library gives the problems as internal codes (missing · sources · no-output) again',
-    edits: [['src/agent/lookups.mjs', '        problems: facts.problems.map((p) => PROBLEM_WORDS[p] ?? p), noOutputStreak', '        problems: facts.problems, noOutputStreak']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 5'],
-  },
-  {
-    id: 'r5a-case-change-kept',
-    what: 'rule ①\'s card stays when the source turns to the other case (a 暂时失败 card left open while the address is invalid)',
-    edits: [['src/suggest/act.mjs', "        if (now !== null && now !== was) return 'state-changed';\n", '']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 7'],
-  },
-  {
-    id: 'r5a-replaced-counts-as-handling',
-    what: 'a card that gave way because its case changed counts as a handling (the card that fits now never comes)',
-    edits: [['src/suggest/records.mjs', "    const replaced = line.ev === 'expired' && REPLACED_REASONS.includes(line.reason);", '    const replaced = false;']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 7'],
-  },
-  {
-    id: 'r5a-partial-not-counted',
-    what: '重新评分 stopped in the middle of an item does not count it (counts all 0 while calls were spent)',
-    edits: [['src/pipeline/rescore.mjs', '      if (stopNow()) { if (touched) counts.partial += 1; break outer; }', '      if (stopNow()) break outer;']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 9'],
-  },
-  {
-    id: 'r5a-overlap-ignores-handling',
-    what: 'rule ④ for the other library ignores that library\'s own handlings (a card it dismissed comes back)',
-    edits: [['src/suggest/rules.mjs', '  return topicOverlap(r.config, otherLibraries, handledTimes(libraryDir)).map(asCard(clockOf(now).toISOString()));', '  return topicOverlap(r.config, otherLibraries, new Map()).map(asCard(clockOf(now).toISOString()));']],
-    test: ['test/r5a.test.mjs', '--test-name-pattern=R5a precheck fix 3'],
   },
   // redesign R6d-4 (docs/checks/2026-11-15-r6d/contract.md 「三处应用小问题」): the two fixes in the core, each put back
   {
@@ -382,55 +105,6 @@ const MUTANTS = [
     what: 'validateNote takes every topic of the note as known (no unknown-topic warning at all any more)',
     edits: [['src/library/validate.mjs', '    const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC)]);', '    const topics = new Set([...topicNames(config), ...Object.values(FALLBACK_TOPIC), ...meta.topics]);']],
     test: ['test/r6d.test.mjs', '--test-name-pattern=R6d-4 validateNote'],
-  },
-  // 1.0.1 (docs/checks/2026-11-17-1.0.1/contract.md): each of the core's fixes put back the way it was (test/v101.test.mjs)
-  {
-    id: 'v101-f1-whole-sources',
-    what: 'F1: a source card\'s baseHash covers the whole sources list again (one source card confirmed, every other one of the library stale)',
-    edits: [['src/proposals/proposals.mjs', "  if (name !== null) return hashOf({ source: name, value: snapshot(libraryDir, ['sources']).sources.find((s) => s.name === name) ?? null });\n", '']],
-    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F1: three add_source cards'],
-  },
-  {
-    id: 'v101-f1-ignore-source',
-    what: 'F1: a source card\'s baseHash covers nothing of its source (two cards about the same source both go through)',
-    edits: [['src/proposals/proposals.mjs', "  if (name !== null) return hashOf({ source: name, value: snapshot(libraryDir, ['sources']).sources.find((s) => s.name === name) ?? null });\n", "  if (name !== null) return hashOf({ source: name });\n"]],
-    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F1: two cards about the SAME source'],
-  },
-  {
-    id: 'v101-f3-no-language',
-    what: 'F3: the situation does not say the interface\'s language again',
-    edits: [['src/agent/situation.mjs', '`# 局面（${clock.toISOString()}）`, languageLine(language), ', '`# 局面（${clock.toISOString()}）`, ']],
-    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F3: the situation says'],
-  },
-  {
-    id: 'v101-f3-rule5',
-    what: 'F3: rule 5 is the one of before 1.0.1 again (the why follows the user\'s message, not the interface)',
-    edits: [['src/agent/protocol.mjs', ` Write each proposal\\'s "why" in the interface\\'s language the situation gives (界面语言), unless the user has said plainly which language they want the proposals in: then in that language.',`, `',`]],
-    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F3: the rules'],
-  },
-  {
-    id: 'v101-f3-turn-language',
-    what: 'F3: agentTurn does not hand the interface\'s language to the situation (the desktop\'s locale is lost on the way)',
-    edits: [['src/agent/turn.mjs', 'agentUsageFile: paths.usage, language: ctx.language, connection,', 'agentUsageFile: paths.usage, connection,']],
-    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F3 · F5: agentTurn'],
-  },
-  {
-    id: 'v101-f4-rule-last',
-    what: 'F4: the rules\' last sentence does not say when the test fetch is done again (it is the sentence of before 1.0.1)',
-    edits: [['src/agent/protocol.mjs', /\n  'Streams tries each new source once when the proposal is made[^\n]*/, '']],
-    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F4: the rules'],
-  },
-  {
-    id: 'v101-f5-no-connection',
-    what: 'F5: the situation does not say the connection and its two model slots again',
-    edits: [['src/agent/situation.mjs', "languageLine(language), connectionLines(connection).join('\\n'), ", 'languageLine(language), ']],
-    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F5: the situation says'],
-  },
-  {
-    id: 'v101-f5-key-leak',
-    what: 'F5: the situation copies the whole connection object it is given (a key beside it goes to the model)',
-    edits: [['src/agent/situation.mjs', "languageLine(language), connectionLines(connection).join('\\n'), ", "languageLine(language), connectionLines(connection).join('\\n') + JSON.stringify(connection ?? null), "]],
-    test: ['test/v101.test.mjs', '--test-name-pattern=v101 F5 \\(the other way\\)'],
   },
   // 1.1 W1 (骨架; docs/checks/2026-11-20-1.1/contract-draft.md): every check of the definition, the actions, the record
   // and the SOPs taken out one at a time
@@ -622,12 +296,6 @@ const MUTANTS = [
     test: ['test/read-w2.test.mjs', '--test-name-pattern=^states · a feed address'],
   },
   {
-    id: 'w2-feed-sign-in-gap',
-    what: 'B8: a sign-in page where a feed should be is a wrong address again',
-    edits: [['src/fetch/sources/rss.mjs', "  if (!parsed.ok && signInPage(doc.text, url)) return result('login', 'the address shows a sign-in page, not a feed', { http: doc.http });\n", '']],
-    test: ['test/read-w2.test.mjs', '--test-name-pattern=^states · a feed address'],
-  },
-  {
     id: 'w2-no-contact-trim',
     what: 'the contact details at the top of an article stay in its original',
     edits: [['src/read/extract.mjs', '  while (start < Math.min(LEAD_MAX, ps.length - 1) && isContact(ps[start])) start++;\n', '']],
@@ -734,7 +402,8 @@ const MUTANTS = [
   {
     id: 'w4-first-with-options',
     what: 'the first question may come with options',
-    edits: [['src/build/questions.mjs', "    if (n === 1) problems.push('first-not-input');\n", '']],
+    // (1.1 W7b: the line as W6b left it — W6b made the rule depend on firstInput, and this mutant's text had not followed)
+    edits: [['src/build/questions.mjs', "    if (n === 1 && firstInput) problems.push('first-not-input');\n", '']],
     test: ['test/build-w4.test.mjs', '--test-name-pattern=^questions: a 6th question'],
   },
   {
@@ -923,7 +592,8 @@ const MUTANTS = [
   {
     id: 'w6b-edit-as-create',
     what: 'a change of a library\'s card is proposed as a new library',
-    edits: [['src/build/conversation.mjs', "    const request = editing() ? { action: 'edit_card', params: { library: s.edit.library, card } } : { action: 'create_library', params: { card } };", "    const request = { action: 'create_library', params: { card } };"]],
+    // (1.1 W7b: the line as W7a left it — W7a put convert_library between the two, and this mutant's text had not followed)
+    edits: [['src/build/conversation.mjs', "    const request = editing() ? { action: 'edit_card', params: { library: s.edit.library, card } }\n", "    const request = false ? { action: 'edit_card', params: { library: s.edit.library, card } }\n"]],
     test: ['test/w6b.test.mjs', '--test-name-pattern=^changing a library'],
   },
   {
@@ -974,6 +644,55 @@ const MUTANTS = [
     what: '停止 does not stop an update: it reads every source and runs the agent',
     edits: [['src/update/run.mjs', '  const stopped = () => signal?.aborted === true;', '  const stopped = () => false;']],
     test: ['test/w7a.test.mjs', '--test-name-pattern=^an update stopped'],
+  },
+  // 1.1 W7b (core): v1.0's scoring pipeline out of core/src — each new check put back the way it was not
+  {
+    id: 'w7b-scan-blind',
+    what: 'the C1 scan reports nothing: a line that judges by a score goes through',
+    edits: [['test/c1-scan.test.mjs', '    if (!WORDS.test(line)) return;\n', '    return;\n']],
+    test: ['test/c1-scan.test.mjs', '--test-name-pattern=^sentinel: C1 scan'],
+  },
+  {
+    id: 'w7b-src-imports-legacy',
+    what: 'a module of core/src imports core/legacy',
+    edits: [['src/library/language.mjs', "export const LANGUAGES = Object.freeze(['zh-CN', 'en']);", "import '../../legacy/index.mjs';\nexport const LANGUAGES = Object.freeze(['zh-CN', 'en']);"]],
+    test: ['test/c1-scan.test.mjs', '--test-name-pattern=^C1 scan · nothing in core/src imports core/legacy'],
+  },
+  {
+    id: 'w7b-create-writes-gates',
+    what: 'a new library\'s streams.json gets a v1.0 scoring step again',
+    edits: [['src/library/create.mjs', '    pipeline: languageConfig(language),\n', "    pipeline: { ...languageConfig(language), nodes: [{ id: 'relevance', kind: 'gate', threshold: 0.7 }] },\n"]],
+    test: ['test/create.test.mjs', '--test-name-pattern=^createLibrary lays out'],
+  },
+  {
+    id: 'w7b-inbox-by-score',
+    what: 'cards of the same moment are ordered by a v1.0 score again',
+    edits: [['src/pipeline/inbox.mjs', '  cards.sort((a, b) => t(b) - t(a) || (a.url < b.url ? -1 : 1));', '  cards.sort((a, b) => t(b) - t(a) || (b.scores.relevance?.score ?? -1) - (a.scores.relevance?.score ?? -1) || (a.url < b.url ? -1 : 1));']],
+    test: ['test/pipeline-numbers.test.mjs', '--test-name-pattern=^listInbox: the same moment'],
+  },
+  {
+    id: 'w7b-change-log-scoring-field',
+    what: 'the change log takes v1.0\'s gate marks as a field again',
+    edits: [['src/library/changes.mjs', "export const CHANGE_FIELDS = Object.freeze(['brief', 'sources', 'topics', 'schedule', 'name']);", "export const CHANGE_FIELDS = Object.freeze(['brief', 'sources', 'topics', 'thresholds', 'schedule', 'name']);"]],
+    test: ['test/r4b-sources.test.mjs', '--test-name-pattern=^R4b'],
+  },
+  {
+    id: 'w7b-caught-view-back',
+    what: 'the library pages take v1.0\'s 「抓到的」 view again',
+    edits: [['src/library/browse.mjs', "export const LIBRARY_VIEWS = ['kept', 'authored', 'pending', 'all'];", "export const LIBRARY_VIEWS = ['kept', 'authored', 'caught', 'pending', 'all'];"]],
+    test: ['test/browse.test.mjs', '--test-name-pattern=^libraryCounts'],
+  },
+  {
+    id: 'w7b-cli-estimate-back',
+    what: 'the command line takes v1.0\'s estimate again',
+    edits: [['bin/streams-core.mjs', "const COMMANDS = ['rebuild', 'pending', 'replay', 'status', 'inbox', 'keep', 'dismiss', 'rounds'];", "const COMMANDS = ['rebuild', 'pending', 'replay', 'status', 'estimate', 'inbox', 'keep', 'dismiss', 'rounds'];"]],
+    test: ['test/cli.test.mjs', '--test-name-pattern=^v1.0'],
+  },
+  {
+    id: 'w7b-folder-name-reserved',
+    what: 'a library named after a reserved Windows name gets that folder name',
+    edits: [['src/library/create.mjs', '  if (RESERVED_NAME.test(s.split(\'.\')[0])) s = `${s}-`;\n', '']],
+    test: ['test/create.test.mjs', '--test-name-pattern=^libraryFolderName'],
   },
   {
     id: 'w4-proposal-no-definition',

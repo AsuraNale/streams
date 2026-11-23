@@ -1,6 +1,7 @@
 /**
  * 1.1 W6b: building a library — and changing a library's card — as one conversation with the main agent (core createBuild;
- * the build SOP, the two web tools; acceptance A1, A2, B3). Not v1.0's 新建库 form (services/new-library.mjs, kept until W7).
+ * the build SOP, the two web tools; acceptance A1, A2, B3). (v1.0's 新建库 form went in W7b; so did v2's main agent chat: the
+ * sidebar's 主 Agent opens this conversation.)
  *   - One conversation at a time, kept in <appData>\build\build.json after every turn, so it is there again after leaving
  *     the page or a restart. Its card waits as a pending action in <appData>\build\pending (create_library, or edit_card for
  *     a change) — nothing is made or changed until 确认 (B3). 不建了 takes the card back and ends the conversation.

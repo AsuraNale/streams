@@ -39,18 +39,18 @@ test('a round of 电动车 ends: the shelf card says when, the problem of its th
   assert.ok(before.updated.startsWith(SHELL.shelf.updatedNever), `control: never ran (${before.updated})`)
   assert.equal(before.problem, 'none')
   assert.equal(await dot(ev), null)
-  // the rounds, as the core writes them: three that put nothing into 待看
+  // the runs, as the core writes them (1.1: updates, core update/run.mjs): three that put nothing into 待看
   const t0 = Date.now()
   const at = i => new Date(t0 - (3 - i) * 60_000).toISOString()
-  writeFileSync(join(shelf.dirs[1], '_pipeline', 'rounds.jsonl'), [0, 1, 2].map(i => `${JSON.stringify({ id: `r-${i}`, startedAt: at(i), finishedAt: at(i), counts: { fetched: 1, new: 0, maybeDuplicates: 0, summarized: 0, inbox: 0 }, gates: {}, calls: 0 })}\n`).join(''), 'utf8')
+  writeFileSync(join(shelf.dirs[1], '_pipeline', 'rounds.jsonl'), [0, 1, 2].map(i => `${JSON.stringify({ id: `u-${i}`, kind: 'update', startedAt: at(i), finishedAt: at(i), status: 'nothing-new', counts: { sources: 1, read: 1, newLinks: 0, items: 0, inbox: 0 }, calls: 0 })}\n`).join(''), 'utf8')
   const fromBridge = (await s.page.evaluate(() => window.streams.getLibrariesOverview())).data.find(r => r.id === ev)
   assert.deepEqual([fromBridge.lastRoundAt, fromBridge.problem], [at(2), 'no-output'], 'control: the bridge already says so')
   // control: no event yet, and a round-progress that is not the end → the page keeps what it read
-  await send('round-progress', { roundId: 'r-2', libraryId: ev, phase: 'fetch', counts: null, calls: 0, cap: 120, done: false })
+  await send('round-progress', { roundId: 'r-2', libraryId: ev, phase: 'update', counts: null, calls: 0, cap: null, done: false })
   await s.page.waitForTimeout(800)
   assert.deepEqual(await card(ev), before, 'nothing read again before the end of the round')
   // the end of the round
-  await send('round-progress', { roundId: 'r-2', libraryId: ev, phase: 'done', counts: { inbox: 0 }, calls: 0, cap: 120, done: true, result: { started: true } })
+  await send('round-progress', { roundId: 'r-2', libraryId: ev, phase: 'done', counts: { inbox: 0 }, calls: 0, cap: null, done: true, result: { started: true } })
   await s.page.waitForFunction(i => document.querySelector(`[data-shelf-card="${i}"] [data-part="problem"]`)?.dataset.problem === 'no-output', ev, POLL)
   const after = await card(ev)
   assert.ok(after.updated.startsWith(SHELL.shelf.updated.split('{')[0]), `「上次更新」 now (${after.updated})`)

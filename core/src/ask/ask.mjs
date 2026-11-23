@@ -24,7 +24,7 @@ import { readConfig } from '../library/config.mjs';
 import { readIndex } from '../library/index.mjs';
 import { noteBodyOf } from '../library/browse.mjs';
 import { rankEntries } from '../library/search.mjs';
-import { pipelineFrom } from '../pipeline/config.mjs';
+import { languageOfConfig } from '../library/language.mjs';
 import { completeJson } from '../connect/complete-json.mjs';
 import { verifyLoop } from '../verify/verify.mjs';
 import { appendVerdict } from '../verify/verdicts.mjs';
@@ -158,7 +158,7 @@ export async function ask(libraryDir, question, { connector, now, maxRounds = 2 
   const clock = clockOf(now);
   const cfgRead = readConfig(libraryDir);
   if (!cfgRead.ok) throw new StreamsError(`config:${cfgRead.error.code}`, cfgRead.error.message);
-  const language = pipelineFrom(cfgRead.config).language;
+  const language = languageOfConfig(cfgRead.config);
   const candidates = askCandidates(libraryDir, q);
   const listed = candidates.map(({ n, id, title, date }) => ({ n, id, title, date }));
 
