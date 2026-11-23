@@ -4,6 +4,9 @@
 //   1 candidates  index entries with status kept / authored, scored with the search routine on title,
 //                 topics and summary (library/search.mjs), the best 9 (ties: date newest first, then id);
 //                 their bodies, each cut at 1500 characters, 9000 in all. 0 candidates -> no model call.
+//                 1.1 W8 (B16): a candidate whose source the library kept the original of (_originals/<originalId(source)>.md)
+//                 carries that text too, under the same number (so a cite still names the note): each cut at 3000
+//                 characters, 12000 in all. Only the index's entries are candidates: an item only in 待看 never is.
 //   2 answer      one completeJson call, slot 'main', no tools (prompts.mjs)
 //   3 check       verifyLoop with three rule items and one judge item (all judge items in one call, slot
 //                 'verify'); a failed round sends back only the failed items
@@ -30,11 +33,14 @@ import { verifyLoop } from '../verify/verify.mjs';
 import { appendVerdict } from '../verify/verdicts.mjs';
 import { askPrompt, materialsText } from './prompts.mjs';
 import { appendDemandLine } from './demand.mjs';
+import { readOriginal, originalId } from '../read/original.mjs';
 
 export const ASK_NODE = 'ask';
 export const MAX_CANDIDATES = 9;
 export const BODY_CHARS = 1500;
 export const TOTAL_CHARS = 9000;
+export const ORIGINAL_CHARS = 3000;
+export const ORIGINALS_TOTAL = 12000;
 export const ASK_STATUSES = ['kept', 'authored'];
 const DERIVED = ['cites_all', 'answer_problems'];
 
@@ -143,12 +149,16 @@ export function askCandidates(libraryDir, question) {
   const entries = readIndex(libraryDir).filter((e) => ASK_STATUSES.includes(e.status));
   const ranked = rankEntries(entries, question).slice(0, MAX_CANDIDATES);
   let budget = TOTAL_CHARS;
+  let originals = ORIGINALS_TOTAL;
   return ranked.map(({ entry }, i) => {
     const full = Array.from(noteBodyOf(libraryDir, entry.id) ?? '');
     const take = Math.max(0, Math.min(BODY_CHARS, budget));
     const body = full.slice(0, take).join('');
     budget -= Array.from(body).length;
-    return { n: i + 1, id: entry.id, title: entry.title ?? '', date: entry.date ?? '', body };
+    const stored = typeof entry.source === 'string' && entry.source !== '' ? readOriginal(libraryDir, originalId(entry.source)) : null;
+    const original = stored ? Array.from(stored.text).slice(0, Math.max(0, Math.min(ORIGINAL_CHARS, originals))).join('') : '';
+    originals -= Array.from(original).length;
+    return { n: i + 1, id: entry.id, title: entry.title ?? '', date: entry.date ?? '', body, original };
   });
 }
 

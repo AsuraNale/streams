@@ -35,7 +35,13 @@ export function isoSeconds(ms) {
   return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
 
-// First body paragraph as plain text, markdown markers stripped, cut at SUMMARY_LIMIT code points.
+// 1.1 W8: the label a kept note's first line opens with (pipeline/decide.mjs WHAT_LABEL) is the note's layout, not what it
+// says: left in the summary, its 「什么」 matched every question with 什么 in it, so 问库 never found that the library had
+// nothing on a question. The summary starts after it.
+export const SUMMARY_LABELS = Object.freeze(['这是什么：', 'What it is:']);
+
+// First body paragraph as plain text, markdown markers stripped, the opening label (SUMMARY_LABELS) left out, cut at
+// SUMMARY_LIMIT code points.
 export function summaryOf(body) {
   const lines = body.split(/\r?\n/);
   const buf = [];
@@ -47,7 +53,10 @@ export function summaryOf(body) {
     if (t) buf.push(t);
     if (buf.join(' ').length > SUMMARY_LIMIT) break;
   }
-  return Array.from(buf.join(' ')).slice(0, SUMMARY_LIMIT).join('');
+  let text = buf.join(' ');
+  const label = SUMMARY_LABELS.find((l) => text.startsWith(l));
+  if (label) text = text.slice(label.length).trimStart();
+  return Array.from(text).slice(0, SUMMARY_LIMIT).join('');
 }
 
 export function plainText(s) {

@@ -83,7 +83,7 @@ test('index line: fixed key order, flattened scores, optional keys omitted, link
   assert.deepEqual(spec.scores, { relevance: 0.86, substance: 0.72, freshness: 'new' });
   assert.deepEqual(spec.links, []);
   assert.deepEqual(spec.links_unresolved, ['MemGPT 论文']);
-  assert.equal(spec.summary, '这是什么：一家 agent 框架公司的产品发布…… 和 MemGPT 论文 是同一条线的产品化');
+  assert.equal(spec.summary, '一家 agent 框架公司的产品发布…… 和 MemGPT 论文 是同一条线的产品化', '1.1 W8: the opening label is left out');
   assert.equal(spec.words, 29); // 27 CJK characters + agent + MemGPT, counted by hand
   assert.match(spec.mtime, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
   assert.deepEqual(spec.warnings, []);

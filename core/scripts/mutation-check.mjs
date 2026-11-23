@@ -712,6 +712,67 @@ const MUTANTS = [
     edits: [['src/build/conversation.mjs', "export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS', 'OUTPUT']);", "export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS']);"]],
     test: ['test/build-w4.test.mjs', '--test-name-pattern=^sop: a rule changed'],
   },
+  // 1.1 W8: 问库 with the saved originals, the note's line to its original, a broken note kept out (B1, B15, B16)
+  {
+    id: "w8-ask-no-original",
+    what: "问库 leaves a kept note's saved original out of its material",
+    edits: [["src/ask/ask.mjs", "    const original = stored ? Array.from(stored.text).slice(0, Math.max(0, Math.min(ORIGINAL_CHARS, originals))).join('') : '';", "    const original = '';"]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^ask-original: a kept note"],
+  },
+  {
+    id: "w8-prompt-drops-original",
+    what: "the candidate carries its original but the prompt (and the check) never shows it",
+    edits: [["src/ask/prompts.mjs", "    return `${head}\\n${body}${original}`;", "    return `${head}\\n${body}`;"]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^ask-original: a kept note"],
+  },
+  {
+    id: "w8-original-uncut",
+    what: "an original goes in whole, not cut at ORIGINAL_CHARS",
+    edits: [["src/ask/ask.mjs", "Math.max(0, Math.min(ORIGINAL_CHARS, originals))", "Infinity"]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^ask-original: an original is cut"],
+  },
+  {
+    id: "w8-inbox-candidate",
+    what: "an item only in 待看 becomes a candidate of 问库",
+    edits: [["src/ask/ask.mjs", "import { readOriginal, originalId } from '../read/original.mjs';\n", "import { readOriginal, originalId } from '../read/original.mjs';\nimport { listInbox } from '../pipeline/inbox.mjs';\n"], ["src/ask/ask.mjs", "  const entries = readIndex(libraryDir).filter((e) => ASK_STATUSES.includes(e.status));", "  const entries = [...readIndex(libraryDir).filter((e) => ASK_STATUSES.includes(e.status)), ...listInbox(libraryDir).map((c) => ({ id: c.url, title: c.title, source: c.url, date: c.date, status: 'kept', topics: [], summary: c.summary?.what ?? '' }))];"]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^ask-scope"],
+  },
+  {
+    id: "w8-summary-label-kept",
+    what: "the index summary keeps the note's opening label (「这是什么：」 matches every question with 什么)",
+    edits: [["src/library/index.mjs", "  if (label) text = text.slice(label.length).trimStart();", ""]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^ask-scope"],
+  },
+  {
+    id: "w8-no-original-line",
+    what: "收藏 writes no line to the original",
+    edits: [["src/pipeline/decide.mjs", "  lines.push('', original);\n", ""]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^note-link: 收藏 writes"],
+  },
+  {
+    id: "w8-link-into-notes",
+    what: "the line links to a file beside the note (in the note folder) instead of the saved original",
+    edits: [["src/pipeline/decide.mjs", "(../${ORIGINALS_DIR}/${id}.md)", "(${id}.md)"]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^note-link: 收藏 writes"],
+  },
+  {
+    id: "w8-link-when-not-saved",
+    what: "an item whose original was not saved gets a link anyway",
+    edits: [["src/pipeline/decide.mjs", "  return readOriginal(libraryDir, id) ?", "  return true ?"]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^note-link: 收藏 writes"],
+  },
+  {
+    id: "w8-english-line-chinese",
+    what: "an English library's note gets the Chinese line",
+    edits: [["src/pipeline/decide.mjs", "  const L = ORIGINAL_LINE[language] ?? ORIGINAL_LINE['zh-CN'];", "  const L = ORIGINAL_LINE['zh-CN'];"]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^note-link: an English"],
+  },
+  {
+    id: "w8-broken-note-indexed",
+    what: "a note with a broken header goes into the index (and so the graph and 问库) instead of 待规范",
+    edits: [["src/library/scan.mjs", "    if (r.ok) valid.push({ file, path, stat, meta: r.meta, body: r.body, warnings: r.warnings });\n    else pending.push(toPending({ file, path, stat, text, meta: r.meta, body: r.body, problems: r.problems }));", "    valid.push({ file, path, stat, meta: r.ok ? r.meta : { id: file.slice(0, -3), title: file, status: 'kept', topics: [] }, body: r.body ?? text, warnings: r.warnings ?? [] });"]],
+    test: ["test/w8.test.mjs", "--test-name-pattern=^b15"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

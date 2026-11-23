@@ -28,6 +28,7 @@ const LABELS = {
     question: '问题：',
     material: '库内条目（编号 · 标题 · 日期 · 正文）：',
     noBody: '（这一条没有正文）',
+    original: '这一条存下的原文（节选）：',
     checklist: '你的回答会被逐项核对：',
     prior: '你上一次的输出：',
     failed: '没通过的核对项（只改这几项）：',
@@ -38,6 +39,7 @@ const LABELS = {
     question: 'Question: ',
     material: 'Library entries (number · title · date · body):',
     noBody: '(this entry has no body)',
+    original: 'The saved original of this entry (excerpt):',
     checklist: 'Your answer will be checked item by item:',
     prior: 'Your previous output:',
     failed: 'Checks that did not pass (fix only these):',
@@ -55,7 +57,9 @@ export function materialsText(materials, language) {
   return (Array.isArray(materials) ? materials : []).map((m) => {
     const head = m.date ? `[${m.n}] ${m.title}（${m.date}）` : `[${m.n}] ${m.title}`;
     const body = typeof m.body === 'string' && m.body.trim() !== '' ? m.body : L.noBody;
-    return `${head}\n${body}`;
+    // 1.1 W8: the saved original, under the same number (a cite of it is a cite of the entry)
+    const original = typeof m.original === 'string' && m.original.trim() !== '' ? `\n${L.original}\n${m.original}` : '';
+    return `${head}\n${body}${original}`;
   }).join('\n\n');
 }
 
