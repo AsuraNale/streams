@@ -1,12 +1,12 @@
 {
   "about": "What the installer says about the app. installer/build-installer.mjs passes these to installer/setup/streams.iss and, with rcedit, into Streams.exe's version info. app_guid is the Windows uninstall entry's identity ({app_guid}_is1 under HKCU): never change it, or an update installs beside the old copy. copyright is the one copyright line of both version infos (Streams.exe's LegalCopyright and the setup program's VersionInfoCopyright). The AppUserModelID is not here: it is desktop/src/main/app-id.mjs, which the app itself reads. `version` is major.minor.patch, digits only (desktop/src/main/version.mjs VERSION_RE: what the app shows and the update compares); 1.0.0 ships without a pre-release part (the maintainer, 2026-11-16); during development a `pre_release` part named the round and went into app_ver_name only.",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "app_name": "流息",
-  "app_ver_name": "流息 1.0.1",
+  "app_ver_name": "流息 1.1.0",
   "publisher": "Starry Data & Technology Inc.",
   "copyright": "Copyright (C) 2026 Starry Data & Technology Inc.",
   "app_guid": "DF025A05-FA12-4432-B947-B637FA08A8F1",
   "install_folder": "Streams",
   "exe_name": "Streams.exe",
-  "output_base_filename": "Streams-1.0.1-setup"
+  "output_base_filename": "Streams-1.1.0-setup"
 }
