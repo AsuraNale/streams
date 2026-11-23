@@ -79,7 +79,7 @@ export async function startTrap() {
 }
 
 /** The trap folders: each must stay as it was made (empty). */
-const TRAP_FOLDERS = Object.freeze(['app-data', 'local-data', 'library', 'choose-folder', 'library-root'])
+const TRAP_FOLDERS = Object.freeze(['app-data', 'local-data', 'library', 'choose-folder', 'library-root', 'sop-dir'])
 /** redesign R6c: what STREAMS_DEV_DETECT's trap says of the two tools — found and signed in, a version no tool has. */
 export const DETECT_TRAP_VERSION = '0.0.0-trap'
 
@@ -102,9 +102,11 @@ export const DETECT_TRAP_VERSION = '0.0.0-trap'
  *   STREAMS_DEV_DETECT                       both tools found and signed in, version 0.0.0-trap (3: neither found, 连接选择 shown)
  *   STREAMS_DEV_NOW                          notes kept on 2001-02-03 (3: kept today)
  *   STREAMS_DEV_QUOTA                        not JSON: main.log says 「quota: development file not read」 (trapLogLines)
- *   STREAMS_DEV_PROPOSALS                    not JSON: main.log says 「proposals: <file> unreadable」 at start (trapLogLines)
- *   STREAMS_DEV_AGENT_SCRIPT                 not JSON; read only with STREAMS_DEV_CONNECTION=fake, when the main agent first
- *                                            answers: main.log then says 「agent: <file> unreadable」 (trapLogLines)
+ *   STREAMS_DEV_BUILD                        not JSON; the build conversation's stand-in script (1.1 W12: read when a build
+ *                                            turn is sent, only with STREAMS_DEV_CONNECTION too)
+ *   STREAMS_DEV_DEFINITION                   not JSON: the start-up check fails, no first run (3: 首次打开 shows)
+ *   STREAMS_DEV_SOP_DIR                      an empty folder: no SOP, the start-up check fails (3: 首次打开 shows)
+ *   STREAMS_DEV_UPDATE_HOLD_MS               9000: the stand-in update agent would wait (only with STREAMS_DEV_CONNECTION)
  *   STREAMS_DEV_ASK_SCRIPT                   not JSON; read only with STREAMS_DEV_CONNECTION=fake, at start: the app then does
  *                                            not start at all (JSON.parse throws in services/connections.mjs)
  */
@@ -113,10 +115,13 @@ export function trapSwitches(traps, trapUrl) {
   // v2 package N: package M's switch, a quota file read at start — the trap is a file that is not JSON, so an app that took
   // the switch would write 「quota: development file not read」 into its main.log (QUOTA_TRAP_LINE; packaged.test.mjs looks)
   writeFileSync(join(traps, 'quota.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_QUOTA)\n')
-  // redesign R6c: the same for the cards file and the two scripts (each read with JSON.parse)
-  writeFileSync(join(traps, 'proposals.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_PROPOSALS)\n')
-  writeFileSync(join(traps, 'agent-script.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_AGENT_SCRIPT)\n')
+  // redesign R6c: the same for the ask script (read with JSON.parse). 1.1 W12: v2's cards file and agent script are read by
+  // nothing any more (their traps went); the build conversation's script (STREAMS_DEV_BUILD) and the action definition
+  // (STREAMS_DEV_DEFINITION) are files that are not JSON — an app that took the definition would fail its start-up check and
+  // show no first run; one that took the build script would answer the first build turn from it
   writeFileSync(join(traps, 'ask-script.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_ASK_SCRIPT)\n')
+  writeFileSync(join(traps, 'build.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_BUILD)\n')
+  writeFileSync(join(traps, 'definition.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_DEFINITION)\n')
   // redesign R6c: the detection's stand-in says what this machine does not have — an app that took it would show both tools usable
   const found = { installed: true, loggedIn: true, version: DETECT_TRAP_VERSION }
   writeFileSync(join(traps, 'detect.json'), `${JSON.stringify({ 'claude-code': found, codex: found })}\n`)
@@ -133,11 +138,15 @@ export function trapSwitches(traps, trapUrl) {
     STREAMS_DEV_CHOOSE_FOLDER: join(traps, 'choose-folder'),
     STREAMS_DEV_CONNECTION: 'fake',
     STREAMS_DEV_NOW: '2001-02-03T04:05:06.000Z',
-    STREAMS_DEV_PROPOSALS: join(traps, 'proposals.json'),
     STREAMS_DEV_LIBRARY_ROOT: join(traps, 'library-root'),
-    STREAMS_DEV_AGENT_SCRIPT: join(traps, 'agent-script.json'),
     STREAMS_DEV_ASK_SCRIPT: join(traps, 'ask-script.json'),
     STREAMS_DEV_DETECT: join(traps, 'detect.json'),
+    // 1.1 W12: the build conversation's script, the action definition, the SOP folder (empty: an app that took it would find
+    // no SOP and fail its start-up check), the stand-in update agent's hold (taken, an update would wait 9 s)
+    STREAMS_DEV_BUILD: join(traps, 'build.json'),
+    STREAMS_DEV_DEFINITION: join(traps, 'definition.json'),
+    STREAMS_DEV_SOP_DIR: join(traps, 'sop-dir'),
+    STREAMS_DEV_UPDATE_HOLD_MS: '9000',
   }
 }
 
@@ -151,7 +160,7 @@ export const QUOTA_TRAP_LINE = 'quota: development file not read'
  * of `log` (main.log's text) that hold one of them: [] when no switch left a line.
  */
 export function trapLogLines(traps, log) {
-  const marks = [QUOTA_TRAP_LINE, `proposals: ${join(traps, 'proposals.json')}`, `agent: ${join(traps, 'agent-script.json')}`, 'connections: STREAMS_DEV_DETECT', 'development cards made', traps]
+  const marks = [QUOTA_TRAP_LINE, 'connections: STREAMS_DEV_DETECT', traps]
   return String(log).split(/\r?\n/).filter(line => marks.some(m => line.includes(m)))
 }
 

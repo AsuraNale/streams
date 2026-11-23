@@ -142,7 +142,7 @@ test('every development switch the main process reads is set to a trap for the i
   const read = switchesRead(MAIN)
   const { switches } = trapsOf('real')
   assert.ok(read.size >= 17, `control: the scan finds the switches (${read.size}: ${[...read.keys()].sort().join(' ')})`)
-  for (const name of ['STREAMS_APP_DATA', 'STREAMS_LOCAL_DATA', 'STREAMS_WINDOW', 'STREAMS_DEV_DETECT', 'STREAMS_DEV_PROPOSALS', 'STREAMS_DEV_LIBRARY_ROOT', 'STREAMS_DEV_AGENT_SCRIPT', 'STREAMS_DEV_ASK_SCRIPT']) assert.ok(read.has(name), `control: the scan finds ${name}`)
+  for (const name of ['STREAMS_APP_DATA', 'STREAMS_LOCAL_DATA', 'STREAMS_WINDOW', 'STREAMS_DEV_DETECT', 'STREAMS_DEV_BUILD', 'STREAMS_DEV_LIBRARY_ROOT', 'STREAMS_DEV_SOP_DIR', 'STREAMS_DEV_ASK_SCRIPT']) assert.ok(read.has(name), `control: the scan finds ${name}`)
   assert.deepEqual(disagreements(read, switches), [])
   // every switch main.mjs names is behind app.isPackaged (the one place they are read)
   const main = readFileSync(join(MAIN, 'main.mjs'), 'utf8')
@@ -162,9 +162,9 @@ test('every development switch the main process reads is set to a trap for the i
   assert.notEqual(bare2, main, 'control: the guard of STREAMS_DEV_SYSTEM_LANGUAGES was there to take away')
   assert.equal(unguardedReads(bare2).length, 2, `both lines of a two-line statement without the guard are told: ${unguardedReads(bare2).join(' | ')}`)
   assert.equal(unguardedReads(`${main}\nconst X = process.env.STREAMS_DEV_NEW_THING === '1'\n`).length, 1, 'a new read without the guard is told')
-  const anchor = main.split('\n').find(l => l.startsWith('const DEV_AGENT_SCRIPT = !app.isPackaged && '))
-  assert.ok(anchor, 'control: the guarded line of STREAMS_DEV_AGENT_SCRIPT')
-  for (const read of ['function agentScriptFile () { return process.env.STREAMS_DEV_AGENT_SCRIPT }', 'const { STREAMS_DEV_AGENT_SCRIPT: s } = process.env', 'const s = process.env[`STREAMS_DEV_AGENT_SCRIPT`]']) {
+  const anchor = main.split('\n').find(l => l.startsWith('const DEV_BUILD = !app.isPackaged && '))
+  assert.ok(anchor, 'control: the guarded line of STREAMS_DEV_BUILD')
+  for (const read of ['function buildScriptFile () { return process.env.STREAMS_DEV_BUILD }', 'const { STREAMS_DEV_BUILD: s } = process.env', 'const s = process.env[`STREAMS_DEV_BUILD`]']) {
     assert.equal(unguardedReads(main.replace(anchor, `${anchor}\n${read}`)).length, 1, `a read on the line below a guarded one is told: ${read}`)
   }
   // controls (R6c fixer, after the pre-check): a switch where the guard does not reach — the else branch on the guarded line or
@@ -234,25 +234,24 @@ test('control: one more switch read in a copy of desktop/src/main — in any for
 
 test('the traps as made: each file switch points at a file that is there, each folder switch at an empty folder; trapsUntouched and trapLogLines tell a switch that was taken', () => {
   const { dir, switches } = trapsOf('made')
-  for (const name of ['STREAMS_DEV_QUOTA', 'STREAMS_DEV_PROPOSALS', 'STREAMS_DEV_AGENT_SCRIPT', 'STREAMS_DEV_ASK_SCRIPT', 'STREAMS_DEV_DETECT']) assert.ok(statSync(switches[name]).isFile(), `${name}'s trap file is there`)
-  for (const name of ['STREAMS_DEV_QUOTA', 'STREAMS_DEV_PROPOSALS', 'STREAMS_DEV_AGENT_SCRIPT', 'STREAMS_DEV_ASK_SCRIPT']) assert.throws(() => JSON.parse(readFileSync(switches[name], 'utf8')), SyntaxError, `${name}'s trap is not JSON: an app that read it says so in main.log`)
+  for (const name of ['STREAMS_DEV_QUOTA', 'STREAMS_DEV_ASK_SCRIPT', 'STREAMS_DEV_DETECT', 'STREAMS_DEV_BUILD', 'STREAMS_DEV_DEFINITION']) assert.ok(statSync(switches[name]).isFile(), `${name}'s trap file is there`)
+  for (const name of ['STREAMS_DEV_QUOTA', 'STREAMS_DEV_ASK_SCRIPT', 'STREAMS_DEV_BUILD', 'STREAMS_DEV_DEFINITION']) assert.throws(() => JSON.parse(readFileSync(switches[name], 'utf8')), SyntaxError, `${name}'s trap is not JSON: an app that read it says so in main.log`)
   const detect = JSON.parse(readFileSync(switches.STREAMS_DEV_DETECT, 'utf8'))
   assert.deepEqual(Object.keys(detect), ['claude-code', 'codex'])
   for (const k of Object.keys(detect)) assert.deepEqual([detect[k].installed, detect[k].loggedIn], [true, true], `the detection trap says ${k} is found and signed in (an app that took it shows it usable)`)
-  for (const name of ['STREAMS_APP_DATA', 'STREAMS_LOCAL_DATA', 'STREAMS_DEV_LIBRARY', 'STREAMS_DEV_CHOOSE_FOLDER', 'STREAMS_DEV_LIBRARY_ROOT']) assert.deepEqual(readdirSync(switches[name]), [], `${name}'s trap folder is empty`)
+  for (const name of ['STREAMS_APP_DATA', 'STREAMS_LOCAL_DATA', 'STREAMS_DEV_LIBRARY', 'STREAMS_DEV_CHOOSE_FOLDER', 'STREAMS_DEV_LIBRARY_ROOT', 'STREAMS_DEV_SOP_DIR']) assert.deepEqual(readdirSync(switches[name]), [], `${name}'s trap folder is empty`)
   assert.equal(existsSync(switches.STREAMS_DEV_UPDATE_SETUP_RECORD), false)
   assert.deepEqual(trapsUntouched(dir), [])
   // controls: something written where a switch points is told
   mkdirSync(join(switches.STREAMS_DEV_LIBRARY_ROOT, '新库'))
   assert.deepEqual(trapsUntouched(dir), ['library-root: 新库'])
   // the log: the app's ordinary lines are not a trap's; each line a taken switch would leave is
-  const ordinary = ['2026-11-13T22:00:00.000Z library: the registry has 0 libraries', '2026-11-13T22:00:01.000Z connections: detect claude-code: not-installed', '2026-11-13T22:00:02.000Z proposals: 0 pending', '2026-11-13T22:00:03.000Z quota: nothing to read']
+  const ordinary = ['2026-11-13T22:00:00.000Z library: the registry has 0 libraries', '2026-11-13T22:00:01.000Z connections: detect claude-code: not-installed', '2026-11-13T22:00:02.000Z build: confirm: done', '2026-11-13T22:00:03.000Z quota: nothing to read']
   assert.deepEqual(trapLogLines(dir, ordinary.join('\n')), [])
   const taken = [
     `x ${QUOTA_TRAP_LINE}: ENOENT`,
-    `x proposals: ${switches.STREAMS_DEV_PROPOSALS} unreadable: Unexpected token`,
-    'x proposals: 0 of 1 development cards made',
-    `x agent: ${switches.STREAMS_DEV_AGENT_SCRIPT} unreadable: Unexpected token`,
+    `x startup: the SOP folder ${switches.STREAMS_DEV_SOP_DIR} has no update.md`,
+    `x startup: ${switches.STREAMS_DEV_DEFINITION}: Unexpected token`,
     'x connections: STREAMS_DEV_DETECT unreadable: ENOENT',
     `x library: the default place for a new library is ${switches.STREAMS_DEV_LIBRARY_ROOT}`,
   ]

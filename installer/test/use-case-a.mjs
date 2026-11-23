@@ -117,13 +117,15 @@ export async function updateState(page, states) {
  */
 export async function appWords(appDir) {
   const imp = (...p) => import(pathToFileURL(join(appDir, 'src', ...p)).href)
-  const [firstRun, common, panel, settings, shell, library, format, theme, themes] = await Promise.all([
+  // 1.1 W12: v1.0's 新建库 page (first-run.js NEW_LIBRARY) is gone; the build conversation's words and 待看's are read instead
+  const [firstRun, common, panel, settings, shell, library, build, inbox, format, theme, themes] = await Promise.all([
     imp('renderer', 'texts', 'first-run.js'), imp('renderer', 'texts', 'common.js'), imp('renderer', 'texts', 'panel.js'),
     imp('renderer', 'texts', 'settings.js'), imp('renderer', 'texts', 'shell.js'), imp('renderer', 'texts', 'library.js'),
+    imp('renderer', 'texts', 'build.js'), imp('renderer', 'texts', 'inbox.js'),
     imp('renderer', 'lib', 'format.js'), imp('main', 'theme.mjs'), imp('shared', 'themes.mjs'),
   ])
   return {
-    FIRST_RUN: firstRun.FIRST_RUN, NEW_LIBRARY: firstRun.NEW_LIBRARY,
+    FIRST_RUN: firstRun.FIRST_RUN, BUILD: build.BUILD, INBOX: inbox.INBOX,
     BRAND: common.BRAND, CONNECTIONS: common.CONNECTIONS, FETCH_STATES: common.FETCH_STATES, SEP: common.SEP, SIDEBAR: common.SIDEBAR,
     PANEL: panel.PANEL, SETTINGS: settings.SETTINGS, SHELL: shell.SHELL, LIBRARY: library.LIBRARY,
     fmt: format.fmt,

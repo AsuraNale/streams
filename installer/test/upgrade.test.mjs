@@ -391,6 +391,15 @@ test(`5 · after the update: the program folder is the ${RELEASE.version} stage;
   const rmAt = at(/Calling RestartManager's RmGetList/)
   assert.ok(rmAt < 0 || at(/Wait for the app to exit:/) < rmAt, 'the wait comes before the Restart Manager looks')
   assert.ok(at(/Wait for the app to exit:/) < at(/Starting the installation process/), 'and before the installation starts')
+  // 1.1 W12: then the app's other processes (Chromium's end a moment after the app's own): the program file free, after the
+  // app's exit and before the Restart Manager looks (twice in W11 / W12 the Restart Manager, looking 19 ms after the exit,
+  // still found one of them)
+  const others = lines.filter(l => l.includes("Wait for the app's other processes:"))
+  assert.equal(others.length, 1, others.join('\n'))
+  assert.match(others[0], /free after \d+ ms$/, others[0])
+  const othersAt = at(/Wait for the app's other processes:/)
+  assert.ok(othersAt > at(/Wait for the app to exit:/) && (rmAt < 0 || othersAt < rmAt), 'after the app\'s exit, before the Restart Manager looks')
+  S.result.setupLogOthers = others[0]
   assert.doesNotMatch(log, /RestartManager found an application using one of our files/, 'the Restart Manager found nothing to close')
   S.result.setupLogWait = waits[0]
   S.result.setupLogRestartManager = lines.filter(l => /RestartManager/.test(l))

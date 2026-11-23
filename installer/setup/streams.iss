@@ -34,6 +34,11 @@
 #ifndef WaitPidTimeoutMs
   #define WaitPidTimeoutMs 60000
 #endif
+; 1.1 W12: once the app's own process has exited, how long the setup program waits for the app's program file to be free —
+; the app's other processes (Chromium's, which end a moment after it) still have it open ([Code] WaitForTheAppsProcesses)
+#ifndef WaitOthersTimeoutMs
+  #define WaitOthersTimeoutMs 10000
+#endif
 
 [Setup]
 AppId={{{#AppGuid}}
@@ -284,6 +289,55 @@ function CloseHandle(hObject: THandle): BOOL;
   external 'CloseHandle@kernel32.dll stdcall';
 function GetTickCount: DWORD;
   external 'GetTickCount@kernel32.dll stdcall';
+// 1.1 W12: opening the program file for writing, shared with nobody, fails while any process runs it
+function CreateFileW(lpFileName: String; dwDesiredAccess: DWORD; dwShareMode: DWORD; lpSecurityAttributes: Cardinal; dwCreationDisposition: DWORD; dwFlagsAndAttributes: DWORD; hTemplateFile: Cardinal): Longint;
+  external 'CreateFileW@kernel32.dll stdcall';
+function CloseFileHandle(hObject: Longint): BOOL;
+  external 'CloseHandle@kernel32.dll stdcall';
+
+const
+  GENERIC_WRITE = $40000000;
+  OPEN_EXISTING = 3;
+
+function ProgramFileInUse(const Path: String): Boolean;
+var
+  H: Longint;
+begin
+  Result := False;
+  if not FileExists(Path) then Exit;
+  H := CreateFileW(Path, GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
+  if (H = -1) or (H = 0) then
+    Result := True
+  else
+    CloseFileHandle(H);
+end;
+
+// 1.1 W12: the app's own process has exited; Chromium's processes of it end a moment later (the Restart Manager, looking right
+// away, found one: upgrade.test.mjs step 5). Wait until {app}\{#ExeName} is free, at most {#WaitOthersTimeoutMs} ms, polling every
+// 100 ms; one line in the log, beginning "Wait for the app's other processes:"
+procedure WaitForTheAppsProcesses;
+var
+  Exe: String;
+  Started, Waited: DWORD;
+  InUse: Boolean;
+begin
+  Exe := ExpandConstant('{app}\{#ExeName}');
+  if not FileExists(Exe) then
+  begin
+    Log('Wait for the app''s other processes: no ' + Exe + ', nothing to wait for');
+    Exit;
+  end;
+  Started := GetTickCount;
+  repeat
+    InUse := ProgramFileInUse(Exe);
+    if InUse then Sleep(100);
+    Waited := GetTickCount - Started;
+  until (not InUse) or (Waited >= {#WaitOthersTimeoutMs});
+  if InUse then
+    Log('Wait for the app''s other processes: ' + Exe + ' still in use after ' + IntToStr(Waited) + ' ms (limit {#WaitOthersTimeoutMs} ms); going on, the Restart Manager closes them')
+  else
+    Log('Wait for the app''s other processes: ' + Exe + ' free after ' + IntToStr(Waited) + ' ms');
+end;
 
 function IsProcessId(const Text: String): Boolean;
 var
@@ -330,7 +384,10 @@ begin
   until Exited or (Waited >= {#WaitPidTimeoutMs});
   CloseHandle(Handle);
   if Exited then
-    Log('Wait for the app to exit: process ' + Given + ' exited after ' + IntToStr(Waited) + ' ms')
+  begin
+    Log('Wait for the app to exit: process ' + Given + ' exited after ' + IntToStr(Waited) + ' ms');
+    WaitForTheAppsProcesses;
+  end
   else
     Log('Wait for the app to exit: process ' + Given + ' still running after ' + IntToStr(Waited) + ' ms (limit {#WaitPidTimeoutMs} ms); going on, the Restart Manager closes it');
 end;
