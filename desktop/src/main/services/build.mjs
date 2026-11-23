@@ -18,7 +18,11 @@
  *                                      the card is convert_library and goes into that library's own folder on 确认
  *   replyBuild(answer)               → the view after the next turn; answer: a string, or { picked: [option], other }
  *   retryBuild()                     → the turn that failed (the connection), sent again
- *   confirmBuild()                   → { done: true, libraryId } — the library made (or its card changed)
+ *   confirmBuild()                   → { done: true, libraryId, update } — the library made (or its card changed); update:
+ *                                      1.1 W10 (维护者 11-23 「要，建好就跑」): a library made, or one of the last version
+ *                                      brought over, has its first update queued at once (afterBuilt: services/schedule.mjs
+ *                                      queueRound — idle, it starts now; another library running, it waits its turn) →
+ *                                      what the queue said; a card changed (edit): no update, null
  *   dropBuild()                      → null — 不建了 / 不改了
  * The view: { mode: 'create' | 'edit' | 'convert', library: { id, name } | null, status: 'talking' | 'stopped', opener, asked, busy,
  *   stopped: notice | null, trouble: { code } | null, turns: [{ role: 'you', text } | { role: 'agent', kind, say, question?,
@@ -74,7 +78,7 @@ export function devBuildSession(file, callsSoFar) {
  * @param {() => Date} [o.now]
  * @param {(active: object, callsSoFar: () => number) => object} [o.session] - the agent's session for the active connection
  */
-export function createBuildService({ appDataDir, library, connections, emit, log, libraryRoot, locale = () => ({ resolved: 'zh-CN' }), now = () => new Date(), session = active => createSessionConnector(active.connection, {}, { cwd: BUILD_CWD, web: true }) }) {
+export function createBuildService({ appDataDir, library, connections, emit, log, libraryRoot, locale = () => ({ resolved: 'zh-CN' }), now = () => new Date(), session = active => createSessionConnector(active.connection, {}, { cwd: BUILD_CWD, web: true }), afterBuilt = null }) {
   const dir = join(appDataDir, 'build')
   const file = join(dir, 'build.json')
   const pendingDir = join(dir, 'pending')
@@ -255,9 +259,17 @@ export function createBuildService({ appDataDir, library, connections, emit, log
         const lib = library.adopt(path, { name: b.state().card?.name })
         libraryId = lib?.libraryId ?? null
       }
-      log(`build: ${saved.core.convert ? 'library brought over' : edit ? 'card changed' : 'library made'}: ${path}`)
+      const mode = saved.core.convert ? 'convert' : edit ? 'edit' : 'create'
+      log(`build: ${mode === 'convert' ? 'library brought over' : mode === 'edit' ? 'card changed' : 'library made'}: ${path}`)
       end('built')
-      return { done: true, libraryId }
+      // 1.1 W10: the first update of a library made or brought over goes into the queue at once; a changed card does not run
+      // one. The library is there whatever the queue says: a failure is logged, the confirmation stands.
+      let update = null
+      if (mode !== 'edit' && afterBuilt && libraryId) {
+        try { update = afterBuilt({ libraryId, path, mode }) ?? null } catch (err) { log(`build: the first update not queued: ${String(err?.message ?? err)}`) }
+        log(`build: first update of ${libraryId}: ${JSON.stringify(update)}`)
+      }
+      return { done: true, libraryId, update }
     },
     dropBuild() {
       if (busy) throw new BridgeError('busy')

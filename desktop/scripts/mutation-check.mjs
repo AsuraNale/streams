@@ -1247,6 +1247,37 @@ const MUTANTS = [
     edits: [['src/renderer/screens/sources.js', "  const can = connection === 'claude-code'", "  const can = connection !== 'codex'"]],
     test: ['test/ui-w6a.test.mjs', '--test-name-pattern=on an API key'],
   },
+  // 1.1 W10 (维护者 11-23 「要，建好就跑」): a library made or brought over has its first update queued at once; a changed card not
+  {
+    id: 'w10-no-first-update',
+    what: '确认 a new library queues no update (1.1 W6b as it was)',
+    edits: [['src/main/services/build.mjs', "if (mode !== 'edit' && afterBuilt && libraryId) {", "if (false && mode !== 'edit' && afterBuilt && libraryId) {"]],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=W10'],
+  },
+  {
+    id: 'w10-edit-runs',
+    what: 'a changed card (edit) runs an update too',
+    edits: [['src/main/services/build.mjs', "if (mode !== 'edit' && afterBuilt && libraryId) {", 'if (afterBuilt && libraryId) {']],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=W10'],
+  },
+  {
+    id: 'w10-convert-no-run',
+    what: 'a library of the last version brought over gets no first update (only a new one does)',
+    edits: [['src/main/services/build.mjs', "if (mode !== 'edit' && afterBuilt && libraryId) {", "if (mode === 'create' && afterBuilt && libraryId) {"]],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=W10'],
+  },
+  {
+    id: 'w10-queue-failure-fails',
+    what: 'a queue that throws makes 确认 fail although the library is made',
+    edits: [['src/main/services/build.mjs', "catch (err) { log(`build: the first update not queued:", "catch (err) { throw err; log(`build: the first update not queued:"]],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=W10'],
+  },
+  {
+    id: 'w10-not-wired',
+    what: 'main.mjs hands the build service no queue: in the real window nothing runs after 确认',
+    edits: [['src/main/main.mjs', "return entry ? scheduler.queueRound(entry, 'a confirmed build card') : null", 'return null']],
+    test: ['test/ui-w6b.test.mjs'],
+  },
 ]
 
 function runTest(desktop, test) {

@@ -50,7 +50,7 @@ const s = worldSession({
     writeCard(world.library, CARD({ name: '已有的库' }))
   },
   settings: { connections: { active: 'claude-code' }, panel: { open: true, tab: 'detail' }, theme: 'research', appearance: 'light' },
-  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_BUILD: replies, STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'new-libs'), STREAMS_START_SCREEN: 'inbox', ...(SHOTS ? { STREAMS_WINDOW: 'shown' } : {}) }),
+  env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_BUILD: replies, STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'new-libs'), STREAMS_START_SCREEN: 'inbox', STREAMS_DEV_UPDATE_HOLD_MS: '4000', ...(SHOTS ? { STREAMS_WINDOW: 'shown' } : {}) }),
 })
 const setReplies = r => writeFileSync(replies, JSON.stringify({ replies: r }))
 const until = (fn, arg) => s.page.waitForFunction(fn, arg, POLL)
@@ -219,6 +219,25 @@ describe('W6b: 新建库 and the build conversation', () => {
     assert.equal(readCard(lib.path).definition.rhythm, '每天一次')
     assert.equal((await s.page.evaluate(() => window.streams.getBuild())).data, null)
     assert.ok(readdirSync(join(s.world.root, 'new-libs')).length === 1)
+    // 1.1 W10 (维护者 11-23 「要，建好就跑」): the new library's first update started by itself — its line in rounds.jsonl (an
+    // update, the stand-in agent hands in nothing), the queue's why 「first」, and the run button back to 立即运行 once it ended
+    // (the stand-in update agent holds its answer STREAMS_DEV_UPDATE_HOLD_MS, so the run is seen while it runs)
+    await until(() => document.querySelector('[data-part="run-button"]')?.dataset.runState === 'running')
+    await shot('after-confirm')
+    await s.page.click('[data-panel-tab="progress"]')
+    await until(why => document.querySelector('[data-pane="progress"]')?.textContent.includes(why), '创建库后的首次运行')
+    await shot('after-confirm-progress')
+    const rounds = () => { const f = join(lib.path, '_pipeline', 'rounds.jsonl'); return existsSync(f) ? readFileSync(f, 'utf8').split(/\r?\n/).filter(Boolean).map(l => JSON.parse(l)) : [] }
+    await until(() => document.querySelector('[data-part="run-button"]')?.dataset.runState === 'idle')
+    for (let i = 0; i < 50 && rounds().length === 0; i++) await s.page.waitForTimeout(100)
+    assert.equal(rounds().length, 1, 'the first update ran once')
+    assert.equal(rounds()[0].kind, 'update')
+    const log = readFileSync(join(s.world.appData, 'logs', 'main.log'), 'utf8')
+    assert.match(log, /schedule: a confirmed build card: \S+ queued/)
+    assert.match(log, /build: first update of \S+: \{"queued":true,"position":1\}/)
+    await s.page.waitForTimeout(400)
+    await shot('after-confirm-done')
+    await s.page.click('[data-panel-tab="decide"]')
   })
 
   test('A2 / B3: 改建库卡 — before / after against the library\'s card; the card file the same until 确认 (and after 不改了); then the new one with its history', async () => {
@@ -246,11 +265,15 @@ describe('W6b: 新建库 and the build conversation', () => {
     await s.page.fill('textarea[data-field="opener"]', '加上出海')
     await s.page.click('[data-action="start"] button')
     await talkIdle()
+    const roundsBefore = readFileSync(join(lib.path, '_pipeline', 'rounds.jsonl'), 'utf8')
     await s.page.click('[data-action="confirm"] button')
     await ready(s.page, 'sources')
     assert.notEqual(hashOf(file), before)
     assert.deepEqual(readCard(lib.path).collect, changed.collect)
     assert.equal(readdirSync(join(lib.path, '_card', 'history')).length, 2)
+    // 1.1 W10: a changed card runs no update
+    await s.page.waitForTimeout(1500)
+    assert.equal(readFileSync(join(lib.path, '_pipeline', 'rounds.jsonl'), 'utf8'), roundsBefore, 'no update after a changed card')
   })
 
   test('trouble: a failed turn says so with 再试一次 (and 去设置 for the sign-in); a build over its budget, or sent back twice unreadable, stops with 重新开始', async () => {

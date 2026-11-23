@@ -186,7 +186,7 @@ frame-ancestors 'none'
 | `startBuild(opener, libraryId?)` | 想追踪什么（一两句话）；带库 id 是改那座库的建库卡 | **1.1 W6b**：只有 Claude Code 能建库（别的连接 → `bad_arguments` 'build-not-supported'，没选 → `no_connection`）；已有在谈的 → `bad_arguments`；返回主 Agent 第一轮以后的 `getBuild()` | A1 |
 | `replyBuild(answer)` | 一句话，或 `{ picked: [选项]（≤ 4）, other? }` | **1.1 W6b**：回答主 Agent，返回下一轮以后的 `getBuild()` | A1 |
 | `retryBuild()` | 无 | **1.1 W6b**：连接失败的那一轮再发一次 | — |
-| `confirmBuild()` | 无 | **1.1 W6b**：确认等着的建库卡：建库（库文件夹 = 库架所在的文件夹 \ 卡上的库名，名字占用了加 2、3…；建好登记成当前的库）或改卡（新版本存进历史）；返回 `{ done: true, libraryId }`；没确认之前什么都不建、不改 | A2 · B3 |
+| `confirmBuild()` | 无 | **1.1 W6b**：确认等着的建库卡：建库（库文件夹 = 库架所在的文件夹 \ 卡上的库名，名字占用了加 2、3…；建好登记成当前的库）或改卡（新版本存进历史）；返回 `{ done: true, libraryId, update }`；没确认之前什么都不建、不改。**1.1 W10**（维护者 11-23「要，建好就跑」）：建库和把上一版的库换过来，确认后这座库的第一次更新马上进队列（`services/schedule.mjs queueRound`，原因 `first`「创建库后的首次运行」：空闲就开始，别的库在跑就排在后面，不重复排），`update` = 队列的回话；只改卡不跑，`update: null`；进队列出错只记日志，库照样建好 | A2 · B3 |
 | `dropBuild()` | 无 | **1.1 W6b**：不建了 / 不改了：等着的卡撤回，对话结束（存在 `build\\ended-…`） | B3 |
 | `openLogsFolder()` | 无 | `null`；`shell.openPath(<库>/_pipeline/logs)`（测试只记日志） | S11「打开运行记录文件夹」 |
 | `getGraph(filter)` | **重设计 R3**：`{ days: number \| null }` 或 null——只剩时间范围一个筛选；`status` / `topics` / `links` 一律 `bad_arguments` | 核心 `graph`（主进程固定 `status: 'all'`、`links: true`：每个文件都画，[[链接]] 一直画） | 图谱 |

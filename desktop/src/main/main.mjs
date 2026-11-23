@@ -87,6 +87,9 @@ const DEV_UPDATE_SETUP_RECORD = !app.isPackaged && typeof process.env.STREAMS_DE
 const DEV_LIBRARY = !app.isPackaged && typeof process.env.STREAMS_DEV_LIBRARY === 'string' && isAbsolute(process.env.STREAMS_DEV_LIBRARY) ? process.env.STREAMS_DEV_LIBRARY : null
 const DEV_CHOOSE_FOLDER = !app.isPackaged && typeof process.env.STREAMS_DEV_CHOOSE_FOLDER === 'string' && isAbsolute(process.env.STREAMS_DEV_CHOOSE_FOLDER) ? process.env.STREAMS_DEV_CHOOSE_FOLDER : null
 const DEV_CONNECTION = !app.isPackaged && DEV_CONNECTION_MODES.includes(process.env.STREAMS_DEV_CONNECTION) ? process.env.STREAMS_DEV_CONNECTION : null
+// 1.1 W10, development and tests only: the stand-in update agent (devWebSession below) answers after this many ms (0–10000),
+// so a test sees — and a picture shows — an update while it runs
+const DEV_UPDATE_HOLD_MS = !app.isPackaged && /^\d{1,5}$/.test(process.env.STREAMS_DEV_UPDATE_HOLD_MS ?? '') ? Math.min(10_000, Number(process.env.STREAMS_DEV_UPDATE_HOLD_MS)) : 0
 // the timed round (services/schedule.mjs; docs/desktop.md §4.3), development and tests only: 「now」 is this ISO time when the
 // app starts and runs on from there (the schedule, the catch-up and the rounds read this clock); a packaged app reads the real one
 const DEV_NOW = !app.isPackaged && typeof process.env.STREAMS_DEV_NOW === 'string' && !Number.isNaN(Date.parse(process.env.STREAMS_DEV_NOW)) ? Date.parse(process.env.STREAMS_DEV_NOW) : null
@@ -341,7 +344,10 @@ app.whenReady().then(() => {
   // searches nothing and hands in no item; its sign-in is the dev connection's (login-expired: not logged in → B12's banner)
   const devWebSession = active => ({
     detect: () => active.connector.detect(),
-    send: async () => ({ ok: true, json: { items: [] }, text: '{"items":[]}', sessionId: 'dev-update', resumed: false, reads: [], searches: [], otherTools: [] }),
+    send: async () => {
+      if (DEV_UPDATE_HOLD_MS > 0) await new Promise(resolve => setTimeout(resolve, DEV_UPDATE_HOLD_MS))
+      return { ok: true, json: { items: [] }, text: '{"items":[]}', sessionId: 'dev-update', resumed: false, reads: [], searches: [], otherTools: [] }
+    },
   })
   libraryUpdate = createLibraryUpdateService({ readPages, readLinks: () => createLinkReader({ render: renderService.render }), log, now: clock, ...(DEV_CONNECTION ? { session: devWebSession } : {}) })
   closeReader = () => { reader.window()?.close() }
@@ -385,6 +391,11 @@ app.whenReady().then(() => {
     // a test or development run with the development connection never reaches the real command line: the script, or the
     // stand-in's one question
     ...(DEV_BUILD || DEV_CONNECTION ? { session: (active, callsSoFar) => devBuildSession(DEV_BUILD, callsSoFar) } : {}),
+    // 1.1 W10 (the maintainer 11-23): a library made or brought over has its first update queued at once (the queue's why: first)
+    afterBuilt: ({ libraryId }) => {
+      const entry = library.find(libraryId)
+      return entry ? scheduler.queueRound(entry, 'a confirmed build card') : null
+    },
   })
   // the tray's count is the current library's
   const inboxNow = () => { const d = library.dir(); if (!d) return 0; try { return listInbox(d).length } catch { return 0 } }

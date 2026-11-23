@@ -9,6 +9,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createLibraryService } from '../src/main/services/library.mjs'
 import { createBuildService, devBuildSession } from '../src/main/services/build.mjs'
+import { createScheduleService } from '../src/main/services/schedule.mjs'
 import { readCard } from '../src/main/core.mjs'
 import { removeTree } from '../scripts/lib/remove-tree.mjs'
 import { testWorld } from './support/services.mjs'
@@ -29,7 +30,7 @@ export const CARD = () => ({
 const question = (text, kind = 'input', options = []) => ({ json: { say: '', question: { text, kind, options } } })
 const card = (c, reads = []) => ({ json: { say: '请看卡', card: c }, reads: reads.map(url => ({ url, ok: true })) })
 
-async function setup({ kind = 'claude-code', replies = [] } = {}) {
+async function setup({ kind = 'claude-code', replies = [], afterBuilt } = {}) {
   const w = testWorld('st-build-')
   worlds.push(w)
   const script = join(w.root, 'build-replies.json')
@@ -38,11 +39,15 @@ async function setup({ kind = 'claude-code', replies = [] } = {}) {
   const library = createLibraryService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, dialog: w.dialog, shell: w.shell, locale })
   const now = { kind }
   const connections = { active: () => (now.kind ? { kind: now.kind, connection: { kind: now.kind } } : null) }
+  // 1.1 W10: what the service hands the first update (main.mjs: the queue); by default a stand-in that says it was queued
+  const queued = []
+  const hook = afterBuilt === undefined ? (x => { queued.push(x); return { queued: true, position: 1 } }) : afterBuilt
   const make = () => createBuildService({
     appDataDir: join(w.root, 'app'), library, connections, emit: w.emit, log: w.log, locale, libraryRoot: () => join(w.root, 'libs'),
     session: (active, calls) => devBuildSession(script, calls),
+    afterBuilt: hook,
   })
-  return { w, library, script, make, b: make().handlers, setReplies: r => writeFileSync(script, JSON.stringify({ replies: r })), setKind: k => { now.kind = k } }
+  return { w, library, script, make, queued, b: make().handlers, setReplies: r => writeFileSync(script, JSON.stringify({ replies: r })), setKind: k => { now.kind = k } }
 }
 const hash = p => (existsSync(p) ? createHash('sha256').update(readFileSync(p)).digest('hex') : 'absent')
 
@@ -196,4 +201,82 @@ test('bringing a library of the last version over: mode convert; the folder the 
   assert.equal(readCard(old.path).name, '测试电车库')
   assert.equal(s.library.current().path, old.path)
   assert.equal(existsSync(join(s.w.root, 'libs')), false, 'no new library folder')
+})
+
+// 1.1 W10 (维护者 11-23 「要，建好就跑」): a library made, or one of the last version brought over, has its first update
+// queued the moment it is confirmed; a changed card does not run one; a confirmation that did not happen runs nothing; a
+// queue that fails does not undo the library.
+test('W10: 确认 a new library → its first update is queued at once, once; the answer says what the queue said', async () => {
+  const s = await setup({ replies: [card(CARD(), [A, B])] })
+  await s.b.startBuild('x')
+  assert.equal(s.queued.length, 0, 'nothing queued before 确认')
+  const r = await s.b.confirmBuild()
+  assert.equal(s.queued.length, 1)
+  assert.deepEqual(s.queued[0], { libraryId: r.libraryId, path: s.library.find(r.libraryId).path, mode: 'create' })
+  assert.deepEqual(r.update, { queued: true, position: 1 })
+})
+
+test('W10: 确认 a changed card (edit) → no update; bringing a library over (convert) → its first update', async () => {
+  const s = await setup({ replies: [card(CARD(), [A, B])] })
+  await s.b.startBuild('x')
+  const { libraryId } = await s.b.confirmBuild()
+  const changed = CARD(); changed.collect = ['月度销量', '价格战']
+  s.setReplies([card(changed)])
+  await s.b.startBuild('加上价格战', libraryId)
+  const r = await s.b.confirmBuild()
+  assert.equal(s.queued.length, 1, 'only the first library\'s')
+  assert.equal(r.update, null)
+  // convert
+  s.setReplies([card(CARD(), [A, B])])
+  s.w.dialogAnswers.push(join(s.w.root, 'old'))
+  await s.library.handlers.chooseLibraryFolder()
+  await s.library.handlers.useChosenFolder('old')
+  const old = s.library.current()
+  await s.b.startBuild('原来的要求：跟踪电车', old.libraryId)
+  const c = await s.b.confirmBuild()
+  assert.equal(s.queued.length, 2)
+  assert.deepEqual([s.queued[1].libraryId, s.queued[1].mode], [old.libraryId, 'convert'])
+  assert.deepEqual(c.update, { queued: true, position: 1 })
+})
+
+test('W10: a confirmation refused queues nothing; a queue that throws leaves the library made and the answer done', async () => {
+  const s = await setup({ replies: [card(CARD(), [A])] })
+  await s.b.startBuild('x')
+  await assert.rejects(() => s.b.confirmBuild(), e => e.code === 'bad_arguments')
+  assert.equal(s.queued.length, 0)
+  const t = await setup({ replies: [card(CARD(), [A, B])], afterBuilt: () => { throw new Error('the queue is broken') } })
+  await t.b.startBuild('x')
+  const r = await t.b.confirmBuild()
+  assert.deepEqual([r.done, r.update], [true, null])
+  assert.equal(readCard(t.library.find(r.libraryId).path).name, '测试电车库')
+  assert.ok(t.w.lines.some(l => /first update not queued: the queue is broken/.test(l)), t.w.lines.slice(-3).join(' | '))
+})
+
+test('W10 with the real queue (services/schedule.mjs, as main.mjs wires it): idle → the new library runs at once, why first; another running → it waits its turn', async () => {
+  const s = await setup({ replies: [card(CARD(), [A, B])], afterBuilt: x => wire.afterBuilt(x) })
+  const p = { order: [], active: [] }
+  p.isRunning = () => p.active.length > 0
+  p.runningLibrary = () => p.active[0] ?? null
+  p.current = () => (p.active[0] ? { roundId: `r-${p.order.length}`, libraryId: p.active[0], phase: 'update', calls: 0, cap: null, startedAt: new Date().toISOString() } : null)
+  p.startRoundIn = async e => { p.order.push(e.id); p.active.push(e.id); return { started: true, roundId: `r-${p.order.length}` } }
+  const schedule = createScheduleService({ settingsFile: s.w.settingsFile, library: s.library, pipeline: p, emit: s.w.emit, log: s.w.log, timers: { set: () => 0, clear: () => {} } })
+  const wire = { afterBuilt: ({ libraryId }) => { const e = s.library.find(libraryId); return e ? schedule.queueRound(e, 'a confirmed build card') : null } }
+  const finish = async () => { const id = p.active.shift(); schedule.roundDone({ roundId: 'r', libraryId: id, result: { started: true, counts: { inbox: 0 } } }); await new Promise(r => setTimeout(r, 0)) }
+  await s.b.startBuild('x')
+  const one = await s.b.confirmBuild()
+  await new Promise(r => setTimeout(r, 0))
+  assert.deepEqual(p.order, [one.libraryId], 'started at once')
+  assert.equal(schedule.queueView().running.why, 'first')
+  // a second library confirmed while the first one's update runs: it waits, second in line
+  s.setReplies([card(CARD(), [A, B])])
+  await s.b.startBuild('y')
+  const two = await s.b.confirmBuild()
+  await new Promise(r => setTimeout(r, 0))
+  assert.deepEqual(two.update, { queued: true, position: 2 })
+  assert.deepEqual(p.order, [one.libraryId], 'not on top of the first')
+  assert.deepEqual(schedule.queue(), { running: one.libraryId, waiting: [two.libraryId] })
+  await finish()
+  assert.deepEqual(p.order, [one.libraryId, two.libraryId], 'its turn came')
+  await finish()
+  assert.equal(p.order.length, 2, 'once each')
 })
