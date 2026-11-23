@@ -295,7 +295,7 @@ test('a summary that never comes back readable is bad-format; a judge that canno
 test('words: the new items are described in both languages, from the item, not its id', () => {
   const zh = originalChecklist('zh-CN');
   const en = originalChecklist('en');
-  assert.deepEqual(zh.map((i) => i.id), ['what-nonempty', 'points-count', 'point-quotes', 'numbers-found', 'no-placeholder', 'no-banned-words', 'numbers-in-source']);
+  assert.deepEqual(zh.map((i) => i.id), ['what-nonempty', 'points-count', 'point-quotes', 'numbers-found', 'no-placeholder', 'no-banned-words', 'numbers-in-source', 'title-same-thing']);
   assert.deepEqual(en.map((i) => [i.id, i.kind, i.rule]), zh.map((i) => [i.id, i.kind, i.rule]), 'the same items, only the words differ');
   for (const [i, it] of zh.entries()) {
     const cn = it.desc;

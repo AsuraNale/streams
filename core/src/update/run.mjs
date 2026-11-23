@@ -195,7 +195,9 @@ export async function runUpdate(libraryDir, {
 
   async function takeItems(items) {
     const ledger = replayLedger(libraryDir).states;
-    const knownUrls = [...ledger.keys()];
+    // 1.1 W11: the card's samples count as had — the user saw and confirmed them with the card (C5 rerun, persona 1)
+    const sampleUrls = (Array.isArray(card.samples) ? card.samples : []).map((s) => (isObj(s) && typeof s.url === 'string' ? s.url : '')).filter(Boolean);
+    const knownUrls = [...ledger.keys(), ...sampleUrls];
     const out = { inbox: [], missing: [], dropped: [] };
     const ready = [];
     for (const it of items) {
@@ -217,24 +219,26 @@ export async function runUpdate(libraryDir, {
     }
     // the check (W3), first round: each item's summary as it was handed in
     const first = [];
-    for (const x of ready) first.push(await checkSummary({ libraryDir, url: x.url, connector: judge, maxRounds: 1, produce: async () => ({ output: x.summary, claimed: [], calls: 0 }) }));
+    for (const x of ready) first.push(await checkSummary({ libraryDir, url: x.url, title: x.title, connector: judge, maxRounds: 1, produce: async () => ({ output: x.summary, claimed: [], calls: 0 }) }));
     // the failed ones go back to the agent once, together, in the same session
     const failed = ready.map((x, i) => ({ x, c: first[i] })).filter(({ c }) => c.status === 'checked' && !c.passed);
     let revised = new Map();
     if (failed.length) {
       // each with the original Streams kept (what the check reads): the agent's own reading tool may have shown it other words
       const why = failed.map(({ x, c }) => `### ${x.url}\n没过的地方：${c.verification.failed.map((f) => `${f.id}（${f.evidence}）`).join('；')}\n流息存下的原文（原话从这里抄）：\n${x.text.length > FEEDBACK_TEXT_CHARS ? `${x.text.slice(0, FEEDBACK_TEXT_CHARS)}……` : x.text}`).join('\n\n');
-      const back = await send(`（流息）下面几条的摘要没有通过核验：每个要点的原话要逐字在原文里，数字要在原文里找得到。请按原因改，只重交这几条，格式同「交回的格式」：\n${why}`);
+      const back = await send(`（流息）下面几条的摘要没有通过核验：每个要点的原话要逐字在原文里，数字要在原文里找得到，标题和摘要要说同一件事（标题也可以改）。请按原因改，只重交这几条，格式同「交回的格式」：\n${why}`);
       const again = failedConnection(back) ? null : parse(back);
       for (const it of Array.isArray(again?.items) ? again.items : []) if (isObj(it) && typeof it.url === 'string') revised.set(it.url.trim(), it);
     }
     for (let i = 0; i < ready.length; i++) {
-      const x = ready[i];
+      let x = ready[i];
       let checked = first[i];
       const re = [...revised.entries()].find(([u]) => sameUrl(u, x.url))?.[1];
       if (checked.status === 'checked' && !checked.passed && re) {
-        const second = await checkSummary({ libraryDir, url: x.url, connector: judge, maxRounds: 1, produce: async () => ({ output: { what: re.what, points: re.points }, claimed: [], calls: 0 }) });
-        if (second.status === 'checked') checked = { ...second, rounds: 2, history: [...first[i].history, ...second.history], verification: { ...second.verification, rounds: 2 } };
+        // 1.1 W11: the title may come back changed with the summary
+        const title = typeof re.title === 'string' && re.title.trim() !== '' ? re.title.trim() : x.title;
+        const second = await checkSummary({ libraryDir, url: x.url, title, connector: judge, maxRounds: 1, produce: async () => ({ output: { what: re.what, points: re.points }, claimed: [], calls: 0 }) });
+        if (second.status === 'checked') { checked = { ...second, rounds: 2, history: [...first[i].history, ...second.history], verification: { ...second.verification, rounds: 2 } }; x = { ...x, title }; }
       }
       if (checked.status !== 'checked') { putMissingInInbox(libraryDir, { item: x, missing: null, reason: 'summary-not-written', round: id, now }); out.missing.push(x.url); continue; }
       const ai = detectAiInstructions(x.text);

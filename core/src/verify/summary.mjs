@@ -1,6 +1,8 @@
 // A summary checked against the original kept in the library (1.1 W3, acceptance B14 and A4's data).
 //
-// checkSummary({ libraryDir, url, produce, connector, maxRounds = 2, language, judgeMaxChars })
+// checkSummary({ libraryDir, url, produce, connector, maxRounds = 2, language, judgeMaxChars, title })
+//   title (1.1 W11): the item's title; the judge sees it with the summary (title-same-thing: the title, the overview and
+//     the points are one and the same thing). No title: the judge sees the summary alone, as before.
 //   The original is read from the library (_originals/<id>.md, read/original.mjs). No original: no model call at all,
 //     -> { status: 'no-original', missing: 'original-not-saved', original: { id, saved: false }, calls: 0 }   (B6)
 //   Otherwise verifyLoop with originalChecklist(): round 1 gets feedback null; a failed round gets the prior output and
@@ -30,7 +32,7 @@ const TASK = {
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-export async function checkSummary({ libraryDir, url, produce, connector, maxRounds = 2, language = 'zh-CN', judgeMaxChars = JUDGE_MAX_CHARS } = {}) {
+export async function checkSummary({ libraryDir, url, produce, connector, maxRounds = 2, language = 'zh-CN', judgeMaxChars = JUDGE_MAX_CHARS, title = '' } = {}) {
   if (typeof produce !== 'function') throw new TypeError('checkSummary needs a produce function');
   const id = originalId(url);
   const stored = readOriginal(libraryDir, id);
@@ -38,8 +40,12 @@ export async function checkSummary({ libraryDir, url, produce, connector, maxRou
 
   const original = { text: stored.text, title: stored.title };
   const source = stored.text.length > judgeMaxChars ? stored.text.slice(0, judgeMaxChars) : stored.text;
+  // 1.1 W11: the title goes with what the judge reads (the rules read what and points only)
+  const withTitle = typeof title === 'string' && title.trim() !== ''
+    ? async (feedback, prior) => { const r = await produce(feedback, prior); return isObj(r?.output) ? { ...r, output: { title: title.trim(), ...r.output } } : r; }
+    : produce;
   const loop = await verifyLoop({
-    task: TASK[language] ?? TASK['zh-CN'], checklist: originalChecklist(language), source, original, connector, produce, maxRounds,
+    task: TASK[language] ?? TASK['zh-CN'], checklist: originalChecklist(language), source, original, connector, produce: withTitle, maxRounds,
   });
   if (loop.last?.code && loop.last.code !== 'bad-format') return { status: 'connection', code: loop.last.code, calls: loop.calls };
 

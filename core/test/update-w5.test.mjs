@@ -332,3 +332,60 @@ test('the card\'s rhythm: the agent reads the sources itself again after its day
   assert.equal(missedRun(schedule, { lastRoundAt: last, now: new Date(Date.parse(last) + 3 * 86_400_000) }), true);
   assert.equal(missedRun(schedule, { lastRoundAt: last, now: new Date(Date.parse(last) + 3_600_000) }), false);
 });
+
+// ---------- 1.1 W11: the title goes with its summary ----------
+// Codex's install test (B4): a roundup page gave an item the title of one fund and the summary of another programme; every
+// point's sentence and number was in the original, so nothing caught it. The judge now reads the title with the summary
+// (title-same-thing), and the agent may send the title back changed with the summary.
+test('W11: the judge reads the title; a title about another thing fails, the agent sends both back, the new title is the card\'s', async () => {
+  const dir = library('w11-title');
+  site.list = ['/p/a1']; site.feed = [];
+  await update(dir, agent(() => ({ json: { items: [] } })));
+  page('/p/w11', '新的 /p/w11', '新壬');
+  site.list = ['/p/a1', '/p/w11'];
+  const wrong = { ...itemFor('/p/w11', '新壬'), title: '另一件事：某基金 2027 年开放申请' };
+  const fixed = { ...itemFor('/p/w11', '新壬'), title: '新壬的新项目' };
+  const a = agent((p, i) => (i === 0 ? { json: { items: [wrong] } } : { json: { items: [fixed] } }));
+  // the judge: the title-same-thing item fails while the title is the wrong one
+  const judge = fakeConnector({ mode: 'counting', json: (req) => ({ items: [...req.prompt.matchAll(/^\[([\w-]+)\]/gm)].map((m) => ({ id: m[1], passed: !(m[1] === 'title-same-thing' && req.prompt.includes('另一件事')), evidence: m[1] === 'title-same-thing' ? '标题说的是另一件事' : 'ok' })) }) });
+  const r = await runUpdate(dir, { connector: a, judge, readPage: reader().read, readLinks: links().read, now: at() });
+  assert.equal(r.status, 'done');
+  assert.ok(judge.calls[0].prompt.includes('另一件事：某基金 2027 年开放申请'), 'the judge read the title');
+  assert.ok(judge.calls[0].prompt.includes('[title-same-thing]'));
+  assert.equal(a.calls.length, 2, 'sent back once');
+  assert.match(a.calls[1].prompt, /标题和摘要要说同一件事/);
+  assert.match(a.calls[1].prompt, /title-same-thing（标题说的是另一件事）/);
+  const [card] = listInbox(dir);
+  assert.deepEqual([card.title, card.verification.passed, card.verification.rounds], ['新壬的新项目', true, 2]);
+});
+
+test('W11: a title the agent does not change stays; still about another thing after the second round -> in 待看, not passed', async () => {
+  const dir = library('w11-title-twice');
+  site.list = ['/p/a1']; site.feed = [];
+  await update(dir, agent(() => ({ json: { items: [] } })));
+  page('/p/w11b', '新的 /p/w11b', '新癸');
+  site.list = ['/p/a1', '/p/w11b'];
+  const wrong = { ...itemFor('/p/w11b', '新癸'), title: '另一件事：某贷款截止' };
+  const again = { ...wrong }; delete again.title;
+  const a = agent((p, i) => (i === 0 ? { json: { items: [wrong] } } : { json: { items: [again] } }));
+  const judge = fakeConnector({ mode: 'counting', json: (req) => ({ items: [...req.prompt.matchAll(/^\[([\w-]+)\]/gm)].map((m) => ({ id: m[1], passed: !(m[1] === 'title-same-thing' && req.prompt.includes('另一件事')), evidence: 'x' })) }) });
+  await runUpdate(dir, { connector: a, judge, readPage: reader().read, readLinks: links().read, now: at() });
+  const [card] = listInbox(dir);
+  assert.deepEqual([card.title, card.verification.passed, card.verification.rounds], ['另一件事：某贷款截止', false, 2]);
+  assert.ok(card.verification.failed.some((f) => f.id === 'title-same-thing'));
+  assert.ok(judge.calls[1].prompt.includes('另一件事：某贷款截止'), 'the second round\'s judge read the same title');
+});
+
+// 1.1 W11 (C5 rerun, persona 1): the card's third sample (not in the library) came back as a new item at the same address
+test('W11: an item at the address of one of the card\'s samples is dropped as already had; the others go on', async () => {
+  const dir = library('w11-sample');
+  site.list = ['/p/a1']; site.feed = [];
+  await update(dir, agent(() => ({ json: { items: [] } })));
+  page('/p/w11s', '新的 /p/w11s', '新子');
+  site.list = ['/p/a1', '/p/w11s'];
+  // /p/a1 is the card's sample; the agent opened it itself and hands it in with the new one
+  const a = agent(() => ({ json: { items: [itemFor('/p/a1', '样例'), itemFor('/p/w11s', '新子')] } }), { reads: [`${base}/p/a1`] });
+  const r = await update(dir, a);
+  assert.deepEqual(r.record.dropped.map((d) => [d.url.replace(base, ''), d.why]), [['/p/a1', 'already']]);
+  assert.deepEqual(listInbox(dir).map((c) => c.url.replace(base, '')), ['/p/w11s']);
+});

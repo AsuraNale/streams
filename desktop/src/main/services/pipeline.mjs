@@ -70,6 +70,10 @@ export function createPipelineService({ library, connections, emit, log, hidden 
   let failedAt = null
   // 1.1 W6a (B12): library folder → { code, at } of an update that did not start for the login (cleared by one that ran)
   const updateProblems = new Map()
+  // 1.1 W11: library folder → the problems of its last run that did not start; getHome gives the open library's own (until
+  // W11 it gave the app's last ones: after an upgrade the catch-up's 「needs-build」 of a library of the last version showed
+  // on a new library while its first update ran). Cleared when a run of that library starts.
+  const problemsOf = new Map()
 
   // 「n 条待看」: the cards the page lists — not the ones put aside (稍后处理), not the one held by 放弃
   const inboxCount = dir => {
@@ -144,6 +148,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     // kind of library in 1.1, 维护者 11-20); it is brought over by the build conversation first (重新查一遍来源)
     const problem = { code: 'needs-build' }
     lastProblems = [problem]
+    problemsOf.set(dir, [problem])
     failedAt = { libraryId, dir, at: now().toISOString(), problems: [problem] }
     log(`pipeline: ${libraryId ?? dir} has no library card: not updated (needs the build conversation)`)
     progress({ roundId: `n-${randomBytes(3).toString('hex')}`, libraryId, cap: null, phase: 'done', counts: null, calls: 0, done: true, result: null, problems: [problem] })
@@ -161,11 +166,13 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     const problem = u.problemFor(a)
     if (problem) {
       lastProblems = [problem]
+      problemsOf.set(dir, [problem])
       log(`pipeline: update of ${libraryId ?? dir} not started: ${problem.code}${problem.connection ? ` (${problem.connection})` : ''}`)
       progress({ roundId, libraryId, cap: null, phase: 'done', counts: null, calls: 0, done: true, result: null, problems: [problem] })
       return { started: false, problems: [problem] }
     }
     const controller = new AbortController()
+    problemsOf.delete(dir)
     running = { roundId, libraryId, controller, cap: null, startedAt: now().toISOString(), update: true }
     const base = { roundId, libraryId, cap: null, update: true }
     progress({ ...base, phase: 'update', counts: null, calls: 0, done: false })
@@ -179,6 +186,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       }
       last = { roundId, libraryId, result }
       lastProblems = result.started ? null : result.problems ?? null
+      if (result.started) problemsOf.delete(dir)
+      else problemsOf.set(dir, result.problems ?? [])
       // 1.1 W7a: this library's 稍后处理 items are back in 待看 once its update has run
       if (result.started) { try { const r = releaseLater(dir); if (r.released) log(`pipeline: update ${roundId}: ${r.released} item(s) back from later`) } catch (err) { log(`pipeline: update ${roundId}: the later items not given back: ${String(err?.message ?? err)}`) } }
       if (result.status === 'login-expired') updateProblems.set(dir, { code: 'login-expired', at: now().toISOString() })
@@ -199,7 +208,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       const numbers = homeNumbers(dir, { now })
       const kept = index.filter(e => e.status === 'kept').sort((a, b) => String(b.kept ?? '').localeCompare(String(a.kept ?? '')) || String(b.date ?? '').localeCompare(String(a.date ?? '')))
       const a = connections.active()
-      const p = lastProblems?.[0] ?? null
+      const p = problemsOf.get(dir)?.[0] ?? null
       return {
         library: { ...library.current(), count: index.length },
         numbers,

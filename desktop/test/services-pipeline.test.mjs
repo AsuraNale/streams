@@ -191,3 +191,39 @@ test('the inbox and the decisions: only a url in the inbox can be kept or dismis
   assert.deepEqual(w.opened, [a, b], 'not opened again')
   assert.ok(w.lines.some(l => l.startsWith('not opened in a test run')))
 })
+
+// 1.1 W11 (Codex's install test, B3): after an upgrade the catch-up runs the libraries of the last version at start; their
+// 「needs-build」 was getHome's problem for whatever library was open — a new library showed 「这座库是上一版建的…」 while its
+// first update ran. Now getHome gives the open library's own problem only.
+test('W11: getHome shows the open library\'s own problem — not the needs-build of another library\'s run', async () => {
+  const fresh = new Set()
+  const update = { applies: d => fresh.has(d), problemFor: a => (a ? null : { code: 'no_connection' }), async run() { return { started: true, status: 'done', record: { counts: { inbox: 0 }, calls: 0 } } } }
+  const { w, library, connections, pipeline, dir: oldDir } = await setup({ update })
+  connections.handlers.setActiveConnection('claude-code')
+  const oldId = library.current().libraryId
+  // a library with a card, opened
+  const newDir = join(w.root, 'new')
+  fresh.add(newDir)
+  w.dialogAnswers.push(newDir)
+  await library.handlers.chooseLibraryFolder()
+  await library.handlers.useChosenFolder('new lib')
+  const newId = library.current().libraryId
+  assert.notEqual(newId, oldId)
+  // the catch-up runs the old library (not the open one): needs-build
+  const r = await pipeline.startRoundIn({ id: oldId, path: oldDir })
+  assert.deepEqual(r.problems, [{ code: 'needs-build' }])
+  assert.equal(pipeline.handlers.getHome().problem, null, 'the open (new) library has no problem of its own')
+  assert.deepEqual(pipeline.handlers.getRoundState().lastProblems, [{ code: 'needs-build' }], 'the run state still says what the last run gave')
+  // the old library, opened: its own problem is there
+  library.handlers.setActiveLibrary(oldId)
+  assert.equal(pipeline.handlers.getHome().problem?.code, 'needs-build')
+  // back on the new one: an update that could not start (no connection) is its own problem; one that starts clears it
+  library.handlers.setActiveLibrary(newId)
+  connections.handlers.setActiveConnection(null)
+  await pipeline.startRoundIn({ id: newId, path: newDir })
+  assert.equal(pipeline.handlers.getHome().problem?.code, 'no_connection')
+  connections.handlers.setActiveConnection('claude-code')
+  await pipeline.startRoundIn({ id: newId, path: newDir })
+  await until(() => !pipeline.handlers.getRoundState().running)
+  assert.equal(pipeline.handlers.getHome().problem, null, 'cleared by an update of it that ran')
+})

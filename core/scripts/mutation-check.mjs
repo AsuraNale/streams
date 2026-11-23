@@ -773,6 +773,31 @@ const MUTANTS = [
     edits: [["src/library/scan.mjs", "    if (r.ok) valid.push({ file, path, stat, meta: r.meta, body: r.body, warnings: r.warnings });\n    else pending.push(toPending({ file, path, stat, text, meta: r.meta, body: r.body, problems: r.problems }));", "    valid.push({ file, path, stat, meta: r.ok ? r.meta : { id: file.slice(0, -3), title: file, status: 'kept', topics: [] }, body: r.body ?? text, warnings: r.warnings ?? [] });"]],
     test: ["test/w8.test.mjs", "--test-name-pattern=^b15"],
   },
+  // 1.1 W11 (Codex's install test, B4): an item's title is checked with its summary
+  {
+    id: "w11-judge-no-title",
+    what: "the judge reads the summary without the item's title",
+    edits: [["src/verify/summary.mjs", "  const withTitle = typeof title === 'string' && title.trim() !== ''", "  const withTitle = false"]],
+    test: ["test/update-w5.test.mjs", "--test-name-pattern=W11"],
+  },
+  {
+    id: "w11-no-title-item",
+    what: "the checklist has no title-same-thing item",
+    edits: [["src/verify/checklist.mjs", "    { id: 'title-same-thing', desc: w['title-same-thing'], kind: 'judge', origin: 'streams' },\n", ""]],
+    test: ["test/update-w5.test.mjs", "--test-name-pattern=W11"],
+  },
+  {
+    id: "w11-title-not-revised",
+    what: "a title the agent sends back changed is not taken",
+    edits: [["src/update/run.mjs", "const title = typeof re.title === 'string' && re.title.trim() !== '' ? re.title.trim() : x.title;", "const title = x.title;"]],
+    test: ["test/update-w5.test.mjs", "--test-name-pattern=W11"],
+  },
+  {
+    id: "w11-samples-not-known",
+    what: "an item at the address of one of the card's samples goes into 待看 as new",
+    edits: [["src/update/run.mjs", "const knownUrls = [...ledger.keys(), ...sampleUrls];", "const knownUrls = [...ledger.keys()];"]],
+    test: ["test/update-w5.test.mjs", "--test-name-pattern=W11"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

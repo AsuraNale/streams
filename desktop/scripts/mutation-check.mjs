@@ -1278,6 +1278,13 @@ const MUTANTS = [
     edits: [['src/main/main.mjs', "return entry ? scheduler.queueRound(entry, 'a confirmed build card') : null", 'return null']],
     test: ['test/ui-w6b.test.mjs'],
   },
+  // 1.1 W11 (Codex's install test, B3): getHome's problem is the open library's own
+  {
+    id: 'w11-home-global-problem',
+    what: 'getHome gives the last problem of any library (the catch-up\'s needs-build shows on a new library)',
+    edits: [['src/main/services/pipeline.mjs', 'const p = problemsOf.get(dir)?.[0] ?? null', 'const p = lastProblems?.[0] ?? null']],
+    test: ['test/services-pipeline.test.mjs', '--test-name-pattern=W11'],
+  },
 ]
 
 function runTest(desktop, test) {
