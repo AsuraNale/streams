@@ -1335,6 +1335,31 @@ const MUTANTS = [
     edits: [['src/renderer/screens/sources.js', '${rhythm && !rhythm.matches ? html', '${false ? html']],
     test: ['test/ui-p11a.test.mjs'],
   },
+  // 1.1.1 P11b (A13, A15, 场景四②)
+  {
+    id: 'p11b-gaps-hidden',
+    what: "待看's 「上次更新」 block shows the counts but not what the update agent left",
+    edits: [['src/renderer/screens/run-steps.js', "const gaps = (Array.isArray(record.agent?.gaps) ? record.agent.gaps : [])", "const gaps = ([])"]],
+    test: ['test/ui-p11b.test.mjs'],
+  },
+  {
+    id: 'p11b-plain-listed',
+    what: 'any folder under the default place is listed as a library found (the plain folder too)',
+    edits: [['src/main/services/library.mjs', "if (!dir || known.has(path.toLowerCase()) || folderState(path) !== 'library' || !usable(path)) continue", "if (!dir || known.has(path.toLowerCase())) continue"]],
+    test: ['test/ui-p11b.test.mjs'],
+  },
+  {
+    id: 'p11b-any-path-added',
+    what: 'addFoundLibraries takes a path findLibraries did not give',
+    edits: [['src/main/services/library.mjs', "if (list.length === 0 || list.some(p => !found.has(p)))", "if (list.length === 0)"]],
+    test: ['test/ui-p11b.test.mjs'],
+  },
+  {
+    id: 'p11b-fallback-group',
+    what: "the fallback topic 「未分类」 counts as a topic: the right panel's 文件 shows one lone group",
+    edits: [['src/main/services/browse.mjs', ".map(t => t.trim()).filter(t => !fallback.has(t)))]", ".map(t => t.trim()))]"]],
+    test: ['test/ui-p11b.test.mjs'],
+  },
 ]
 
 function runTest(desktop, test) {

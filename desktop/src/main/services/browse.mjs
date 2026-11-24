@@ -132,9 +132,12 @@ export function createBrowseService({ library, emit, log, hidden = false, shell,
       const dir = library.require()
       const index = call('readIndex', dir).filter(e => e.status === 'kept' || e.status === 'authored')
       const groups = new Map()
+      // 1.1.1 P11b (场景四②): a note kept from a library made by a card has no topic of its own — keep gives it the fallback
+      // 「未分类」 / "uncategorized" (core FALLBACK_TOPIC) — so it counts as having none (the group `topic: null`), not as a topic
+      const fallback = new Set(Object.values(core.FALLBACK_TOPIC ?? {}))
       const put = (topic, e) => { if (!groups.has(topic)) groups.set(topic, []); groups.get(topic).push({ id: e.id, title: e.title ?? e.id, status: e.status, date: e.date ?? null }) }
       for (const e of index) {
-        const topics = [...new Set((Array.isArray(e.topics) ? e.topics : []).filter(t => typeof t === 'string' && t.trim() !== '').map(t => t.trim()))]
+        const topics = [...new Set((Array.isArray(e.topics) ? e.topics : []).filter(t => typeof t === 'string' && t.trim() !== '').map(t => t.trim()).filter(t => !fallback.has(t)))]
         if (topics.length) for (const t of topics) put(t, e)
         else put(null, e)
       }

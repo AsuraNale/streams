@@ -43,6 +43,8 @@ const METHODS = [
   'rebuildIndex',
   'revealLibrary',
   'revealLibraryOf',
+  'findLibraries',
+  'addFoundLibraries',
   'recordSetupStep',
   'getSetup',
   // the connections

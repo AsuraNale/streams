@@ -104,6 +104,8 @@ function selfCheckOf(dir, month) {
 }
 
 export function createLibraryService({ settingsFile, registryFile = join(dirname(settingsFile), REGISTRY_FILE), emit, log, hidden = false, dialog, shell, locale, now = () => new Date(), devLibrary = null, devChooseFolder = null, defaultLibraryRoot = null, protectedDirs = [dirname(settingsFile)], held = () => null }) {
+  // 1.1.1 P11b: the paths the last findLibraries gave: the only ones addFoundLibraries takes
+  let found = new Set()
   // the folder the last chooseLibraryFolder gave: the only path useChosenFolder and addLibrary act on
   let chosen = null
 
@@ -389,6 +391,53 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
       endDev()
       emit('libraries-changed', { libraryId: id })
       return announce('switched')
+    },
+    /**
+     * 1.1.1 P11b (A15; 场景六②): the libraries already in the place new ones go (新建库默认存储位置) that the app does not know —
+     * after the app's data was removed, or on another computer. Only the folders right under that place whose streams.json
+     * reads; their names only; nothing is written anywhere and nothing is registered. The paths given are the only ones
+     * addFoundLibraries takes, until the next call.
+     */
+    findLibraries() {
+      const rootPath = rootView().path
+      found = new Set()
+      let names = []
+      try { names = existsSync(rootPath) ? readdirSync(rootPath) : [] } catch (err) { log(`library: ${rootPath} unreadable: ${String(err?.message ?? err)}`); return [] }
+      const known = new Set(registry().libraries.map(l => resolve(l.path).toLowerCase()))
+      const out = []
+      for (const n of names.sort()) {
+        const path = resolve(join(rootPath, n))
+        let dir = false
+        try { dir = statSync(path).isDirectory() } catch { dir = false }
+        if (!dir || known.has(path.toLowerCase()) || folderState(path) !== 'library' || !usable(path)) continue
+        const r = readConfig(path)
+        out.push({ path, name: typeof r.config?.name === 'string' && r.config.name.trim() !== '' ? r.config.name : basename(path) })
+        found.add(path)
+      }
+      log(`library: ${out.length} library folder(s) found under ${rootPath} not registered`)
+      return out
+    },
+    /** 1.1.1 P11b (A15): register some of what findLibraries just gave (any other path: bad_arguments, nothing registered). */
+    addFoundLibraries(paths) {
+      const list = [...new Set(paths.map(p => (typeof p === 'string' ? resolve(p) : '')))]
+      if (list.length === 0 || list.some(p => !found.has(p))) throw new BridgeError('bad_arguments', 'not a library the last findLibraries gave')
+      let reg = registry()
+      const ids = []
+      for (const path of list) {
+        if (folderState(path) !== 'library' || !usable(path)) { log(`library: ${path} holds no library any more, not added`); continue }
+        const r = withLibrary(reg, path, { now, name: readConfig(path).config?.name || basename(path) })
+        reg = r.registry
+        ids.push(r.entry.id)
+        found.delete(path)
+      }
+      if (ids.length === 0) throw new BridgeError('open_failed')
+      // the first one added becomes the current library when none is
+      if (!active()) reg = withActive(reg, ids[0])
+      save(reg)
+      endDev()
+      log(`library: added back ${ids.length} found library(s): ${ids.join(', ')}`)
+      emit('libraries-changed', { libraryId: ids[0] })
+      return announce('added back')
     },
     /** 「添加已有库」: the folder the last chooseLibraryFolder gave (only that one), which must hold a library. */
     addLibrary(path) {

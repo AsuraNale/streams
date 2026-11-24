@@ -2,7 +2,7 @@
 export { StreamsError } from './errors.mjs';
 export { parseFrontmatter, serializeFrontmatter, KEY_ORDER } from './library/frontmatter.mjs';
 export { validateNote, NOTE_STATUSES, REQUIRED_FIELDS, isIsoDate, idFromFileName } from './library/validate.mjs';
-export { readConfig, topicNames, CONFIG_FILE } from './library/config.mjs';
+export { readConfig, topicNames, CONFIG_FILE, FALLBACK_TOPIC } from './library/config.mjs';
 // 1.1 W7b: the library's language (streams.json pipeline.language), what is left of v1.0's pipeline configuration
 export { LANGUAGES, languageOfConfig } from './library/language.mjs'; // (not languageOf: that name was v2's main agent's, for another thing)
 export { recordSetupStep, readSetup, SETUP_STEPS, SETUP_BY } from './library/setup.mjs';

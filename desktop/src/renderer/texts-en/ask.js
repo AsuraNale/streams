@@ -3,7 +3,8 @@
 export const ASK = Object.freeze({
   title: 'Answers only from this library',
   scope: 'Scope: {kept} kept · {authored} in my notes · offline',
-  inboxNotRead: '{n} in the Inbox not kept yet, which Ask does not read',
+  reads: 'Ask reads only the {n} note{n?|s} you kept.',
+  readsInbox: '{n} item{n?|s} in the Inbox {n?is|are} not kept yet.',
   empty: 'Each sentence of an answer carries the number of the note it comes from; choose a number to see which.',
   inputLabel: 'Ask this library a question',
   inputPlaceholder: 'Ask this library a question',

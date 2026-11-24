@@ -301,7 +301,10 @@ function FilesPane() {
       <div class="st-rp-tree__node" data-tree="notes" data-open=${String(notesOpen)}>
         <${FoldRow} open=${notesOpen} onToggle=${() => setNotesOpen(v => !v)} label=${fmt(F.notes, { n: o.notes.count })} />
         ${notesOpen ? html`<p class="limit-note st-rp-lead">${F.lead}</p>` : null}
-        ${notesOpen ? (groups.length ? groups.map((g, i) => html`<${TopicGroup} key=${g.topic ?? ''} group=${g} first=${i === 0} onOpen=${openNote} onMenu=${onMenu} />`)
+        ${notesOpen ? (groups.length === 1 && groups[0].topic === null
+          // 1.1.1 P11b (场景四②): no note has a topic (a library made by a card): the notes themselves, no lone 「未分主题」 group
+          ? html`<div class="st-rp-tree__flat" data-tree-flat="true">${groups[0].notes.map(n => html`<${NoteLeaf} key=${n.id} note=${n} topic="" onOpen=${openNote} onMenu=${onMenu} />`)}</div>`
+          : groups.length ? groups.map((g, i) => html`<${TopicGroup} key=${g.topic ?? ''} group=${g} first=${i === 0} onOpen=${openNote} onMenu=${onMenu} />`)
           : html`<p class="limit-note">${F.notesNone}</p>`) : null}
       </div>
       <div class="st-rp-tree__node" data-tree="inbox">

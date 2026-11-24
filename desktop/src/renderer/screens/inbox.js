@@ -39,7 +39,7 @@ import { PANEL } from '../texts/panel.js'
 import { aiPhrases, VerdictFold } from './verdict-dialog.js'
 import { LibraryFrame } from './library-frame.js'
 import { DetailBlock } from './right-panel.js'
-import { LastRun, RunSteps } from './run-steps.js'
+import { LastRun, RunSteps, UpdateNote } from './run-steps.js'
 
 const LONG_WAIT = 14
 const QUICK = ['marketing', 'irrelevant', 'shallow', 'duplicate']
@@ -272,6 +272,7 @@ export function InboxScreen() {
         ${error ? html`<div class="progress-alert" role="alert">${error}</div>` : null}
         ${d?.updateProblem?.code === 'login-expired' ? html`<div class="progress-alert" data-part="update-banner" data-code="login-expired" role="alert">${T.banner.loginExpired}
           <span class="st-act" data-action="to-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.banner.toSettings}</button></span></div>` : null}
+        ${!running && h ? html`<${UpdateNote} record=${h.lastRound} onToCard=${t => navigate('build', { edit: libraryId, opener: t })} />` : null}
         ${running ? html`${items.length ? null : html`<div class="empty-state" data-part="run-pending"><${TIcon} name="clock" /><b>${T.running.title}</b>${T.running.note}</div>`}
           <${RunSteps} running=${running} />` : null}
         ${d && !items.length && !running ? html`<div class="empty-state" data-part="empty"><${TIcon} name="check" /><b>${T.empty.title}</b>${nextRun}</div>` : null}
@@ -279,7 +280,7 @@ export function InboxScreen() {
           onPick=${() => setCurrent(i)} onKeep=${() => { setCurrent(i); keep(item) }} onDismiss=${() => { setCurrent(i); dismiss(item) }} onLater=${() => { setCurrent(i); later(item) }} onOpen=${() => open(item.url)}
           onOpenPoint=${p => openAt(item.url, p)} onOpenWeb=${() => openWeb(item.url)} />`)}</div>` : null}
         ${held ? html`<${DismissBar} key=${held.url} held=${held} busy=${busy} onReason=${settle} onUndo=${undo} onClose=${() => settle(null, null)} />` : null}
-        ${d && !items.length && !running && h ? html`<${LastRun} record=${h.lastRound} />
+        ${d && !items.length && !running && h ? html`${h.lastRound?.kind === 'update' ? null : html`<${LastRun} record=${h.lastRound} />`}
           <div class="panel-section" data-part="recent">
             <div class="section-label"><span>${T.empty.recent}</span></div>
             ${(h.recentKept ?? []).length ? h.recentKept.map(k => html`<button key=${k.id} type="button" class="file-row" data-kept=${k.id} onClick=${() => k.source && /^https?:/i.test(k.source) && open(k.source)}>

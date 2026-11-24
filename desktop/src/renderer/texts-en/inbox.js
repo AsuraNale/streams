@@ -77,3 +77,13 @@ export const INBOX = Object.freeze({
     note: 'The items picked appear here when the run is done. You can close the window; the run goes on in the background.',
   }),
 })
+
+export const UPDATE_NOTE = Object.freeze({
+  line: 'Last update {when}: read {read} source{read?|s}{bad}, {n} new',
+  bad: ' ({n} could not be read)',
+  nothingNew: 'Last update {when}: no new links on the sources; the update agent was not called',
+  failed: 'The last update ({when}) did not finish',
+  notes: 'Notes from the update agent ({n})',
+  hide: 'Hide',
+  toCard: 'Change the card with this',
+})

@@ -41,3 +41,9 @@
 /* 来源与要求's 定时: the days of the week, and the line when it is not the card's rhythm (1.1.1 P11a, A10) */
 .st-src-weekdays { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 .st-src-mismatch { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* 1.1.1 P11b (A13): 待看's 「上次更新」 block and the update agent's notes under it, each with 「拿这条去改卡」 */
+.st-update-note .section-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.st-update-gaps { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.st-update-gaps li { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; line-height: 1.6; }
+.st-update-gaps li > span:first-child { flex: 1; }

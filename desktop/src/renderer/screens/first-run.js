@@ -36,6 +36,7 @@ import { FIRST_RUN as T, HOW_IT_WORKS as H } from '../texts/first-run.js'
 import { ApiKeyDialog, connectionState, needsLogin } from './settings.js'
 import { RightPanel } from './right-panel.js'
 import { OpenExistingNote, useOpenExisting } from '../lib/open-existing.js'
+import { FoundLibraries } from '../lib/found-libraries.js'
 import { SHELL } from '../texts/shell.js'
 
 const KINDS = ['claude-code', 'codex', 'api']
@@ -174,6 +175,7 @@ function TrackHome({ data, onChange }) {
           <span class="file-text">${T.none}<small>${T.noneLine}</small></span>
           <span class="st-act" data-action="pick-connection"><button type="button" class="btn" onClick=${onChange}>${T.pick}</button></span>
         </div>`}
+    <${FoundLibraries} />
     <div class="section-label"><span>${T.examplesLabel}</span></div>
     <div class="st-first-rows" data-part="examples">
       ${T.examples.map((t, i) => html`<button type="button" key=${i} class="file-row" data-action="example" data-example=${i} onClick=${() => fill(t)}>

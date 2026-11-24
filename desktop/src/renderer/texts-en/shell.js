@@ -82,6 +82,14 @@ export const SHELL = Object.freeze({
     more: Object.freeze({ button: 'More', label: 'More for this library', reveal: 'Show in File Explorer', scheduleOff: 'Turn the schedule off', scheduleOn: 'Turn the schedule on', remove: 'Remove this library', failed: 'That did not work. Please try again.' }),
   }),
 
+  found: Object.freeze({
+    title: 'Found {n} existing librar{n?y|ies}',
+    lead: 'These libraries are in the default place for new libraries. Added back, they show under My libraries; no file in them is changed.',
+    addAll: 'Add them all back',
+    add: 'Add back',
+    failed: 'They could not be added back. Please try again.',
+  }),
+
   openExisting: Object.freeze({
     button: 'Open an existing library',
     notLibrary: 'This folder is not a Streams library. Choose the folder the library was made in (the one with a notes folder inside).',

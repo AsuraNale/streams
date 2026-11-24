@@ -161,10 +161,11 @@ describe('P11a: 库架\'s 更多 and schedule tags, 定时 by the rhythm, the co
     assert.equal(readFileSync(join(L.old, 'streams.json'), 'utf8'), before, 'nothing written')
   })
 
-  test('场景五①: 问库 says 待看 still has items it does not read', async () => {
+  test('场景五①: 问库 says, under the box, it reads only what was kept — and 待看 has items not kept', async () => {
     await s.page.click('nav.st-lib-tabs button[data-tab="ask"]')
-    await until(() => document.querySelector('[data-part="inbox-not-read"]') !== null)
-    assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="inbox-not-read"]').textContent), fmt(ASK.inboxNotRead, { n: 1 }))
+    await until(() => document.querySelector('[data-part="ask-reads"]') !== null)
+    // 1.1.1 P11b: always there under the box — what 问库 reads, and 待看's items not kept (this library: none kept, one in 待看)
+    assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="ask-reads"]').textContent), fmt(ASK.reads, { n: 0 }) + fmt(ASK.readsInbox, { n: 1 }))
     await shot('ask-line')
   })
 

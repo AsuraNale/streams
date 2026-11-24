@@ -59,7 +59,8 @@ export async function runUpdate(libraryDir, {
   } catch { /* a detect that fails is not a sign-in answer: the first call will say */ }
 
   const state = readState(libraryDir);
-  const counts = { sources: (card.sources ?? []).length, read: 0, newLinks: 0, originals: 0, missing: 0, carried: state.carry.length, items: 0, inbox: 0, dropped: 0 };
+  // 1.1.1 P11b (A13): unreadable — the sources read this time that could not be read (待看's 「这次更新」 line says how many)
+  const counts = { sources: (card.sources ?? []).length, read: 0, unreadable: 0, newLinks: 0, originals: 0, missing: 0, carried: state.carry.length, items: 0, inbox: 0, dropped: 0 };
 
   // ---- the sources: the ones left unread last time first, then the card's order; as many as the budget takes (B11)
   const cardUrls = (card.sources ?? []).map((s) => s.url).filter((u) => typeof u === 'string' && u !== '');
@@ -71,6 +72,7 @@ export async function runUpdate(libraryDir, {
     if (stopped()) break;
     const r = await readLinks(src);
     counts.read += 1;
+    if (!r.ok) counts.unreadable += 1;
     const prev = state.sources[src];
     const entry = { ...(prev ?? {}), ok: r.ok, ...(r.ok ? {} : { reason: r.reason ?? 'failed' }), method: r.method ?? null };
     if (r.ok) delete entry.reason;

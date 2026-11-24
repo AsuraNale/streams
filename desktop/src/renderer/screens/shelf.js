@@ -22,6 +22,7 @@ import { TIcon } from '../lib/template-icons.js'
 import { RightPanel } from './right-panel.js'
 import { Act } from '../lib/action.js'
 import { OpenExistingNote, useOpenExisting } from '../lib/open-existing.js'
+import { FoundLibraries } from '../lib/found-libraries.js'
 import { AppFrame, AppSidebar, LinkButton, Main, Menu, TopBar } from '../kit/index.js'
 import { ERRORS, SEP, WHEN } from '../texts/common.js'
 import { SHELL } from '../texts/shell.js'
@@ -112,6 +113,7 @@ export function ShelfScreen() {
           </div>
           <${OpenExistingNote} note=${existing.note} />
           ${libraries?.status === 'error' && !rows ? html`<div class="progress-alert" role="alert">${T.loadFailed} <${LinkButton} onClick=${() => libraries.reload()}>${ERRORS.retry}<//></div>` : null}
+          ${rows && rows.length === 0 ? html`<${FoundLibraries} />` : null}
           ${rows && rows.length === 0 ? html`<div class="empty-state" data-part="shelf-empty">
             <b>${T.emptyText}</b>
             <div class="row st-empty-actions">

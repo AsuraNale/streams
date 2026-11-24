@@ -129,6 +129,8 @@ frame-ancestors 'none'
 | `openRecentLibrary(path)` | 必须是 `recentLibraries` 里的一条（= 登记表里某个库的路径，原样），否则 `bad_arguments` | 同上的打开；那个文件夹里的 `streams.json` 读不出 → `open_failed` | v1.0 设置「库 · 其他」（v2 包 I 起页面不再用，桥上保留） |
 | `rebuildIndex()` | 无 | `{ count, pending: [{file, codes}] }`；`no_library` | 来源与要求「这个库」（v2 包 I；v1.0：设置「重建索引」） |
 | `revealLibrary()` | 无 | `null`；在资源管理器里显示库文件夹（测试只记日志） | 来源与要求「这个库」的「在资源管理器中显示」（v2 包 I） |
+| `findLibraries()` | 无 | **1.1.1 P11b**（A15）：新建库默认存储位置下第一层、`streams.json` 读得出、还没登记的库：`[{ path, name }]`；只读名字，不写、不登记；这一次给出的路径是 `addFoundLibraries` 唯一认的 | 首次打开、空库架的「找到 n 座已有的库」 |
+| `addFoundLibraries(paths)` | 1–50 个路径，必须都是上一次 `findLibraries` 给的（否则 `bad_arguments`，什么都不登记） | 逐个登记（已登记就不重复）；没有当前库时第一个成为当前库；发 `libraries-changed`、`library-changed`；返回当前库 | 「全部加回」「加回」 |
 | `revealLibraryOf(id)` | 登记表里某座库的 id | `null`；在资源管理器里显示那座库的文件夹（不必是当前库；不认识的 id → `bad_arguments`；测试只记日志） | **1.1.1 P11a**（A11）：库架卡片「更多 → 在资源管理器中显示」 |
 | `recordSetupStep(step, entry)` | `step` ∈ `library` · `connection` · `pack` · `sources` · `trial` · `schedule`；`entry = { by, detail? }`，`by` ∈ `chose` · `wrote` · `default` · `skipped`（核心 `recordSetupStep` 判，不认识 → `bad_arguments`） | `{ step, by, at, detail? }`；写进打开的库的 `streams.json` 的 `setup`（那一步的记录被新的替换，别的步不动；经临时文件 + rename）；`no_library`。**v2 包 I**：没有当前库时 `step` 是 `connection` → 写进 `settings.json` 的 `setupConnection = { by, at, detail? }`（同样的检查：`by` 不认识、多了键、`detail` 不是 ≤ 100 字的字符串 → `bad_arguments`），别的步仍是 `no_library` | 首次打开的连接一步、新建库每一步走完时（§4.1、§4.10） |
 | `getSetup()` | 无 | 核心 `readSetup`：`{ <step>: { by, at, detail? } }`，这个库没有记录（导入的、或这次之前建的）→ `{}`；`no_library` | 来源与要求「这个库 · 首次设置」（v2 包 I；v1.0：设置） |

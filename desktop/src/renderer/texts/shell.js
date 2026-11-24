@@ -98,6 +98,15 @@ export const SHELL = Object.freeze({
     more: Object.freeze({ button: '更多', label: '这座库的更多操作', reveal: '在资源管理器中显示', scheduleOff: '关掉定时', scheduleOn: '打开定时', remove: '移除该库', failed: '未能完成，请重试。' }),
   }),
 
+  // 1.1.1 P11b (A15): libraries already in the place new ones go, found after the app's data was removed (lib/found-libraries.js)
+  found: Object.freeze({
+    title: '找到 {n} 座已有的库',
+    lead: '在新建库默认存储位置里找到这些库。加回后会出现在「我的库」里，库里的文件不会被改动。',
+    addAll: '全部加回',
+    add: '加回',
+    failed: '未能加回，请重试。',
+  }),
+
   // 1.1 W13: 「打开已有的库」 on the shelf (its toolbar and its empty state) and on 首次打开 (lib/open-existing.js)
   openExisting: Object.freeze({
     button: '打开已有的库',

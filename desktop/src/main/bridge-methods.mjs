@@ -104,6 +104,9 @@ export const BRIDGE_METHODS = Object.freeze({
   revealLibrary: Object.freeze({ args: 0 }),
   // 1.1.1 P11a (A11): 库架's 「更多 → 在资源管理器中显示」 for any registered library, not only the current one
   revealLibraryOf: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
+  // 1.1.1 P11b (A15): the libraries under the place new ones go that the app does not know; adding back only those just found
+  findLibraries: Object.freeze({ args: 0 }),
+  addFoundLibraries: Object.freeze({ args: 1, check: ([paths]) => Array.isArray(paths) && paths.length >= 1 && paths.length <= 50 && paths.every(p => typeof p === 'string' && p.length <= 1000) }),
   // 首次设置 records who decided each step (plan A1): the step and { by, detail? } are the core's to judge (bad-setup)
   recordSetupStep: Object.freeze({ args: 2, check: ([step, entry]) => nonEmptyShort(40)(step) && smallObject(entry, 4000) }),
   getSetup: Object.freeze({ args: 0 }),

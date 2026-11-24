@@ -9,8 +9,9 @@
 export const ASK = Object.freeze({
   title: '仅基于库内内容回答',
   scope: '范围：已收藏 {kept} 条 · 我的笔记 {authored} 条 · 不联网',
-  // 1.1.1 P11a (场景五①): 问库 reads only what was kept — said where 待看 still has items not kept
-  inboxNotRead: '待看里还有 {n} 条没收藏，问库不看',
+  // 1.1.1 P11a / P11b (场景五①): always under the box — 问库 reads only what was kept; and 待看's items not kept, when there are
+  reads: '问库只看你收藏的 {n} 条。',
+  readsInbox: '待看里还有 {n} 条没收藏。',
   empty: '提问后，回答的每句话都会标注引用编号，点击编号查看出自哪篇笔记。',
   inputLabel: '向该库提问',
   inputPlaceholder: '向该库提问',

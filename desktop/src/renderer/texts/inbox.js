@@ -86,3 +86,14 @@ export const INBOX = Object.freeze({
     note: '运行完成后，新挑出的内容将显示在这里。运行期间可关闭窗口，任务会在后台继续。',
   }),
 })
+
+// 1.1.1 P11b (A13): 待看's top — what the last update did, and what the update agent left for the card (its 「卡上哪里不够用」)
+export const UPDATE_NOTE = Object.freeze({
+  line: '上次更新 {when}：读了 {read} 个来源{bad}，新增 {n} 条',
+  bad: '（{n} 个读不到）',
+  nothingNew: '上次更新 {when}：来源上没有新链接，没有调用更新 Agent',
+  failed: '上次更新 {when} 没有做完',
+  notes: '更新 Agent 留的话（{n}）',
+  hide: '收起',
+  toCard: '拿这条去改卡',
+})

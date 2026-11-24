@@ -229,7 +229,7 @@ export function AskScreen() {
     <div class="st-ask">
       <div class="st-main__body thread-scroll" ref=${listRef}>
         <div class="thread" data-part="conversation">
-          <div class="date-line" data-part="scope"><b id="ask-title">${T.title}</b><span>${SEP}</span><span>${counts ? fmt(T.scope, { kept: counts.kept ?? 0, authored: counts.authored ?? 0 }) : ''}</span>${inboxLeft > 0 ? html`<span>${SEP}</span><span data-part="inbox-not-read" data-value=${inboxLeft}>${fmt(T.inboxNotRead, { n: inboxLeft })}</span>` : null}</div>
+          <div class="date-line" data-part="scope"><b id="ask-title">${T.title}</b><span>${SEP}</span><span>${counts ? fmt(T.scope, { kept: counts.kept ?? 0, authored: counts.authored ?? 0 }) : ''}</span></div>
           ${turns.length ? null : html`<p class="limit-note st-ask-empty" data-part="ask-empty">${T.empty}</p>`}
           ${turns.map((t, i) => html`<section key=${t.id} class="st-ask-turn" data-turn=${i} data-state=${t.status}>
             <div class="user-message">${t.question}</div>
@@ -250,6 +250,7 @@ export function AskScreen() {
           </div>
         </form>
         <div class="compose-help" data-part="input-hint">${fmt(T.inputHint, { n: fmt(T.callsRange, ASK_CALLS) })}</div>
+        ${counts ? html`<div class="compose-help" data-part="ask-reads" data-kept=${(counts.kept ?? 0) + (counts.authored ?? 0)} data-inbox=${inboxLeft}>${fmt(T.reads, { n: (counts.kept ?? 0) + (counts.authored ?? 0) })}${inboxLeft > 0 ? fmt(T.readsInbox, { n: inboxLeft }) : ''}</div>` : null}
       </div>
     </div>
   <//>`
