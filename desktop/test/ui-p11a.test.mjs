@@ -191,6 +191,8 @@ describe('P11a: 库架\'s 更多 and schedule tags, 定时 by the rhythm, the co
     // the failing state first: it has a timed slot, so it is in the queue's 「下次运行时间」
     const q0 = (await s.page.evaluate(() => window.streams.getQueue())).data
     assert.ok(q0.next.some(n => n.libraryId === id), `in the queue before: ${JSON.stringify(q0.next)}`)
+    // the start's catch-up round may still be writing in it (the fake connection): the folder is hashed once nothing runs or waits
+    for (let i = 0; i < 600; i++) { const q = (await s.page.evaluate(() => window.streams.getQueue())).data; if (!q.running && q.waiting.length === 0) break; await s.page.waitForTimeout(100) }
     const hash = treeHash(L.weekly)
     await moreOn(id)
     await s.page.click('[data-menu] [data-menu-item="remove"]')
