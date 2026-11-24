@@ -96,6 +96,13 @@ export const SHELL = Object.freeze({
     loadFailed: '未能读取库列表。',
   }),
 
+  // 1.1 W13: 「打开已有的库」 on the shelf (its toolbar and its empty state) and on 首次打开 (lib/open-existing.js)
+  openExisting: Object.freeze({
+    button: '打开已有的库',
+    notLibrary: '这个文件夹不是流息的库。请选建库时的那个文件夹（里面有 notes 文件夹）。',
+    failed: '未能打开这个库。',
+  }),
+
 
 
 

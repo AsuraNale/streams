@@ -43,10 +43,17 @@ export function createReaderService({ library, reader, log, core = realCore }) {
       const dir = library.require()
       const item = call('readInboxItem', dir, url)
       const id = item?.original?.saved === true ? item.original.id : null
-      const stored = id ? call('readOriginal', dir, id) : null
+      let stored = id ? call('readOriginal', dir, id) : null
+      // 1.1 W13 (维护者 11-23「发之前先补」): no original through 待看 — a note of 资料库, a source 问库 cites — but the library kept
+      // one for the address (_originals/<originalId(url)>.md, kept for good once 收藏): that one, not the page as it is today;
+      // none kept: the page
+      if (!stored) {
+        const kept = call('readOriginal', dir, call('originalId', url))
+        stored = kept && kept.url === url.trim() ? kept : null
+      }
       if (stored) {
-        const a = Number.isInteger(point) ? (item.summary?.anchors ?? []).find(x => x.point === point) : null
-        return reader.open(url, { stored: { title: stored.title || item.title || '', text: stored.text, fetchedAt: stored.fetchedAt, method: stored.method }, mark: a ? { start: a.start, end: a.end } : null, point: a ? point : null })
+        const a = item && Number.isInteger(point) ? (item.summary?.anchors ?? []).find(x => x.point === point) : null
+        return reader.open(url, { stored: { title: stored.title || item?.title || '', text: stored.text, fetchedAt: stored.fetchedAt, method: stored.method }, mark: a ? { start: a.start, end: a.end } : null, point: a ? point : null })
       }
       return reader.open(url)
     },

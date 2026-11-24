@@ -8,7 +8,8 @@
 // and its queue (getQueue); words: texts/shell.js SHELL.shelf.
 // Test hooks: main[data-screen="shelf"][data-state], [data-shelf-card=<id>] with [data-part=name|tracking|updated|inbox|problem]
 // ([data-problem=<problem>|"none"]) and [data-part="queue"][data-queue-state=running|queued][data-position];
-// [data-field="shelf-search"]; [data-action=new-card|new-library|empty-chat|empty-manual], [data-part="shelf-empty"].
+// [data-field="shelf-search"]; [data-action=new-card|new-library|empty-chat|empty-manual], [data-part="shelf-empty"]; 1.1 W13: [data-action="open-existing"]
+// (「打开已有的库」 beside 「新建库」 when there are libraries, in the empty state when there are none) and its line (lib/open-existing.js).
 import { html, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { fmt, whenText } from '../lib/format.js'
@@ -17,6 +18,7 @@ import { queueStateOf, queueWords } from '../lib/queue.js'
 import { TIcon } from '../lib/template-icons.js'
 import { RightPanel } from './right-panel.js'
 import { Act } from '../lib/action.js'
+import { OpenExistingNote, useOpenExisting } from '../lib/open-existing.js'
 import { AppFrame, AppSidebar, LinkButton, Main, TopBar } from '../kit/index.js'
 import { ERRORS, SEP, WHEN } from '../texts/common.js'
 import { SHELL } from '../texts/shell.js'
@@ -56,7 +58,9 @@ function Card({ row, queue, onOpen }) {
 export function ShelfScreen() {
   const { libraries, openLibrary, navigate, newLibrary, queue } = useApp()
   const [q, setQ] = useState('')
-  const rows = Array.isArray(libraries?.data) ? libraries.data : null
+  // 1.1 W13: 「打开已有的库」 — the toolbar's (with libraries) or the empty state's
+  const existing = useOpenExisting()
+  const rows =Array.isArray(libraries?.data) ? libraries.data : null
   const state = rows ? 'ready' : libraries?.status ?? 'loading'
   const needle = q.trim().toLowerCase()
   const shown = rows ? rows.filter(r => !needle || `${r.name} ${tracking(r, SEP) ?? ''}`.toLowerCase().includes(needle)) : []
@@ -75,13 +79,16 @@ export function ShelfScreen() {
           <div class="home-toolbar">
             <label class="search-field"><${TIcon} name="search" /><input aria-label=${T.search} placeholder=${T.search} data-field="shelf-search" value=${q} onInput=${e => setQ(e.currentTarget.value)} /></label>
             <span class="st-act" data-action="new-library"><button type="button" class="btn primary" onClick=${() => newLibrary()}><${TIcon} name="newProject" fallback="plus" /> ${T.newButton}</button></span>
+            ${rows && rows.length ? html`<${Act} name="open-existing" disabled=${existing.busy} onClick=${existing.open}>${SHELL.openExisting.button}<//>` : null}
           </div>
+          <${OpenExistingNote} note=${existing.note} />
           ${libraries?.status === 'error' && !rows ? html`<div class="progress-alert" role="alert">${T.loadFailed} <${LinkButton} onClick=${() => libraries.reload()}>${ERRORS.retry}<//></div>` : null}
           ${rows && rows.length === 0 ? html`<div class="empty-state" data-part="shelf-empty">
             <b>${T.emptyText}</b>
             <div class="row st-empty-actions">
               <${Act} name="empty-chat" variant="primary" onClick=${() => navigate('chat')}>${T.emptyChat}<//>
               <${Act} name="empty-manual" onClick=${() => newLibrary()}>${T.emptyManual}<//>
+              <${Act} name="open-existing" disabled=${existing.busy} onClick=${existing.open}>${SHELL.openExisting.button}<//>
             </div>
           </div>` : null}
           ${rows && rows.length ? html`<div id="projectTiles">

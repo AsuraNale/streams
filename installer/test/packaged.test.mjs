@@ -24,9 +24,9 @@
 //      (three connections, none found) with the usual sidebar; the template's fonts; 暂时跳过 → the one screen says 未连接,
 //      发送 off → 手动创建 → the build conversation (1.1): 开始 off with no connection, nothing made. 1.1 W12: the library of the
 //      use case is one 1.1 made, written here with the core (its card; 待看 with two items whose originals were kept and one
-//      whose original was not) — 1.1 builds libraries only in the build conversation with Claude Code, and its pages have no
-//      button that opens a folder as a library: the bridge's chooseLibraryFolder (the dialog answered by the harness) and
-//      useChosenFolder open it, registered and current; its 待看 shows the summaries; getLicenses (MIT, the parts, the two
+//      whose original was not) — 1.1 builds libraries only in the build conversation with Claude Code. 1.1 W13: 库架 with no
+//      library → 「打开已有的库」 (the folder dialog answered by the harness) opens it, registered and current, on its 待看,
+//      which shows the summaries; getLicenses (MIT, the parts, the two
 //      fonts' notices and OFL); the right panel's four tabs, no quota corner, no trap's line in main.log; C keeps the current
 //      card → a note in notes/ the core's check passes, its last line linking to ../_originals/<id>.md; the sidebar and 库架;
 //      a point of the next card → the reading window on the original Streams kept (stored, that point's sentence marked),
@@ -536,9 +536,10 @@ test('3 · use case A in the installed app, no development switch (1.1 W12: the 
     none: [document.querySelector('[data-part="no-connection"] .file-text')?.firstChild?.textContent ?? null, document.querySelector('[data-part="no-connection"] .file-text small')?.textContent ?? null],
     heading: document.querySelector('[data-part="track"] h2')?.textContent ?? null,
     examples: [...document.querySelectorAll('[data-part="examples"] [data-example] .file-text')].map(e => e.firstChild.textContent),
-    buttons: ['pick-connection', 'send', 'manual-new', 'skip-create'].map(n => document.querySelector(`[data-action="${n}"] button`)?.textContent.trim() ?? null),
+    buttons: ['pick-connection', 'send', 'manual-new', 'open-existing', 'skip-create'].map(n => document.querySelector(`[data-action="${n}"] button`)?.textContent.trim() ?? null),
   }))
-  assert.deepEqual(home, { title: F.title, chip: F.headChipNone, current: false, none: [F.none, F.noneLine], heading: F.heading, examples: [...F.examples], buttons: [F.pick, F.send, F.manual, F.skip] }, 'the first run\'s one screen with no connection, the installed words')
+  // 1.1 W13: 「打开已有的库」 between 手动创建 and 暂不创建
+  assert.deepEqual(home, { title: F.title, chip: F.headChipNone, current: false, none: [F.none, F.noneLine], heading: F.heading, examples: [...F.examples], buttons: [F.pick, F.send, F.manual, SHELL.openExisting.button, F.skip] }, 'the first run\'s one screen with no connection, the installed words')
   // 发送 has nothing to send to: off even with a sentence in the box
   await page().fill('textarea[data-field="track"]', BRIEF)
   assert.equal(await page().evaluate(() => document.querySelector('[data-action="send"] button').disabled), true, 'no connection: the send button stays off')
@@ -555,27 +556,28 @@ test('3 · use case A in the installed app, no development switch (1.1 W12: the 
 
   // 1.1 W12: the library of this use case is one 1.1 made — its card, 待看 as an update leaves it (two items with their
   // originals kept and their summaries checked, one whose original could not be saved) — written here with the core, since
-  // only the build conversation with Claude Code makes a library in 1.1 and this machine has no connection. 1.1's pages have
-  // no button that opens a folder as a library (W12 reports it); the bridge's chooseLibraryFolder / useChosenFolder still do,
-  // and the folder dialog is answered by the harness with that folder
+  // only the build conversation with Claude Code makes a library in 1.1 and this machine has no connection. 1.1 W13 (W12
+  // reported that no page could open a folder as a library): 库架 with no library → 「打开已有的库」, the folder dialog
+  // answered by the harness with that folder → registered, current, its 待看
   assert.equal(existsSync(join(W.library, 'streams.json')), false, 'control: the folder is empty so far')
   core.createLibrary(W.library, { name: LIB_NAME, language: 'zh-CN' })
   core.writeCard(W.library, SEED_CARD)
   for (const it of SEED_ITEMS) seedItem(W.library, it)
-  const chosenFolder = await page().evaluate(() => window.streams.chooseLibraryFolder())
-  assert.equal(chosenFolder.data?.state, 'library', `the dialog's folder holds a library: ${JSON.stringify(chosenFolder)}`)
+  await page().click('.st-sidebar [data-nav="shelf"]')
+  await until(() => document.querySelector('[data-part="shelf-empty"] [data-action="open-existing"] button') !== null)
+  assert.equal((await text('[data-part="shelf-empty"] [data-action="open-existing"] button'))?.trim(), SHELL.openExisting.button, 'the empty shelf\'s 「打开已有的库」, the installed word')
+  await click('[data-part="shelf-empty"] [data-action="open-existing"]')
+  await until(() => document.querySelector('main[data-screen="inbox"]') !== null)
   assert.deepEqual(readRecord(hook(1).recordFile).filter(r => r.kind === 'dialog').map(r => r.folder), [true], 'the folder dialog was asked once')
-  const usedFolder = await page().evaluate(n => window.streams.useChosenFolder(n), LIB_NAME)
-  assert.equal(usedFolder.error ?? null, null, JSON.stringify(usedFolder))
+  assert.equal(await page().evaluate(() => document.querySelector('[data-part="open-existing-note"]')), null, 'no line: the folder holds a library')
   const reg = registryOnDisk()
   assert.deepEqual(reg.libraries.map(l => [resolve(l.path).toLowerCase(), l.name]), [[resolve(W.library).toLowerCase(), LIB_NAME]], 'registered, under its name')
   assert.equal(reg.active, reg.libraries[0].id, 'and current')
   // v2 package A: settings.json's v1.0 fields (libraryPath, recentLibraries) are only read, never written
   const settings = settingsOnDisk()
   assert.deepEqual({ libraryPath: settings.libraryPath ?? null, recentLibraries: settings.recentLibraries ?? [] }, { libraryPath: null, recentLibraries: [] }, `settings.json's v1.0 library fields not written: ${JSON.stringify(settings)}`)
-  // its row in the sidebar → its 待看: the three cards, the summaries of the two whose originals were kept
+  // its 待看 (and its row in the sidebar): the three cards, the summaries of the two whose originals were kept
   await until(() => document.querySelector('.st-sidebar [data-library-row]') !== null)
-  await page().click('.st-sidebar [data-library-row]')
   await until(() => document.querySelector('main[data-screen="inbox"][data-state="ready"]') !== null)
   await until(n => document.querySelectorAll('article[data-card]').length === n, SEED_ITEMS.length)
   const shown = await page().evaluate(() => [...document.querySelectorAll('article[data-card]')].map(a => ({ url: a.dataset.url, current: a.dataset.current ?? null, text: a.textContent })))

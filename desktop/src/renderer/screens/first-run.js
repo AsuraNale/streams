@@ -22,7 +22,7 @@
 // Test hooks: main[data-screen="first-run"][data-state], [data-part="first-run"][data-view=loading|home|pick]; [data-part=current-connection][data-kind] ·
 // [data-part=no-connection] · [data-part=examples] [data-example=<0..2>] · textarea[data-field=track] · [data-part=connect-cards]
 // [data-connection=<kind>][data-conn-state][data-recommended][data-selected]; [data-action=change-connection|pick-connection|
-// example|send|manual-new|skip-create|login|login-again|use|set-key|redetect|skip-connection]; the right panel's
+// example|send|manual-new|open-existing (1.1 W13)|skip-create|login|login-again|use|set-key|redetect|skip-connection]; the right panel's
 // [data-part=how-it-works].
 import { html, useEffect, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
@@ -35,6 +35,8 @@ import { CONNECTIONS, SEP } from '../texts/common.js'
 import { FIRST_RUN as T, HOW_IT_WORKS as H } from '../texts/first-run.js'
 import { ApiKeyDialog, connectionState, needsLogin } from './settings.js'
 import { RightPanel } from './right-panel.js'
+import { OpenExistingNote, useOpenExisting } from '../lib/open-existing.js'
+import { SHELL } from '../texts/shell.js'
 
 const KINDS = ['claude-code', 'codex', 'api']
 const C = T.connect
@@ -139,6 +141,8 @@ function ConnectPick({ data, busy, onUse, onSkip, onRedetect, onState }) {
 /** P01: the current connection, what to track, the three ways out. */
 function TrackHome({ data, onChange }) {
   const { navigate, newLibrary } = useApp()
+  // 1.1 W13: 「打开已有的库」 — a library made before (another computer, the app's data gone) comes back from here
+  const existing = useOpenExisting()
   const [text, setText] = useState('')
   const box = useRef(null)
   const kind = data?.active ?? null
@@ -182,8 +186,10 @@ function TrackHome({ data, onChange }) {
     <div class="form-footer">
       <span class="st-act" data-action="send"><button type="submit" class="btn primary" disabled=${!text.trim() || !usable}>${T.send} <${TIcon} name="arrow" /></button></span>
       <span class="st-act" data-action="manual-new"><button type="button" class="btn quiet" onClick=${() => newLibrary?.()}>${T.manual}</button></span>
+      <span class="st-act" data-action="open-existing"><button type="button" class="btn quiet" disabled=${existing.busy} onClick=${existing.open}>${SHELL.openExisting.button}</button></span>
       <span class="st-act" data-action="skip-create"><button type="button" class="btn quiet" onClick=${() => navigate('shelf')}>${T.skip}</button></span>
     </div>
+    <${OpenExistingNote} note=${existing.note} />
   </form></div>`
 }
 

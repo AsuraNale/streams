@@ -1285,6 +1285,37 @@ const MUTANTS = [
     edits: [['src/main/services/pipeline.mjs', 'const p = problemsOf.get(dir)?.[0] ?? null', 'const p = lastProblems?.[0] ?? null']],
     test: ['test/services-pipeline.test.mjs', '--test-name-pattern=W11'],
   },
+  // 1.1 W13 (维护者 11-23「发之前先补」): 「打开已有的库」, and 查看原文 on a kept note
+  {
+    id: 'w13-any-folder-opened',
+    what: '「打开已有的库」 takes any folder: an empty one is made a library, a folder of .md files imported (useChosenFolder)',
+    edits: [['src/renderer/app.js', "      if (chosen.state !== 'library') return 'not-library'\n      const lib = await call('addLibrary', chosen.path)", "      const lib = await call('useChosenFolder', chosen.name)"]],
+    test: ['test/ui-w13.test.mjs'],
+  },
+  {
+    id: 'w13-no-state-check',
+    what: '「打开已有的库」 hands any folder to addLibrary: a folder with no library gets 「未能打开」, not the line saying it is no library',
+    edits: [['src/renderer/app.js', "      if (chosen.state !== 'library') return 'not-library'\n", '']],
+    test: ['test/ui-w13.test.mjs'],
+  },
+  {
+    id: 'w13-first-run-no-entry',
+    what: '首次打开 has no 「打开已有的库」',
+    edits: [['src/renderer/screens/first-run.js', /\n {6}<span class="st-act" data-action="open-existing">[^\n]*/, '']],
+    test: ['test/ui-w13.test.mjs'],
+  },
+  {
+    id: 'w13-shelf-toolbar-no-entry',
+    what: 'the shelf\'s toolbar has no 「打开已有的库」 (the empty state still does)',
+    edits: [['src/renderer/screens/shelf.js', /\n {12}\$\{rows && rows\.length \? html`<\$\{Act\} name="open-existing"[^\n]*/, '']],
+    test: ['test/ui-w13.test.mjs'],
+  },
+  {
+    id: 'w13-no-stored-fallback',
+    what: '查看原文 on a note (not in 待看) opens the page as it is today, though its original was kept',
+    edits: [['src/main/services/reader.mjs', 'if (!stored) {', 'if (false) {']],
+    test: ['test/reader.test.mjs', '--test-name-pattern=W13'],
+  },
 ]
 
 function runTest(desktop, test) {

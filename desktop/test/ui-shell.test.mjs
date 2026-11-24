@@ -289,14 +289,15 @@ test('设置: no schedule or cap to change; no 「定时一览」 (redesign R4b:
   assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-usage-library]')].map(l => [l.dataset.usageLibrary, Number(l.dataset.calls)])), shelf.ids.map((id, i) => [id, u.libraries.find(x => x.dir === shelf.dirs[i])?.calls ?? 0]))
 })
 
-test('库架 with no library registered: one line and two buttons (the files of the three folders untouched)', async () => {
+test('库架 with no library registered: one line and three buttons (the files of the three folders untouched)', async () => {
   const before = shelf.dirs.map(d => readFileSync(join(d, 'streams.json'), 'utf8'))
   for (const id of shelf.ids) assert.equal((await s.page.evaluate(i => window.streams.removeLibrary(i), id)).ok, true)
   await s.page.click('[data-nav="shelf"]')
   await ready(s.page, 'shelf')
   await until(() => document.querySelector('[data-part="shelf-empty"]') !== null)
   assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-shelf-card], [data-library-row]').length), 0)
-  assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="shelf-empty"] [data-action]')].map(a => a.dataset.action)), ['empty-chat', 'empty-manual'])
+  // 1.1 W13: 「打开已有的库」 too (test/ui-w13.test.mjs)
+  assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="shelf-empty"] [data-action]')].map(a => a.dataset.action)), ['empty-chat', 'empty-manual', 'open-existing'])
   assert.deepEqual(shelf.dirs.map(d => readFileSync(join(d, 'streams.json'), 'utf8')), before)
   // 1.1 W6b: 手动新建 is 新建库 — the one-sentence page of the build conversation (screens/build.js); 取消 comes back to 库架
   await s.page.click('[data-action="empty-manual"] button')

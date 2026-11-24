@@ -146,6 +146,18 @@ function App() {
     queue, setPanel, build,
     // 1.1 W6b: 新建库 is the build conversation ('build'); 「取消」 comes back to the screen it was opened from
     newLibrary: () => setRoute(r => (r.screen === 'build' ? r : { screen: 'build', params: { back: r.screen } })),
+    // 1.1 W13: 「打开已有的库」 (lib/open-existing.js) — the folder dialog; a library → registered once, current, its 待看;
+    // 'cancelled' · 'not-library' (nothing registered, nothing written) · 'opened'; an error of addLibrary goes up
+    openExisting: async () => {
+      const chosen = await call('chooseLibraryFolder')
+      if (!chosen) return 'cancelled'
+      if (chosen.state !== 'library') return 'not-library'
+      const lib = await call('addLibrary', chosen.path)
+      appState.mutate(d => ({ ...d, library: lib, libraryCount: Math.max(1, d?.libraryCount ?? 0) }))
+      libraries.reload()
+      setRoute({ screen: LIBRARY_FIRST_SCREEN, params: {} })
+      return 'opened'
+    },
   }
   if (setup === null) return null
   const Screen = screens[route.screen]

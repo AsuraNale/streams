@@ -81,6 +81,12 @@ export const SHELL = Object.freeze({
     loadFailed: 'The list of libraries could not be read.',
   }),
 
+  openExisting: Object.freeze({
+    button: 'Open an existing library',
+    notLibrary: 'This folder is not a Streams library. Choose the folder the library was made in (the one with a notes folder inside).',
+    failed: 'This library could not be opened.',
+  }),
+
 
 
 

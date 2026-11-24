@@ -300,6 +300,62 @@ test('openReader: only an http(s) item of the library (its record or a note\'s s
   void dir
 })
 
+// 1.1 W13 (维护者 11-23「发之前先补」): 资料库's 查看原文 (and 问库's) on a note whose original the library kept opened the page as it
+// is today; now the kept one. The real core: the original is saved where an update saves it (_originals/<originalId(url)>.md).
+test('W13 openReader: a note\'s source whose original was kept → the kept one (stored, no mark); none kept → the page; not in the library → refused even with a file', async () => {
+  const { dir, library } = readerWorld()
+  const NOTE = 'https://example.org/kept-note'
+  const BARE = 'https://example.org/note-without-original'
+  const STRANGER = 'https://example.org/not-in-the-library-at-all'
+  realCore.saveOriginal(dir, { url: NOTE, title: 'The kept words', text: 'First paragraph.\n\nSecond paragraph.', method: 'direct', fetchedAt: '2026-11-20T10:00:00.000Z' })
+  realCore.saveOriginal(dir, { url: STRANGER, title: 'x', text: 'y', method: 'direct', fetchedAt: '2026-11-20T10:00:00.000Z' })
+  const calls = []
+  const reader = { open: async (url, o) => { calls.push([url, o ?? null]); return { mode: o?.stored ? 'stored' : 'reading' } }, openExternal: () => { throw new Error('not the browser') } }
+  const core = { ...realCore, readIndex: () => [{ id: 'a', source: NOTE }, { id: 'b', source: BARE }] }
+  const h = createReaderService({ library, reader, log: () => {}, core }).handlers
+  // the failing state first: the note is in no 待看 (where 1.1 W6a looked) — so before W13 this opened the page
+  assert.equal(realCore.readInboxItem(dir, NOTE), null)
+  assert.deepEqual(await h.openReader(NOTE, 'reader'), { mode: 'stored' })
+  const [url, o] = calls.at(-1)
+  assert.equal(url, NOTE)
+  assert.deepEqual(o.stored, { title: 'The kept words', text: 'First paragraph.\n\nSecond paragraph.', fetchedAt: '2026-11-20T10:00:00.000Z', method: 'direct' })
+  assert.equal(o.mark, null, 'a note has no point to mark')
+  assert.equal(o.point, null)
+  // a point asked for on a note: still no mark (only 待看's summaries have anchors)
+  await h.openReader(NOTE, 'reader', 1)
+  assert.equal(calls.at(-1)[1].mark, null)
+  // no original kept: the page, as before
+  assert.deepEqual(await h.openReader(BARE, 'reader'), { mode: 'reading' })
+  assert.deepEqual(calls.at(-1), [BARE, null])
+  // an address the library does not know: refused, though a file for it is there
+  await assert.rejects(async () => h.openReader(STRANGER, 'reader'), err => err.code === 'bad_arguments')
+  assert.equal(calls.length, 3, 'nothing else was opened')
+})
+
+test('W13 openReader: an item of 待看 is as in W6a — its own original with the point marked; one whose page was not read opens the page', async () => {
+  const { dir, library } = readerWorld()
+  const URL_A = 'https://example.org/in-inbox'
+  const URL_B = 'https://example.org/in-inbox-unread'
+  const text = 'Alpha sentence here.\n\nBeta sentence there.'
+  const { id } = realCore.saveOriginal(dir, { url: URL_A, title: 'A', text, method: 'direct', fetchedAt: '2026-11-20T10:00:00.000Z' })
+  const start = text.indexOf('Beta')
+  const core = {
+    ...realCore,
+    readIndex: () => [],
+    readInboxItem: (_d, u) => (u === URL_A ? { url: URL_A, title: 'A', original: { saved: true, id }, summary: { anchors: [{ point: 1, start, end: start + 4 }] } }
+      : u === URL_B ? { url: URL_B, title: 'B', original: { saved: false, missing: 'original-not-saved' } } : null),
+    replayLedger: () => ({ states: new Map([[URL_A, {}], [URL_B, {}]]) }),
+  }
+  const calls = []
+  const reader = { open: async (url, o) => { calls.push([url, o ?? null]); return null }, openExternal: () => {} }
+  const h = createReaderService({ library, reader, log: () => {}, core }).handlers
+  await h.openReader(URL_A, 'reader', 1)
+  assert.deepEqual(calls.at(-1)[1].mark, { start, end: start + 4 })
+  assert.equal(calls.at(-1)[1].point, 1)
+  await h.openReader(URL_B, 'reader')
+  assert.deepEqual(calls.at(-1), [URL_B, null])
+})
+
 // redesign R6d (docs/checks/2026-11-15-r6d/对照.md, 阅读窗口): the bar's 返回条目 was one bent arrow in all four themes; the design's
 // pictures show each theme's own back (精密国际主义 |←, 澄明玻璃 a chevron in a disc, 研究对话 the return key's arrow, 单线黑白 ←).
 // The bar's page runs no script, so reader.mjs holds the paths; here they are held to the template's own icon data, read
