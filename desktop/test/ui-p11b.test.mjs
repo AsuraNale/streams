@@ -55,7 +55,9 @@ const s = worldSession({
   env: world => ({ STREAMS_DEV_LIBRARY: '', STREAMS_DEV_CONNECTION: 'fake', STREAMS_DEV_LIBRARY_ROOT: join(world.root, 'new-libs'), ...(SHOTS ? { STREAMS_WINDOW: 'shown' } : {}) }),
 })
 const until = (fn, arg) => s.page.waitForFunction(fn, arg, POLL)
-const shot = async name => { if (SHOTS) { await s.page.evaluate(() => document.fonts.ready); await s.page.waitForTimeout(400); await s.page.screenshot({ path: join(SHOTS, `${name}.png`) }) } }
+// the test world's folders are under this computer's temp folder: their paths are masked in the pictures (evidence carries no
+// home folder or user name)
+const shot = async name => { if (SHOTS) { await s.page.evaluate(() => document.fonts.ready); await s.page.waitForTimeout(400); await s.page.screenshot({ path: join(SHOTS, `${name}.png`), mask: [s.page.locator('.st-path'), s.page.getByText(/AppData|[A-Z]:\\Users/)] }) } }
 const registered = async () => (await s.page.evaluate(() => window.streams.listLibraries())).data.map(l => l.path)
 const listing = dir => readdirSync(dir).sort()
 const hashOf = dir => { const h = createHash('sha256'); const walk = d => { for (const n of readdirSync(d).sort()) { const p = join(d, n); if (statSync(p).isDirectory()) walk(p); else h.update(p.slice(dir.length)).update(readFileSync(p)) } }; walk(dir); return h.digest('hex') }
@@ -90,6 +92,7 @@ describe('P11b: libraries found again, the last update\'s note, notes without a 
     const note = await s.page.evaluate(() => { const n = document.querySelector('[data-part="update-note"]'); return { read: n.dataset.read, bad: n.dataset.unreadable, added: n.dataset.added, line: n.querySelector('.section-label span').textContent, empty: document.querySelector('[data-part="empty"]') !== null, gaps: n.querySelectorAll('[data-update-gap]').length } })
     assert.deepEqual([note.read, note.bad, note.added, note.empty, note.gaps], ['3', '1', '0', true, 0], JSON.stringify(note))
     assert.ok(note.line.includes(fmt(UPDATE_NOTE.bad, { n: 1 })) && note.line.endsWith(fmt('新增 {n} 条', { n: 0 })), note.line)
+    await shot('inbox-update-note-closed')
     await s.page.click('[data-action="update-notes"] button')
     await until(n => document.querySelectorAll('[data-update-gap]').length === n, GAPS.length)
     assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-update-gap] > span:first-child')].map(e => e.textContent)), GAPS)
@@ -115,6 +118,12 @@ describe('P11b: libraries found again, the last update\'s note, notes without a 
     assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-tree-flat] [data-tree-note]').length), 2)
     assert.equal(await s.page.evaluate(() => document.querySelectorAll('[data-tree-topic]').length), 0, 'no group at all')
     await shot('files-flat')
+    // 资料库: the two notes listed, no topic filter (none at all, so no 「未分类」 one either)
+    await s.page.click('.st-lib-tabs [data-tab="library"]')
+    await ready(s.page, 'library')
+    await until(() => document.querySelectorAll('[data-row]').length >= 2)
+    assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-filter-topic]')].map(b => b.dataset.filterTopic)), [])
+    await shot('library-no-topic-filter')
   })
 
   test('A15: the shelf with no library lists them again; 「全部加回」 registers both; then 文件 of the library with a topic keeps its group', async () => {
