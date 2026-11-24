@@ -30,12 +30,12 @@
 
 ## 下载与安装
 
-只做 Windows。安装包在 `AsuraNale/streams` 的 Releases 页面：打开 [最新版本](https://github.com/AsuraNale/streams/releases/latest)，在下方的 Assets 里下载 `Streams-<版本号>-setup.exe`，双击安装。现在的最新版本是 [1.0.1](https://github.com/AsuraNale/streams/releases/tag/v1.0.1)，也可以直接下载它的安装包 [Streams-1.0.1-setup.exe](https://github.com/AsuraNale/streams/releases/download/v1.0.1/Streams-1.0.1-setup.exe)。装好之后，新版本可以在应用里「设置 → 关于 → 检查更新」直接更新。
+只做 Windows。安装包在 `AsuraNale/streams` 的 Releases 页面：打开 [最新版本](https://github.com/AsuraNale/streams/releases/latest)，在下方的 Assets 里下载 `Streams-<版本号>-setup.exe`，双击安装。现在的最新版本是 [1.1.0](https://github.com/AsuraNale/streams/releases/tag/v1.1.0)，也可以直接下载它的安装包 [Streams-1.1.0-setup.exe](https://github.com/AsuraNale/streams/releases/download/v1.1.0/Streams-1.1.0-setup.exe)。装好之后，新版本可以在应用里「设置 → 关于 → 检查更新」直接更新。
 
 - 每个版本的安装包的 sha256 写在那个版本的发布说明里。下载后可以自己核对，例如在 PowerShell 里：`Get-FileHash .\Streams-<版本号>-setup.exe -Algorithm SHA256`，算出来的值应当和发布说明里的一致。
 - 安装包**未签名**（没有代码签名证书）。所以运行它时，Windows 会弹出 SmartScreen 提示「Windows 已保护你的电脑」：点「更多信息」，再点「仍要运行」，就会开始安装。
 
-**Download and install.** Windows only. Open the [latest release](https://github.com/AsuraNale/streams/releases/latest) of `AsuraNale/streams`, download `Streams-<version>-setup.exe` from its Assets and run it. The latest release now is [1.0.1](https://github.com/AsuraNale/streams/releases/tag/v1.0.1); its installer downloads directly as [Streams-1.0.1-setup.exe](https://github.com/AsuraNale/streams/releases/download/v1.0.1/Streams-1.0.1-setup.exe). Once installed, newer versions update from Settings → About → Check for updates. The SHA-256 of each installer is in that release's notes. The installer is **not code-signed**, so Windows SmartScreen shows "Windows protected your PC": click "More info", then "Run anyway".
+**Download and install.** Windows only. Open the [latest release](https://github.com/AsuraNale/streams/releases/latest) of `AsuraNale/streams`, download `Streams-<version>-setup.exe` from its Assets and run it. The latest release now is [1.1.0](https://github.com/AsuraNale/streams/releases/tag/v1.1.0); its installer downloads directly as [Streams-1.1.0-setup.exe](https://github.com/AsuraNale/streams/releases/download/v1.1.0/Streams-1.1.0-setup.exe). Once installed, newer versions update from Settings → About → Check for updates. The SHA-256 of each installer is in that release's notes. The installer is **not code-signed**, so Windows SmartScreen shows "Windows protected your PC": click "More info", then "Run anyway".
 
 ## 开发
 
