@@ -44,7 +44,7 @@ import { BridgeError, bridgeErrorOf } from '../bridge-methods.mjs'
 import {
   CONFIG_FILE, NO_OUTPUT_ROUNDS, REGISTRY_FILE, countFirstLevelMd, createLibrary, defaultIcon, homeNumbers, importFolder, libraryAt,
   SETUP_BY, libraryOf, migrateRegistry, readBrief, readCard, readConfig, readRegistry, readSetup, rebuildIndex, recordSetupStep, usageTotal, withActive, withLibrary,
-  withMeta, withoutLibrary, writeRegistry, readUsage, saveLibraryName,
+  withMeta, withoutLibrary, writeRegistry, readUsage, saveLibraryName, readLibrarySchedule,
 } from '../core.mjs'
 import { byYou } from './changes.mjs'
 import { readSettings, writeSettings } from '../settings.mjs'
@@ -236,7 +236,7 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
    * names, how many sources, how many rounds in a row put nothing into 待看.
    */
   const overviewOf = l => {
-    const base = { id: l.id, name: l.name, icon: l.icon, color: l.color, inbox: 0, lastRoundAt: null, problem: null, brief: null, topics: [], sources: 0, noOutputStreak: 0 }
+    const base = { id: l.id, name: l.name, icon: l.icon, color: l.color, inbox: 0, lastRoundAt: null, problem: null, brief: null, topics: [], sources: 0, noOutputStreak: 0, schedule: null }
     if (!usable(l.path)) return { ...base, problem: 'missing' }
     let n
     try { n = homeNumbers(l.path, { now }) } catch (err) { log(`library: ${l.id}: numbers unreadable: ${String(err?.message ?? err)}`); return { ...base, problem: 'missing' } }
@@ -253,7 +253,10 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
     // redesign R2: a 放弃 held until its bar closes is off the list already (services/pipeline.mjs); later ones are not in n.inbox
     const h = held()
     const inbox = Math.max(0, n.inbox - (h && h.dir === l.path ? 1 : 0))
-    return { ...base, inbox, lastRoundAt: n.lastRound?.startedAt ?? null, problem, brief, topics, sources, noOutputStreak: n.noOutputStreak ?? 0 }
+    // 1.1.1 P11a (A11): its schedule, for the tag on 库架's card (the schedule service writes a missing one in on first read)
+    let schedule = null
+    try { schedule = readLibrarySchedule(l.path).schedule } catch { schedule = null }
+    return { ...base, inbox, lastRoundAt: n.lastRound?.startedAt ?? null, problem, brief, topics, sources, noOutputStreak: n.noOutputStreak ?? 0, schedule }
   }
 
   const handlers = {
@@ -347,6 +350,13 @@ export function createLibraryService({ settingsFile, registryFile = join(dirname
       const d = require()
       if (hidden) { log(`not revealed in a test run: ${d}`); return null }
       shell.showItemInFolder(d)
+      return null
+    },
+    /** 1.1.1 P11a (A11): 库架's 「更多 → 在资源管理器中显示」 — a registered library's folder (bad_arguments for an unknown id). */
+    revealLibraryOf(id) {
+      const e = entryOf(id)
+      if (hidden) { log(`not revealed in a test run: ${e.path}`); return null }
+      shell.showItemInFolder(e.path)
       return null
     },
     // ---- 新建库默认放在 (v2 package I) ----

@@ -21,6 +21,7 @@ export const BUILD = Object.freeze({
   lead: 'No need to find sources or know feed addresses. The main agent asks at most 5 questions, most of them answered with a click; every web address on the card it writes is one it opened this time. Nothing is made before you press Confirm.',
   editLead: 'The main agent changes the card as you say and checks what the change needs. The new card shows before and after; the library’s card stays as it is until you press Confirm.',
   cost: 'Making a library takes a few minutes and uses the quota of “{name}”',
+  costApi: 'Making a library takes a few minutes and is billed to the API key you entered',
   start: 'Start',
   cancel: 'Cancel',
   starting: 'The main agent is looking…',

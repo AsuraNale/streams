@@ -21,9 +21,10 @@ export function readLibrarySchedule(libraryDir) {
 }
 
 export function saveLibrarySchedule(libraryDir, schedule) {
-  if (!isSchedule(schedule)) throw new StreamsError('bad-argument', 'schedule must be { enabled: boolean, time: "HH:MM" } (00:00–23:59)');
+  if (!isSchedule(schedule)) throw new StreamsError('bad-argument', 'schedule must be { enabled: boolean, time: "HH:MM", every?, day? } (00:00–23:59)');
   const whole = loadWhole(libraryDir);
-  whole.schedule = { enabled: schedule.enabled, time: schedule.time };
+  // 1.1.1 P11a: how often goes in too (scheduleOf keeps only what is good; every day is written as before, without it)
+  whole.schedule = scheduleOf(schedule);
   saveWhole(libraryDir, whole);
   return { ...whole.schedule };
 }

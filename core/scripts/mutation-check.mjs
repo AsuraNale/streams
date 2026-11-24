@@ -850,6 +850,25 @@ const MUTANTS = [
     edits: [["src/update/run.mjs", " && !fresh.some((f) => f.url === l)) fresh.push", ") fresh.push"]],
     test: ["test/v111-update-numbers.test.mjs", "--test-name-pattern=B22"],
   },
+  // 1.1.1 P11a (A10): how often
+  {
+    id: "v111-sch-weekly-as-daily",
+    what: "a weekly schedule's days are not looked at: it comes every day",
+    edits: [["src/pipeline/schedule.mjs", "if (s.every === 'week') return s.days.includes(d.getDay());", "if (s.every === 'week') return true;"]],
+    test: ["test/v111-schedule.test.mjs", "--test-name-pattern=A10: a weekly schedule"],
+  },
+  {
+    id: "v111-sch-create-no-rhythm",
+    what: "confirming a card makes the library without setting its schedule by the card's rhythm (every day, as before)",
+    edits: [["src/build/store.mjs", "saveLibrarySchedule(dir, rhythmSchedule(card.definition?.rhythm, now()));", "void 0;"]],
+    test: ["test/v111-schedule.test.mjs", "--test-name-pattern=A10: confirming a card"],
+  },
+  {
+    id: "v111-sch-count-as-monday",
+    what: "「每周一次」 is read as every Monday",
+    edits: [["src/pipeline/schedule.mjs", "(?:周|星期|礼拜)([一二三四五六日天])(?![次回遍])/g", "(?:周|星期|礼拜)([一二三四五六日天])/g"]],
+    test: ["test/v111-schedule.test.mjs", "--test-name-pattern=A10: the card"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

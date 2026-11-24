@@ -165,3 +165,15 @@ export const PUNCT = Object.freeze({
   semi: '；',
   comma: '，',
 })
+
+// 1.1.1 P11a (A10, A11): how often a library runs — 来源与要求's 定时 and the tag on 库架's card (lib/schedule-words.js)
+export const SCHEDULE = Object.freeze({
+  every: Object.freeze({ day: '每天', weekdays: '工作日', week: '每周', month: '每月' }),
+  weekdays: Object.freeze(['日', '一', '二', '三', '四', '五', '六']),
+  // 「每周二、五」 · 「每月 15 号」
+  week: '每周{days}',
+  daysSep: '、',
+  month: '每月 {n} 号',
+  tagOn: '{when} {time} 自动运行',
+  tagOff: '未开定时',
+})

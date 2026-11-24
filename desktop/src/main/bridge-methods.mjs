@@ -58,6 +58,9 @@ const question = v => typeof v === 'string' && v.trim().length >= 1 && v.trim().
 // v2 package A: a library's registry id (whether it is one is the library service's to say: an unknown one is bad_arguments)
 const libraryId = nonEmptyShort(40)
 const schedule = s => isObject(s) && onlyKeys(s, ['enabled', 'time']) && typeof s.enabled === 'boolean' && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)
+// 1.1.1 P11a (A10): a library's schedule says how often too — every / days / day (the core's isSchedule judges the values)
+const librarySchedule = s => isObject(s) && onlyKeys(s, ['enabled', 'time', 'every', 'days', 'day']) && typeof s.enabled === 'boolean' && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)
+  && (s.every === undefined || typeof s.every === 'string') && (s.day === undefined || Number.isInteger(s.day)) && (s.days === undefined || (Array.isArray(s.days) && s.days.length <= 7 && s.days.every(Number.isInteger)))
 /** { name?, icon?, color? }, at least one, each a string (the core's withMeta judges the values) */
 const libraryMeta = m => isObject(m) && Object.keys(m).length > 0 && onlyKeys(m, ['name', 'icon', 'color']) && Object.values(m).every(v => typeof v === 'string' && v.length <= 200)
 // a trailing argument the page may leave out is `undefined` (or null)
@@ -99,6 +102,8 @@ export const BRIDGE_METHODS = Object.freeze({
   openRecentLibrary: Object.freeze({ args: 1, check: ([path]) => nonEmpty(path) }),
   rebuildIndex: Object.freeze({ args: 0 }),
   revealLibrary: Object.freeze({ args: 0 }),
+  // 1.1.1 P11a (A11): 库架's 「更多 → 在资源管理器中显示」 for any registered library, not only the current one
+  revealLibraryOf: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
   // 首次设置 records who decided each step (plan A1): the step and { by, detail? } are the core's to judge (bad-setup)
   recordSetupStep: Object.freeze({ args: 2, check: ([step, entry]) => nonEmptyShort(40)(step) && smallObject(entry, 4000) }),
   getSetup: Object.freeze({ args: 0 }),
@@ -141,7 +146,7 @@ export const BRIDGE_METHODS = Object.freeze({
   setLibraryMeta: Object.freeze({ args: 2, check: ([id, meta]) => libraryId(id) && libraryMeta(meta) }),
   getLibrariesOverview: Object.freeze({ args: 0 }),
   getLibrarySchedule: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
-  setLibrarySchedule: Object.freeze({ args: 2, check: ([id, s]) => libraryId(id) && schedule(s) }),
+  setLibrarySchedule: Object.freeze({ args: 2, check: ([id, s]) => libraryId(id) && librarySchedule(s) }),
   getUsageTotal: Object.freeze({ args: 0 }),
   // 新建库默认放在 (v2 package I; services/library.mjs): the folder and whether it is the default; the system's dialog; a path
   // or null (= the default). The page's path is judged by the service: absolute, not inside the app data (else bad_arguments)

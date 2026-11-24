@@ -202,7 +202,7 @@ test('getLibrariesOverview: 待看 from homeNumbers, the last round, one problem
   assert.deepEqual(o.map(l => l.id), [is, iq, id, ig])
   // v2 package F: four keys more — the brief, the topics' names, how many sources, the rounds in a row without output (the
   // shelf's card and the library page's head need them); the seven of package A as they were
-  assert.deepEqual(Object.keys(o[0]).sort(), ['brief', 'color', 'icon', 'id', 'inbox', 'lastRoundAt', 'name', 'noOutputStreak', 'problem', 'sources', 'topics'])
+  assert.deepEqual(Object.keys(o[0]).sort(), ['brief', 'color', 'icon', 'id', 'inbox', 'lastRoundAt', 'name', 'noOutputStreak', 'problem', 'schedule', 'sources', 'topics'])
   // the seed: four cards waiting, its round, its dead source
   assert.deepEqual([o[0].inbox, o[0].problem], [seed.inbox.length, 'sources'])
   assert.ok(o[0].lastRoundAt, 'the seed\'s round')

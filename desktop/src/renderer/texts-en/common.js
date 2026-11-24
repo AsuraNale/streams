@@ -134,3 +134,13 @@ export const PUNCT = Object.freeze({
   semi: '; ',
   comma: ', ',
 })
+
+export const SCHEDULE = Object.freeze({
+  every: Object.freeze({ day: 'Every day', weekdays: 'Weekdays', week: 'Every week', month: 'Every month' }),
+  weekdays: Object.freeze(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']),
+  week: 'Every {days}',
+  daysSep: ', ',
+  month: 'Monthly on day {n}',
+  tagOn: '{when} at {time}',
+  tagOff: 'No schedule',
+})

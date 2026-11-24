@@ -26,6 +26,7 @@ export const BUILD = Object.freeze({
   lead: '不用自己找来源、不用懂订阅地址。主 Agent 最多问 5 个问题，多数可以直接点选；写好的建库卡上每个网址都是它这次打开过的。你点「确认」之前，什么都不会建。',
   editLead: '主 Agent 按你说的改这张卡，改动要查的会去查。改好的卡显示改前改后；你点「确认」之前，这座库的建库卡不变。',
   cost: '建库大约要几分钟，用的是「{name}」的额度',
+  costApi: '建库大约要几分钟，按你填的 API key 计费',
   start: '开始',
   cancel: '取消',
   starting: '主 Agent 正在看…',

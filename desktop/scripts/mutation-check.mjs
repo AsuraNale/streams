@@ -1316,6 +1316,25 @@ const MUTANTS = [
     edits: [['src/main/services/reader.mjs', 'if (!stored) {', 'if (false) {']],
     test: ['test/reader.test.mjs', '--test-name-pattern=W13'],
   },
+  // 1.1.1 P11a (A10, A11, A14)
+  {
+    id: 'p11a-queue-not-reread',
+    what: 'removing a library re-arms the timer but the page is not told: 「下次运行时间」 keeps it as 「（未登记的库）」 (待办 C4)',
+    edits: [['src/main/main.mjs', "else if (topic === 'libraries-changed') scheduler.librariesChanged()", "else if (topic === 'libraries-changed') scheduler.arm()"]],
+    test: ['test/ui-p11a.test.mjs'],
+  },
+  {
+    id: 'p11a-cost-names-claude',
+    what: "新建库's cost line names Claude Code's quota whatever the connection (待办 A4)",
+    edits: [['src/renderer/screens/build.js', "can ? fmt(active === 'api' ? T.costApi : T.cost, { name: names[active] ?? active }) : ''", "fmt(T.cost, { name: names['claude-code'] })"]],
+    test: ['test/ui-p11a.test.mjs'],
+  },
+  {
+    id: 'p11a-no-rhythm-line',
+    what: "来源与要求 does not say when the schedule is not the card's rhythm (no 「按节奏设」)",
+    edits: [['src/renderer/screens/sources.js', '${rhythm && !rhythm.matches ? html', '${false ? html']],
+    test: ['test/ui-p11a.test.mjs'],
+  },
 ]
 
 function runTest(desktop, test) {

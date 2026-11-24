@@ -79,6 +79,7 @@ export const SHELL = Object.freeze({
     emptyChat: 'Drafted by the main agent',
     emptyManual: 'Set up manually',
     loadFailed: 'The list of libraries could not be read.',
+    more: Object.freeze({ button: 'More', label: 'More for this library', reveal: 'Show in File Explorer', scheduleOff: 'Turn the schedule off', scheduleOn: 'Turn the schedule on', remove: 'Remove this library', failed: 'That did not work. Please try again.' }),
   }),
 
   openExisting: Object.freeze({

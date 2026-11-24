@@ -10,7 +10,10 @@
 // ([data-problem=<problem>|"none"]) and [data-part="queue"][data-queue-state=running|queued][data-position];
 // [data-field="shelf-search"]; [data-action=new-card|new-library|empty-chat|empty-manual], [data-part="shelf-empty"]; 1.1 W13: [data-action="open-existing"]
 // (「打开已有的库」 beside 「新建库」 when there are libraries, in the empty state when there are none) and its line (lib/open-existing.js).
-import { html, useState } from '../lib/html.js'
+import { html, useRef, useState } from '../lib/html.js'
+import { call } from '../lib/bridge.js'
+import { scheduleTag } from '../lib/schedule-words.js'
+import { RemoveLibraryDialog } from './sources.js'
 import { useApp } from '../lib/app-context.js'
 import { fmt, whenText } from '../lib/format.js'
 import { tracking } from '../lib/libraries.js'
@@ -19,7 +22,7 @@ import { TIcon } from '../lib/template-icons.js'
 import { RightPanel } from './right-panel.js'
 import { Act } from '../lib/action.js'
 import { OpenExistingNote, useOpenExisting } from '../lib/open-existing.js'
-import { AppFrame, AppSidebar, LinkButton, Main, TopBar } from '../kit/index.js'
+import { AppFrame, AppSidebar, LinkButton, Main, Menu, TopBar } from '../kit/index.js'
 import { ERRORS, SEP, WHEN } from '../texts/common.js'
 import { SHELL } from '../texts/shell.js'
 import { PANEL } from '../texts/panel.js'
@@ -31,6 +34,30 @@ function problemLine(row) {
   if (row.problem === 'sources') return T.problems.sources
   if (row.problem === 'no-output') return fmt(T.problems['no-output'], { n: row.noOutputStreak ?? 0 })
   return null
+}
+
+/** 1.1.1 P11a (A11): 「更多」 beside a card — 在资源管理器中显示 · 关掉 / 打开定时 · 移除该库 (the same dialog as 高级设置's). */
+function CardMore({ row, onChanged, onRemove }) {
+  const button = useRef(null)
+  const [at, setAt] = useState(null)
+  const [failed, setFailed] = useState(false)
+  const M = T.more
+  const on = row.schedule?.enabled === true
+  const items = [{ id: 'reveal', label: M.reveal }, ...(row.schedule ? [{ id: on ? 'schedule-off' : 'schedule-on', label: on ? M.scheduleOff : M.scheduleOn }] : []), { id: 'remove', label: M.remove, danger: true }]
+  const pick = async id => {
+    setFailed(false)
+    try {
+      if (id === 'reveal') await call('revealLibraryOf', row.id)
+      else if (id === 'schedule-off' || id === 'schedule-on') { await call('setLibrarySchedule', row.id, { ...row.schedule, enabled: id === 'schedule-on' }); onChanged() }
+      else if (id === 'remove') onRemove()
+    } catch { setFailed(true) }
+  }
+  const open = () => { const r = button.current?.getBoundingClientRect(); if (r) setAt({ x: Math.max(4, r.right - 200), y: r.bottom + 4 }) }
+  return html`<span class="st-act st-shelf-more" data-action="card-more" data-items=${items.map(i => i.id).join(' ')}>
+    <button type="button" class="btn quiet" ref=${button} aria-haspopup="menu" aria-expanded=${String(at !== null)} aria-label=${M.label} onClick=${open}>${M.button}<${TIcon} name="down" /></button>
+    ${at ? html`<${Menu} label=${M.label} x=${at.x} y=${at.y} items=${items} onSelect=${id => { setAt(null); void pick(id) }} onClose=${({ restoreFocus }) => { setAt(null); if (restoreFocus) button.current?.focus() }} />` : null}
+    ${failed ? html`<span class="progress-alert" role="alert">${M.failed}</span>` : null}
+  </span>`
 }
 
 function Card({ row, queue, onOpen }) {
@@ -49,17 +76,19 @@ function Card({ row, queue, onOpen }) {
     <h3 data-part="name">${row.name}</h3>
     <p data-part="tracking">${what ? fmt(SHELL.head.tracking, { what }) : SHELL.head.trackingNone}</p>
     <div class="project-tile-footer">
-      <span><span data-part="inbox" data-value=${row.inbox ?? 0}>${fmt(T.inboxLine, { n: row.inbox ?? 0 })}</span>${SEP}<span data-part="problem" data-problem=${row.problem ?? 'none'}>${problem ?? T.fine}</span></span>
+      <span><span data-part="inbox" data-value=${row.inbox ?? 0}>${fmt(T.inboxLine, { n: row.inbox ?? 0 })}</span>${SEP}<span data-part="problem" data-problem=${row.problem ?? 'none'}>${problem ?? T.fine}</span>${row.schedule ? html`${SEP}<span data-part="schedule-tag" data-schedule=${row.schedule.enabled ? (row.schedule.every ?? 'day') : 'off'}>${scheduleTag(row.schedule)}</span>` : null}</span>
       <span>${T.enter} <${TIcon} name="arrow" /></span>
     </div>
   </button>`
 }
 
 export function ShelfScreen() {
-  const { libraries, openLibrary, navigate, newLibrary, queue } = useApp()
+  const { libraries, openLibrary, navigate, newLibrary, queue, appState } = useApp()
   const [q, setQ] = useState('')
   // 1.1 W13: 「打开已有的库」 — the toolbar's (with libraries) or the empty state's
   const existing = useOpenExisting()
+  // 1.1.1 P11a (A11): the library whose 「移除该库」 dialog is open
+  const [removing, setRemoving] = useState(null)
   const rows =Array.isArray(libraries?.data) ? libraries.data : null
   const state = rows ? 'ready' : libraries?.status ?? 'loading'
   const needle = q.trim().toLowerCase()
@@ -92,7 +121,7 @@ export function ShelfScreen() {
             </div>
           </div>` : null}
           ${rows && rows.length ? html`<div id="projectTiles">
-            ${shown.map(r => html`<${Card} key=${r.id} row=${r} queue=${qd} onOpen=${() => openLibrary(r.id)} />`)}
+            ${shown.map(r => html`<div class="st-shelf-item" key=${r.id} data-shelf-item=${r.id}><${Card} row=${r} queue=${qd} onOpen=${() => openLibrary(r.id)} /><${CardMore} row=${r} onChanged=${() => libraries.reload()} onRemove=${() => setRemoving(r)} /></div>`)}
             ${needle && shown.length === 0 ? html`<p class="limit-note" data-part="search-none">${fmt(T.searchNone, { q: q.trim() })}</p>` : null}
             <button type="button" class="document-link" data-action="new-card" onClick=${() => navigate('chat')}>
               <${TIcon} name="plus" /><span>${T.newCard}</span>
@@ -101,6 +130,8 @@ export function ShelfScreen() {
         </div>
       </div>
     <//>
+    ${removing ? html`<${RemoveLibraryDialog} id=${removing.id} name=${removing.name} path=${removing.path ?? ''} onClose=${() => setRemoving(null)}
+      onDone=${() => { setRemoving(null); libraries.reload(); appState?.reload?.() }} />` : null}
   <//>`
 }
 

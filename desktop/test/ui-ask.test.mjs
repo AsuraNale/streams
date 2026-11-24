@@ -28,6 +28,8 @@ const s = worldSession({
 })
 const POLL = { polling: 100, timeout: 60_000 }
 const dir = () => s.world.library
+// 1.1.1 P11a: the scope line ends with 待看's count when it has items (问库 does not read them)
+const inboxLine = () => { const n = core.homeNumbers(dir()).inbox; return n > 0 ? ` · 待看里还有 ${n} 条没收藏，问库不看` : '' }
 const ask = async q => {
   const n = await s.page.evaluate(() => document.querySelectorAll('[data-turn]').length)
   await s.page.fill('textarea[data-field="question"]', q)
@@ -39,7 +41,7 @@ const demand = topic => s.page.evaluate(t => { const d = document.querySelector(
 
 test('the scope is the core\'s counts; the topics wanted are the core\'s demands', async () => {
   const c = core.libraryCounts(dir())
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="scope"]').textContent), `仅基于库内内容回答 · 范围：已收藏 ${c.kept} 条 · 我的笔记 ${c.authored} 条 · 不联网`)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="scope"]').textContent), `仅基于库内内容回答 · 范围：已收藏 ${c.kept} 条 · 我的笔记 ${c.authored} 条 · 不联网${inboxLine()}`)
   const shown = await s.page.evaluate(() => [...document.querySelectorAll('[data-demand]')].map(d => [d.dataset.demand, Number(d.dataset.count), d.dataset.suggest]))
   assert.deepEqual(shown, core.demands(dir()).map(d => [d.topic, d.count, String(d.suggest)]))
 })

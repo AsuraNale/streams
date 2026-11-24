@@ -417,7 +417,7 @@ app.whenReady().then(() => {
     }
     else if (topic === 'settings-changed') tray.refresh()
     // a library registered, removed or switched to: the timer again, for the libraries as they are now
-    else if (topic === 'libraries-changed') scheduler.arm()
+    else if (topic === 'libraries-changed') scheduler.librariesChanged()
     // v2 package M: Codex and the API read their quota again after a run, after a turn of the build conversation, and for a
     // new current connection (another one, a vendor, a key)
     else if (topic === 'round-progress' && payload?.done === true) void quota.afterTurn('a round ended')

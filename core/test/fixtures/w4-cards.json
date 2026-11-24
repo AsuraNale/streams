@@ -1,0 +1,872 @@
+{
+ "note": "The four library cards W4 live round 2 confirmed (docs/checks/2026-11-20-1.1/w4/evidence/live/round-2/claude-code-{1,2,3,5}.json), copied for tests that run without docs/ (the mutation mirror).",
+ "cards": [
+  {
+   "n": 1,
+   "card": {
+    "name": "美股小盘潜力股雷达",
+    "definition": {
+     "summary": "这个库盯市值 3 亿到 20 亿美元的美股小盘公司，每周两次从 SEC 官方申报文件和 Finviz 筛选数据里挑出四类信号：可能推动股价的催化剂、内部人和机构的买卖动向、基本面与估值变化、风险信号。每条都存下原文，写好中文摘要，给你持有几周到几个月的个人投资做研究线索。它不预测哪只会涨三倍，也不给买卖建议。",
+     "purpose": "个人投资研究，持有期一般几周到几个月；从小盘股里尽早发现未来一两年可能大涨的公司线索，同时及时看到风险。",
+     "scope": "对象：在美国交易所（纽交所、纳斯达克、NYSE American）上市的公司；行业：不限，生物科技不排除；地域：只看在美国上市，公司注册地不限，外国公司不排除；规模：市值 3 亿到 20 亿美元，以消息当天的市值为准。（交易所、行业和地域这几项是我替你定的，市值是你定的）",
+     "exclude": "SPAC（空壳收购公司）和上市不满一年的新股；加密货币相关公司（挖矿、交易所、囤币公司等）；场外 OTC 交易的股票；荐股营销文和「几只必买股」之类的榜单。（场外股票和荐股文是我替你定的，其余是你定的）",
+     "trust": "事实一律以 SEC EDGAR 上的原始文件为准；Finviz 的数据只用来筛选和看快照，入库前回到 EDGAR 原件核对；新闻和分析文章只当线索，不能单独作为一条入库的依据。（我替你定的）",
+     "rhythm": "每周二、周五各更新一次；看到财报不可依赖、退市通知、破产这类重大风险，下一次更新时排在最前面。（我替你定的）",
+     "language": "简报用中文；英文原文照收，链接和原件一起存。（我替你定的）",
+     "hard": "市值 3 亿到 20 亿美元；不收 SPAC、上市不满一年的新股、加密货币相关公司（这三条是你定的）；只收在美国交易所上市的股票；不给买卖建议。（后两条是我替你定的）"
+    },
+    "decide": [
+     {
+      "what": "多可信才算数。我试过的官方一手来源都读得到：EDGAR 最新 8-K 公告、最新 Form 4 内部人申报、最新 Schedule 13D 大股东申报、EDGAR 全文检索。读不到的是第三方的 OpenInsider。如果你选更严的一档「只收 SEC 原件」，就会少掉空头比例、估值倍数、营收增速这些筛选数据，这些只有 Finviz 有；「基本面与估值」和「空头过高」这两类信号会明显变少。",
+      "default": "以 SEC 原件为准，Finviz 只用来筛选，新闻只当线索。"
+     },
+     {
+      "what": "生物科技和外国公司要不要排除。还没有收入、只靠临床结果的生物科技公司，涨跌常常取决于一次试验结果；在美国上市的外国公司信息披露少一些。",
+      "default": "都收，但标出风险：没有收入的生物科技公司要写明下一个临床或审批节点；外国公司要写明注册地。"
+     },
+     {
+      "what": "多久更新一次。",
+      "default": "每周二、周五各一次。"
+     }
+    ],
+    "collect": [
+     "催化剂：8-K 里的重大合同或合作（1.01 项）、并购和收购要约、FDA 批准或重要临床结果、上调业绩指引、激进投资人提出的收购或改组方案。",
+     "内部人动向：Form 4 上交易代码为 P 的公开市场买入，优先收 30 天内 2 位以上内部人一起买的，或单笔 10 万美元以上的。",
+     "机构动向：新的 Schedule 13D（持股超过 5% 并有意影响公司），以及持股目的或持股比例有实质变化的 13D 修订。",
+     "基本面与估值：营收季度同比增长超过 25%、由亏转盈、前瞻市盈率明显低于同行，并且有财报或公告原件支撑的变化。",
+     "风险信号：财报不可依赖（8-K 4.02 项）、更换审计师（4.01 项）、交易所退市通知（3.01 项）、破产（1.03 项）、财报延期（NT 10-Q 或 NT 10-K）、持续经营存疑（substantial doubt）、大规模增发或股权融资（ATM）稀释、空头占流通股超过 20%。"
+    ],
+    "skip": [
+     "市值不在 3 亿到 20 亿美元之间的公司。",
+     "SPAC（名字里常带 Acquisition Corp）和上市不满一年的新股。",
+     "加密货币相关公司。",
+     "在 OTC 场外交易的股票。",
+     "内部人在新股发行或定向增发里认购的股份（不是公开市场买入），期权行权，按 10b5-1 计划卖出，为缴税卖出的股份。",
+     "例行公告：股东大会投票结果（5.07 项）、普通的高管任免、没有新内容的 13D 或 13G 修订。",
+     "荐股营销文、「几只必买股」榜单、没有原件支撑的传闻。"
+    ],
+    "sources": [
+     {
+      "name": "SEC EDGAR 最新 8-K 公告",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&count=40",
+      "status": "读得到。11 月 20 日的公告正常显示，每条带项目编号，例如 SUNation Energy 2.02 项（业绩）、Mobix Labs 3.03 和 5.03 项。",
+      "note": "催化剂和风险信号：看项目编号 1.01、2.01、2.02、3.01、4.01、4.02、1.03、8.01，再按市值筛掉范围外的公司。"
+     },
+     {
+      "name": "SEC EDGAR 最新 Schedule 13D 大股东申报",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=SCHEDULE%2013D&count=40",
+      "status": "读得到。11 月 20 日有 Dine Brands、Guerrilla RF、SKYX Platforms 等。注意表单类型要写「SCHEDULE 13D」，旧写法「SC 13D」查不到结果。",
+      "note": "机构和激进投资人动向：新的 13D 看谁买、买了多少、目的是什么（第 4 项）；修订看比例和目的有没有变。"
+     },
+     {
+      "name": "SEC EDGAR 全文检索",
+      "url": "https://efts.sec.gov/LATEST/search-index?q=%22substantial%20doubt%22&forms=8-K&dateRange=custom&startdt=2026-11-01&enddt=2026-11-21",
+      "status": "读得到，返回的是机器格式的结果，可以按日期筛。11 月 1 日到 21 日含「substantial doubt」的 8-K 有 136 条；10 月 21 日到 11 月 21 日含「Item 4.02」的有 26 条，其中有 Goosehead Insurance。",
+      "note": "风险信号：每次检索上一次更新以来的「substantial doubt」「Item 4.02」「Item 3.01」「Item 4.01」等关键词，再按市值筛选。"
+     },
+     {
+      "name": "Finviz 内部人买入（第三方）",
+      "url": "https://finviz.com/insidertrading?tc=1&o=-transactionValue",
+      "status": "读得到，不用登录。按金额排序，最新到 11 月 20 日，第一位是 PEPG 4312 万美元。名单里混有认购新股的买入（比如每股整 5.00 或 17.00 美元的大单），要剔除。",
+      "note": "内部人动向：快速找出大额或多人一起买入，再到 EDGAR 打开 Form 4 原件核对交易代码是不是 P。EDGAR 原始申报流在 https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&count=40（也读得到）。"
+     },
+     {
+      "name": "Finviz 选股器：小盘股（第三方）",
+      "url": "https://finviz.com/screener.ashx?v=111&f=cap_small",
+      "status": "读得到，不用登录，行情延迟 1 分钟。小盘股（3 亿到 20 亿美元）共 1388 只；加上「营收季度增长超过 25% 且内部人净买入」后剩 48 只；空头比例超过 20% 的有 148 只。名单里有 SPAC（比如 AACI），要手动剔除。",
+      "note": "基本面、估值和空头比例：用筛选条件 fa_salesqoq_o25、sh_insidertrans_pos、sh_short_o20 找候选；个股页（quote.ashx?t=代码）看市值、市盈率、前瞻市盈率、市销率、空头比例和上市日期。"
+     }
+    ],
+    "unreadable": [
+     {
+      "name": "OpenInsider 多人同时买入榜（第三方）",
+      "url": "https://openinsider.com/latest-cluster-buys",
+      "reason": "http 和 https 各试了一次，都没有返回内容，可能拦截了自动访问。它的功能由 Finviz 内部人页面和 EDGAR Form 4 原件代替。"
+     }
+    ],
+    "pick": [
+     "先按硬条件筛：市值 3 亿到 20 亿美元（看 Finviz 个股页当天数据）、上市满一年、不是 SPAC、不是加密货币相关、在美国交易所上市，不合格的直接丢掉。",
+     "每条都要能落到一份 EDGAR 原件上（8-K、Form 4、13D、10-Q 等）；只有新闻没有原件的不入库。",
+     "四块轮流照顾：每次最多 15 条，风险信号不设上限，排在最前面；其余三块尽量每块都有。",
+     "同一家公司同一件事只收一条，有后续（比如收购方提价、13D 修订）就更新原条目并注明日期。",
+     "优先收：好几个信号同时出现的（比如内部人买入加营收加速），以及持股比例或交易金额大的。",
+     "内部人买入要剔除认购新股或增发、期权行权、10b5-1 计划交易；单人小额（低于 2 万美元）的不收，除非是多人一起买。"
+    ],
+    "write": [
+     "一句话：哪家公司（代码）、发生了什么、属于四块里的哪一块。",
+     "事实：日期、金额、股数、价格、比例，标明出自哪份文件、哪一项。",
+     "公司快照：市值、行业、市盈率或前瞻市盈率、市销率、空头比例、上市日期，写明是当天的 Finviz 数据。",
+     "为什么可能重要，再写一条反面看法或要注意的风险。",
+     "接下来盯什么：下一个日期或节点（财报日、要约期限、审批日、补交财报期限）。",
+     "附原文链接和 EDGAR 文件编号；不写买卖建议，不写目标价判断。"
+    ],
+    "samples": [
+     {
+      "title": "Dine Brands（DIN，Applebee's 和 IHOP 母公司）：Arkhouse 提交 13D，并披露每股 39 美元现金收购提议",
+      "url": "https://www.sec.gov/Archives/edgar/data/49754/000121390026115110/0001213900-26-115110-index.htm",
+      "date": "2026-11-02（11 月 20 日又提交了 13D 修订）",
+      "why": "催化剂加机构动向：市值约 4.42 亿美元，在范围内。附件里有 10 月 26 日的收购提议、公司 10 月 29 日的拒绝信和 11 月 2 日的回信；公司随后推出了毒丸计划。空头占流通股约 25.5%，正反两面都值得盯。"
+     },
+     {
+      "title": "AnaptysBio（ANAB）：董事兼 10% 大股东 EcoR1 在 11 月 16 日到 18 日连续三天公开市场买入，共约 37.5 万股",
+      "url": "https://www.sec.gov/Archives/edgar/data/1370053/000093583626000631/xslF345X06/form4.xml",
+      "date": "2026-11-18",
+      "why": "内部人动向：交易代码 P，价格在 45.66 到 46.54 美元之间，买完持有约 825 万股。市值约 13.9 亿美元，有收入（约 1.92 亿美元），10 月 Jemperli 在美国获批，空头约 18%。"
+     },
+     {
+      "title": "Goosehead Insurance（GSHD）：宣布 2023 到 2025 年报和 2026 年中期报表不可再依赖，要重述，三季报延期",
+      "url": "https://www.sec.gov/Archives/edgar/data/1726978/000172697826000072/gshd-20261106.htm",
+      "date": "2026-11-09",
+      "why": "风险信号（8-K 4.02 项）：佣金成本的会计处理和加盟费的列报不合规，公司预计会认定内部控制存在重大缺陷；当天股价跌了约 15.6%。市值约 16.6 亿美元，在范围内。"
+     }
+    ]
+   }
+  },
+  {
+   "n": 2,
+   "card": {
+    "name": "安省食品加工小厂·政府补助",
+    "definition": {
+     "summary": "这座库替一家在密西沙加、12 个人的食品加工小公司盯着政府的补助，只收不用还的钱。它每周去联邦、安省和行业机构的官方入口看一遍，有新开放、快截止、规则改了的项目就挑出来，主要是三类：买设备和做自动化、招人有工资补贴、做出口。每条都写清楚给多少、要满足什么条件、什么时候截止，还有你是否大概符合。",
+     "purpose": "找能申请的政府补助，用来买设备、做自动化，招人时拿工资补贴，以及开拓出口市场。",
+     "scope": "对象：联邦、安省、皮尔区和密西沙加市政府的补助，以及政府出钱、由机构代发的补助（比如 Food Processing Skills Canada、CFIN）；行业：食品和饮料加工，通用的中小企业项目也收；地域：公司在安省密西沙加，属于南安省、大多伦多地区，全国性的项目也收；规模：12 名员工的小企业，年营业额和成立年限我还不知道。",
+     "exclude": "要还的贷款（包括低息、免息贷款）；税收抵免；只面向农场、非营利机构或别的省的项目；只有咨询或课程、不给钱的项目（我替你定的）；比赛和评奖类奖金（我替你定的）。",
+     "trust": "以政府官方页面或代发机构自己的页面为准。官方页打不开时，可以用联邦的联合公告或第三方汇总站，但每条都标明「非官方来源，请到官网核对」（我替你定的）。",
+     "rhythm": "每周一次。截止前 30 天内的项目放在最前面，每周都提醒，直到截止。",
+     "language": "简报用中文写，项目名保留英文原名。英文和法文的官方原文照收，原文链接附在每条后面（我替你定的）。",
+     "hard": "只收不用还的钱，或者项目里明确有不用还的部分。公司在密西沙加、12 人、做食品加工，项目的资格必须对得上。年营业额和成立年限我还不知道：联邦关税补助 RTRI 要求年营业额至少 100 万加元，安省 OTTF 要求至少营业 3 年，这两项会决定这两个项目能不能收。"
+    },
+    "decide": [
+     {
+      "what": "多可信才算数。今天我试过的官方入口里，联邦这边都打得开：FedDev Ontario、Trade Commissioner Service（CanExport）、canada.ca 上的就业部（Canada Summer Jobs、SWPP）和农业部的公告，还有 CFIN、Food Processing Skills Canada。安省官方网站 ontario.ca 的项目页和 PDF 全部返回 403，Ontario Newsroom 打开后没有内容，联邦的 Business Benefits Finder 证书出错。如果改成「只收我亲自读到的官方页」，安省自己的项目（比如 Food Safety and Growth Initiative、Ontario Together Trade Fund）就没法收进来了。",
+      "default": "官方和一手页面优先。安省项目通过联邦联合公告或第三方页面收，并标明「非官方来源，请到官网核对」。"
+     },
+     {
+      "what": "要求证明受了美国关税影响的项目（联邦 RTRI、安省 OTTF）收不收。这两个金额大，能用来买设备，但门槛高：RTRI 要求年营业额 100 万以上；OTTF 要求营业满 3 年、项目花费至少 20 万，而且钱有可能以贷款形式给。",
+      "default": "收，但每条都写明门槛。资助形式只有贷款的不收，有不用还的部分才收。"
+     },
+     {
+      "what": "培训员工的补贴收不收（比如 Food Processing Skills Canada 的食品安全培训，最多报销 70% 的培训费）。它不算招人的工资补贴，但对食品加工厂很对口。",
+      "default": "收，排在设备、工资补贴、出口三类之后。"
+     }
+    ],
+    "collect": [
+     "买生产设备、自动化、数字化系统、食品安全和追溯设备的补助（比如安省和联邦合办的 Sustainable CAP 系列、CFIN 的食品自动化项目）。",
+     "招人的工资补贴：暑期青年工、在读大学生和大专生实习、新员工的工资补贴（比如 Canada Summer Jobs、SWPP）。",
+     "出口和开拓海外市场的补助（比如 CanExport SMEs，以及参展、认证、海外推广的费用补助）。",
+     "受关税影响的企业转型或扩产补助里不用还的部分（比如 FedDev 的 RTRI）。",
+     "已经收过的项目出现变化：开放申请、截止日期改了、提前额满、规则改了、下一期公布了。",
+     "皮尔区或密西沙加市面向本地企业、真给钱的补助。",
+     "培训员工的补贴，排在后面。"
+    ],
+    "skip": [
+     "要还的贷款，包括低息、免息、可部分减免的贷款，只有这一种形式的项目整条不收。",
+     "税收抵免，比如安省制造业投资税收抵免、SR&ED。",
+     "只给农场主、非营利机构、原住民企业或北安省企业的项目。",
+     "只面向别的省或别的地区的项目。",
+     "比赛和评奖类奖金（我替你定的）。",
+     "只有咨询、课程、讲座，不给钱的项目（我替你定的）。",
+     "已经关闭、又没公布下一期的项目，只在它重新开放时报一次。",
+     "补助顾问公司的广告和收费服务推销。"
+    ],
+    "sources": [
+     {
+      "name": "FedDev Ontario 资助项目总表（官方）",
+      "url": "https://feddev-ontario.canada.ca/en/funding-southern-ontario",
+      "status": "能打开。今天的状态：Regional Tariff Response Initiative 开放，面向企业的常规资助开放，Regional AI Initiative 关闭，Regional Defence Investment Initiative 暂停。",
+      "note": "看南安省企业项目的开放、关闭、暂停有没有变。注意 FedDev 的常规资助很多是要还的，要逐个核对。"
+     },
+     {
+      "name": "FedDev Ontario · RTRI 申请资格（官方）",
+      "url": "https://feddev-ontario.canada.ca/en/node/549",
+      "status": "能打开，正在接受申请。不用还的钱最多 300 万：流动资金补助最多 200 万，补 50% 的费用；转型项目不用还的部分最多 100 万。要求年营业额至少 100 万，并且能证明受了关税影响。",
+      "note": "看资格、金额、截止日期有没有变。"
+     },
+     {
+      "name": "FedDev Ontario · RTRI 加强版公告（官方新闻稿）",
+      "url": "https://www.canada.ca/en/economic-development-southern-ontario/news/2026/09/eligible-businesses-and-organizations-in-southern-ontario-can-now-apply-for-support-through-the-enhanced-regional-tariff-response-initiative.html",
+      "status": "能打开。2026-09-08 发布：RTRI 追加 15 亿，不用还的部分提高到最多 300 万。",
+      "note": "FedDev 的新闻稿栏目，看新项目和规则变化。"
+     },
+     {
+      "name": "FedDev Ontario · 大多伦多地区资助公告（官方新闻稿）",
+      "url": "https://www.canada.ca/en/economic-development-southern-ontario/news/2026/10/government-of-canada-to-help-greater-toronto-area-businesses-and-organizations-build-resilience.html",
+      "status": "能打开。2026-10-02 发布：通过 RTRI 向大多伦多地区 30 多家企业和机构拨款近 2600 万。",
+      "note": "看大多伦多地区获批的是哪类项目，用来判断你申请的机会。这是获批名单，不是新开放的项目。"
+     },
+     {
+      "name": "CanExport SMEs（Trade Commissioner Service，官方）",
+      "url": "https://www.tradecommissioner.gc.ca/en/our-solutions/funding-financing-international-business/canexport-smes.html",
+      "status": "能打开。2026–27 这一期已经关闭（2026-08-31 截止），申请都已处理完。页面说下一期的消息会发在这里，页面最后更新于 2026-02-09。",
+      "note": "每周看下一期公布了没有。往年都是每年一期，每个项目 1 万到 5 万。"
+     },
+     {
+      "name": "Canada Summer Jobs 申请页（就业部，官方）",
+      "url": "https://www.canada.ca/en/employment-social-development/services/funding/canada-summer-jobs/applicant-guide/apply.html",
+      "status": "能打开。2027 年这一期 2026-10-27 开放，2026-12-03 太平洋时间 23:59 截止。",
+      "note": "看截止日期，以及有没有延期或补开。"
+     },
+     {
+      "name": "Canada Summer Jobs 谁能申请（官方）",
+      "url": "https://www.canada.ca/en/employment-social-development/services/funding/canada-summer-jobs/applicant-guide/who-can-apply.html",
+      "status": "能打开。私营企业要求全加拿大的全职员工在 50 人以内，你的公司符合。",
+      "note": "看资格条件有没有变。"
+     },
+     {
+      "name": "Canada Summer Jobs 项目内容（官方）",
+      "url": "https://www.canada.ca/en/employment-social-development/services/funding/canada-summer-jobs/applicant-guide/about.html",
+      "status": "能打开。私营企业最多补贴省成人最低时薪的 50%。2027 年优先的四类岗位是建筑、环保与气候、数字和 AI、非营利，没有专门列食品加工。",
+      "note": "看补贴比例和优先方向。"
+     },
+     {
+      "name": "Student Work Placement Program 总页（就业部，官方）",
+      "url": "https://www.canada.ca/en/employment-social-development/services/student-work-placements-wage-subsidies.html",
+      "status": "能打开，全年都能申请。每个学生岗位最多补贴 5,000 加元，要通过 18 个代发机构申请，食品加工业的代发机构是 Food Processing Skills Canada。页面更新于 2026-04-01。",
+      "note": "看补贴金额、代发机构有没有变。"
+     },
+     {
+      "name": "Food Processing Skills Canada 项目页（SWPP 代发机构）",
+      "url": "https://fpsc-ctac.com/programs/",
+      "status": "能打开。SWPP+ 在开放，每学期最多补贴 5,000；Investing in Food Safety 在开放报名，最多报销 70% 的培训费。页面上没写截止日期。",
+      "note": "看食品加工业专属的工资补贴和培训补贴。"
+     },
+     {
+      "name": "联邦农业部新闻稿（安省和联邦合办的 Sustainable CAP 项目公告，官方）",
+      "url": "https://www.canada.ca/en/agriculture-agri-food/news/2026/01/canada-and-ontario-investing-20-million-to-protect-local-farmers-and-agribusinesses.html",
+      "status": "能打开。这篇说的是 Market Diversification and Trade Resiliency Initiative：食品加工企业可以申请，设备和出口都管，2026-03-17 已经截止。",
+      "note": "ontario.ca 读不到时，靠这个栏目了解安省农食部（OMAFA）的新项目和新一期。重点看对加工企业开放的设备、出口类项目。"
+     },
+     {
+      "name": "CFIN 加拿大食品创新网络 · 项目页",
+      "url": "https://www.cfin-rcia.ca/programs",
+      "status": "能打开。今天页面上列的项目全部是 Inactive（未开放）。新的 Food 4.0 和 Food Automation & Systems Transformation 自动化资助还没出现在这一页。",
+      "note": "每周看食品自动化资助什么时候开放，这一项和你买设备、做自动化最对口。"
+     },
+     {
+      "name": "vegconomist 报道：联邦给 CFIN 5000 万推动食品加工自动化（第三方媒体）",
+      "url": "https://vegconomist.com/investments-finance/ottawa-puts-c50m-behind-cfin-bring-ai-automation-canadas-smaller-food-processors/",
+      "status": "能打开。2026-10-15 宣布：Food 4.0 计划预计惠及 200 多家中小企业，但没写每个项目给多少、什么时候申请。",
+      "note": "只当背景。开放和细则以 CFIN 官网为准。"
+     },
+     {
+      "name": "Cornwall Business Enterprise Centre：Food Safety and Growth Initiative 第二期（第三方，非官方）",
+      "url": "https://businessenterprisecentre.ca/2026/10/22/ontario-opens-second-intake-for-food-safety-and-growth-initiative/",
+      "status": "能打开。2026-10-22 发布：第二期开放到 2027-03-01，钱发完就提前结束；补 50% 的费用，每个项目最多 75,000；小型食品加工企业可以申请，用于食品安全、追溯设备和技术升级。",
+      "note": "安省官方页读不到时的替代来源，用来核对这个项目的状态。卡上标「非官方，请到 ontario.ca 核对」。"
+     },
+     {
+      "name": "GrantCompass 安省正在开放的项目（第三方汇总站，非官方）",
+      "url": "https://grantcompass.ca/ontario-grants-open-now",
+      "status": "能打开。2026-11-19 更新：安省有 121 个项目在开放，另有 193 个全国性项目，近期截止的列了 15 个。",
+      "note": "只用来发现线索。看到新项目后要回官方页核对，核不到就标「非官方」。"
+     },
+     {
+      "name": "GrantCompass · Ontario Together Trade Fund（第三方，非官方）",
+      "url": "https://grantcompass.ca/grants/ontario-together-trade-fund",
+      "status": "能打开，2026 年 8 月更新：显示一直在接受申请，最多补 75%、上限 500 万。要求营业满 3 年、至少 5 名全职员工、项目花费至少 20 万、受美国关税影响。可能以补助或无息贷款的形式给，贷款最多 30% 可以减免。",
+      "note": "安省官方页读不到时的替代来源，看开放状态和资助形式。"
+     },
+     {
+      "name": "ISED 联邦 Business Benefits Finder 使用说明（官方）",
+      "url": "https://ised-isde.canada.ca/site/innovation-canada/en/first-things-first/how-get-most-out-business-benefits-finder",
+      "status": "能打开，2026-08-05 更新。说明这个查询工具收了联邦和各省 1,500 多个项目，但工具本身今天打不开（见「读不到的来源」）。",
+      "note": "看工具有没有变化。工具恢复后可以拿来查漏。"
+     }
+    ],
+    "unreadable": [
+     {
+      "name": "安省政府资助总入口 ontario.ca/RAISE",
+      "url": "https://ontario.ca/RAISE",
+      "reason": "服务器返回 403，拒绝访问。"
+     },
+     {
+      "name": "安省政府小企业页",
+      "url": "https://www.ontario.ca/page/small-business",
+      "reason": "服务器返回 403，拒绝访问。"
+     },
+     {
+      "name": "Food Safety and Growth Initiative 第二期（安省官方页）",
+      "url": "https://www.ontario.ca/page/food-safety-and-growth-initiative-intake-2",
+      "reason": "服务器返回 403，拒绝访问。暂时改用联邦公告和第三方页面核对。"
+     },
+     {
+      "name": "Food Safety and Growth Initiative 第二期申请指南 PDF（安省官方）",
+      "url": "https://ontario.ca/files/2026-10/omafa-food-safety-and-growth-initiative-intake-2-guidelines-en-2026-10-05.pdf",
+      "reason": "服务器返回 403，拒绝访问。"
+     },
+     {
+      "name": "Ontario Together Trade Fund（安省官方页）",
+      "url": "https://ontario.ca/page/ontario-together-trade-fund",
+      "reason": "服务器返回 403，拒绝访问。暂时改用第三方页面。"
+     },
+     {
+      "name": "Ontario Newsroom 安省政府新闻室",
+      "url": "https://news.ontario.ca/en",
+      "reason": "页面能打开，但只有标题，内容是动态加载的，读不到新闻内容。"
+     },
+     {
+      "name": "联邦 Business Benefits Finder 查询工具",
+      "url": "https://innovation.ised-isde.canada.ca/s/?language=en_CA",
+      "reason": "网站证书验证失败，打不开。"
+     }
+    ],
+    "pick": [
+     "每周把「读得到的来源」逐个看一遍，和上周比，只挑新出现的项目和状态变了的项目：开放、截止日期变了、额满、下一期公布了。",
+     "用资格条件筛：公司在密西沙加、属于南安省和大多伦多地区，12 名员工，做食品加工，私营营利企业。明显不符合的不收。年营业额、成立年限这类不确定的条件，收进来并写明门槛。",
+     "只收有不用还部分的钱。只有贷款形式的、只有税收抵免的，都丢掉。",
+     "按用途排序：设备和自动化、工资补贴、出口在前，培训补贴在后。",
+     "截止日期在 30 天内的，不管新旧都放最前面，并写出还剩几天。",
+     "第三方页面上看到的新项目，先去找官方页核对。官方页打不开的，照收，但标「非官方来源，请到官网核对」。",
+     "同一个项目在几个来源都出现的，合成一条，优先用官方链接。",
+     "如果安省官方网站 ontario.ca 恢复可读，就把它加回来源，优先从它核对安省项目。"
+    ],
+    "write": [
+     "标题：项目英文原名，加一句中文说明它是干什么的。",
+     "谁出钱：联邦、安省、市，还是代发机构。",
+     "给多少：上限金额、补贴比例、要不要自己出配套资金。写明是不用还的，还是一部分要还。",
+     "能用来做什么：设备、自动化、工资、出口、培训，哪几样。",
+     "资格：员工人数、营业额、成立年限、行业、地区等要求，并说明你大概符合、不符合，还是不确定、要核对什么。",
+     "时间：开放日、截止日，有没有「额满即止」。30 天内截止的写出还剩几天。",
+     "这周有什么变化：新项目、刚开放、改了截止日期，还是快截止提醒。",
+     "来源：原文链接，标明官方还是第三方。第三方的写「请到官网核对」。",
+     "怎么申请：官方页上写的申请入口或联系方式，只写原文里有的。"
+    ],
+    "samples": [
+     {
+      "title": "Canada Summer Jobs 2027：雇年轻人暑期工的工资补贴，12 月 3 日截止",
+      "url": "https://www.canada.ca/en/employment-social-development/services/funding/canada-summer-jobs/applicant-guide/apply.html",
+      "date": "2026-10-27 开放，2026-12-03 截止（今天核过）",
+      "why": "招人的工资补贴。私营企业 50 个全职员工以内就能申请，你的公司符合，最多补省最低时薪的 50%。离截止还有 12 天。"
+     },
+     {
+      "title": "Food Safety and Growth Initiative 第二期：小型食品加工企业的食品安全和追溯设备补助，最多 75,000",
+      "url": "https://businessenterprisecentre.ca/2026/10/22/ontario-opens-second-intake-for-food-safety-and-growth-initiative/",
+      "date": "2026-10-19 开放，到 2027-03-01 或钱发完为止（今天核过，第三方来源）",
+      "why": "专门给小型食品加工企业买设备、升级技术，补 50%、不用还，和你买设备的用途对口。安省官方页今天读不到，请到 ontario.ca 核对。"
+     },
+     {
+      "title": "RTRI 加强版：南安省受关税影响的企业，最多可拿 300 万不用还的资金",
+      "url": "https://www.canada.ca/en/economic-development-southern-ontario/news/2026/09/eligible-businesses-and-organizations-in-southern-ontario-can-now-apply-for-support-through-the-enhanced-regional-tariff-response-initiative.html",
+      "date": "2026-09-08 公告，目前在接受申请（今天核过）",
+      "why": "可以用来引进新技术、扩产、开拓新市场，设备和出口都管，不用还的部分金额大。但要求年营业额至少 100 万、能证明受了关税影响，你符不符合还要核对。"
+     },
+     {
+      "title": "SWPP+（Food Processing Skills Canada）：雇大学生和大专生实习，每学期最多补贴 5,000",
+      "url": "https://fpsc-ctac.com/programs/",
+      "date": "全年开放（今天核过）",
+      "why": "食品加工业专属的工资补贴，全年都能申请，12 人的小厂也适用。"
+     }
+    ]
+   }
+  },
+  {
+   "n": 3,
+   "card": {
+    "name": "中国电动车·行业研究",
+    "definition": {
+     "summary": "给基金行业研究用的中国电动车资料库。围绕比亚迪、蔚来、小鹏、理想、小米五家车企和动力电池，每天收四类东西：月度销量和交付、价格战、出海、固态电池进展。每条都存原文、写一段带数字和出处的中文摘要，方便你直接拿来做跟踪和对比。",
+     "purpose": "基金行业研究：跟踪月度销量和交付量、价格战、出海、固态电池进展，用来写跟踪和做对比。",
+     "scope": "对象：比亚迪、蔚来（含乐道、萤火虫）、小鹏、理想、小米汽车五家为主；鸿蒙智行、零跑、吉利等主要对手只在涉及四个重点时收（我替你定的）；电池企业以宁德时代、比亚迪（弗迪）为主，还有其他头部电池厂和固态电池材料企业。行业：新能源乘用车和动力电池，不含商用车细项和储能。地域：中国企业，国内市场加上它们的出口和海外建厂、海外销售。规模：上市和头部企业为主；全国层面的销量、渗透率、装车量也收。",
+     "exclude": "自媒体和营销号；新车试驾、评测、配置对比；股价涨跌、资金流向这类盘面评论；没有出处的爆料和传闻；事故、车主维权、公关口水战，涉及召回或监管处罚的除外（这四条我替你定的）。",
+     "trust": "数字优先用公司公告和官方机构的数据（SEC公告、工信部、乘联分会、动力电池产业创新联盟）。官方页读不到时，可以用注明了数据出处的主流财经和行业媒体，如财联社、CnEVPost、CarNewsChina、凤凰网汽车、SMM，每条标明是一手还是转载（我替你定的）。",
+     "rhythm": "每天看一次。这几个日子不能漏：每月1日各家公布上月交付；乘联分会每周的周度数据和每月8到11日左右的月度数据；工信部和中汽协每月10日前后的产销数据；动力电池产业创新联盟每月中旬的装车量；财报日，比如理想第三季度财报，CnEVPost日历显示是11月25日。",
+     "language": "简报用中文；英文原文照收，摘要写中文，关键数字和原话保留原文（我替你定的）。",
+     "hard": "每条要有可核对的出处和日期；不给任何买卖建议。"
+    },
+    "decide": [
+     {
+      "what": "多可信才算数。我试过的官方和一手入口：读得到的有SEC上蔚来、小鹏、理想的公告目录（蔚来10月交付公告原文也能打开）、工信部官网、宁德时代新闻页；乘联分会数据站能打开，但看不到报告列表。读不到的有：蔚来、小鹏、理想、小米的投资者关系页（403）；比亚迪投资者页（显示暂无数据）；巨潮资讯上比亚迪的页面（404）；乘联会旧官网（403）；中汽协官网（连不上）；港交所披露易只能看到导航。动力电池产业创新联盟我没找到官网。如果改成只收官方一手，会少掉：比亚迪月度产销（目前靠媒体转引公司公告）、小米交付（官方主要发在微博，只能看媒体）、乘联分会和电池联盟的数据（靠媒体转载），还有价格战类的大部分新闻。",
+      "default": "官方和一手优先，读不到时用注明出处的主流财经和行业媒体，每条标明「一手」或「转载」。"
+     },
+     {
+      "what": "五家以外的车企收到什么程度",
+      "default": "鸿蒙智行、零跑、吉利等只在涉及四个重点时收，比如交付排名、带头降价、出海大单、电池合作；它们的新车和日常新闻不收。"
+     },
+     {
+      "what": "事故、维权这类要不要完全不收",
+      "default": "一般不收；涉及召回、监管处罚，或者明显影响销量的才收。"
+     }
+    ],
+    "collect": [
+     "五家车企每月的交付和销量公告，以及周度上牌数据，要有同比、环比和分品牌数字。",
+     "全国新能源乘用车的零售、批发、渗透率，来源是乘联分会、工信部、中汽协。",
+     "价格战：官降、限时优惠、0息和低首付等金融补贴、一口价，以及监管对价格竞争的表态和规定。",
+     "出海：出口量、海外交付、海外建厂、关税和贸易限制，比如出口退税调整、欧美对中国车的限制。",
+     "动力电池：每月装车量、企业份额、磷酸铁锂和三元的占比。",
+     "固态电池：半固态和全固态的装车验证、中试和量产时间表、关键材料（如硫化锂）的产能进展。",
+     "五家车企和头部电池企业的季度财报里，和销量、单车价格、毛利有关的部分。",
+     "影响四个重点的政策，比如以旧换新补贴到期、购置税、出口退税。"
+    ],
+    "skip": [
+     "自媒体、营销号的内容，包括汽车之家车家号、网易号、搜狐号、雪球个人帖、B站和小红书上的个人文章。",
+     "新车试驾、评测、配置对比、上市发布会花絮。",
+     "股价涨跌、资金流向、盘面点评，以及任何买卖建议。",
+     "没有出处的爆料、谍照猜测、传闻。",
+     "事故、车主维权、公关口水战，涉及召回或监管处罚的除外。",
+     "商用车细项、储能电池、燃油车专题。"
+    ],
+    "sources": [
+     {
+      "name": "SEC EDGAR·蔚来公告目录",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001736541&type=6-K&dateb=&owner=include&count=40",
+      "status": "能读。最新一份6-K是2026-11-17，10月交付公告是11-02提交的。",
+      "note": "看每月交付公告和季度财报（一手）。"
+     },
+     {
+      "name": "SEC·蔚来2026年10月交付公告原文",
+      "url": "https://www.sec.gov/Archives/edgar/data/0001736541/000110465926120841/tm2628721d1_ex99-1.htm",
+      "status": "能读。10月交付34,246辆，分品牌数字齐全。",
+      "note": "说明公告原文能直接打开，以后每月照这种方式找。"
+     },
+     {
+      "name": "SEC EDGAR·小鹏公告目录",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001810997&type=6-K&dateb=&owner=include&count=40",
+      "status": "能读。最新一份6-K是2026-11-16。",
+      "note": "看月度交付和财报（一手）。"
+     },
+     {
+      "name": "SEC EDGAR·理想公告目录",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001791706&type=6-K&dateb=&owner=include&count=40",
+      "status": "能读。最新一份6-K是2026-11-10。",
+      "note": "看月度交付和财报（一手）。"
+     },
+     {
+      "name": "工业和信息化部",
+      "url": "https://www.miit.gov.cn/",
+      "status": "能读。首页有11-11发布的《2026年10月汽车工业经济运行情况》，还有11-16的新能源车型目录。",
+      "note": "看月度汽车产销、车型目录和价格竞争方面的政策（官方）。中汽协官网连不上，产销数据以这里为准。"
+     },
+     {
+      "name": "乘联分会数据站",
+      "url": "https://data.cpcadata.com/",
+      "status": "能打开，能看到新能源月报等栏目，但没看到最新报告列表。",
+      "note": "核对周度和月度零售、批发数据；看不到时用媒体转载，标「转载」。"
+     },
+     {
+      "name": "宁德时代新闻中心",
+      "url": "https://www.catl.com/news/",
+      "status": "能读。最新一条是11-19「南方电网与宁德时代达成战略合作」。",
+      "note": "看新品、固态和钠电进展、海外工厂（一手）。"
+     },
+     {
+      "name": "CnEVPost（英文）",
+      "url": "https://cnevpost.com/",
+      "status": "能读，当天还在更新（11-21有蔚来ES9特别版的消息），首页有财报日历。",
+      "note": "看各家交付、周度上牌、出海和贸易限制、财报日期。"
+     },
+     {
+      "name": "CnEVPost·比亚迪10月销量",
+      "url": "https://cnevpost.com/2026/11/01/byd-oct-2026-sales/",
+      "status": "能读。引用比亚迪公告：10月销量490,168辆，出口170,194辆。",
+      "note": "比亚迪官方页读不到，月度产销先看这里，标「转载」。"
+     },
+     {
+      "name": "CarNewsChina（英文）",
+      "url": "https://carnewschina.com/2026/11/19/nev-market-share-reached-73-2-in-china-as-the-industry-entered-survival-phase/",
+      "status": "能读。11-19的文章引用乘联分会半月数据，有比亚迪、小米的上牌数。",
+      "note": "看周度、半月数据和行业形势。"
+     },
+     {
+      "name": "财联社",
+      "url": "https://www.cls.cn/detail/2521760",
+      "status": "能读。11-01的新势力10月交付汇总里，小鹏、蔚来、理想、零跑都有。",
+      "note": "看交付快讯、价格和金融优惠、政策。小米交付主要从这里看。"
+     },
+     {
+      "name": "财联社·小米10月交付",
+      "url": "https://www.cls.cn/detail/2521845",
+      "status": "能读。11-01报道小米10月交付首次超过5万辆。",
+      "note": "小米官方渠道读不到，交付看财联社这类媒体。"
+     },
+     {
+      "name": "凤凰网汽车·乘联分会月报转载",
+      "url": "https://auto.ifeng.com/c/8xuYiNcui5E",
+      "status": "能读。11-09：10月乘用车零售164.3万辆，新能源110.9万辆，有厂商批发排名。",
+      "note": "乘联分会月度数据的转载入口。"
+     },
+     {
+      "name": "财闻网·动力电池装车量",
+      "url": "https://www.caiwennews.com/article/1708318.shtml",
+      "status": "能读。11-19转载电池联盟数据：10月装车99.4GWh。",
+      "note": "电池联盟官网没找到，装车量先看转载，标「转载」，并和其他媒体对一下数字。"
+     },
+     {
+      "name": "同花顺转载SMM固态电池月报",
+      "url": "https://news.10jqka.com.cn/20261102/c681349950.shtml",
+      "status": "能读。11-02的SMM「10月固态电池行业怎么样了」。",
+      "note": "看固态电池材料、中试和量产时间表。"
+     }
+    ],
+    "unreadable": [
+     {
+      "name": "蔚来投资者关系",
+      "url": "https://ir.nio.com/news-events/press-releases",
+      "reason": "403，拒绝访问。改用SEC公告。"
+     },
+     {
+      "name": "小鹏投资者关系",
+      "url": "https://ir.xiaopeng.com/news-releases",
+      "reason": "403，拒绝访问。改用SEC公告。"
+     },
+     {
+      "name": "理想投资者关系",
+      "url": "https://ir.lixiang.com/news-releases",
+      "reason": "403，拒绝访问。改用SEC公告。"
+     },
+     {
+      "name": "理想·GlobeNewswire发布页",
+      "url": "https://www.globenewswire.com/search/organization/Li%20Auto%20Inc%C2%A7",
+      "reason": "403，拒绝访问。"
+     },
+     {
+      "name": "蔚来·PR Newswire发布页",
+      "url": "https://www.prnewswire.com/news/nio-inc/",
+      "reason": "404，页面不存在。"
+     },
+     {
+      "name": "小鹏·PR Newswire发布页",
+      "url": "https://www.prnewswire.com/news/xpeng-inc/",
+      "reason": "404，页面不存在。"
+     },
+     {
+      "name": "小米投资者关系",
+      "url": "https://ir.mi.com/news-events/news-releases",
+      "reason": "403，拒绝访问。小米交付改看媒体，标「转载」。"
+     },
+     {
+      "name": "比亚迪投资者关系",
+      "url": "https://www.bydglobal.com/cn/Investor/InvestorAnnals.html",
+      "reason": "能打开，但公告列表显示「暂无数据」。"
+     },
+     {
+      "name": "巨潮资讯·比亚迪",
+      "url": "http://www.cninfo.com.cn/new/disclosure/stock?stockCode=002594&orgId=gssz0002594",
+      "reason": "404，页面不存在。"
+     },
+     {
+      "name": "港交所披露易",
+      "url": "https://www.hkexnews.hk/index_c.htm",
+      "reason": "首页能开，但只有导航，看不到公告列表，要进查询页才行，这次没读到具体公告。"
+     },
+     {
+      "name": "乘联会旧官网",
+      "url": "http://www.cpcaauto.com/",
+      "reason": "403，拒绝访问。"
+     },
+     {
+      "name": "乘联会www域名",
+      "url": "http://www.cpcadata.com/",
+      "reason": "证书和域名不符，打不开。改用data.cpcadata.com。"
+     },
+     {
+      "name": "中国汽车工业协会",
+      "url": "http://www.caam.org.cn/",
+      "reason": "连接被拒绝。改看工信部的月度运行情况。"
+     }
+    ],
+    "pick": [
+     "先查一手：每月1日去SEC看蔚来、小鹏、理想的交付公告，再看工信部、乘联分会、宁德时代有没有新发布。",
+     "官方读不到时，用注明数据出处的主流财经和行业媒体，比如CnEVPost、CarNewsChina、财联社、凤凰网汽车、SMM。同一件事只留一条，优先留一手或最早、最全的那条。",
+     "只收和四个重点有关的：销量和交付、价格战、出海、固态和动力电池。五家以外的车企只在涉及这四点时收。",
+     "数字对不上时，以公司公告和官方数据为准，在摘要里写明有出入。",
+     "去掉自媒体、营销号、试驾评测、盘面评论、无出处传闻、事故和维权口水战。召回和监管处罚例外。",
+     "每天最多挑10条放进待看。月初交付日和数据发布日可以放宽到15条。"
+    ],
+    "write": [
+     "标题后面标上分类：销量、价格、出海、电池或固态。",
+     "第一句写发生了什么：谁、什么时候、多少，带上同比和环比。",
+     "一手还是转载要标出来；转载的写明原始出处，比如乘联分会、电池联盟、公司公告。",
+     "能对比的就对比：和上月比，和五家中的另几家比。",
+     "价格类写清车型、原价、优惠形式和幅度、截止日期。",
+     "出海类写清市场、数量，以及关税和政策变化。",
+     "固态类写清是半固态还是全固态、在哪个阶段（送样、中试、装车验证、量产）、时间表。",
+     "英文原文的摘要写中文，关键数字和原话保留原文。",
+     "不评价股价，不给买卖建议。"
+    ],
+    "samples": [
+     {
+      "title": "比亚迪10月销量490,168辆，同比增长11%，出口170,194辆，同比增长103%",
+      "url": "https://cnevpost.com/2026/11/01/byd-oct-2026-sales/",
+      "date": "2026-11-01",
+      "why": "既有月度销量又有出海，引用比亚迪公告（转载）。"
+     },
+     {
+      "title": "NIO Inc. Provides October 2026 Delivery Update：交付34,246辆",
+      "url": "https://www.sec.gov/Archives/edgar/data/0001736541/000110465926120841/tm2628721d1_ex99-1.htm",
+      "date": "2026-11-01",
+      "why": "公司一手交付公告，有分品牌数字。"
+     },
+     {
+      "title": "新势力「银十」销量加剧分化：小鹏50,237辆创新高，理想29,025辆同比下降8.63%",
+      "url": "https://www.cls.cn/detail/2521760",
+      "date": "2026-11-01",
+      "why": "一条里有小鹏、蔚来、理想、零跑的月度交付，方便对比。"
+     },
+     {
+      "title": "20余个汽车品牌推出「双11」政策，超半数涉及金融优惠（小米N70 3年0息等）",
+      "url": "https://m.cls.cn/detail/2531432",
+      "date": "2026-11-11",
+      "why": "价格战改用0息、低首付这类金融补贴，里面有小米。"
+     },
+     {
+      "title": "11月上半月新能源零售渗透率73.2%，比亚迪上牌13.6万辆，小米2.06万辆",
+      "url": "https://carnewschina.com/2026/11/19/nev-market-share-reached-73-2-in-china-as-the-industry-entered-survival-phase/",
+      "date": "2026-11-19",
+      "why": "半月数据，里面有出口退税从13%降到9%的消息。"
+     },
+     {
+      "title": "10月国内动力电池装车量99.4GWh，环比增长14.0%，同比增长18.2%",
+      "url": "https://www.caiwennews.com/article/1708318.shtml",
+      "date": "2026-11-19",
+      "why": "电池联盟月度装车量（转载），有磷酸铁锂和三元的占比。"
+     },
+     {
+      "title": "10月固态电池行业怎么样了【SMM分析】：宁德时代2027年启动硫化物全固态小批量试生产",
+      "url": "https://news.10jqka.com.cn/20261102/c681349950.shtml",
+      "date": "2026-11-02",
+      "why": "固态电池的量产时间表和材料中试进展。"
+     }
+    ]
+   }
+  },
+  {
+   "n": 5,
+   "card": {
+    "name": "本地可跑的开源大模型",
+    "definition": {
+     "summary": "这座库替一位做本地部署的工程师盯开源大模型：Qwen、DeepSeek、Mistral、Meta 的 Muse 开源款（Muse Glimmer 等，不再收 Llama），还有 Gemma、GLM、gpt-oss、Inkling 这些主流家族。只收能下载权重、许可证允许商用、量化后能在单张消费级显卡或 Mac（24–48GB）上跑的新版本，再加上这些模型的第三方独立评测，以及它们什么时候能在 llama.cpp、Ollama、vLLM 里跑起来。",
+     "purpose": "自己在本地部署、跑开源大模型，用来挑选和更新要跑的模型。",
+     "scope": "对象：权重可以公开下载、许可证允许商用的大语言模型和多模态模型（新版本、官方量化版、第三方评测、本地运行框架的支持）。Meta 只看 Muse 开源款，不再收 Llama。行业：AI／大模型。地域：全球的厂商和实验室都收，不分国家（我替你定的）。规模：重点是总参数约 35B 以内的稠密模型，或者量化后能放进 24–48GB 显存／内存的 MoE 模型。",
+     "exclude": "只能调 API 的闭源模型本身；不允许商用或只限研究用途的模型；厂商自己报的评测分数；Llama 系列；社区微调版、合并版、蒸馏版（我替你定的）；没有独立复测、只是营销口吻的排行榜文章。",
+     "trust": "发布信息以厂商官方页面和 Hugging Face 官方组织页为准；评测分数只收第三方独立复测的（Artificial Analysis、Arena），厂商自报的分数不写。",
+     "rhythm": "每天看一次（我替你定的）；没有非盯不可的日期。",
+     "language": "简报用中文写；英文原文照收，保存原文（我替你定的）。",
+     "hard": "权重必须能公开下载；许可证必须允许商用；量化后能在单张消费级显卡或 Mac（24–48GB）上跑。"
+    },
+    "decide": [
+     {
+      "what": "带附加条件的许可证算不算「能商用」。比如 Qwen3.8-2.4T-A95B 规定营收超过 5000 万美元的服务商要另签商用许可，Mistral Large 4 规定对外提供模型服务（MaaS）要另签。",
+      "default": "普通公司正常使用就能商用、只对大公司或对外卖模型服务加限制的，收，并在条目里写明限制；必须先申请、或者禁止商用的，不收。"
+     },
+     {
+      "what": "你的机器跑不动的大模型（比如 1T 参数的 Mistral Large 4、763B 的 DeepSeek V4.1-Flash、816B 的 Muse Spark Open）要不要收",
+      "default": "只有 Qwen、DeepSeek、Mistral、Meta 这四家的旗舰发布才收，写成两三句话的短讯，不写长摘要；其它家族的大模型不收。"
+     },
+     {
+      "what": "第三方量化版（比如 Unsloth 出的 GGUF）算不算",
+      "default": "不单独成条，只在介绍新模型时顺带一句「已经有哪些量化版、要多大显存」。厂商自己出的量化版正常收。"
+     }
+    ],
+    "collect": [
+     "主流开源家族的新版本发布：Qwen、DeepSeek、Mistral、Meta 的 Muse 开源款、Gemma、GLM、gpt-oss、Inkling 等，以总参数约 35B 以内、或量化后能放进 24–48GB 的为主，许可证要允许商用。",
+     "厂商自己出的量化版和本地运行格式（GGUF、MLX、FP8／NVFP4、AWQ 等）。",
+     "llama.cpp、Ollama、vLLM 新增对某个模型的支持，或者影响本地跑的重要修复（比如某个量化格式输出乱码）。",
+     "在你规模范围内、允许商用的代码、多模态、嵌入、语音专用模型。",
+     "第三方独立评测机构给这些模型的新分数（Artificial Analysis、Arena），还有可信的独立实测文章（写清楚硬件、量化方式、测了什么）。",
+     "厂商预告的开源计划（比如「较小的 Qwen4 开源模型即将发布」）。",
+     "四大家族旗舰级大模型的发布，只写短讯。"
+    ],
+    "skip": [
+     "只能调 API、不放权重的闭源模型本身（预告了开源计划的另说）。",
+     "许可证禁止商用、只限研究用途，或者必须申请才能下载的模型。",
+     "厂商自己报的评测分数，包括模型卡和发布文章里的成绩表。",
+     "Llama 系列的消息。",
+     "社区微调版、合并版、蒸馏版、角色扮演版。",
+     "只转述厂商新闻稿、没有新信息的媒体文章。",
+     "没写测试方法的「十大模型排名」之类 SEO 文章。",
+     "融资、人事、公司八卦，除非直接影响某个模型开不开源。",
+     "任何买卖建议、股价相关内容。"
+    ],
+    "sources": [
+     {
+      "name": "Hugging Face · Qwen 官方组织页",
+      "url": "https://huggingface.co/Qwen",
+      "status": "读得到；最近 15 天里上了 Qwen3.8-2.4T-A95B、Qwen3.8-Flash-Next、Qwen3.8-27B-FP8，1 天前更新过 Qwen3.6-27B、Qwen3.5-35B-A3B 等模型。",
+      "note": "看新出的模型和官方 FP8 量化版，留意 Qwen4 的小尺寸开源模型，每个都要看许可证。"
+     },
+     {
+      "name": "阿里云新闻稿 · Qwen4-Max",
+      "url": "https://www.alibabacloud.com/press-room/alibaba-unveils-qwen4-max",
+      "status": "读得到；Qwen4-Max 只能调 API，并说「较小的 Qwen4 开源模型很快会发布」，没给时间。",
+      "note": "Qwen 官方博客读不到，用这里看阿里官方怎么说的；新的 Qwen4 开源消息可以顺着阿里云新闻室找。"
+     },
+     {
+      "name": "Wikipedia · Qwen 词条（第三方）",
+      "url": "https://en.wikipedia.org/wiki/Qwen",
+      "status": "读得到；列了 2026 年各版本的发布日期和许可证，一直列到 11 月 16 日的 Qwen4-Max。",
+      "note": "只用来核对日期和许可证，不当作一手来源。"
+     },
+     {
+      "name": "Hugging Face · deepseek-ai 官方组织页",
+      "url": "https://huggingface.co/deepseek-ai",
+      "status": "读得到；最新是 DeepSeek-V4.1-Flash-1017（763B），再往前是 V4.1-Flash、V4-Flash-Vision-Exp（305B）、V4-Pro-0813（1.7T）。",
+      "note": "看有没有出小尺寸或蒸馏版的官方模型。"
+     },
+     {
+      "name": "DeepSeek API 文档 · 新闻栏",
+      "url": "https://api-docs.deepseek.com/news/news251201",
+      "status": "读得到；侧栏的新闻列表最新一条是 2026-11-13 的 Full-Suite App API，往前有 10-17 的 V4.1-Flash-1017。",
+      "note": "看 DeepSeek 官方的发布公告列表。"
+     },
+     {
+      "name": "Mistral 官方新闻页",
+      "url": "https://mistral.ai/news",
+      "status": "读得到；最新是 11-05 的 Studio V2，10-29 开放了 Le Chonk 的权重，往前还有 10-20 的 Voxtral 3、10-15 的 Timestral、10-06 的 Mistral Large 4。",
+      "note": "看新模型发布，特别是 Small／Ministral 这类小模型，每个都要看许可证。"
+     },
+     {
+      "name": "Hugging Face · mistralai 官方组织页",
+      "url": "https://huggingface.co/mistralai",
+      "status": "读得到；最近上的是 Mistral-Large-4-1T-A52B 和它的 NVFP4 版，还有 Timestral 系列。",
+      "note": "看权重什么时候真正能下载，有没有官方量化版。"
+     },
+     {
+      "name": "Meta 开发者站（原 llama.com）",
+      "url": "https://dev.meta.ai/",
+      "status": "读得到；https://www.llama.com/ 现在会跳到这里。列出的开源模型有 Muse Spark Open（816B）和 Muse Glimmer，其余 Muse 系列都是闭源的。",
+      "note": "看 Meta 有没有新的 Muse 开源模型。"
+     },
+     {
+      "name": "Hugging Face · meta-models（Meta 新的官方组织页）",
+      "url": "https://huggingface.co/meta-models",
+      "status": "读得到；有 Muse-Spark-Open-816B-A42B（含 NVFP4 版）、Muse-Glimmer-30B 和它的官方 GGUF、ExecuTorch 版、3B 辅助模型，3 天前都更新过。",
+      "note": "看 Muse 开源款的新版本和官方量化版。"
+     },
+     {
+      "name": "Hugging Face · google 官方组织页",
+      "url": "https://huggingface.co/google",
+      "status": "读得到；5 天前上了 DiffusionGemma-26B-A4B-it，18–22 天前上了 Gemma-4-E4B、E2B、12B，24 天前上了 EmbeddingGemma-2。",
+      "note": "看 Gemma 新版本，大多在你的规模范围里。"
+     },
+     {
+      "name": "Hugging Face · zai-org（智谱 GLM）官方组织页",
+      "url": "https://huggingface.co/zai-org",
+      "status": "读得到；最新是 10 月中的 GLM-5.3（753B）和 GLM-5.3-Flash（321B），都超出你的硬件。",
+      "note": "看有没有出小尺寸 GLM。"
+     },
+     {
+      "name": "Hugging Face · openai 官方组织页",
+      "url": "https://huggingface.co/openai",
+      "status": "读得到；gpt-oss-20b 和 gpt-oss-120b 还是 2025 年 8 月的版本，最近只有 1 月的 gpt-oss-safeguard-20b 和 4 月的 privacy-filter。",
+      "note": "看 gpt-oss 有没有新版本。"
+     },
+     {
+      "name": "Thinking Machines Lab 新闻页",
+      "url": "https://thinkingmachines.ai/news/",
+      "status": "读得到；2026-11-20 发了 Inkling 2 Mini，11-05 发了 Inkling 2 Small。",
+      "note": "看 Inkling 系列的新开源模型。"
+     },
+     {
+      "name": "Hugging Face · thinkingmachines 官方组织页",
+      "url": "https://huggingface.co/thinkingmachines",
+      "status": "读得到；约 20 小时前上了 Inkling-2-Mini（26B），1 天前更新了 Inkling-2-Small（594B）。组织页上不显示许可证，要点进单个模型页看。",
+      "note": "看权重和许可证。"
+     },
+     {
+      "name": "Artificial Analysis · 开源模型榜（第三方独立评测）",
+      "url": "https://artificialanalysis.ai/models/open-source",
+      "status": "不用登录就能读；Intelligence Index 已经到 v5.0.1。开源模型里前几名是 Kimi K3.1 Pro（46）、Tencent Hy4（35）、DeepSeek V4.1 Flash（33）、GLM-5.3（32），Qwen3.8 27B 是 20。",
+      "note": "这是主要的分数来源：看新模型的独立复测分数，以及速度和价格对比。"
+     },
+     {
+      "name": "Arena · 文本榜（第三方，人工盲评）",
+      "url": "https://arena.ai/leaderboard/text",
+      "status": "读得到，页面顶部的日期是 2026-11-20；https://lmarena.ai/leaderboard 现在会跳到 arena.ai。有许可证筛选，但我读到的内容分不清哪些是开源模型。",
+      "note": "看新开源模型上榜的名次，要自己核对是哪个许可证。"
+     },
+     {
+      "name": "llama.cpp GitHub 发布页",
+      "url": "https://github.com/ggml-org/llama.cpp/releases",
+      "status": "读得到；最新是 b12608（修了一个导致输出乱码的量化计算问题），b12600 加了对 Inkling 2 Mini 架构的支持。",
+      "note": "看新架构支持和影响本地跑的修复。"
+     },
+     {
+      "name": "vLLM GitHub 发布页",
+      "url": "https://github.com/vllm-project/vllm/releases",
+      "status": "读得到；最新是 v0.34.0，新增了 Mistral Large 4 等 10 个模型的支持，还有几项不兼容旧版的改动（去掉了 Model Runner V1）。",
+      "note": "看新模型支持和不兼容的改动。"
+     },
+     {
+      "name": "Ollama 博客",
+      "url": "https://ollama.com/blog",
+      "status": "读得到；最新一篇是 11-16 讲前缀缓存的，10 月有好几篇新模型上线的文章。",
+      "note": "看哪些新模型能在 Ollama 里直接跑。"
+     },
+     {
+      "name": "Hugging Face · Unsloth（第三方量化）",
+      "url": "https://huggingface.co/unsloth",
+      "status": "读得到；10 小时前上了 Inkling-2-Mini-GGUF，7–8 天前上了 DeepSeek-V4.1-Flash-1017 和 Qwen3.8-Flash-Next 的 GGUF。",
+      "note": "只用来判断新模型有没有现成的 GGUF 可以用，不单独成条。"
+     }
+    ],
+    "unreadable": [
+     {
+      "name": "Qwen 新官网研究页",
+      "url": "https://qwen.ai/research",
+      "reason": "页面要靠脚本加载，读出来只有一个「Qwen」，看不到文章列表。改用 Hugging Face 的 Qwen 页和阿里云新闻稿。"
+     },
+     {
+      "name": "Qwen 旧博客",
+      "url": "https://qwenlm.github.io/blog/",
+      "reason": "页面写着已经搬到 qwen.ai，会自动跳过去；能看到的文章停在 2025 年 9 月，没有新内容。"
+     },
+     {
+      "name": "Reddit r/LocalLLaMA",
+      "url": "https://www.reddit.com/r/LocalLLaMA/new/",
+      "reason": "抓取工具连不上 Reddit，读不到。"
+     },
+     {
+      "name": "Mistral Le Chonk 单篇公告（我猜的网址）",
+      "url": "https://mistral.ai/news/le-chonk",
+      "reason": "返回 404，是我猜错了网址。Le Chonk 的消息在 Mistral 新闻列表里能看到。"
+     }
+    ],
+    "pick": [
+     "先查官方来源有没有新东西：各家 Hugging Face 组织页、官方新闻页、DeepSeek 新闻栏、Thinking Machines 新闻页。",
+     "每个新模型先打开它的 Hugging Face 模型页看许可证：Apache 2.0、MIT 这类能商用的收；禁止商用、只限研究、必须申请才能下载的不收；带营收门槛或 MaaS 限制的，按「要你定的事」第 1 条处理。组织页不显示许可证，一定要点进模型页看。",
+     "再看总参数、激活参数，估算 4-bit 量化后要多少显存：放得进 48GB 的进「待看」；放不进的，只有四大家族的旗舰才写一条短讯。",
+     "只能调 API 的不收；如果厂商同时预告了会开源，记一条预告，许可证公布后再判断。",
+     "llama.cpp、vLLM、Ollama 的更新，只收和已收录模型有关、或者影响本地跑（新架构、量化格式、明显提速、不兼容改动）的。",
+     "评测只认 Artificial Analysis、Arena 这类第三方独立复测，或者写清楚硬件和方法的独立实测；厂商模型卡和发布文章里的分数一律不写。新模型还没有第三方分数的，写「暂无第三方分数」，等出了分数再单独收一条。",
+     "同一件事多处报道，只留官方来源那一条，第三方报道里有官方没写的实测数据，才附在后面。",
+     "某天没有值得看的新东西，就不硬凑。"
+    ],
+    "write": [
+     "一句话：谁发的、模型叫什么、哪天发的。",
+     "规格：总参数／激活参数、上下文长度、是不是多模态。",
+     "许可证原名，商用有没有附加限制（比如营收门槛、MaaS 要另签）。",
+     "本地能不能跑：官方有哪些量化版，4-bit 大概要多少显存／内存，llama.cpp、Ollama、vLLM、MLX 支持了没有。",
+     "评测：只写第三方独立复测的分数，并注明是哪家、哪个版本的榜；没有就写「暂无第三方分数」。",
+     "和你已经在用的同尺寸模型比，值不值得换，只说事实依据，不下结论。",
+     "附上原文链接和下载页链接。"
+    ],
+    "samples": [
+     {
+      "title": "Thinking Machines 发布 Inkling 2 Mini（26.4B 总参数／3.4B 激活，Apache 2.0，约 20GB，建议 32GB 以上显存／内存）",
+      "url": "https://huggingface.co/thinkingmachines/Inkling-2-Mini",
+      "date": "2026-11-20",
+      "why": "昨天刚发，Apache 2.0 能商用，不用申请就能下载，Mac 32GB 以上或 32GB 显卡就能跑，llama.cpp 已经支持了，在你的 24–48GB 范围里偏上。现在还没有第三方分数，按规则写「暂无第三方分数」。官方发布文章在 https://thinkingmachines.ai/news/inkling-2-mini/。"
+     },
+     {
+      "title": "阿里发布 Qwen4-Max（只开放 API），预告较小的 Qwen4 开源模型即将发布",
+      "url": "https://www.alibabacloud.com/press-room/alibaba-unveils-qwen4-max",
+      "date": "2026-11-16",
+      "why": "旗舰本身不开源，但预告了小尺寸开源模型，按规则记成一条预告，提醒你接下来留意 Qwen4 的小模型，许可证公布后再判断能不能商用。"
+     },
+     {
+      "title": "Meta Muse Glimmer 30B（Apache 2.0，官方 4-bit 量化版 24GB 就能跑）",
+      "url": "https://huggingface.co/meta-models/Muse-Glimmer-30B",
+      "date": "2026-08-10",
+      "why": "Llama 4 之后 Meta 第一个开源模型，也是这个库里代替 Llama 的那一个。Apache 2.0 能商用，不用申请就能下载，官方自带适合 24GB 显卡的量化版。发布那天的介绍文章在 https://huggingface.co/blog/muse-glimmer。"
+     },
+     {
+      "title": "Qwen3.8-27B（Apache 2.0，原生支持 262K 上下文，多模态）",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-27B",
+      "date": "2026-08-14",
+      "why": "在你的规模范围里，Apache 2.0 能商用，社区量化版很多；有第三方分数：Artificial Analysis Intelligence Index 是 20。"
+     }
+    ]
+   }
+  }
+ ]
+}

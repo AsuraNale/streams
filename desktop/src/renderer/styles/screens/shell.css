@@ -31,3 +31,13 @@
 
 .stat-kv__row { border: 0; border-radius: var(--st-radius-s); background: var(--st-surface); box-shadow: var(--st-shadow-card); }
 
+
+/* 1.1.1 P11a (A11): 库架's card with its 「更多」 beside it — the card stays one button (a click enters 待看), the menu button sits
+   on its top right corner, and the card's first line keeps clear of it */
+.st-shelf-item { position: relative; }
+.st-shelf-item > .project-tile > .row:first-child { padding-right: 96px; }
+.st-shelf-item > .st-shelf-more { position: absolute; top: 12px; right: 12px; z-index: 1; }
+.st-shelf-item > .st-shelf-more .progress-alert { position: absolute; right: 0; top: 100%; white-space: nowrap; }
+/* 来源与要求's 定时: the days of the week, and the line when it is not the card's rhythm (1.1.1 P11a, A10) */
+.st-src-weekdays { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.st-src-mismatch { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

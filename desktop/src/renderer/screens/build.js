@@ -209,6 +209,7 @@ function StartPage({ params, onStarted }) {
   const active = appState?.data?.activeConnection ?? null
   const can = active === 'claude-code'
   const names = CONNECTIONS.names
+  // 1.1.1 P11a (A14): the cost line names the connection in use, and only one that can build (no other connection's quota)
   const start = async (words = text) => {
     const t = String(words ?? '').trim()
     if (!t || busy || !can) return
@@ -248,7 +249,7 @@ function StartPage({ params, onStarted }) {
           ${error === 'going' ? html`<p class="progress-alert" role="alert" data-part="going">${T.going}</p>` : null}
           ${error === 'failed' ? html`<p class="progress-alert" role="alert" data-part="start-failed">${T.failedCall}</p>` : null}
           <div class="form-footer">
-            <span class="muted st-build-cost">${busy ? T.starting : fmt(T.cost, { name: names['claude-code'] })}</span>
+            <span class="muted st-build-cost" data-part="build-cost">${busy ? T.starting : can ? fmt(active === 'api' ? T.costApi : T.cost, { name: names[active] ?? active }) : ''}</span>
             ${typeof params.back === 'string' && params.back !== 'build' ? html`<${Btn} name="cancel-build" kind="quiet" disabled=${busy} onClick=${() => navigate(params.back)}>${T.cancel}<//>` : null}
             <span class="st-act" data-action="start"><button type="button" class="btn primary" disabled=${busy || !can || !text.trim()} onClick=${() => start()}>${T.start}</button></span>
           </div>

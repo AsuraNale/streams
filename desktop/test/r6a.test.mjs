@@ -55,7 +55,10 @@ const NEW = Object.freeze({
   V10: '单次运行上限生效：上限设 5，第 6 条不调模型，剩余条目下次运行接着处理',
 })
 
-test('R6a-2 standards.mjs: V6 / V8 / V9 / V10 are the four sentences the maintainer saw, to the character; V3 and everything else is what git had before R6a', async () => {
+// 1.1.1 P11a: V7's sentence after 11-24 (the search service's exception; 维护者 11-24 晚「按照你的推荐」, the 1.1 standard's E4)
+const LATER = Object.freeze({ V7: '界面禁词零命中：Bronze、Silver、Gold、judge、keeper、gate、Medallion、pending、ledger；品牌词 Claude、Anthropic、OpenAI、ChatGPT 只出现在「连接你电脑上的 …」、型号表和许可证页；1.1.1 起设置页的搜索服务一处也可以出现服务商的名字（比照型号表；维护者 11-24 晚「按照你的推荐」，即 1.1 标准 E4 的例外）' })
+
+test('R6a-2 standards.mjs: V6 / V8 / V9 / V10 are the four sentences the maintainer saw, to the character; V3 and everything else is what git had before R6a (V7: 1.1.1\'s exception)', async () => {
   const nowText = readFileSync(join(REPO_DIR, 'tests', 'acceptance', 'standards.mjs'), 'utf8')
   const wasText = before('tests/acceptance/standards.mjs').toString('utf8')
   assert.equal(sha(Buffer.from(wasText, 'utf8')), 'ac493067e28dbae3ad70559ddce4e826018173226661b78d00371fcee52bf8d1', 'control: the text from git is the file before R6a')
@@ -75,6 +78,10 @@ test('R6a-2 standards.mjs: V6 / V8 / V9 / V10 are the four sentences the maintai
     if (Object.hasOwn(NEW, s.id)) {
       assert.equal(s.standard, NEW[s.id], `${s.id}: the sentence the maintainer saw`)
       assert.notEqual(old.standard, NEW[s.id], `control: ${s.id} was another sentence before`)
+    } else if (Object.hasOwn(LATER, s.id)) {
+      // 1.1.1: V7 got the search service's exception 维护者 agreed to on 11-24 (「按照你的推荐」; the 1.1 standard's E4 too)
+      assert.equal(s.standard, LATER[s.id], `${s.id}: the sentence of 1.1.1`)
+      assert.ok(LATER[s.id].startsWith(old.standard.replace(/'/g, '')), `${s.id}: the old sentence and an exception added at its end`)
     } else {
       assert.equal(s.standard, old.standard, `${s.id}: not one of the four, unchanged`)
     }
@@ -88,9 +95,9 @@ test('R6a-2 standards.mjs: V6 / V8 / V9 / V10 are the four sentences the maintai
   const removed = a.filter(l => !b.includes(l))
   assert.deepEqual(added, [
     '// V6 / V8 / V9 / V10 维护者 11-11 改字。',
-    ...['V6', 'V8', 'V9', 'V10'].map(id => `    standard: '${NEW[id]}',`),
+    ...['V6', 'V7', 'V8', 'V9', 'V10'].map(id => `    standard: '${NEW[id] ?? LATER[id]}',`),
   ], 'the lines that are new')
-  assert.deepEqual(removed, ['V6', 'V8', 'V9', 'V10'].map(id => `    standard: '${was.find(s => s.id === id).standard}',`), 'the lines that are gone')
+  assert.deepEqual(removed, ['V6', 'V7', 'V8', 'V9', 'V10'].map(id => `    standard: '${was.find(s => s.id === id).standard}',`), 'the lines that are gone')
   assert.equal(b.length, a.length + 1, 'one line more: the comment')
   assert.equal(b[1], '// V6 / V8 / V9 / V10 维护者 11-11 改字。', 'the comment is the second line of the head')
   // controls of the comparison itself: one character off is told apart

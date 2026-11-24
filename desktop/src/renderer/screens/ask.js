@@ -175,7 +175,7 @@ function AnswerDetail({ result, demands, onOpen }) {
 }
 
 export function AskScreen() {
-  const { navigate, appState, memory } = useApp()
+  const { navigate, appState, memory, libraries } = useApp()
   const libraryId = appState?.data?.library?.libraryId ?? null
   const files = useLoad(() => call('getLibrary', 'all', { topics: [], days: null }), [])
   const demands = useLoad(() => call('getDemands'), [])
@@ -212,6 +212,9 @@ export function AskScreen() {
   }
   const latest = [...turns].reverse().find(t => t.status === 'done')?.result ?? null
   const counts = files.data?.counts ?? null
+  // 1.1.1 P11a: this library's 待看 (the sidebar's count), which 问库 does not read
+  const libId = appState?.data?.library?.libraryId ?? null
+  const inboxLeft = (Array.isArray(libraries?.data) ? libraries.data : []).find(r => r.id === libId)?.inbox ?? 0
   const sourceOf = id => (files.data?.items ?? []).find(e => e.id === id)?.source ?? null
   const open = id => navigate('library', { id })
   const original = url => { call('openReader', url, 'reader').catch(() => setNote(T.failedOther)) }
@@ -226,7 +229,7 @@ export function AskScreen() {
     <div class="st-ask">
       <div class="st-main__body thread-scroll" ref=${listRef}>
         <div class="thread" data-part="conversation">
-          <div class="date-line" data-part="scope"><b id="ask-title">${T.title}</b><span>${SEP}</span><span>${counts ? fmt(T.scope, { kept: counts.kept ?? 0, authored: counts.authored ?? 0 }) : ''}</span></div>
+          <div class="date-line" data-part="scope"><b id="ask-title">${T.title}</b><span>${SEP}</span><span>${counts ? fmt(T.scope, { kept: counts.kept ?? 0, authored: counts.authored ?? 0 }) : ''}</span>${inboxLeft > 0 ? html`<span>${SEP}</span><span data-part="inbox-not-read" data-value=${inboxLeft}>${fmt(T.inboxNotRead, { n: inboxLeft })}</span>` : null}</div>
           ${turns.length ? null : html`<p class="limit-note st-ask-empty" data-part="ask-empty">${T.empty}</p>`}
           ${turns.map((t, i) => html`<section key=${t.id} class="st-ask-turn" data-turn=${i} data-state=${t.status}>
             <div class="user-message">${t.question}</div>

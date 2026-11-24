@@ -53,7 +53,7 @@ export const SETTINGS = Object.freeze({
     key: 'Key',
     keyPlaceholder: 'Enter the API key',
     hasKey: 'A key is set (ends in {hint}). Saving replaces it.',
-    note: 'The API key is kept only in this computer\'s credential protection and is never written into a library folder. Costs go to the matching account by use.',
+    note: 'The API key is kept only on this computer (in its credential protection) and is never written into a library folder; on another computer you enter it again. Costs go to the matching account by use.',
     save: 'Save',
     remove: 'Delete API key',
     cancel: 'Cancel',

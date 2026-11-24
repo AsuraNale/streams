@@ -6,4 +6,4 @@ export { keep, dismiss, later, recentDismissReasons, slugOf, roundOutcome, DISMI
 export { markLater, readLater, releaseLater, laterPath, LATER_FILE } from './later.mjs';
 export { homeNumbers, noOutputStreak, NO_OUTPUT_ROUNDS } from './numbers.mjs';
 export { roundLog, listRounds, readRounds, renderRoundMd, ROUNDS_FILE, LOGS_DIR } from './rounds-log.mjs';
-export { nextRunAt, lastDueAt, missedRun, isScheduleTime, scheduleOf, isSchedule, DEFAULT_SCHEDULE } from './schedule.mjs';
+export { nextRunAt, lastDueAt, missedRun, isScheduleTime, scheduleOf, isSchedule, DEFAULT_SCHEDULE, rhythmSchedule, SCHEDULE_EVERY } from './schedule.mjs';

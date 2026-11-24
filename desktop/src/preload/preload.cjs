@@ -42,6 +42,7 @@ const METHODS = [
   'openRecentLibrary',
   'rebuildIndex',
   'revealLibrary',
+  'revealLibraryOf',
   'recordSetupStep',
   'getSetup',
   // the connections

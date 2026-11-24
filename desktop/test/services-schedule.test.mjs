@@ -102,15 +102,15 @@ test('getSchedule: the setting, the next slot, the last round, whether one is ow
   const time = fakeTime(at(2026, 11, 4, 9, 0))
   const dir = libraryWithRounds(w, [at(2026, 11, 3, 9, 0)])
   const s = service({ w, dir, time, pipeline: fakePipeline(dir, time.now) })
-  assert.deepEqual(s.handlers.getSchedule(), { libraryId: 'dev', enabled: true, time: '08:30', nextRunAt: at(2026, 11, 5, 8, 30).toISOString(), lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: true })
+  assert.deepEqual(s.handlers.getSchedule(), { libraryId: 'dev', enabled: true, time: '08:30', rhythm: null, nextRunAt: at(2026, 11, 5, 8, 30).toISOString(), lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: true })
   time.set(at(2026, 11, 4, 7, 0))
-  assert.deepEqual(s.handlers.getSchedule(), { libraryId: 'dev', enabled: true, time: '08:30', nextRunAt: at(2026, 11, 4, 8, 30).toISOString(), lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: false }, 'before today\'s slot: yesterday\'s round after its slot covers it')
+  assert.deepEqual(s.handlers.getSchedule(), { libraryId: 'dev', enabled: true, time: '08:30', rhythm: null, nextRunAt: at(2026, 11, 4, 8, 30).toISOString(), lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: false }, 'before today\'s slot: yesterday\'s round after its slot covers it')
   // v2: the library's own schedule (its streams.json), not settings.json's
   saveLibrarySchedule(dir, { enabled: false, time: '08:30' })
-  assert.deepEqual(s.handlers.getSchedule(), { libraryId: 'dev', enabled: false, time: '08:30', nextRunAt: null, lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: false })
+  assert.deepEqual(s.handlers.getSchedule(), { libraryId: 'dev', enabled: false, time: '08:30', rhythm: null, nextRunAt: null, lastRoundAt: at(2026, 11, 3, 9, 0).toISOString(), missed: false })
   // no library open: nothing owed, no last round
   const none = service({ w, dir: null, time, pipeline: fakePipeline(null, time.now) })
-  assert.deepEqual(none.handlers.getSchedule(), { libraryId: null, enabled: true, time: '08:30', nextRunAt: at(2026, 11, 4, 8, 30).toISOString(), lastRoundAt: null, missed: false })
+  assert.deepEqual(none.handlers.getSchedule(), { libraryId: null, enabled: true, time: '08:30', rhythm: null, nextRunAt: at(2026, 11, 4, 8, 30).toISOString(), lastRoundAt: null, missed: false })
 })
 
 test('setSchedule: writes the library\'s streams.json (v2; v1.0 wrote settings.json), says settings-changed, sets the timer again; 25:00 is refused and nothing is written', () => {

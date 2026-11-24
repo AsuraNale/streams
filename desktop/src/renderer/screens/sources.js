@@ -38,7 +38,8 @@ import { fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { TIcon } from '../lib/template-icons.js'
-import { CONNECTIONS, ERRORS, FETCH_HINTS, FETCH_STATES, NEXT_WHEN, PUNCT, SEP, SOURCE_KINDS, SOURCE_STATES, WHEN } from '../texts/common.js'
+import { CONNECTIONS, ERRORS, FETCH_HINTS, FETCH_STATES, NEXT_WHEN, PUNCT, SCHEDULE, SEP, SOURCE_KINDS, SOURCE_STATES, WHEN } from '../texts/common.js'
+import { scheduleWhen } from '../lib/schedule-words.js'
 import { ADVANCED as A, SOURCES as T } from '../texts/sources.js'
 import { SETTINGS } from '../texts/settings.js'
 import { LibraryFrame } from './library-frame.js'
@@ -110,11 +111,21 @@ function OldSourcesPart({ view }) {
 
 // ---- 定时 ----------------------------------------------------------------------------------------------------------------
 
+// 1.1.1 P11a (A10): how often — every day (as before), weekdays, days of the week, a day of the month — and, when the schedule is
+// not what the card's 「节奏」 says (a library brought up from 1.1.0 runs every day whatever its card says), one line and
+// 「按节奏设」; nothing changes without the user. Test hooks: [data-field=schedule-every|schedule-day|schedule-time|schedule-on],
+// [data-weekday=0..6][aria-pressed], [data-part=run-mismatch], [data-action=to-rhythm].
+const EVERY = ['day', 'weekdays', 'week', 'month']
+const oftenOf = (every, days, day) => (every === 'week' ? { every, days: [...days].sort((a, b) => a - b) } : every === 'month' ? { every, day: Number(day) } : every === 'weekdays' ? { every } : {})
+
 function RunPart({ libraryId }) {
   const sched = useLoad(() => (libraryId ? call('getLibrarySchedule', libraryId) : null), [libraryId])
   useEvent('settings-changed', p => { if (!p || p.libraryId === undefined || p.libraryId === libraryId) sched.reload() })
   const [on, setOn] = useState(true)
   const [time, setTime] = useState('')
+  const [every, setEvery] = useState('day')
+  const [days, setDays] = useState([])
+  const [day, setDay] = useState('1')
   const [note, setNote] = useState(null)
   const [busy, setBusy] = useState(false)
   const d = sched.data
@@ -122,31 +133,50 @@ function RunPart({ libraryId }) {
   // not put the saved values back over it; 保存 (or another library) ends the draft
   const draft = useRef(false)
   useEffect(() => { draft.current = false }, [libraryId])
-  useEffect(() => { if (d && !draft.current) { setOn(d.enabled); setTime(d.time) } }, [d?.enabled, d?.time])
+  useEffect(() => {
+    if (d && !draft.current) { setOn(d.enabled); setTime(d.time); setEvery(d.every ?? 'day'); setDays(d.days ?? [new Date().getDay()]); setDay(String(d.day ?? Math.min(28, new Date().getDate()))) }
+  }, [d?.enabled, d?.time, d?.every, JSON.stringify(d?.days ?? null), d?.day])
   const edit = set => v => { draft.current = true; set(v) }
-  const save = async () => {
-    const timeOk = /^([01]\d|2[0-3]):[0-5]\d$/.test(time)
-    if (!timeOk) { setNote({ kind: 'bad', text: T.run.timeBad }); return }
+  const toggleDay = n => { draft.current = true; setDays(list => (list.includes(n) ? list.filter(x => x !== n) : [...list, n])) }
+  const write = async (s, doneText) => {
     setBusy(true)
     setNote(null)
     try {
-      if (d && (on !== d.enabled || time !== d.time)) { const r = await call('setLibrarySchedule', libraryId, { enabled: on, time }); sched.mutate(() => r) }
+      const r = await call('setLibrarySchedule', libraryId, s)
+      sched.mutate(() => r)
       draft.current = false
-      setNote({ kind: 'saved', text: T.run.saved })
+      setNote({ kind: 'saved', text: doneText })
     } catch (err) {
       setNote({ kind: 'bad', text: err?.code === 'bad_arguments' ? T.run.timeBad : T.failed })
     } finally { setBusy(false) }
   }
+  const save = async () => {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) { setNote({ kind: 'bad', text: T.run.timeBad }); return }
+    if (every === 'week' && days.length === 0) { setNote({ kind: 'bad', text: T.run.weekdayNone }); return }
+    if (every === 'month' && !(/^\d{1,2}$/.test(day) && Number(day) >= 1 && Number(day) <= 28)) { setNote({ kind: 'bad', text: T.run.monthDayBad }); return }
+    await write({ enabled: on, time, ...oftenOf(every, days, day) }, T.run.saved)
+  }
+  // 「按节奏设」: the card's rhythm as the schedule, at the time and on/off the library has now
+  const rhythm = d?.rhythm ?? null
+  const toRhythm = () => write({ enabled: d.enabled, time: d.time, ...oftenOf(rhythm.every, rhythm.days ?? [], rhythm.day ?? 1) }, T.run.toRhythmDone)
   const ready = Boolean(d)
+  const off = !ready || busy || !on
   return html`<section class="st-src-part" data-part="run" aria-labelledby="src-run-h">
     <div class="section-label"><span id="src-run-h">${T.run.heading}</span></div>
     ${sched.status === 'error' && !d ? html`<p class="progress-alert" role="alert">${T.run.failed}</p>` : null}
-    <div class="st-nl-schedule st-src-run" data-schedule=${d ? (d.enabled ? 'on' : 'off') : 'unknown'}>
-      <label class="st-nl-check"><input type="checkbox" data-field="schedule-on" checked=${on} disabled=${!ready || busy} onChange=${e => edit(setOn)(e.currentTarget.checked)} /> ${T.run.daily}</label>
-      <span class="field st-nl-small"><input data-field="schedule-time" aria-label=${T.run.timeLabel} value=${time} maxlength="5" disabled=${!ready || busy || !on} onInput=${e => edit(setTime)(e.currentTarget.value.trim())} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); void save() } }} /></span>
+    <div class="st-nl-schedule st-src-run" data-schedule=${d ? (d.enabled ? 'on' : 'off') : 'unknown'} data-every=${d ? (d.every ?? 'day') : ''}>
+      <label class="st-nl-check"><input type="checkbox" data-field="schedule-on" checked=${on} disabled=${!ready || busy} onChange=${e => edit(setOn)(e.currentTarget.checked)} /> ${T.run.heading}</label>
+      <span class="field st-nl-small"><select data-field="schedule-every" aria-label=${T.run.often} value=${every} disabled=${off} onChange=${e => edit(setEvery)(e.currentTarget.value)}>
+        ${EVERY.map(k => html`<option key=${k} value=${k}>${SCHEDULE.every[k]}</option>`)}
+      </select></span>
+      ${every === 'week' ? html`<span class="filters st-src-weekdays" role="group" aria-label=${T.run.weekdayLabel}>${[1, 2, 3, 4, 5, 6, 0].map(n => html`<button type="button" key=${n} class=${`filter${days.includes(n) ? ' active' : ''}`} data-weekday=${n} aria-pressed=${String(days.includes(n))} disabled=${off} onClick=${() => toggleDay(n)}>${SCHEDULE.weekdays[n]}</button>`)}</span>` : null}
+      ${every === 'month' ? html`<span class="field st-nl-small"><input data-field="schedule-day" aria-label=${T.run.monthDayLabel} value=${day} maxlength="2" disabled=${off} onInput=${e => edit(setDay)(e.currentTarget.value.trim())} /></span>` : null}
+      <span class="field st-nl-small"><input data-field="schedule-time" aria-label=${T.run.timeLabel} value=${time} maxlength="5" disabled=${off} onInput=${e => edit(setTime)(e.currentTarget.value.trim())} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); void save() } }} /></span>
       <span>${T.run.at}</span>
       <span class="st-src-run-save"><${Btn} name="save-run" disabled=${!ready || busy} onClick=${save}>${T.run.save}<//></span>
     </div>
+    ${rhythm && !rhythm.matches ? html`<p class="limit-note st-src-mismatch" data-part="run-mismatch">${fmt(T.run.mismatch, { rhythm: rhythm.text.length > 40 ? `${[...rhythm.text].slice(0, 40).join('')}…` : rhythm.text, want: scheduleWhen(rhythm), now: scheduleWhen(d) })}
+      <span class="st-act" data-action="to-rhythm"><button type="button" class="btn quiet" disabled=${busy} onClick=${toRhythm}>${T.run.toRhythm}</button></span></p>` : null}
     ${note ? html`<p class=${note.kind === 'saved' ? 'limit-note' : 'progress-alert'} role=${note.kind === 'saved' ? 'status' : 'alert'} data-part="run-note" data-kind=${note.kind}>${note.text}</p>` : null}
     <p class="limit-note" data-next-run=${d?.nextRunAt ?? ''}>${d ? (d.nextRunAt ? fmt(T.run.next, { when: nextText(d.nextRunAt, NEXT_WHEN) ?? d.nextRunAt }) : T.run.off) : ''}${T.run.rule}</p>
   </section>`
@@ -164,7 +194,7 @@ function Fold({ index, part, title, small, children }) {
 
 const names = list => list.join(A.log.fields.join)
 const byName = list => new Map((Array.isArray(list) ? list : []).map(x => [x?.name, x]))
-const schedWords = v => (v && v.enabled ? fmt(A.log.fields.scheduleOn, { time: v.time }) : A.log.fields.scheduleOff)
+const schedWords = v => (v && v.enabled ? fmt(A.log.fields.scheduleOn, { when: scheduleWhen(v).toLowerCase(), time: v.time }) : A.log.fields.scheduleOff)
 const clip = (s, n = 60) => { const a = [...String(s ?? '')]; return a.length > n ? `${a.slice(0, n).join('')}…` : a.join('') }
 
 /** What a change was, in a sentence of the table: the field's before and after as words (never the raw JSON). */
@@ -288,6 +318,20 @@ function ConfirmDialog({ name, title, onConfirm, onClose, confirm, cancel, close
     footer=${html`<${Btn} name="cancel-remove" kind="quiet" disabled=${busy} onClick=${onClose}>${cancel}<//><${Btn} name="confirm-remove" kind="primary" disabled=${busy} onClick=${go}>${confirm}<//>`}>
     <div class="readable">${children}</div>
     ${error ? html`<p class="progress-alert" role="alert">${T.failed}</p>` : null}
+  <//>`
+}
+
+/**
+ * 移除该库 (P21): only the registration goes (removeLibrary); not one file of the folder is touched. 1.1.1 P11a (A11): the
+ * same dialog from 库架's 「更多」. onDone after it went; an error stays in the dialog.
+ */
+export function RemoveLibraryDialog({ id, name, path, onDone, onClose }) {
+  return html`<${ConfirmDialog} name="remove-library" title=${fmt(A.removeDialog.title, { name })} closeLabel=${A.removeDialog.close}
+    confirm=${A.removeDialog.confirm} cancel=${A.removeDialog.cancel} onClose=${onClose}
+    onConfirm=${async () => { await call('removeLibrary', id); onDone() }}>
+    <p data-part="remove-text">${A.removeDialog.text}</p>
+    <p><b data-part="remove-kept">${A.removeDialog.kept}</b>${A.removeDialog.restore}</p>
+    <p class="st-path" data-part="remove-path">${path}</p>
   <//>`
 }
 
@@ -423,12 +467,7 @@ export function SourcesScreen({ params = {} }) {
           </button>
         </div>`}
       </div>
-    ${dialog?.kind === 'remove-library' ? html`<${ConfirmDialog} name="remove-library" title=${fmt(A.removeDialog.title, { name: library?.name ?? '' })} closeLabel=${A.removeDialog.close}
-      confirm=${A.removeDialog.confirm} cancel=${A.removeDialog.cancel} onClose=${close}
-      onConfirm=${async () => { await call('removeLibrary', libraryId); close(); libraries?.reload?.(); appState.reload(); navigate('shelf') }}>
-      <p data-part="remove-text">${A.removeDialog.text}</p>
-      <p><b data-part="remove-kept">${A.removeDialog.kept}</b>${A.removeDialog.restore}</p>
-      <p class="st-path" data-part="remove-path">${library?.path ?? ''}</p>
-    <//>` : null}
+    ${dialog?.kind === 'remove-library' ? html`<${RemoveLibraryDialog} id=${libraryId} name=${library?.name ?? ''} path=${library?.path ?? ''} onClose=${close}
+      onDone=${() => { close(); libraries?.reload?.(); appState.reload(); navigate('shelf') }} />` : null}
   <//>`
 }

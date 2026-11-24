@@ -63,7 +63,8 @@ export const SETTINGS = Object.freeze({
     key: 'key',
     keyPlaceholder: '请输入 API key',
     hasKey: '已有 key（末四位 {hint}）。保存后将替换为新的 key。',
-    note: 'API key 仅保存在本机的系统凭据保护中，不会写入任何库文件夹。费用按量计入对应账户。',
+    // 1.1.1 P11a: and that it does not move with the libraries (场景六③)
+    note: 'API key 只存在这台电脑上（系统凭据保护中），不会写入任何库文件夹；换电脑要重新输入。费用按量计入对应账户。',
     save: '保存',
     remove: '删除 API key',
     cancel: '取消',

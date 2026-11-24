@@ -44,6 +44,8 @@ const s = worldSession({
 })
 const POLL = { polling: 100, timeout: 60_000 }
 const dir = () => s.world.library
+// 1.1.1 P11a: the scope line ends with 待看's count when it has items (问库 does not read them)
+const inboxLine = () => { const n = core.homeNumbers(dir()).inbox; return n > 0 ? ` · 待看里还有 ${n} 条没收藏，问库不看` : '' }
 const log = () => readFileSync(join(s.world.appData, 'logs', 'main.log'), 'utf8')
 const until = (fn, arg) => s.page.waitForFunction(fn, arg, POLL)
 async function waitFor(fn, ms = 30_000) {
@@ -65,7 +67,7 @@ const panel = async tab => {
 
 test('R3-5 the line on top and under the box', async () => {
   const c = core.libraryCounts(dir())
-  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="scope"]').textContent), `仅基于库内内容回答 · 范围：已收藏 ${c.kept} 条 · 我的笔记 ${c.authored} 条 · 不联网`)
+  assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="scope"]').textContent), `仅基于库内内容回答 · 范围：已收藏 ${c.kept} 条 · 我的笔记 ${c.authored} 条 · 不联网${inboxLine()}`)
   assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="input-hint"]').textContent), '每次提问约 2–4 次模型调用')
 })
 

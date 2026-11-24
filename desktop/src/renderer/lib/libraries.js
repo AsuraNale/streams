@@ -40,6 +40,8 @@ export function joinRows(list, overview) {
       id: l.id, name: l.name, icon: l.icon, color: l.color, active: l.active === true, exists: l.exists !== false, temporary: l.temporary === true,
       inbox: typeof o.inbox === 'number' ? o.inbox : 0, lastRoundAt: o.lastRoundAt ?? null, problem: o.problem ?? null, brief: o.brief ?? null,
       topics: Array.isArray(o.topics) ? o.topics : [], sources: typeof o.sources === 'number' ? o.sources : 0, noOutputStreak: o.noOutputStreak ?? 0,
+      // 1.1.1 P11a (A11): the folder (库架's 移除 dialog shows it) and the schedule (the tag on the card)
+      path: typeof l.path === 'string' ? l.path : '', schedule: o.schedule ?? null,
     }
   })
 }

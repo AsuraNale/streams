@@ -16,6 +16,8 @@ import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
 import { createLibrary } from '../library/create.mjs';
 import { checkCard, renderCard } from './card.mjs';
+import { saveLibrarySchedule } from '../library/schedule.mjs';
+import { rhythmSchedule } from '../pipeline/schedule.mjs';
 
 export const CARD_DIR = '_card';
 export const STATE_DIR = '_state';
@@ -67,6 +69,9 @@ export function cardHandlers({ libraryDirFor, dirOfLibrary, language = 'zh-CN' }
       createLibrary(dir, { name: card.name, language });
       writeCard(dir, card, { now, language });
       startState(dir, now);
+      // 1.1.1 P11a (A10): the library runs as often as its card says (a weekly card is not run every day); a card changed
+      // later, or a library brought over (convert), keeps the schedule it has — the page offers 「按节奏设」 when they differ
+      saveLibrarySchedule(dir, rhythmSchedule(card.definition?.rhythm, now()));
       return { object: { type: 'library', id: dir }, before: null, after: { name: card.name } };
     },
     // 1.1 W7a (E3): a library made by the last version (no card) gets the card in its own folder — its notes, its 待看 and

@@ -94,6 +94,8 @@ export const SHELL = Object.freeze({
     emptyChat: '由主 Agent 生成',
     emptyManual: '手动创建',
     loadFailed: '未能读取库列表。',
+    // 1.1.1 P11a (A11): each card's 「更多」
+    more: Object.freeze({ button: '更多', label: '这座库的更多操作', reveal: '在资源管理器中显示', scheduleOff: '关掉定时', scheduleOn: '打开定时', remove: '移除该库', failed: '未能完成，请重试。' }),
   }),
 
   // 1.1 W13: 「打开已有的库」 on the shelf (its toolbar and its empty state) and on 首次打开 (lib/open-existing.js)

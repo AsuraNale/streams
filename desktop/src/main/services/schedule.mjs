@@ -32,7 +32,7 @@
  */
 
 import { BridgeError } from '../bridge-methods.mjs'
-import { ensureLibrarySchedule, isSchedule, lastDueAt, listRounds, missedRun, nextRunAt, saveLibrarySchedule } from '../core.mjs'
+import { ensureLibrarySchedule, isSchedule, lastDueAt, listRounds, missedRun, nextRunAt, readCard, rhythmSchedule, saveLibrarySchedule } from '../core.mjs'
 import { readSettings } from '../settings.mjs'
 import { byYou } from './changes.mjs'
 
@@ -112,7 +112,19 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
     const s = (usable ? scheduleOf(entry) : null) ?? fallback()
     const last = usable ? lastRoundAt(entry.path) : null
     const next = nextRunAt(s, t)
-    return { libraryId: entry?.id ?? null, enabled: s.enabled, time: s.time, nextRunAt: next ? next.toISOString() : null, lastRoundAt: last, missed: usable ? missedRun(s, { lastRoundAt: last, now: t }) : false }
+    // 1.1.1 P11a (A10): how often, and what the card's 「节奏」 says — a library whose schedule is not its rhythm (one brought
+    // up from 1.1.0, every day whatever its card says) is offered 「按节奏设」; nothing is changed without the user
+    const often = s.every ? { every: s.every, ...(s.days ? { days: s.days } : {}), ...(s.day ? { day: s.day } : {}) } : {}
+    let rhythm = null
+    try {
+      const text = usable ? readCard(entry.path)?.definition?.rhythm : null
+      if (typeof text === 'string' && text.trim() !== '') {
+        const r = rhythmSchedule(text, t, s.time)
+        const same = (r.every ?? 'day') === (s.every ?? 'day') && JSON.stringify(r.days ?? null) === JSON.stringify(s.days ?? null) && (r.day ?? null) === (s.day ?? null)
+        rhythm = { text: text.trim(), every: r.every ?? 'day', ...(r.days ? { days: r.days } : {}), ...(r.day ? { day: r.day } : {}), matches: same }
+      }
+    } catch { rhythm = null }
+    return { libraryId: entry?.id ?? null, enabled: s.enabled, time: s.time, ...often, rhythm, nextRunAt: next ? next.toISOString() : null, lastRoundAt: last, missed: usable ? missedRun(s, { lastRoundAt: last, now: t }) : false }
   }
 
   const currentEntry = () => {
@@ -298,12 +310,12 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
 
   /** Write one library's schedule (a bad one: bad_arguments, nothing written), then the timer again. */
   function setFor(entry, s) {
-    if (!isSchedule(s)) throw new BridgeError('bad_arguments', "schedule must be { enabled: boolean, time: 'HH:MM' } (00:00–23:59)")
+    if (!isSchedule(s)) throw new BridgeError('bad_arguments', "schedule must be { enabled: boolean, time: 'HH:MM', every?, days?, day? } (00:00–23:59)")
     if (!library.usable(entry.path)) throw new BridgeError('open_failed', `${entry.path} is not a readable library`)
     // 「谁定的」 (v2 package B): a schedule set from the page is the user's own (changes.jsonl, by 'you')
     try { byYou(entry.path, ['schedule'], () => saveLibrarySchedule(entry.path, s), { log, now }) } catch (err) { log(`schedule: ${entry.id}: not saved: ${String(err?.message ?? err)}`); throw new BridgeError('internal', String(err?.message ?? err)) }
     const next = arm()
-    log(`schedule: ${entry.id}: set to ${s.enabled ? `every day at ${s.time}` : 'off'}; next slot ${next ? next.toISOString() : 'none'}`)
+    log(`schedule: ${entry.id}: set to ${s.enabled ? `${s.every === 'week' ? `weekly on ${s.days.join(',')}` : s.every === 'month' ? `monthly on the ${s.day}th` : s.every === 'weekdays' ? 'weekdays' : 'every day'} at ${s.time}` : 'off'}; next slot ${next ? next.toISOString() : 'none'}`)
     // the page re-reads what it shows (v1.0's event), told which library's schedule it was
     emit('settings-changed', { libraryId: entry.id })
     return viewOf(entry)
@@ -314,6 +326,9 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
     view: () => viewOf(currentEntry()),
     viewOf,
     arm,
+    /** 1.1.1 P11a (A11, 待办 C4): the libraries changed (one registered, removed, switched to): the timer again, and the page told
+     * to read the queue again — its 「下次运行时间」 no longer lists a library that was removed. */
+    librariesChanged() { const next = arm(); changed(); return next },
     catchUp,
     startCurrent,
     startOne,
