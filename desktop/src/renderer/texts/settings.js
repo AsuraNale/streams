@@ -60,7 +60,7 @@ export const SETTINGS = Object.freeze({
     label: '搜索',
     fromModel: '用你模型的 DeepSeek key 搜索：用 API key 建库、更新时可以搜网页。',
     hasKey: '用 API key 建库、更新时，用你填的 DeepSeek key 搜网页（末四位 {hint}）。',
-    none: '还没有搜索：用 API key 建库、更新时只能读网页，不能搜。填一个 DeepSeek 的 key 就能搜（按次计费，每 1000 次约 0.75 美元）。',
+    none: '尚未设置搜索：用 API key 建库、更新时只能读网页，不能搜。填一个 DeepSeek 的 key 就能搜（按次计费，每 1000 次约 0.75 美元）。',
     placeholder: '粘贴 DeepSeek 的 key',
     save: '保存',
     remove: '删除搜索 key',

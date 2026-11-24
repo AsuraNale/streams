@@ -28,7 +28,9 @@ test('getConnections: the documented shape, detection from the core (nothing ins
   const w = world()
   const s = service(w)
   const c = await s.handlers.getConnections()
-  assert.deepEqual(Object.keys(c).sort(), ['active', 'kinds', 'probes', 'recommended'])
+  assert.deepEqual(Object.keys(c).sort(), ['active', 'kinds', 'probes', 'recommended', 'search'])
+  // 1.1.1 P5: the API connection's search — no key at all: none
+  assert.deepEqual(c.search, { from: null, modelIsDeepSeek: false, hasKey: false, keyHint: null })
   assert.equal(c.active, null)
   assert.equal(c.recommended, null, 'nothing logged in, no key')
   assert.deepEqual(c.probes, { 'claude-code': null, codex: null, api: null })
