@@ -140,7 +140,7 @@ function ConnectPick({ data, busy, onUse, onSkip, onRedetect, onState }) {
 }
 
 /** P01: the current connection, what to track, the three ways out. */
-function TrackHome({ data, onChange }) {
+function TrackHome({ data, onChange, auto = null }) {
   const { navigate, newLibrary } = useApp()
   // 1.1 W13: 「打开已有的库」 — a library made before (another computer, the app's data gone) comes back from here
   const existing = useOpenExisting()
@@ -166,7 +166,8 @@ function TrackHome({ data, onChange }) {
     ${usable
       ? html`<div class="file-row st-first-current" data-part="current-connection" data-kind=${kind}>
           <span class="file-icon"><${TIcon} name="spark" /></span>
-          <span class="file-text">${fmt(T.current, { name: CONNECTIONS.names[kind] })}<small>${connectionLine(kind, k)}</small></span>
+          <span class="file-text">${fmt(T.current, { name: CONNECTIONS.names[kind] })}<small>${connectionLine(kind, k)}</small>
+            ${auto === kind ? html`<small data-part="auto-picked">${fmt(T.autoPicked, { name: CONNECTIONS.names[kind] })}</small>` : null}</span>
           <span class="status-chip" data-part="connected"><span class="dot"></span> ${T.connected}</span>
           <span class="st-act" data-action="change-connection"><button type="button" class="btn" onClick=${onChange}>${T.change}</button></span>
         </div>`
@@ -204,6 +205,8 @@ export function FirstRunScreen() {
   const [state, setState] = useState('loading')
   const [busy, setBusy] = useState(false)
   const decided = useRef(false)
+  // 1.1.1 P10 (A14): the connection chosen without asking — the page says why (found signed in on this computer)
+  const [auto, setAuto] = useState(null)
 
   /** The detection, then (the first time only) the choice without asking: kept · recommended · none → P02. */
   const load = async (fresh = false) => {
@@ -220,6 +223,7 @@ export function FirstRunScreen() {
           await call('setActiveConnection', first)
           d = { ...d, active: first }
           await record('default', first)
+          setAuto(first)
           setView('home')
         } catch { setView('pick') }
       } else setView('pick')
@@ -266,7 +270,7 @@ export function FirstRunScreen() {
         ${failed ? html`<div class="thread-scroll st-first-body"><div class="new-content st-first"><div class="progress-alert" role="alert">${T.detectFailed} <button type="button" class="btn quiet" onClick=${() => load()}>${T.retry}</button></div></div></div>`
           : view === 'loading' ? html`<div class="thread-scroll st-first-body"><div class="new-content st-first"><p class="limit-note" role="status">${T.detecting}</p></div></div>`
           : pick ? html`<${ConnectPick} data=${data} busy=${busy} onUse=${use} onSkip=${skip} onRedetect=${redetect} onState=${setState} />`
-          : html`<${TrackHome} data=${data} onChange=${() => setView('pick')} />`}
+          : html`<${TrackHome} data=${data} auto=${auto} onChange=${() => setView('pick')} />`}
       </div>
     <//>
   <//>`

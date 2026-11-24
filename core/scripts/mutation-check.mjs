@@ -933,6 +933,19 @@ const MUTANTS = [
     edits: [["src/build/conversation.mjs", "LOOK: search ? LOOK_TEXT.search : LOOK_TEXT.noSearch,", "LOOK: LOOK_TEXT.search,"]],
     test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=B26"],
   },
+  // 1.1.1 P10 (A8)
+  {
+    id: "v111-p10-count-at-end",
+    what: "a command-line session counts its searches and reads only when the run has ended",
+    edits: [["src/connect/session.mjs", "    if (!web || typeof onProgress !== 'function') return null;", "    return null;"]],
+    test: ["test/v111-progress.test.mjs", "--test-name-pattern=Claude Code: the reads"],
+  },
+  {
+    id: "v111-p10-update-no-agent-count",
+    what: "the update does not pass the agent's counts on",
+    edits: [["src/update/run.mjs", "onProgress: (p) => tell('agent', { searches: base.searches + (p.searches ?? 0), reads: base.reads + (p.reads ?? 0) }) });", "onProgress: () => {} });"]],
+    test: ["test/v111-progress.test.mjs", "--test-name-pattern=the update tells"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

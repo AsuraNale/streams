@@ -99,7 +99,10 @@ export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, so
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null, convert = null, readPage = null, readLinks = null, search = true } = {}) {
+export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null, convert = null, readPage = null, readLinks = null, search = true, progress = null } = {}) {
+  // 1.1.1 P10 (A8): progress({ step: 'agent', searches, reads }) while the agent works (this build's whole counts, as its
+  // connection reports them), progress({ step: 'check', done, total }) while Streams reads the card's addresses itself
+  const tell = (p) => { if (typeof progress === 'function') { try { progress(p); } catch { /* never stops the build */ } } };
   if (!connector || typeof connector.send !== 'function') throw new StreamsError('bad-argument', 'a build needs a session connection with the web tools');
   if (!runner) throw new StreamsError('bad-argument', 'a build needs the action runner');
   if (edit !== null && (!isObj(edit) || typeof edit.library !== 'string' || !isObj(edit.card))) throw new StreamsError('bad-argument', 'a change of a card needs { library, card }');
@@ -117,7 +120,9 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
   const readsSoFar = () => (editing() ? [...s.reads, ...cardUrls(s.edit.card).map((url) => ({ url, ok: true }))] : s.reads);
 
   async function call(prompt) {
-    const r = await connector.send({ prompt, format: 'json', model: 'main' }, { sessionId: s.sessionId ?? undefined });
+    const base = { searches: s.searches.length, reads: s.reads.length };
+    tell({ step: 'agent', ...base });
+    const r = await connector.send({ prompt, format: 'json', model: 'main' }, { sessionId: s.sessionId ?? undefined, onProgress: (p) => tell({ step: 'agent', searches: base.searches + (p.searches ?? 0), reads: base.reads + (p.reads ?? 0) }) });
     s.calls += 1;
     if (r.sessionId) s.sessionId = r.sessionId;
     const turn = s.turns.length;
@@ -146,7 +151,7 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
   async function withUrls(a) {
     if (!(a.kind === 'card' || a.problem === 'card') || !isObj(a.card)) return a;
     const known = { ...(editing() ? knownOfCard(s.edit.card) : {}), ...(s.checked ?? {}) };
-    const r = await checkCardUrls(a.card, { reads: readsSoFar(), readPage, readLinks, known });
+    const r = await checkCardUrls(a.card, { reads: readsSoFar(), readPage, readLinks, known, onCheck: (done, total) => tell({ step: 'check', done, total }) });
     s.checked = r.known;
     const problems = [...(a.problems ?? []), ...r.problems];
     return problems.length ? { problem: 'card', say: a.say, card: r.card, problems } : { kind: 'card', say: a.say, card: r.card };

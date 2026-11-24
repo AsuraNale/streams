@@ -83,7 +83,7 @@ SetupLogging=no
 Name: "chs"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
 [CustomMessages]
-chs.DeleteAppData=是否同时删除流息的应用数据？%n%n应用数据包括 API key、设置、库的登记、主 Agent 的对话记录、日志和缓存。你的库（Markdown 文件夹）不会被删除。%n%n选择「否」将保留应用数据，重新安装流息后可继续使用。
+chs.DeleteAppData=是否同时删除流息的应用数据？%n%n应用数据包括 API key、设置、库的登记、主 Agent 的对话记录、日志和缓存。你的库（Markdown 文件夹）不会被删除，你电脑上别的程序（例如 Claude Code、Codex）的登录也不受影响。%n%n选择「否」将保留应用数据，重新安装流息后可继续使用。
 chs.LaunchApp=打开流息
 
 [Tasks]

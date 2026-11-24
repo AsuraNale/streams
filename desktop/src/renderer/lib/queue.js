@@ -43,7 +43,7 @@ export function useQueue(enabled) {
     q.mutate(d => {
       if (!d?.running) return d
       const same = d.running.roundId === p.roundId || (d.running.roundId === null && d.running.libraryId === p.libraryId)
-      return same ? { ...d, running: { ...d.running, roundId: p.roundId ?? d.running.roundId, phase: p.phase ?? d.running.phase, calls: p.calls ?? d.running.calls, cap: p.cap ?? d.running.cap } } : d
+      return same ? { ...d, running: { ...d.running, roundId: p.roundId ?? d.running.roundId, phase: p.phase ?? d.running.phase, calls: p.calls ?? d.running.calls, cap: p.cap ?? d.running.cap, live: p.live ?? d.running.live ?? null } } : d
     })
   }, [enabled])
   return q

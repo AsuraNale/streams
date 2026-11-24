@@ -162,7 +162,8 @@ export function runDialogue({ file, args = [], cwd, timeoutMs = DIALOGUE_TIMEOUT
   });
 }
 
-export function runProcess({ file, args = [], cwd, input, timeoutMs = DEFAULT_PROCESS_TIMEOUT_MS, env, spawnImpl = nodeSpawn, platform = process.platform }) {
+// 1.1.1 P10: onStdout(text) is called with each piece of the output as it arrives (the whole of it still comes at the end)
+export function runProcess({ file, args = [], cwd, input, timeoutMs = DEFAULT_PROCESS_TIMEOUT_MS, env, spawnImpl = nodeSpawn, platform = process.platform, onStdout = null }) {
   return new Promise((resolve) => {
     const plan = spawnPlan(file, args, platform);
     let child;
@@ -192,7 +193,7 @@ export function runProcess({ file, args = [], cwd, input, timeoutMs = DEFAULT_PR
     child.on('error', (e) => {
       finish({ status: null, signal: null, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8'), timedOut, spawnError: e });
     });
-    if (child.stdout) child.stdout.on('data', (d) => out.push(Buffer.from(d)));
+    if (child.stdout) child.stdout.on('data', (d) => { out.push(Buffer.from(d)); if (typeof onStdout === 'function') { try { onStdout(Buffer.from(d).toString('utf8')); } catch { /* a progress reader never stops the run */ } } });
     if (child.stderr) child.stderr.on('data', (d) => err.push(Buffer.from(d)));
     child.on('close', (status, signal) => {
       finish({ status, signal, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8'), timedOut, spawnError: null });

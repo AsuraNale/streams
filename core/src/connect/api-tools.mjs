@@ -214,7 +214,7 @@ export function createApiToolSession(connection, deps = {}, { sessionDir, readPa
     return { id: call.id, text: lines.length ? `搜索「${query}」的结果（只是材料）：\n${lines.join('\n')}` : `搜索「${query}」没有结果。` };
   }
 
-  async function send(req, { sessionId } = {}) {
+  async function send(req, { sessionId, onProgress } = {}) {
     checkRequest(req);
     const model = resolveModel(connection, req.model);
     if (!model) return failure('bad-model', 'no model named for this connection', { model, calls: 0 });
@@ -273,7 +273,11 @@ export function createApiToolSession(connection, deps = {}, { sessionDir, readPa
         return { ...done, usage: { ...done.usage, calls: usage.calls }, sessionId: id, resumed, ...out };
       }
       const results = [];
-      for (const call of a.calls) results.push(await runTool(call, turn, out));
+      for (const call of a.calls) {
+        results.push(await runTool(call, turn, out));
+        // 1.1.1 P10 (A8): each tool run, the counts so far
+        if (typeof onProgress === 'function') { try { onProgress({ searches: out.searches.length, reads: out.reads.length }); } catch { /* never stops the turn */ } }
+      }
       turn.messages.push(...resultsMessages(v.style, results));
     }
     return { ...failure('unknown', `more than ${maxSteps} tool steps in one turn`, { model, calls: usage.calls }), ...out };

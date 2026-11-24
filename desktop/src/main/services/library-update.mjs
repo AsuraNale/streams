@@ -30,7 +30,7 @@ export const UPDATE_CWD = join(tmpdir(), 'streams-update-cwd')
  * @param {(line: string) => void} o.log
  * @param {() => Date} [o.now]
  */
-export function createLibraryUpdateService({ readPages, readLinks = () => createLinkReader(), session = active => createSessionConnector(active.connection, {}, { cwd: UPDATE_CWD, web: true }), log, now = () => new Date(), apiSession = null, apiSearch = async () => null }) {
+export function createLibraryUpdateService({ readPages, readLinks = () => createLinkReader(), session = active => createSessionConnector(active.connection, {}, { cwd: UPDATE_CWD, web: true }), log, now = () => new Date(), apiSession = null, apiSearch = async () => null, judgeOf = active => active.connector }) {
   return {
     /** The library at `dir` is updated by its card (it has _card/card.json). */
     applies(dir) {
@@ -43,7 +43,8 @@ export function createLibraryUpdateService({ readPages, readLinks = () => create
       return null
     },
     /** One update of the library at `dir` on the active connection (1.1 W7a: `signal` — 停止). */
-    async run(dir, active, { round, signal = null } = {}) {
+    // 1.1.1 P10 (A8): progress(snapshot) — the core's, as each step happens
+    async run(dir, active, { round, signal = null, progress = null } = {}) {
       let connector
       let search = true
       if (active.kind === 'api' && apiSession) {
@@ -51,7 +52,7 @@ export function createLibraryUpdateService({ readPages, readLinks = () => create
         search = Boolean(found)
         connector = apiSession(active, { search: found?.search ?? null, onPage: (url, page) => saveOriginal(dir, { url, title: page.title ?? '', text: page.text, method: page.method, fetchedAt: now() }) })
       } else connector = session(active)
-      const r = await runUpdate(dir, { connector, judge: active.connector, readPage: readPages().read, readLinks: readLinks().read, now, round, signal, kind: active.kind, search })
+      const r = await runUpdate(dir, { connector, judge: judgeOf(active), readPage: readPages().read, readLinks: readLinks().read, now, round, signal, kind: active.kind, search, progress })
       log(`update: ${round ?? '-'} of ${dir}: ${r.status}${r.record ? ` · sources ${r.record.counts.read} · new ${r.record.counts.newLinks} · inbox ${r.record.counts.inbox} · calls ${r.record.calls ?? 0}` : ''}`)
       return r
     },

@@ -235,6 +235,8 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
       running = {
         libraryId: rid ?? mine?.libraryId ?? null, roundId: mine?.roundId ?? null, phase: mine?.phase ?? 'update',
         calls: mine?.calls ?? 0, cap: mine?.cap ?? null, startedAt: mine?.startedAt ?? runningSince, why: rid !== null && rid === runningId ? runningKind : null,
+        // 1.1.1 P10 (A8): the step and its numbers so far (the core's snapshot), or null before the first
+        live: mine?.live ?? null,
       }
     }
     const t = now()

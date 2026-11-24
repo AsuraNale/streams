@@ -109,6 +109,10 @@ export const BUILD = Object.freeze({
   confirmEdit: 'Confirm, change it',
   confirming: 'Making the library…',
   notWhole: 'This card cannot be confirmed yet: {what}.',
+  // 1.1.1 P10 (A8)
+  liveAgent: 'The main agent has searched {searches} times and read {reads} pages',
+  liveCheck: 'Streams is checking the card\'s addresses: {done} / {total}',
+  usuallyTurn: 'A question usually takes a few seconds; the turn that reads the web and writes the card usually takes 3 to 4 minutes. You can leave this page; the conversation will be here when you come back.',
   // 1.1.1 P1 (B19): the addresses Streams could not check, why, and asking the agent to fix the card
   notReadN: '{n} web addresses Streams could not check',
   unchecked: '{url} ({why})',

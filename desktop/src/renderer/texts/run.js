@@ -16,10 +16,22 @@ export const RUN = Object.freeze({
 
   // the run in progress (P07)
   current: '本次运行 · {when} 开始 · {why}',
+  // 1.1.1 P10 (A8): the four steps of an update, each with its numbers as they happen
   steps: Object.freeze({
-    // 1.1 W7a: an update is one step — the agent reads, keeps the originals, picks and writes by the card
-    update: '读来源、存原文，更新 Agent 按建库卡挑选、写摘要',
+    sources: '读来源',
+    originals: '取回新文章的原文',
+    agent: '更新 Agent 按建库卡挑选、写摘要',
+    check: '核对摘要',
   }),
+  live: Object.freeze({
+    sources: '{done} / {total} 个',
+    originals: '{done} / {total} 篇，存下 {kept} 篇',
+    agent: '已搜索 {searches} 次、已读 {reads} 页',
+    check: '{done} / {total} 条',
+  }),
+  // the first update's range: the 12 updates with tools of 11-24 took 115 to 319 seconds (plan 场景一②)
+  usuallyFirst: '第一次更新通常要 2 到 6 分钟。可以离开这个页面，运行结束后会通知你。',
+  usuallyLast: '这座库上次更新用了 {min} 分钟。可以离开这个页面，运行结束后会通知你。',
   stepsDone: '{done} / {total} 个环节已完成',
   stepNow: '当前步骤：{step}',
   stop: '停止',

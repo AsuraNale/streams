@@ -179,7 +179,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     void (async () => {
       let result = null
       try {
-        result = await u.run(dir, a, { round: roundId, signal: controller.signal })
+        // 1.1.1 P10 (A8): each step's numbers as they happen (live: the core's snapshot), in round-progress and the queue
+        result = await u.run(dir, a, { round: roundId, signal: controller.signal, progress: live => progress({ ...base, phase: 'update', counts: null, calls: 0, done: false, live }) })
       } catch (err) {
         log(`pipeline: update ${roundId} failed: ${String(err?.stack ?? err)}`)
         result = { started: false, status: 'internal', problems: [{ code: 'internal', detail: String(err?.message ?? err).slice(0, 300) }] }
@@ -323,7 +324,7 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     const r = running
     if (!r) return null
     const p = lastProgress && lastProgress.roundId === r.roundId ? lastProgress : null
-    return { roundId: r.roundId, libraryId: r.libraryId ?? null, phase: p?.phase ?? 'update', calls: p?.calls ?? 0, cap: r.cap ?? p?.cap ?? null, startedAt: r.startedAt }
+    return { roundId: r.roundId, libraryId: r.libraryId ?? null, phase: p?.phase ?? 'update', calls: p?.calls ?? 0, cap: r.cap ?? p?.cap ?? null, startedAt: r.startedAt, live: p?.live ?? null }
   }
 
   return {

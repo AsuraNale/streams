@@ -16,6 +16,8 @@ export const FIRST_RUN = Object.freeze({
   lead: '用一句话描述需求，主 Agent 将据此写一张建库卡（收什么、不收什么、看哪些来源），确认后才会创建。',
   connected: '已连接',
   current: '当前连接：{name}',
+  // 1.1.1 P10 (A14): the connection chosen without asking, and why
+  autoPicked: '在这台电脑上找到了已登录的「{name}」，先替你选上了；要换的话点右边的「更换连接」。',
   version: '版本 {version}',
   loggedIn: '已登录',
   keySet: '已设置 key',

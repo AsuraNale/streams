@@ -21,17 +21,43 @@ import { QUEUE } from '../texts/panel.js'
 import { RUN as T } from '../texts/run.js'
 import { UPDATE_NOTE as N } from '../texts/inbox.js'
 
-/** 1.1 W7a: an update of a library by its card is one agent run — one step. */
-export const UPDATE_STEPS = Object.freeze(['update'])
+/**
+ * 1.1.1 P10 (A8): an update's four steps — read the sources, fetch the new pages' originals, the update agent picks and writes,
+ * the check — each with its numbers from the core's snapshot (round-progress's live; getQueue's running.live). No number moves
+ * without an event: before the first one the steps show no numbers.
+ */
+export const UPDATE_STEPS = Object.freeze(['sources', 'originals', 'agent', 'check'])
 
-/** Where a run is: the index of its current step (a phase of round-progress); 'done' is past the last one. */
-export function stepOf(phase) {
-  return phase === 'done' ? UPDATE_STEPS.length : 0
+/** Where a run is: the index of its current step; 'done' is past the last one. */
+export function stepOf(phase, live = null) {
+  if (phase === 'done') return UPDATE_STEPS.length
+  const i = UPDATE_STEPS.indexOf(live?.step)
+  return i < 0 ? 0 : i
 }
 
-export function RunSteps({ running }) {
+/** A step's numbers in words ('' when the snapshot has none for it yet). */
+export function stepNumbers(id, live) {
+  if (!live || typeof live !== 'object') return ''
+  const reached = UPDATE_STEPS.indexOf(live.step) >= UPDATE_STEPS.indexOf(id)
+  if (id === 'sources' && live.sources?.total) return fmt(T.live.sources, live.sources)
+  if (id === 'originals' && live.originals?.total) return fmt(T.live.originals, live.originals)
+  if (id === 'agent' && reached) return fmt(T.live.agent, live.agent ?? { searches: 0, reads: 0 })
+  if (id === 'check' && live.check?.total) return fmt(T.live.check, live.check)
+  return ''
+}
+
+/** How long an update of this library usually takes: its last one's time, or (the first) the measured range. */
+export function usuallyWords(last) {
+  const a = Date.parse(last?.startedAt ?? '')
+  const b = Date.parse(last?.finishedAt ?? '')
+  if (last?.kind === 'update' && Number.isFinite(a) && Number.isFinite(b) && b > a) return fmt(T.usuallyLast, { min: Math.max(1, Math.round((b - a) / 60_000)) })
+  return T.usuallyFirst
+}
+
+export function RunSteps({ running, last = null }) {
   const [stopping, setStopping] = useState(false)
-  const now = stepOf(running?.phase)
+  const live = running?.live ?? null
+  const now = stepOf(running?.phase, live)
   const steps = UPDATE_STEPS
   const stop = async () => {
     setStopping(true)
@@ -44,9 +70,13 @@ export function RunSteps({ running }) {
     </div>
     <div class="progress-line" aria-hidden="true">${steps.map((id, i) => html`<span key=${id} class=${i < now ? 'done' : i === now ? 'now' : ''}></span>`)}</div>
     <div class="progress-caption"><span>${fmt(T.stepsDone, { done: Math.min(now, steps.length), total: steps.length })}</span><span>${fmt(T.stepNow, { step: T.steps[steps[Math.min(now, steps.length - 1)]] })}</span></div>
-    ${steps.map((id, i) => html`<div key=${id} class="step-line" data-step=${id} data-done=${String(i < now)} data-now=${String(i === now)}>
-      <${TIcon} name=${i < now ? 'check' : 'clock'} /><span>${T.steps[id]}</span>
-    </div>`)}
+    ${steps.map((id, i) => {
+      const nums = stepNumbers(id, live)
+      return html`<div key=${id} class="step-line" data-step=${id} data-done=${String(i < now)} data-now=${String(i === now)} data-count=${nums}>
+        <${TIcon} name=${i < now ? 'check' : 'clock'} /><span>${T.steps[id]}${nums ? html`<small class="muted" data-part="step-count"> · ${nums}</small>` : null}</span>
+      </div>`
+    })}
+    <p class="limit-note" data-part="run-usually">${usuallyWords(last)}</p>
   </section>`
 }
 

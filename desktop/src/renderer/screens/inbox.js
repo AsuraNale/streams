@@ -274,7 +274,7 @@ export function InboxScreen() {
           <span class="st-act" data-action="to-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.banner.toSettings}</button></span></div>` : null}
         ${!running && h ? html`<${UpdateNote} record=${h.lastRound} onToCard=${t => navigate('build', { edit: libraryId, opener: t })} />` : null}
         ${running ? html`${items.length ? null : html`<div class="empty-state" data-part="run-pending"><${TIcon} name="clock" /><b>${T.running.title}</b>${T.running.note}</div>`}
-          <${RunSteps} running=${running} />` : null}
+          <${RunSteps} running=${running} last=${h?.lastRound ?? null} />` : null}
         ${d && !items.length && !running ? html`<div class="empty-state" data-part="empty"><${TIcon} name="check" /><b>${T.empty.title}</b>${nextRun}</div>` : null}
         ${items.length ? html`<div class="st-stack">${items.map((item, i) => html`<${Card} key=${item.url} item=${item} isCurrent=${i === current} busy=${busy}
           onPick=${() => setCurrent(i)} onKeep=${() => { setCurrent(i); keep(item) }} onDismiss=${() => { setCurrent(i); dismiss(item) }} onLater=${() => { setCurrent(i); later(item) }} onOpen=${() => open(item.url)}

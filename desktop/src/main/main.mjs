@@ -114,6 +114,12 @@ const DEV_BUILD = !app.isPackaged && typeof process.env.STREAMS_DEV_BUILD === 's
 // 1.1.1 P6 (B17), development and tests only: the API connection stays the real one (its vendor's address the test's own
 // stand-in server) while the command-line connections are the development stand-ins (STREAMS_DEV_CONNECTION)
 const DEV_API = !app.isPackaged && process.env.STREAMS_DEV_API === '1'
+// 1.1.1 P10 (A8), development and tests only: the update agent stand-in's script — { progress: [{ searches, reads, afterMs }],
+// holdMs, items, judgeDelayMs }: it tells its counts one by one, holds, then hands in the items; the check waits judgeDelayMs
+// before each judgment (so each step of an update can be seen, and a stall held)
+const DEV_UPDATE_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_UPDATE_SCRIPT === 'string' && isAbsolute(process.env.STREAMS_DEV_UPDATE_SCRIPT) ? process.env.STREAMS_DEV_UPDATE_SCRIPT : null
+const devUpdateScript = () => { try { return DEV_UPDATE_SCRIPT ? JSON.parse(readFileSync(DEV_UPDATE_SCRIPT, 'utf8')) : null } catch { return null } }
+const pause = ms => new Promise(resolve => setTimeout(resolve, Math.max(0, Number(ms) || 0)))
 // 1.1.1 P1: what Streams' own readers answer in a build of a test (services/build.mjs devBuildReaders); never the network there
 const DEV_READS = !app.isPackaged && typeof process.env.STREAMS_DEV_READS === 'string' && isAbsolute(process.env.STREAMS_DEV_READS) ? process.env.STREAMS_DEV_READS : null
 const DEV_DEFINITION = !app.isPackaged && typeof process.env.STREAMS_DEV_DEFINITION === 'string' && isAbsolute(process.env.STREAMS_DEV_DEFINITION) ? process.env.STREAMS_DEV_DEFINITION : null
@@ -349,8 +355,15 @@ app.whenReady().then(() => {
   // searches nothing and hands in no item; its sign-in is the dev connection's (login-expired: not logged in → B12's banner)
   const devWebSession = active => ({
     detect: () => active.connector.detect(),
-    send: async () => {
+    send: async (req, { onProgress } = {}) => {
       if (DEV_UPDATE_HOLD_MS > 0) await new Promise(resolve => setTimeout(resolve, DEV_UPDATE_HOLD_MS))
+      const script = devUpdateScript()
+      if (script) {
+        for (const p of Array.isArray(script.progress) ? script.progress : []) { await pause(p.afterMs); onProgress?.({ searches: p.searches ?? 0, reads: p.reads ?? 0 }) }
+        await pause(script.holdMs)
+        const items = Array.isArray(script.items) ? script.items : []
+        return { ok: true, json: { items }, text: JSON.stringify({ items }), sessionId: 'dev-update', resumed: false, reads: [], searches: [], otherTools: [] }
+      }
       return { ok: true, json: { items: [] }, text: '{"items":[]}', sessionId: 'dev-update', resumed: false, reads: [], searches: [], otherTools: [] }
     },
   })
@@ -370,6 +383,8 @@ app.whenReady().then(() => {
   })
   libraryUpdate = createLibraryUpdateService({ readPages, readLinks: () => createLinkReader({ render: renderService.render }), log, now: clock, ...(DEV_CONNECTION ? { session: devWebSession } : {}),
     ...(apiWired ? { apiSession: updateApi, apiSearch } : {}),
+    // 1.1.1 P10, tests only: each judgment of the check waits (the script's judgeDelayMs)
+    ...(DEV_UPDATE_SCRIPT ? { judgeOf: active => ({ ...active.connector, complete: async req => { await pause(devUpdateScript()?.judgeDelayMs); return active.connector.complete(req) } }) } : {}),
     // 1.1.1 P1, tests only: with STREAMS_DEV_READS the update's readers answer from the same table as the build's
     ...(DEV_READS ? { readPages: () => ({ read: devBuildReaders(DEV_READS).readPage }), readLinks: () => ({ read: devBuildReaders(DEV_READS).readLinks }) } : {}) })
   closeReader = () => { reader.window()?.close() }

@@ -64,15 +64,18 @@ export function devBuildReaders(file) {
   let table = {}
   if (file) try { table = JSON.parse(readFileSync(file, 'utf8')) ?? {} } catch { table = {} }
   const look = url => (table && typeof table[url] === 'object' && table[url]) || { ok: false, reason: 'failed' }
+  // 1.1.1 P10, tests only: an entry's delayMs — the reader takes that long (so a step of an update can be seen)
+  const slow = async r => { if (Number(r.delayMs) > 0) await new Promise(resolve => setTimeout(resolve, Number(r.delayMs))) }
   return {
-    readPage: async url => { const r = look(url); return r.ok ? { url, ok: true, method: r.method ?? 'direct', title: typeof r.title === 'string' ? r.title : '', text: typeof r.text === 'string' ? r.text : '' } : { url, ok: false, method: null, reason: r.reason ?? 'failed' } },
-    readLinks: async url => { const r = look(url); return r.ok ? { ok: true, url, links: Array.isArray(r.links) ? r.links : [], method: 'direct' } : { ok: false, url, links: [], reason: r.reason ?? 'failed' } },
+    readPage: async url => { const r = look(url); await slow(r); return r.ok ? { url, ok: true, method: r.method ?? 'direct', title: typeof r.title === 'string' ? r.title : '', text: typeof r.text === 'string' ? r.text : '' } : { url, ok: false, method: null, reason: r.reason ?? 'failed' } },
+    readLinks: async url => { const r = look(url); await slow(r); return r.ok ? { ok: true, url, links: Array.isArray(r.links) ? r.links : [], method: 'direct' } : { ok: false, url, links: [], reason: r.reason ?? 'failed' } },
   }
 }
 
 export function devBuildSession(file, callsSoFar) {
   return {
-    async send() {
+    // 1.1.1 P10: a reply's progress — [{ searches, reads, afterMs }] told one by one before it answers
+    async send(req, { onProgress } = {}) {
       let replies = []
       if (file === null) replies = DEV_BUILD_REPLIES
       else try { replies = JSON.parse(readFileSync(file, 'utf8')).replies ?? [] } catch { replies = [] }
@@ -80,6 +83,7 @@ export function devBuildSession(file, callsSoFar) {
       if (r.ok === false) return { ok: false, code: r.code ?? 'failed', sessionId: 'dev-build', reads: [], searches: [], otherTools: [] }
       // words that are not JSON (the core sends them back once, then stops the build)
       if (typeof r.text === 'string') return { ok: false, code: 'bad-format', text: r.text, sessionId: 'dev-build', reads: [], searches: [], otherTools: [] }
+      for (const p of Array.isArray(r.progress) ? r.progress : []) { if (Number(p.afterMs) > 0) await new Promise(resolve => setTimeout(resolve, Number(p.afterMs))); onProgress?.({ searches: p.searches ?? 0, reads: p.reads ?? 0 }) }
       return { ok: true, json: r.json, text: JSON.stringify(r.json), sessionId: 'dev-build', resumed: callsSoFar() > 0, reads: r.reads ?? [], searches: r.searches ?? [], otherTools: [] }
     },
   }
@@ -110,6 +114,15 @@ export function createBuildService({ appDataDir, library, connections, emit, log
   let saved = null
   let build = null
   let busy = false
+  // 1.1.1 P10 (A8): while a turn runs — { step, agent: { searches, reads }, check: { done, total } }: the agent's counts stay
+  // while Streams checks the card's addresses
+  let live = null
+  const onProgress = p => {
+    live = p?.step === 'check'
+      ? { ...(live ?? {}), step: 'check', check: { done: p.done ?? 0, total: p.total ?? 0 } }
+      : { ...(live ?? {}), step: 'agent', agent: { searches: p?.searches ?? 0, reads: p?.reads ?? 0 } }
+    emit('build-changed', { phase: 'progress' })
+  }
 
   const read = () => {
     try { return JSON.parse(readFileSync(file, 'utf8')) } catch { return null }
@@ -173,7 +186,7 @@ export function createBuildService({ appDataDir, library, connections, emit, log
     if (build) return build
     if (!saved) return null
     const active = activeOrRefuse()
-    build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: saved.core.language, state: saved.core, now, ...readers() })
+    build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: saved.core.language, state: saved.core, now, progress: onProgress, ...readers() })
     return build
   }
 
@@ -206,6 +219,7 @@ export function createBuildService({ appDataDir, library, connections, emit, log
       opener: s.opener,
       asked: s.asked.length,
       busy,
+      live: busy ? live : null,
       stopped: saved.stopped ?? null,
       trouble: saved.trouble ?? null,
       turns,
@@ -216,6 +230,7 @@ export function createBuildService({ appDataDir, library, connections, emit, log
   const turn = async (how, arg) => {
     if (busy) throw new BridgeError('busy')
     busy = true
+    live = null
     emit('build-changed', { phase: 'started' })
     try {
       const b = conversation()
@@ -259,7 +274,7 @@ export function createBuildService({ appDataDir, library, connections, emit, log
       }
       if (saved) end('stopped')
       const found = active.kind === 'api' && apiSession ? await apiSearch(active) : undefined
-      build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0, found), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert, search: active.kind !== 'api' || Boolean(found), ...readers() })
+      build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0, found), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert, search: active.kind !== 'api' || Boolean(found), progress: onProgress, ...readers() })
       saved = { v: 1, core: build.state(), stopped: null, trouble: null, retry: null }
       return turn('start', text)
     },

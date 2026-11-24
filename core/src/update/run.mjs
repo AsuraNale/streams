@@ -44,8 +44,18 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 export async function runUpdate(libraryDir, {
   connector, judge, readPage, readLinks, definition = loadDefinition(), budget = UPDATE_BUDGET, sopDir, now = () => new Date(), round,
-  pendingDir = join(tmpdir(), 'streams-update-pending'), signal = null, kind = 'claude-code', search = true,
+  pendingDir = join(tmpdir(), 'streams-update-pending'), signal = null, kind = 'claude-code', search = true, progress = null,
 } = {}) {
+  // 1.1.1 P10 (A8): progress(snapshot) at each step — { step: 'sources' | 'originals' | 'agent' | 'check', sources: { done,
+  // total }, originals: { done, total, kept }, agent: { searches, reads }, check: { done, total } }; every number is something
+  // that happened (a source read, a page fetched, the agent's own tool use as its connection reports it, an item checked)
+  const shown = { step: 'sources', sources: { done: 0, total: 0 }, originals: { done: 0, total: 0, kept: 0 }, agent: { searches: 0, reads: 0 }, check: { done: 0, total: 0 } };
+  const tell = (step, part) => {
+    if (typeof progress !== 'function') return;
+    shown.step = step;
+    if (part) Object.assign(shown[step], part);
+    try { progress(structuredClone(shown)); } catch { /* a progress reader never stops the update */ }
+  };
   // 1.1 W7a: 停止 (signal aborted) — no more sources or pages are read; what was kept stays, the sources not read stay for the
   // next update, the originals kept are carried to it; no agent run starts. The record says 'cancelled'.
   const stopped = () => signal?.aborted === true;
@@ -70,10 +80,12 @@ export async function runUpdate(libraryDir, {
   const toRead = order.slice(0, budget.sources);
   const unfinished = order.slice(budget.sources);
   const fresh = []; // { url, source }
+  tell('sources', { done: 0, total: toRead.length });
   for (const src of toRead) {
     if (stopped()) break;
     const r = await readLinks(src);
     counts.read += 1;
+    tell('sources', { done: counts.read });
     if (!r.ok) counts.unreadable += 1;
     const prev = state.sources[src];
     const entry = { ...(prev ?? {}), ok: r.ok, ...(r.ok ? {} : { reason: r.reason ?? 'failed' }), method: r.method ?? null };
@@ -105,6 +117,7 @@ export async function runUpdate(libraryDir, {
     const o = readOriginal(libraryDir, c.id ?? originalId(c.url));
     if (o) originals.push({ url: c.url, title: o.title, text: o.text, method: o.method, source: c.source ?? '' });
   }
+  if (take.length) tell('originals', { done: 0, total: take.length, kept: 0 });
   for (const [i, f] of take.entries()) {
     if (stopped()) {
       // the links not fetched are not marked seen: the next update finds them again
@@ -124,6 +137,7 @@ export async function runUpdate(libraryDir, {
       missing.push({ url: f.url, reason: r.reason ?? 'no-article', source: f.source });
       counts.missing += 1;
     }
+    tell('originals', { done: i + 1, kept: counts.originals });
   }
 
   const sweepDays = sweepDaysOf(card);
@@ -161,7 +175,10 @@ export async function runUpdate(libraryDir, {
   const reads = [];
   const searches = [];
   const send = async (text) => {
-    const r = await connector.send({ prompt: text, format: 'json', model: 'main' }, sessionId ? { sessionId } : {});
+    // 1.1.1 P10: the agent's tool use as its connection reports it, on top of what earlier calls of this update did
+    const base = { searches: searches.length, reads: reads.length };
+    tell('agent', base);
+    const r = await connector.send({ prompt: text, format: 'json', model: 'main' }, { ...(sessionId ? { sessionId } : {}), onProgress: (p) => tell('agent', { searches: base.searches + (p.searches ?? 0), reads: base.reads + (p.reads ?? 0) }) });
     calls += 1;
     if (r.sessionId) sessionId = r.sessionId;
     for (const x of r.reads ?? []) reads.push(x);
@@ -228,7 +245,11 @@ export async function runUpdate(libraryDir, {
     }
     // the check (W3), first round: each item's summary as it was handed in
     const first = [];
-    for (const x of ready) first.push(await checkSummary({ libraryDir, url: x.url, title: x.title, connector: judge, maxRounds: 1, produce: async () => ({ output: x.summary, claimed: [], calls: 0 }) }));
+    tell('check', { done: 0, total: ready.length });
+    for (const x of ready) {
+      first.push(await checkSummary({ libraryDir, url: x.url, title: x.title, connector: judge, maxRounds: 1, produce: async () => ({ output: x.summary, claimed: [], calls: 0 }) }));
+      tell('check', { done: first.length });
+    }
     // the failed ones go back to the agent once, together, in the same session
     const failed = ready.map((x, i) => ({ x, c: first[i] })).filter(({ c }) => c.status === 'checked' && !c.passed);
     let revised = new Map();

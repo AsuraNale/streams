@@ -10,6 +10,7 @@ export const FIRST_RUN = Object.freeze({
   lead: 'Describe it in a sentence. The main agent writes a library card from it (what to collect, what to skip, which sources to read); nothing is created until you confirm.',
   connected: 'Connected',
   current: 'Current connection: {name}',
+  autoPicked: '“{name}” was found signed in on this computer, so it was chosen for you; to use another, press “Switch connection” on the right.',
   version: 'Version {version}',
   loggedIn: 'Signed in',
   keySet: 'Key set',

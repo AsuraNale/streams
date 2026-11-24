@@ -28,6 +28,7 @@
 import { html, useEffect, useLayoutEffect, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
+import { useEvent } from '../lib/use-events.js'
 import { dayText, fmt } from '../lib/format.js'
 import { confirmAndOpen } from '../lib/build.js'
 import { TIcon } from '../lib/template-icons.js'
@@ -286,6 +287,12 @@ function Talk({ view, onView }) {
   const [busy, setBusy] = useState(false)
   const [acting, setActing] = useState(false)
   const [note, setNote] = useState(null)
+  // 1.1.1 P10 (A8): the turn's progress while it runs (build-changed 'progress' → getBuild().live)
+  const [live, setLive] = useState(null)
+  useEvent('build-changed', p => {
+    if (p?.phase === 'progress') call('getBuild').then(v => setLive(v?.live ?? null), () => {})
+    else if (p?.phase === 'done' || p?.phase === 'started') setLive(null)
+  }, [])
   const listRef = useRef(null)
   const edit = view.mode === 'edit'
   const cv = view.mode === 'convert' ? T.convert : null
@@ -354,7 +361,10 @@ function Talk({ view, onView }) {
                   busy=${working} acting=${acting} onDrop=${drop} onConfirm=${confirm} onAskFix=${m => run('replyBuild', m)} />` : null}
               </div>`
             })}
-            ${working ? html`<div class="assistant-message" data-part="thinking-row"><${Speaker} /><p class="limit-note" data-part="thinking" role="status">${T.thinking}</p></div>` : null}
+            ${working ? html`<div class="assistant-message" data-part="thinking-row"><${Speaker} /><p class="limit-note" data-part="thinking" role="status">${T.thinking}</p>
+              ${live?.agent ? html`<p class="limit-note" data-part="thinking-live" data-step=${live.step}>${fmt(T.liveAgent, live.agent)}</p>` : null}
+              ${live?.check ? html`<p class="limit-note" data-part="thinking-check">${fmt(T.liveCheck, live.check)}</p>` : null}
+              <p class="limit-note st-faint" data-part="thinking-usually">${T.usuallyTurn}</p></div>` : null}
             ${trouble && !working ? html`<div class="progress-alert st-notice" role="alert" data-part="trouble" data-code=${trouble}>
               <span>${troubleWords}</span>
               <span class="st-act" data-action="retry"><button type="button" class="btn quiet" onClick=${() => run('retryBuild')}>${T.retry}</button></span>

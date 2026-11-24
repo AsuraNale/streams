@@ -132,7 +132,24 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
   if (typeof cwd !== 'string' || !isAbsolute(cwd)) throw new StreamsError('bad-argument', 'a session connection needs an absolute working folder');
   const timeoutMs = deps.timeoutMs ?? (web ? WEB_TIMEOUT_MS : AGENT_TIMEOUT_MS);
   const log = typeof deps.log === 'function' ? deps.log : () => {};
-  const run = (cmd, args, input) => runProcess({ file: cmd.file, args: [...cmd.prefixArgs, ...args], cwd, input, timeoutMs, env: deps.env, spawnImpl: deps.spawnImpl, platform: deps.platform });
+  const run = (cmd, args, input, onStdout = null) => runProcess({ file: cmd.file, args: [...cmd.prefixArgs, ...args], cwd, input, timeoutMs, env: deps.env, spawnImpl: deps.spawnImpl, platform: deps.platform, onStdout });
+  // 1.1.1 P10 (A8): with onProgress, the run's searches and reads are counted from its output as it comes (whole lines only),
+  // and onProgress({ searches, reads }) is called each time a count changes
+  const progressReader = (webOf, onProgress) => {
+    if (!web || typeof onProgress !== 'function') return null;
+    let seen = '';
+    let last = '';
+    return (chunk) => {
+      seen += chunk;
+      if (!chunk.includes('\n')) return;
+      const done = seen.slice(0, seen.lastIndexOf('\n') + 1);
+      const w = webOf(done);
+      const now = `${w.searches.length}/${w.reads.length}`;
+      if (now === last) return;
+      last = now;
+      onProgress({ searches: w.searches.length, reads: w.reads.length });
+    };
+  };
   const before = () => {
     const removed = emptyFolder(cwd);
     if (removed.length) log(`session: ${cwd} was not empty, removed ${removed.length} entr${removed.length === 1 ? 'y' : 'ies'}`);
@@ -149,7 +166,7 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
   };
 
   if (kind === 'claude-code') {
-    async function send(req, { sessionId } = {}) {
+    async function send(req, { sessionId, onProgress } = {}) {
       checkRequest(req);
       checkId(sessionId);
       const model = resolveModel(connection, req.model);
@@ -158,7 +175,7 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
       const resumed = Boolean(sessionId);
       const id = sessionId || randomUUID();
       before();
-      const r = await run(cmd, claudeSessionArgv({ model, system: req.system, web, ...(resumed ? { resume: id } : { sessionId: id }) }), req.prompt);
+      const r = await run(cmd, claudeSessionArgv({ model, system: req.system, web, ...(resumed ? { resume: id } : { sessionId: id }) }), req.prompt, progressReader(claudeWebOf, onProgress));
       const sf = spawnFailure(r);
       if (sf) return after({ ...sf, model, sessionId: id, resumed });
       const parsed = parseClaudeOutput(r, { now: deps.now });
@@ -178,7 +195,7 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
 
   if (kind === 'codex') {
     let chosen = null;
-    async function send(req, { sessionId } = {}) {
+    async function send(req, { sessionId, onProgress } = {}) {
       checkRequest(req);
       checkId(sessionId);
       const model = resolveModel(connection, req.model);
@@ -192,7 +209,7 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
         const args = resumed ? codexResumeArgv({ model, sessionId, lastMessageFile, web }) : codexSessionArgv({ model, cwd, lastMessageFile, web });
         // the first call carries the system text before the prompt (v1.0's way); a resumed session has it already
         const input = !resumed && req.system ? `${req.system}\n\n${req.prompt}` : req.prompt;
-        const res = await run(chosen.cmd, args, input);
+        const res = await run(chosen.cmd, args, input, progressReader(codexWebOf, onProgress));
         let last;
         if (existsSync(lastMessageFile)) { try { last = readFileSync(lastMessageFile, 'utf8'); } catch { last = undefined; } }
         return { ...res, lastMessage: last };

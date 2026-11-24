@@ -10,8 +10,19 @@ export const RUN = Object.freeze({
 
   current: 'This run · started {when} · {why}',
   steps: Object.freeze({
-    update: 'Read the sources, keep the originals; the update agent picks and summarizes by the card',
+    sources: 'Read the sources',
+    originals: 'Fetch the new pages\' originals',
+    agent: 'The update agent picks and summarizes by the card',
+    check: 'Check the summaries',
   }),
+  live: Object.freeze({
+    sources: '{done} / {total}',
+    originals: '{done} / {total}, {kept} kept',
+    agent: '{searches} searches, {reads} pages read',
+    check: '{done} / {total}',
+  }),
+  usuallyFirst: 'A first update usually takes 2 to 6 minutes. You can leave this page; you will be notified when it is done.',
+  usuallyLast: 'This library\'s last update took {min} minutes. You can leave this page; you will be notified when it is done.',
   stepsDone: '{done} / {total} steps done',
   stepNow: 'Current step: {step}',
   stop: 'Stop',

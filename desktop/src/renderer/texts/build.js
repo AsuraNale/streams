@@ -117,6 +117,12 @@ export const BUILD = Object.freeze({
   confirmEdit: '确认，改卡',
   confirming: '正在建库…',
   notWhole: '这张卡还不能确认：{what}。',
+  // 1.1.1 P10 (A8): while the main agent works — the counts as its connection reports them; Streams' own check of the card;
+  // how long (the live builds of 11-20 to 11-24: a question 7 to 30 seconds, the turn that reads the web and writes the card
+  // about 3 to 4 minutes, a whole build 3 to 11 minutes)
+  liveAgent: '主 Agent 已搜索 {searches} 次、已读 {reads} 页',
+  liveCheck: '流息正在核对卡上的网址：{done} / {total}',
+  usuallyTurn: '问一个问题通常十几秒；查网页、写建库卡的那一轮通常 3 到 4 分钟。可以离开这个页面，回来时对话还在。',
   // 1.1.1 P1 (B19): the addresses Streams could not check, why, and asking the agent to fix the card
   notReadN: '有 {n} 个网址流息核不到',
   unchecked: '{url}（{why}）',

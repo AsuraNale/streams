@@ -1437,6 +1437,19 @@ const MUTANTS = [
     edits: [['src/renderer/texts/settings.js', "    apiHint: '", "    apiHint: '这一版用这种连接只能问库。'"]],
     test: ['test/ui-w6a.test.mjs', '--test-name-pattern=A6'],
   },
+  // 1.1.1 P10 (A8)
+  {
+    id: 'p10-pinned-last',
+    what: 'the update shows its last step whatever happened (the progress pinned, not from events)',
+    edits: [['src/renderer/screens/run-steps.js', 'return i < 0 ? 0 : i', 'return UPDATE_STEPS.length - 1']],
+    test: ['test/ui-p10.test.mjs', '--test-name-pattern=an update'],
+  },
+  {
+    id: 'p10-build-no-live',
+    what: "the build page does not show the agent's counts while it works",
+    edits: [['src/renderer/screens/build.js', "if (p?.phase === 'progress') call('getBuild').then(v => setLive(v?.live ?? null), () => {})", "if (p?.phase === 'progress') void 0"]],
+    test: ['test/ui-p10.test.mjs', '--test-name-pattern=a build'],
+  },
 ]
 
 function runTest(desktop, test) {

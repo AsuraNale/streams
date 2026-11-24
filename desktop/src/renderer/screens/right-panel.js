@@ -40,7 +40,8 @@ import { fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
 import { useEvent } from '../lib/use-events.js'
 import { doingOf, queueWords } from '../lib/queue.js'
-import { LastRun, UPDATE_STEPS, stepOf } from './run-steps.js'
+import { LastRun, UPDATE_STEPS, stepOf, stepNumbers } from './run-steps.js'
+import { RUN } from '../texts/run.js'
 import { phaseWords } from '../lib/phase.js'
 import { TIcon, hasTabIcons } from '../lib/template-icons.js'
 import { LIBRARY_ROUTES, Menu } from '../kit/index.js'
@@ -78,11 +79,16 @@ function useNames() {
 function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
   const P = T.progress
   const why = doingOf(o.why, QUEUE.why)
+  // 1.1.1 P10 (A8): the step it is at, with its numbers (as 待看 shows them)
+  const live = r?.live ?? null
+  const nowStep = UPDATE_STEPS[Math.min(stepOf(r?.phase, live), UPDATE_STEPS.length - 1)]
+  const nowNums = stepNumbers(nowStep, live)
   const steps = running
-    ? [['check', fmt(P.runningDetail, { why, when: whenText(r?.startedAt, WHEN) ?? '', phase: phaseWords(r?.phase) || phaseWords('update') })]]
+    ? [['check', fmt(P.runningDetail, { why, when: whenText(r?.startedAt, WHEN) ?? '', phase: phaseWords(r?.phase) || phaseWords('update') })],
+       ...(live ? [['spark', `${RUN.steps[nowStep]}${nowNums ? ` · ${nowNums}` : ''}`]] : [])]
     : [['clock', fmt(P.waitingDetail, { why, since: whenText(o.since, WHEN) ?? '' })]]
   const state = running ? queueWords({ state: 'running' }, r?.phase) : queueWords({ state: 'queued', position: i + 1 })
-  const at = running ? stepOf(r?.phase) : -1
+  const at = running ? stepOf(r?.phase, live) : -1
   // redesign R6d (对照.md, 运行与排队): the step dots sit beside the state, in the heading's small line — the design's
   // streams/app.js moves them there (「把进度点放到阶段状态旁」) and the template styles them only there (round11/workbench.css
   // .phase-label .step-dots; 单线黑白's line.css .phase-heading .step-dots). They were left in the details, where they lay

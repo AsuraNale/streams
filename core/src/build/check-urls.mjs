@@ -38,7 +38,8 @@ function pageRecord(r) {
 const isSourceUrl = (card, url) => (card.sources ?? []).some((s) => isObj(s) && isWeb(s.url) && sameUrl(s.url, url))
   || (card.unreadable ?? []).some((s) => isObj(s) && isWeb(s.url) && sameUrl(s.url, url));
 
-export async function checkCardUrls(card, { reads = [], readPage = null, readLinks = null, known = {} } = {}) {
+// onCheck(done, total) (1.1.1 P10, A8): after each address Streams reads itself (those it read before in this build are not counted)
+export async function checkCardUrls(card, { reads = [], readPage = null, readLinks = null, known = {}, onCheck = null } = {}) {
   const out = { ...known };
   const opened = new Set(reads.filter((r) => r && r.ok !== false).map((r) => urlKey(r.url)).filter(Boolean));
   const unreadable = new Set((card.unreadable ?? []).filter((e) => isObj(e) && isWeb(e.url)).map((e) => urlKey(e.url)));
@@ -57,11 +58,16 @@ export async function checkCardUrls(card, { reads = [], readPage = null, readLin
 
   // every address once: the samples first (a source's pages are judged by its samples when it has some)
   const order = [...urls].sort((a, b) => Number(isSourceUrl(card, a)) - Number(isSourceUrl(card, b)));
+  const toRead = typeof readPage === 'function' ? order.filter((url) => { const k = urlKey(url); return k && !out[k]; }) : [];
+  const told = (done) => { if (typeof onCheck === 'function' && toRead.length) { try { onCheck(done, toRead.length); } catch { /* never stops the check */ } } };
+  told(0);
+  let done = 0;
   for (const url of order) {
     const k = urlKey(url);
     if (!k || out[k]) continue;
     const rec = await readOne(url);
     if (rec) out[k] = rec;
+    if (typeof readPage === 'function') told(++done);
   }
   // a source reached as a page of links: what Streams can keep of its pages — a sample on the same site read, or else one
   // of its own links on the same site read now
