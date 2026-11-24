@@ -328,13 +328,13 @@ test('sop · two files of their own, thin, without the wording of the simulation
     assert.ok(text.length < 8000, `${n} is thin`);
     for (const w of ['模拟', '模拟方', '今天是 2026-11-19', '2026-11-19', 'simulat']) assert.ok(!text.includes(w), `${n}: "${w}"`);
   }
-  assert.deepEqual(placeholdersOf(loadSop('build')).sort(), ['ACTIONS', 'BUDGET', 'OUTPUT', 'TODAY', 'TOOLS']);
+  assert.deepEqual(placeholdersOf(loadSop('build')).sort(), ['ACTIONS', 'BUDGET', 'LOOK', 'OUTPUT', 'TODAY', 'TOOLS']);
   assert.deepEqual(placeholdersOf(loadSop('update')).sort(), ['ACTIONS', 'BUDGET', 'CARD', 'NEW', 'OUTPUT', 'STATE', 'TODAY', 'TOOLS']);
 });
 
 test('sop · filled with the tools, budget and format; a placeholder left unfilled is an error, never sent as it is', () => {
   const text = loadSop('build');
-  const vars = { TODAY: '2026-11-20', TOOLS: 'TOOL-LIST-X', BUDGET: 'BUDGET-Y', ACTIONS: 'ACTIONS-Z', OUTPUT: 'OUTPUT-W' };
+  const vars = { TODAY: '2026-11-20', TOOLS: 'TOOL-LIST-X', BUDGET: 'BUDGET-Y', ACTIONS: 'ACTIONS-Z', OUTPUT: 'OUTPUT-W', LOOK: 'LOOK-V' };
   const out = renderSop(text, vars);
   for (const v of Object.values(vars)) assert.ok(out.includes(v));
   assert.equal(placeholdersOf(out).length, 0);
@@ -346,7 +346,7 @@ test('sop · filled with the tools, budget and format; a placeholder left unfill
 test('sop · a rule changed in the file changes what the agent is told, with no change to code', () => {
   const dir = caseDir('w1-sop-edit');
   for (const n of SOP_NAMES) copyFileSync(join(SOP_DIR, `${n}.md`), join(dir, `${n}.md`));
-  const vars = { TODAY: 'd', TOOLS: 't', BUDGET: 'b', ACTIONS: 'a', OUTPUT: 'o' };
+  const vars = { TODAY: 'd', TOOLS: 't', BUDGET: 'b', ACTIONS: 'a', OUTPUT: 'o', LOOK: 'l' };
   const was = renderSop(loadSop('build', { dir }), vars);
   writeFileSync(join(dir, 'build.md'), readFileSync(join(dir, 'build.md'), 'utf8') + '\n- 新规矩：每个来源至少读两页。\n');
   const now = renderSop(loadSop('build', { dir }), vars);

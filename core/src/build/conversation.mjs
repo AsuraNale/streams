@@ -79,14 +79,19 @@ export function problemText(p) {
 
 // the places of the build SOP the code fills: one left out of the file would leave the agent without it (the format the
 // checks read, the tools, the budget …), so a SOP without one is refused rather than sent
-export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS', 'OUTPUT']);
+export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS', 'OUTPUT', 'LOOK']);
+// 1.1.1 P4 (B26): the first step, as the tools are — with no search there is no 「次搜索」 anywhere in what the agent is told
+export const LOOK_TEXT = Object.freeze({
+  search: '先用最多 3 次搜索看一眼这个主题现在的情况，可以读最多 5 页',
+  noSearch: '先读最多 5 页看一眼这个主题现在的情况（这一次没有搜索工具：读用户给的网址，或你知道的官方网页）',
+});
 
 export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, sopDir, opener, current = null, search = true }) {
   const text = loadSop('build', sopDir ? { dir: sopDir } : {});
   const missing = BUILD_SOP_PLACES.filter((k) => !placeholdersOf(text).includes(k));
   if (missing.length) throw new StreamsError('sop-incomplete', `the build SOP has no place for ${missing.join(', ')}`);
   const sop = renderSop(text, {
-    TODAY: today, TOOLS: toolsText(kind, { search }), BUDGET: budgetText(budget, { search, hard: kind === 'api' }), ACTIONS: actionsText(definition), OUTPUT: OUTPUT_TEXT,
+    TODAY: today, TOOLS: toolsText(kind, { search }), BUDGET: budgetText(budget, { search, hard: kind === 'api' }), ACTIONS: actionsText(definition), OUTPUT: OUTPUT_TEXT, LOOK: search ? LOOK_TEXT.search : LOOK_TEXT.noSearch,
   });
   const now = current ? `\n\n## 这座库现在的建库卡（用户要改它）\n\`\`\`json\n${JSON.stringify(current, null, 2)}\n\`\`\`` : '';
   return `${sop}${now}\n\n## 用户的开场白\n用户：${opener}`;

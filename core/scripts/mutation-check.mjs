@@ -920,6 +920,19 @@ const MUTANTS = [
     edits: [["src/connect/search.mjs", "const safe = (s) => clip(scrub(s, [key]), 300);", "const safe = (s) => clip(String(s), 300);"]],
     test: ["test/v111-search.test.mjs", "--test-name-pattern=failures are codes"],
   },
+  // 1.1.1 P4 round 2
+  {
+    id: "v111-p4-no-search-budget",
+    what: "the API tools' search budget is not checked: past the number the search service is still called",
+    edits: [["src/connect/api-tools.mjs", "if (s.used.searches >= budget.searches) return { id: call.id, error: true, text: OUT_OF_SEARCHES };", ""]],
+    test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=the search budget is hard"],
+  },
+  {
+    id: "v111-p4-look-always-search",
+    what: "the build SOP's first step speaks of searches even when there is no search (B26)",
+    edits: [["src/build/conversation.mjs", "LOOK: search ? LOOK_TEXT.search : LOOK_TEXT.noSearch,", "LOOK: LOOK_TEXT.search,"]],
+    test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=B26"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

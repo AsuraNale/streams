@@ -220,6 +220,7 @@ test('an update walked through: a page the model read with read_page is kept as 
   assert.equal(r.status, 'done', JSON.stringify(r.problems ?? r.record));
   const told = v.requests[0].body.messages[0].content;
   assert.ok(told.includes(API_TOOLS.noSearch) && told.includes(updateBudgetText(UPDATE_BUDGET, { search: false, hard: true })));
+  assert.equal(told.includes('次搜索'), false, 'B26: no search count in what the update agent is told');
   const stored = readOriginal(dir, originalId(NEW));
   assert.ok(stored && stored.text.includes(sentence(1)), 'the page the model read is the kept original');
   const inbox = listInbox(dir);
@@ -228,4 +229,38 @@ test('an update walked through: a page the model read with read_page is kept as 
   assert.equal(p.calls.filter((u) => u === NEW).length, 1, 'read once: the item\'s original is the page the model read');
   // the key is nowhere in what was kept
   for (const f of ['_pipeline/rounds.jsonl']) assert.equal(readFileSync(join(dir, f), 'utf8').includes(KEY), false);
+});
+
+// ---- round 2 of P4's check (Richard): the search budget, the key in failures, no 「次搜索」 without search (B26) ----
+test('the search budget is hard too: 2 searches asked with room for 1 — the 2nd is 「额度用完了」 and the service is called once', async () => {
+  const asked = [];
+  const search = async (q) => { asked.push(q); return { ok: true, results: [{ title: 't', url: 'https://r.example.test/1', snippet: 's' }] }; };
+  const v = vendor((body, i) => (i === 0 ? A.tools(['search', { query: '甲' }], ['search', { query: '乙' }]) : A.text('{"ok":true}')));
+  const r = await session(v, pages({}), { dir: 'p4-search-budget', opts: { search, budget: { reads: 5, searches: 1 } } }).send({ prompt: '搜', format: 'json' });
+  assert.equal(r.ok, true);
+  assert.deepEqual(asked, ['甲'], 'the service was called once');
+  assert.deepEqual(r.searches, ['甲']);
+  const results = v.requests[1].body.messages[2].content;
+  assert.match(results[1].content, /额度用完了/);
+});
+
+test('a failure from the vendor never carries the key back (an error page that echoes it)', async () => {
+  const fetchImpl = async () => ({ ok: false, status: 401, text: async () => JSON.stringify({ error: { message: `invalid x-api-key ${KEY}`, type: 'authentication_error' } }) });
+  const s = createApiToolSession(conn(), { getKey: async () => KEY, fetchImpl }, { sessionDir: join(caseDir('p4-key-fail'), 's'), readPage: pages({}).read, lookup: PUBLIC });
+  const r = await s.send({ prompt: 'x', format: 'json' });
+  assert.deepEqual([r.ok, r.code], [false, 'bad-key']);
+  assert.equal(JSON.stringify(r).includes(KEY), false, JSON.stringify(r));
+  const thrown = createApiToolSession(conn(), { getKey: async () => KEY, fetchImpl: async () => { throw new Error(`socket closed for ${KEY}`); } }, { sessionDir: join(caseDir('p4-key-throw'), 's'), readPage: pages({}).read, lookup: PUBLIC });
+  const t = await thrown.send({ prompt: 'x', format: 'json' });
+  assert.equal(t.code, 'network');
+  assert.equal(JSON.stringify(t).includes(KEY), false);
+});
+
+test('B26: with no search, what the build agent is told has no 「次搜索」 anywhere — its first step reads pages; with search it is as before', async () => {
+  const { buildBuildPrompt } = await import('../src/index.mjs');
+  const without = buildBuildPrompt({ definition: DEF, kind: 'api', today: '2026-11-24', opener: '帮我找补助', search: false });
+  assert.equal(without.includes('次搜索'), false, 'no search count anywhere');
+  assert.ok(without.includes('这一次没有搜索工具'), 'the first step says so');
+  const withSearch = buildBuildPrompt({ definition: DEF, kind: 'api', today: '2026-11-24', opener: '帮我找补助', search: true });
+  assert.ok(withSearch.includes('先用最多 3 次搜索'), 'what would fail it: with search the count is there');
 });
