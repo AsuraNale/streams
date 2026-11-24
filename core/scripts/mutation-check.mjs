@@ -907,6 +907,19 @@ const MUTANTS = [
     edits: [["src/connect/api-tools.mjs", "out.otherTools.push(call.name || '(no name)');", ""]],
     test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=a tool not on the list"],
   },
+  // 1.1.1 P5
+  {
+    id: "v111-p5-key-choice",
+    what: "a DeepSeek model's own key is not used for searching (the search key is asked for even then)",
+    edits: [["src/connect/search.mjs", "if (connection.api?.vendor === 'deepseek' && typeof getKey === 'function') {", "if (false) {"]],
+    test: ["test/v111-search.test.mjs", "--test-name-pattern=which key"],
+  },
+  {
+    id: "v111-p5-key-in-detail",
+    what: "a failed search's detail keeps the key",
+    edits: [["src/connect/search.mjs", "const safe = (s) => clip(scrub(s, [key]), 300);", "const safe = (s) => clip(String(s), 300);"]],
+    test: ["test/v111-search.test.mjs", "--test-name-pattern=failures are codes"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

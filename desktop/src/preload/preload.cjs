@@ -57,6 +57,8 @@ const METHODS = [
   'setApiVendor',
   'setApiKey',
   'removeApiKey',
+  'setSearchKey',
+  'removeSearchKey',
   // the run and 待看
   'getHome',
   'startRound',

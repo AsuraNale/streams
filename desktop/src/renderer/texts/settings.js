@@ -54,6 +54,19 @@ export const SETTINGS = Object.freeze({
   }),
 
   // 输入 API key (P18): the vendor (选择预设… / 自定义接口地址), the address, the key; the key only into the system's protection
+  // 1.1.1 P5 (the maintainer 11-24 evening: DeepSeek's search API first): the search of an API connection. The search service's name may
+  // appear here (V7's exception for this one place, standards.mjs)
+  search: Object.freeze({
+    label: '搜索',
+    fromModel: '用你模型的 DeepSeek key 搜索：用 API key 建库、更新时可以搜网页。',
+    hasKey: '用 API key 建库、更新时，用你填的 DeepSeek key 搜网页（末四位 {hint}）。',
+    none: '还没有搜索：用 API key 建库、更新时只能读网页，不能搜。填一个 DeepSeek 的 key 就能搜（按次计费，每 1000 次约 0.75 美元）。',
+    placeholder: '粘贴 DeepSeek 的 key',
+    save: '保存',
+    remove: '删除搜索 key',
+    note: '这个 key 只存在这台电脑上（加密），和模型的 key 分开，只发给 DeepSeek 的搜索接口。',
+    failed: '没保存上，请再试一次。',
+  }),
   apiDialog: Object.freeze({
     title: '输入 API key',
     vendor: '厂商',

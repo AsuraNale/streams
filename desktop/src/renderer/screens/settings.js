@@ -155,6 +155,35 @@ export function ApiKeyDialog({ api, onClose, onChanged }) {
   <//>`
 }
 
+/**
+ * 1.1.1 P5: the search of an API connection — a DeepSeek model's own key searches; for another vendor's model a DeepSeek key
+ * is entered here (sent once, never shown again but its last four characters); none: building and updating read pages only.
+ */
+function SearchRow({ search, onChanged }) {
+  const S = T.search
+  const [key, setKey] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null)
+  const from = search?.from ?? null
+  const run = async fn => {
+    setBusy(true)
+    setNote(null)
+    try { await fn(); setKey(''); onChanged?.() } catch { setNote(S.failed) } finally { setBusy(false) }
+  }
+  const words = from === 'model' ? S.fromModel : from === 'search-key' ? fmt(S.hasKey, { hint: search?.keyHint ?? '' }) : S.none
+  return html`<div class="file-row st-set-search" data-part="search-row" data-from=${from ?? 'none'}>
+    <span class="file-icon"><${TIcon} name="search" fallback="file" /></span>
+    <span class="file-text"><b>${S.label}</b><small data-part="search-words">${words}</small><small class="muted" data-part="search-note">${S.note}</small></span>
+    ${from === 'model' ? null : html`<span class="st-set-search__key">
+      <input type="password" autocomplete="off" data-field="search-key" aria-label=${S.placeholder} placeholder=${S.placeholder} value=${key} disabled=${busy}
+        onInput=${e => setKey(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter' && key.trim()) { e.preventDefault(); void run(() => call('setSearchKey', key.trim())) } }} />
+      <${Btn} name="save-search-key" kind="primary" disabled=${busy || key.trim() === ''} onClick=${() => run(() => call('setSearchKey', key.trim()))}>${S.save}<//>
+      ${search?.hasKey ? html`<${Btn} name="remove-search-key" disabled=${busy} onClick=${() => run(() => call('removeSearchKey'))}>${S.remove}<//>` : null}
+    </span>`}
+    ${note ? html`<p class="progress-alert" role="alert" data-part="search-failed">${note}</p>` : null}
+  </div>`
+}
+
 /** One part of the page (one of the four jumps): the template's section-label, then its content. */
 function Group({ id, name, hint = null, children }) {
   return html`<section class="st-set-group" data-group=${id} id=${`settings-group-${id}`} aria-labelledby=${`settings-group-${id}-h`}>
@@ -217,6 +246,7 @@ function ConnectionsPart() {
         ${needsLogin(kind, k) ? html`<${LoginLoop} kind=${kind} busy=${busy} onRedetect=${redetect} />` : null}
       </div>`
     }) : null}
+    ${data ? html`<${SearchRow} search=${data.search} onChanged=${() => conns.reload()} />` : null}
     <p class="limit-note" data-part="agent-uses">${T.conn.agentUses}</p>
     ${keyDialog ? html`<${ApiKeyDialog} api=${data?.kinds?.api ?? {}} onClose=${() => setKeyDialog(false)} onChanged=${redetect} />` : null}
   </div>`

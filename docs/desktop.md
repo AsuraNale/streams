@@ -143,6 +143,8 @@ frame-ancestors 'none'
 | `setApiVendor(vendor, baseUrl)` | `vendor` 在核心 `VENDOR_IDS` 里；`baseUrl` 只有 `custom` 用，否则传 `null` | `{ vendor, baseUrl }` | 设置「输入 API key」对话框 |
 | `setApiKey(vendor, key)` | key 字符串；**只往主进程走一次**，存 `secrets/key-<vendor>.bin`（safeStorage），从不返回 | `{ vendor, keyHint }`；safeStorage 不可用 → `internal` | 同上 |
 | `removeApiKey(vendor)` | | `{ vendor, keyHint: null }` | 同上 |
+| `setSearchKey(key)` | 非空字符串 | **1.1.1 P5**（维护者 11-24 晚定：先接 DeepSeek 的搜索接口）：模型不是 DeepSeek 时，API 连接的搜索用的 DeepSeek key，存进 safeStorage 的 `key-search-deepseek`，和模型的 key 分开；返回 `getConnections().search` 的样子 `{ from: 'model' | 'search-key' | null, modelIsDeepSeek, hasKey, keyHint }`（from：模型是 DeepSeek 且有 key 时用模型的 key；否则有搜索 key 时用它；都没有时没有搜索，建库与更新只读网页）；页面只拿得到末四位 | 设置「搜索」一行 |
+| `removeSearchKey()` | 无 | **1.1.1 P5**：删掉搜索 key；返回同上 | 同上 |
 | `getHome()` | 无 | 见 §4.1「今日」 | S2 |
 | `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；走全应用的队列（v2 包 A，§4.4）。**v2 包 L**：队列忙（别的库在跑或在排）时**不再回 `bad_arguments`**，而是把当前库排到队尾：`{ started: false, queued: true, position, runningLibraryId }`（`position` 1 = 在跑的那个，2 = 第一个在排的…）；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排（§4.12）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | 库页头的「立即运行」（重设计 R1：直接调，不弹对话框，忙时排到队尾，§4.13）、本次运行未开始卡的「重试」、新建库的首轮 |
 | `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 库页头的「运行中 · 停止」（重设计 R1；原概览进度条旁）、右栏进度里「当前库 · 上次运行」的停止 |

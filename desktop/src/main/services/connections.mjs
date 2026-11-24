@@ -47,6 +47,9 @@ export const LOGIN_KINDS = Object.freeze(['claude-code', 'codex'])
 const HTTP_URL = /^https?:\/\/\S+$/i
 
 export const keyRefOf = vendor => `key-${vendor}`
+// 1.1.1 P5 (维护者 11-24 evening: 「甲」, DeepSeek's search API first): the search key of an API connection whose model is not
+// DeepSeek's — stored apart from the model's key (its own safeStorage file); a DeepSeek model's own key searches without it
+export const SEARCH_KEY_REF = 'key-search-deepseek'
 
 /**
  * @param {object} o
@@ -152,6 +155,21 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
     return { model: c.model, verifyModel: c.verifyModel }
   }
 
+  // 1.1.1 P5: the search of an API connection — from: 'model' (a DeepSeek model's own key), 'search-key' (the key filled in on
+  // 设置), null (no search: building and updating read pages only); the page sees the search key's last four characters only
+  const searchState = (key = keyState()) => {
+    const deepseek = settings().connections.api.vendor === 'deepseek'
+    let hasKey = false
+    let hint = null
+    try {
+      hasKey = secrets.has(SEARCH_KEY_REF)
+      if (hasKey) hint = keyHint(secrets.get(SEARCH_KEY_REF))
+    } catch (err) {
+      log(`connections: key ${SEARCH_KEY_REF} not readable: ${String(err?.code ?? err?.message ?? err)}`)
+    }
+    return { from: deepseek && key.hasKey ? 'model' : hasKey ? 'search-key' : null, modelIsDeepSeek: deepseek, hasKey, keyHint: hint }
+  }
+
   const view = () => {
     const s = settings().connections
     const key = keyState()
@@ -170,7 +188,7 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
       models: modelsFor('api', s.api.vendor),
     }
     const recommended = CONNECTION_KINDS.find(kind => kinds[kind].loggedIn) ?? null
-    return { active: s.active, kinds, probes: { ...probes }, recommended }
+    return { active: s.active, kinds, probes: { ...probes }, recommended, search: searchState(key) }
   }
 
   const writeConnections = change => {
@@ -252,6 +270,23 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
       emit('connections-changed', null)
       return { vendor, keyHint: keyHint(key.trim()) }
     },
+    // 1.1.1 P5: the search key (DeepSeek's search API), stored apart from the model's; the page never gets it back
+    setSearchKey(key) {
+      if (typeof key !== 'string' || key.trim() === '') throw new BridgeError('bad_arguments')
+      try {
+        secrets.set(SEARCH_KEY_REF, key.trim())
+      } catch (err) {
+        log(`connections: the search key not stored: ${String(err?.code ?? err?.message ?? err)}`)
+        throw new BridgeError('internal')
+      }
+      emit('connections-changed', null)
+      return searchState()
+    },
+    removeSearchKey() {
+      secrets.remove(SEARCH_KEY_REF)
+      emit('connections-changed', null)
+      return searchState()
+    },
     removeApiKey(vendor) {
       if (!VENDOR_IDS.includes(vendor)) throw new BridgeError('bad_arguments')
       secrets.remove(keyRefOf(vendor))
@@ -307,5 +342,7 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
   // v2 package M: the current connection's kind, for the quota service (services/quota.mjs) — the setting only, no detection
   const activeKind = () => settings().connections.active ?? null
 
-  return { handlers, active, activeKind, connector, connection, probeConnector, diagnosticLines, devConnection }
+  // 1.1.1 P5: the search key for the API connection's search tool (main process only; null when none is stored)
+  const searchKey = () => { try { return secrets.has(SEARCH_KEY_REF) ? secrets.get(SEARCH_KEY_REF) : null } catch { return null } }
+  return { handlers, active, activeKind, connector, connection, probeConnector, diagnosticLines, devConnection, searchKey, getKey: ref => secrets.get(ref) }
 }

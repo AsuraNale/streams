@@ -1399,6 +1399,19 @@ const MUTANTS = [
     edits: [['src/renderer/screens/settings.js', "${kind === 'api' ? html`<small data-part=\"only-ask\">", "${kind === 'codex' || kind === 'api' ? html`<small data-part=\"only-ask\">"]],
     test: ['test/ui-w6a.test.mjs', '--test-name-pattern=A6'],
   },
+  // 1.1.1 P5
+  {
+    id: 'p5-key-shared',
+    what: "the search key is stored as the model's key (not apart)",
+    edits: [['src/main/services/connections.mjs', 'secrets.set(SEARCH_KEY_REF, key.trim())', 'secrets.set(keyRefOf(settings().connections.api.vendor), key.trim())']],
+    test: ['test/ui-p5.test.mjs'],
+  },
+  {
+    id: 'p5-no-search-row',
+    what: "设置 has no 搜索 row",
+    edits: [['src/renderer/screens/settings.js', '${data ? html`<${SearchRow} search=${data.search} onChanged=${() => conns.reload()} />` : null}', '']],
+    test: ['test/ui-p5.test.mjs'],
+  },
 ]
 
 function runTest(desktop, test) {

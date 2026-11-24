@@ -120,6 +120,9 @@ export const BRIDGE_METHODS = Object.freeze({
   setApiVendor: Object.freeze({ args: 2, check: ([vendor, baseUrl]) => nonEmpty(vendor) && stringOrNull(baseUrl) }),
   setApiKey: Object.freeze({ args: 2, check: ([vendor, key]) => nonEmpty(vendor) && nonEmpty(key) }),
   removeApiKey: Object.freeze({ args: 1, check: ([vendor]) => nonEmpty(vendor) }),
+  // 1.1.1 P5: the search key of an API connection (DeepSeek's search API), stored apart from the model's
+  setSearchKey: Object.freeze({ args: 1, check: ([key]) => nonEmpty(key) }),
+  removeSearchKey: Object.freeze({ args: 0 }),
   // the run and 待看 (services/pipeline.mjs): the numbers, one run, the inbox and its decisions
   getHome: Object.freeze({ args: 0 }),
   startRound: Object.freeze({ args: 0 }),

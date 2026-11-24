@@ -19,8 +19,11 @@ const SRC = join(DESKTOP_DIR, 'src')
 const TABLE_DIRS = ['renderer/texts', 'renderer/texts-en', 'main/texts', 'main/texts-en'].map(d => join(SRC, d))
 const PAGE_CODE = ['renderer/screens', 'renderer/kit', 'renderer/lib', 'renderer/app.js'].map(d => join(SRC, d))
 const BANNED = ['Bronze', 'Silver', 'Gold', 'judge', 'keeper', 'gate', 'Medallion', 'pending', 'ledger']
-const BRAND = /Claude|Anthropic|OpenAI|ChatGPT/i
+// 1.1.1 P5: DeepSeek, the search service's name, counts as a brand word too; V7's exception (the maintainer 11-24 evening, standards.mjs:
+// 「设置页的搜索服务一处也可以出现服务商的名字」) is the settings page's search entries, SETTINGS.search.* of both tables
+const BRAND = /Claude|Anthropic|OpenAI|ChatGPT|DeepSeek/i
 const ALLOWED_BRAND = [/^连接你电脑上的 (?:Claude Code|Codex)$/, /^Connect the (?:Claude Code|Codex) on this computer$/]
+const ALLOWED_BRAND_PLACE = /^src\/renderer\/texts(?:-en)?\/settings\.js:SETTINGS\.search\./
 
 function files(p, exts) {
   if (!statSync(p).isDirectory()) return exts.includes(extname(p)) ? [p] : []
@@ -47,7 +50,7 @@ async function tableStrings() {
 }
 
 const scan = list => wording.scanStrings(Object.fromEntries(list.map(s => [s.path, s.text])))
-const brandProblems = list => list.filter(s => BRAND.test(s.text) && !ALLOWED_BRAND.some(re => re.test(s.text))).map(s => `${s.path}: ${s.text}`)
+const brandProblems = list => list.filter(s => BRAND.test(s.text) && !ALLOWED_BRAND.some(re => re.test(s.text)) && !(/DeepSeek/i.test(s.text) && !/Claude|Anthropic|OpenAI|ChatGPT/i.test(s.text) && ALLOWED_BRAND_PLACE.test(s.path))).map(s => `${s.path}: ${s.text}`)
 
 // Chinese in a string literal of page code, and banned words in the text between tags of its html`` templates
 function pageCodeProblems(sources) {
@@ -99,6 +102,10 @@ test('V7 reverse: the same scanner and checks report Silver, pending, OpenAI, a 
   }
   assert.equal(wording.scanStrings({ probe: '连接你电脑上的 Claude Code' }).ok, true, 'the allowed sentence passes')
   assert.deepEqual(brandProblems([{ path: 'x', text: '用 OpenAI 打分' }]), ['x: 用 OpenAI 打分'])
+  // 1.1.1 P5: DeepSeek only on the settings page's search entries — elsewhere it is reported; there, Claude still is
+  assert.deepEqual(brandProblems([{ path: 'src/renderer/texts/inbox.js:INBOX.x', text: '用 DeepSeek 搜索' }]), ['src/renderer/texts/inbox.js:INBOX.x: 用 DeepSeek 搜索'])
+  assert.deepEqual(brandProblems([{ path: 'src/renderer/texts/settings.js:SETTINGS.search.none', text: '填一个 DeepSeek 的 key' }]), [])
+  assert.deepEqual(brandProblems([{ path: 'src/renderer/texts/settings.js:SETTINGS.search.none', text: '用 Claude 搜索' }]), ['src/renderer/texts/settings.js:SETTINGS.search.none: 用 Claude 搜索'])
   const planted = [
     { rel: 'src/renderer/screens/planted.js', text: "export const a = () => html`<div class=\"x\">${n} 条待看</div>`\n" },
     { rel: 'src/renderer/kit/planted.js', text: "export const b = () => html`<span>Silver</span>`\n" },

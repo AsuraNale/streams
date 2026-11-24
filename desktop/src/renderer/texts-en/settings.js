@@ -44,6 +44,18 @@ export const SETTINGS = Object.freeze({
     failed: 'The usage could not be read.',
   }),
 
+  // 1.1.1 P5: the search of an API connection (DeepSeek's search API); the service's name may appear here (V7's exception)
+  search: Object.freeze({
+    label: 'Search',
+    fromModel: 'Searches with your model\'s DeepSeek key: building and updating with an API key can search the web.',
+    hasKey: 'Building and updating with an API key search the web with the DeepSeek key you entered (ends in {hint}).',
+    none: 'No search yet: building and updating with an API key can read pages but not search. Enter a DeepSeek key to search (billed per search, about $0.75 per 1,000).',
+    placeholder: 'Paste a DeepSeek key',
+    save: 'Save',
+    remove: 'Delete the search key',
+    note: 'This key stays on this computer only (encrypted), apart from the model\'s key, and is sent only to DeepSeek\'s search service.',
+    failed: 'Not saved. Please try again.',
+  }),
   apiDialog: Object.freeze({
     title: 'Enter API key',
     vendor: 'Vendor',
