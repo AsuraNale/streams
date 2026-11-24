@@ -341,13 +341,15 @@ const MUTANTS = [
   {
     id: 'w3-numbers-always-found',
     what: 'every number of the summary counts as in the original',
-    edits: [['src/verify/original-check.mjs', '    const found = have.some((o) => o.value === n.value && (n.unit === \'\' || o.unit === n.unit));', '    const found = true;']],
+    // 1.1.1 P2: the comparison is three branches now; every one of them made to find
+    edits: [['src/verify/original-check.mjs', '    if (!found && !missing.includes(n.raw)) missing.push(n.raw);', '    found = true; if (!found && !missing.includes(n.raw)) missing.push(n.raw);']],
     test: ['test/verify-w3.test.mjs', '--test-name-pattern=^numbers: a number the original does not have'],
   },
   {
     id: 'w3-numbers-no-unit',
     what: 'the unit of a number is not compared (1.2 万 written as 1.2 亿 passes)',
-    edits: [['src/verify/original-check.mjs', "(n.unit === '' || o.unit === n.unit)", 'true']],
+    // 1.1.1 P2: the unit is compared through the amount; the fault is comparing the bare value
+    edits: [['src/verify/original-check.mjs', "else found = have.some((o) => !STRICT.has(o.unit) && same(o.amount, n.amount));", "else found = have.some((o) => same(o.value, n.value));"]],
     test: ['test/verify-w3.test.mjs', '--test-name-pattern=^numbers: a number the original does not have'],
   },
   {
@@ -797,6 +799,56 @@ const MUTANTS = [
     what: "an item at the address of one of the card's samples goes into 待看 as new",
     edits: [["src/update/run.mjs", "const knownUrls = [...ledger.keys(), ...sampleUrls];", "const knownUrls = [...ledger.keys()];"]],
     test: ["test/update-w5.test.mjs", "--test-name-pattern=W11"],
+  },
+  // 1.1.1 P2 (B20): numbers by value
+  {
+    id: "v111-yi-wrong",
+    what: "亿 multiplies by 10^9 instead of 10^8 (161M would no longer be 1.61 亿)",
+    edits: [["src/verify/original-check.mjs", "亿: 1e8,", "亿: 1e9,"]],
+    test: ["test/v111-update-numbers.test.mjs", "--test-name-pattern=B20"],
+  },
+  {
+    id: "v111-no-amount",
+    what: "a scaled number is compared by its written value and unit again (W3's rule): 1.61 亿 is not found in 161M",
+    edits: [["src/verify/original-check.mjs", "else found = have.some((o) => !STRICT.has(o.unit) && same(o.amount, n.amount));", "else found = have.some((o) => o.value === n.value && o.unit === n.unit);"]],
+    test: ["test/v111-update-numbers.test.mjs", "--test-name-pattern=B20"],
+  },
+  {
+    id: "v111-no-months",
+    what: "English month names in the original are not read as month numbers (12 月 is not found in December)",
+    edits: [["src/verify/original-check.mjs", "const have = [...numbersIn(original), ...monthsIn(original).map((v) => ({ raw: String(v), value: v, unit: '', amount: v }))];", "const have = numbersIn(original);"]],
+    test: ["test/v111-update-numbers.test.mjs", "--test-name-pattern=B20"],
+  },
+  {
+    id: "v111-percent-as-amount",
+    what: "a percentage is matched like an amount (30% found in 'the 30 largest')",
+    edits: [["src/verify/original-check.mjs", "if (STRICT.has(n.unit)) found = have.some((o) => o.unit === n.unit && same(o.value, n.value));", "if (STRICT.has(n.unit)) found = have.some((o) => same(o.value, n.value));"]],
+    test: ["test/v111-update-numbers.test.mjs", "--test-name-pattern=B20"],
+  },
+  // 1.1.1 P7 (B21, B22)
+  {
+    id: "v111-utc-date",
+    what: "the update agent is told the last update's UTC date again (an evening update reads as the next day)",
+    edits: [["src/update/format.mjs", "`上次更新：${localStamp(lastAgentAt)}（本地时间）。", "`上次更新：${lastAgentAt.slice(0, 10)}（本地时间）。"]],
+    test: ["test/v111-update-numbers.test.mjs", "--test-name-pattern=B21"],
+  },
+  {
+    id: "v111-samples-untold",
+    what: "the card's samples are not in the list of what the library has (the agent is not told)",
+    edits: [["src/update/run.mjs", "...samples.map((s) => ({ url: s.url, title: `${s.title ?? ''}（建库卡上的样例）` }))];", "];"]],
+    test: ["test/v111-update-numbers.test.mjs", "--test-name-pattern=B21"],
+  },
+  {
+    id: "v111-tracking-kept",
+    what: "tracking parameters stay in the links (the same page with another campaign is new)",
+    edits: [["src/update/links.mjs", "for (const k of [...u.searchParams.keys()]) if (TRACKING.test(k)) u.searchParams.delete(k);", ""]],
+    test: ["test/v111-update-numbers.test.mjs", "--test-name-pattern=B22"],
+  },
+  {
+    id: "v111-dup-fetched",
+    what: "an address new on two sources is fetched and handed in twice",
+    edits: [["src/update/run.mjs", " && !fresh.some((f) => f.url === l)) fresh.push", ") fresh.push"]],
+    test: ["test/v111-update-numbers.test.mjs", "--test-name-pattern=B22"],
   },
 ];
 

@@ -31,6 +31,7 @@ import { checkSummary } from '../verify/summary.mjs';
 import { detectAiInstructions } from '../verify/ai-instructions.mjs';
 import { readState, writeState, sweepDaysOf } from './state.mjs';
 import { putInInbox, putMissingInInbox } from './inbox.mjs';
+import { cleanLink } from './links.mjs';
 import { UPDATE_BUDGET, UPDATE_TOOLS, UPDATE_OUTPUT, updateBudgetText, updateActionsText, stateText, newText } from './format.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 
@@ -75,8 +76,10 @@ export async function runUpdate(libraryDir, {
     if (r.ok) delete entry.reason;
     if (!prev) entry.firstAt = startedAt;
     if (r.ok) {
-      const seen = new Set(prev?.seen ?? []);
-      if (prev && Array.isArray(prev.seen)) for (const l of r.links) if (!seen.has(l)) fresh.push({ url: l, source: src });
+      // 1.1.1 P7 (B22): links kept by an earlier version may still carry tracking parameters: compared cleaned; one address is
+      // fetched once in an update, from the first source it is new on
+      const seen = new Set((prev?.seen ?? []).map(cleanLink));
+      if (prev && Array.isArray(prev.seen)) for (const l of r.links) if (!seen.has(cleanLink(l)) && !fresh.some((f) => f.url === l)) fresh.push({ url: l, source: src });
       // the first time a source is read its links are only noted: they are what was there before the library existed
       entry.seen = [...(prev?.seen ?? []), ...r.links.filter((l) => !seen.has(l))];
     }
@@ -140,7 +143,9 @@ export async function runUpdate(libraryDir, {
   }
 
   // ---- the one agent run
-  const known = [...replayLedger(libraryDir).states.values()].map((s) => ({ url: s.url, title: s.title ?? '' }));
+  // 1.1.1 P7: the card's samples are had too (W11's code drops a resubmitted one; now the agent is told so)
+  const samples = (Array.isArray(card.samples) ? card.samples : []).filter((s) => isObj(s) && typeof s.url === 'string' && s.url !== '');
+  const known = [...[...replayLedger(libraryDir).states.values()].map((s) => ({ url: s.url, title: s.title ?? '' })), ...samples.map((s) => ({ url: s.url, title: `${s.title ?? ''}（建库卡上的样例）` }))];
   const cardMd = existsSync(join(libraryDir, CARD_DIR, CARD_MD)) ? readFileSync(join(libraryDir, CARD_DIR, CARD_MD), 'utf8') : JSON.stringify(card, null, 2);
   const prompt = renderSop(loadSop('update', sopDir ? { dir: sopDir } : {}), {
     TODAY: startedAt.slice(0, 10), TOOLS: UPDATE_TOOLS, BUDGET: updateBudgetText(budget), CARD: cardMd,

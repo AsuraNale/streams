@@ -21,7 +21,7 @@ const WORDS = {
     'no-banned-words': '没有内部用词',
     'numbers-in-source': '摘要里的每个数字和断言都能在材料里找到，目标 / 预计 / 已完成这类状态词没被升级',
     'point-quotes': '每个要点带一句原文原话，逐字在存下的原文里',
-    'numbers-found': '摘要里的数字在存下的原文里都找得到，单位也一样',
+    'numbers-found': '摘要里的数字在存下的原文里都找得到，数值一样（写法可以不同：161M 和 1.61 亿算同一个数）',
     'title-same-thing': '标题、「这是什么」和三个要点说的是同一件事；标题里的数字和断言也能在材料里找到',
   },
   en: {
@@ -31,7 +31,7 @@ const WORDS = {
     'no-banned-words': 'No internal terms',
     'numbers-in-source': 'Every number and claim in the summary can be found in the material, and words such as target / expected / done are not upgraded',
     'point-quotes': 'Each point carries one sentence of the original, word for word as it is in the stored original',
-    'numbers-found': 'Every number in the summary is in the stored original, with the same unit',
+    'numbers-found': 'Every number in the summary is in the stored original with the same value (written differently is fine: 161M and 161 million are one number)',
     'title-same-thing': 'The title, the overview and the three points are about one and the same thing; the numbers and claims in the title can be found in the material too',
   },
 };

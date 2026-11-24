@@ -5,9 +5,9 @@
 //   format.mjs  what the code fills into the update SOP
 //   run.mjs     runUpdate: one update
 //   inbox.mjs   a checked summary into 待看 (W3); an item with no original, or no summary, into 待看 without one (B6)
-export { linksOf, createLinkReader, FEW_LINKS } from './links.mjs';
+export { linksOf, createLinkReader, FEW_LINKS, cleanLink } from './links.mjs';
 export { readState, writeState, statePath, sweepDaysOf, STATE_FILE } from './state.mjs';
-export { UPDATE_BUDGET, UPDATE_TOOLS, UPDATE_OUTPUT, updateBudgetText, updateActionsText, stateText, newText } from './format.mjs';
+export { UPDATE_BUDGET, UPDATE_TOOLS, UPDATE_OUTPUT, updateBudgetText, updateActionsText, stateText, newText, localStamp, FIRST_LOOKBACK_DAYS } from './format.mjs';
 export { runUpdate } from './run.mjs';
 export { putInInbox, putMissingInInbox } from './inbox.mjs';
 export { sourceRows, sourceHandlers } from './sources.mjs';

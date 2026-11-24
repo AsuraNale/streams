@@ -19,10 +19,24 @@ export function updateActionsText(definition) {
   return [...lines, '你交回的 items 就是 submit_items 这个动作：流息逐条查重、核出处、存原文、核验摘要，过了的放进待看。别的都不用做。'].join('\n');
 }
 
+/** 1.1.1 P7 (B21): an instant as this computer's local date and time, 「2026-11-23 21:00」 (the update agent was given the UTC
+ * date before: an evening update was already the next day, and the agent left out what came later that same day). */
+export function localStamp(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso ?? '');
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// 1.1.1 P7: the first update looks back this many days (unless the card says otherwise)
+export const FIRST_LOOKBACK_DAYS = 30;
+
 export function stateText({ lastAgentAt, today, known, unfinished, sources, sweep, queries = [] }) {
   const out = [];
   if (queries.length) out.push(`卡上的检索词（流息不替你搜，这一次用搜索查一遍）：${queries.join('、')}`);
-  out.push(lastAgentAt ? `上次更新：${lastAgentAt.slice(0, 10)}。只找这之后的新东西。` : '这是这座库的第一次更新：找近期的新东西，日期核得到的才收。');
+  out.push(lastAgentAt
+    ? `上次更新：${localStamp(lastAgentAt)}（本地时间）。找这之后新出现的东西：上次更新那天稍后才发布的也算，下面「新取回的原文」都是上次之后才出现在来源上的，不要按日期排除。和库里已有的说同一件事的不交，同一个网址流息会去掉。`
+    : `这是这座库的第一次更新：找最近 ${FIRST_LOOKBACK_DAYS} 天的新东西（建库卡上另写了时间范围的，按卡），日期核得到的才收。`);
   if (sweep) out.push(`这一次请把建库卡上的来源自己读一遍${lastAgentAt ? `（离上次你读来源已经 ${sweep} 天，按卡上的节奏该读了）` : ''}：流息只能认出来源页上新出现的链接，单篇文章、项目页、数据页上的变化要你自己看。`);
   if (unfinished.length) out.push(`上一次额度用完没读到的来源：${unfinished.join('、')}`);
   const bad = Object.entries(sources).filter(([, v]) => v && v.ok === false).map(([u, v]) => `${u}（${v.reason ?? '读不到'}）`);

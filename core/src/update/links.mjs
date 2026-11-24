@@ -15,6 +15,18 @@ import { humanCheck, signInPage } from '../read/detect.mjs';
 import { MIN_GAP_MS } from '../read/read-page.mjs';
 
 export const FEW_LINKS = 5;
+// 1.1.1 P7 (B22): parameters that only say where a click came from — the same page with another of them is the same page
+const TRACKING = /^(utm_[a-z0-9_]+|fbclid|gclid|dclid|gbraid|wbraid|msclkid|mc_cid|mc_eid|_hsenc|_hsmi|yclid|igshid|spm|share_source)$/i;
+
+/** A link without its tracking parameters (and without #…); anything that is not an http(s) address comes back as it is. */
+export function cleanLink(href) {
+  let u;
+  try { u = new URL(String(href)); } catch { return String(href); }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return String(href);
+  u.hash = '';
+  for (const k of [...u.searchParams.keys()]) if (TRACKING.test(k)) u.searchParams.delete(k);
+  return u.href;
+}
 const NOT_A_PAGE = /\.(png|jpe?g|gif|webp|svg|ico|css|js|mjs|json|woff2?|ttf|otf|eot|zip|gz|tar|7z|rar|mp3|mp4|webm|mov|avi)(\?|#|$)/i;
 const REFUSED = [401, 403, 407, 451];
 
@@ -32,7 +44,7 @@ export function linksOf(text, baseUrl) {
     try { u = new URL(v, base); } catch { return; }
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return;
     u.hash = '';
-    const href = u.href;
+    const href = cleanLink(u.href);
     if (NOT_A_PAGE.test(u.pathname)) return;
     if (href === base.href || href.replace(/\/$/, '') === base.href.replace(/#.*$/, '').replace(/\/$/, '')) return;
     found.push(href);
