@@ -363,6 +363,9 @@ function CardPart({ card, history, onChange }) {
   </section>`
 }
 
+// a reader's reason as one of the states' words (core read/source-state.mjs: dead is 地址失效 here, as on the card's rows)
+const STATE_OF_REASON = Object.freeze({ dead: 'dead', blocked: 'blocked', check: 'check', login: 'login', failed: 'failed' })
+
 /** The card's sources: address or search word, state, 「原文」; a new one typed in, then 确认 (B3: nothing written before). */
 function CardSourcesPart({ rows, onAdded }) {
   const S = T.cardSources
@@ -401,7 +404,7 @@ function CardSourcesPart({ rows, onAdded }) {
       ${rows.map((r, i) => html`<div key=${i} class="file-row st-src-row st-src-row--card" role="row" data-card-row=${r.name} data-state=${r.state} data-original=${r.original}>
         <span class="file-icon"><${TIcon} name=${r.query ? 'search' : 'globe'} fallback="file" /></span>
         <span class="file-text st-src-cell">${r.name}<small>${r.url ?? fmt(S.searchWord, { q: r.query })}</small></span>
-        <span class="st-src-cell st-src-state"><span class="status-chip">${S.states[r.state] ?? r.state}</span>${r.unreadable ? html`<small>${S.unreadable}${r.reason ? `${SEP}${r.reason}` : ''}</small>` : null}</span>
+        <span class="st-src-cell st-src-state"><span class="status-chip">${S.states[r.state] ?? r.state}</span>${r.unreadable ? html`<small>${S.unreadable}${r.reason ? `${SEP}${r.reason}` : ''}</small>` : null}${r.unreadable && r.checked ? html`<small data-part="source-checked" data-ok=${String(r.checked.ok)}>${r.checked.ok ? S.checkedOk : fmt(S.checked, { why: S.states[STATE_OF_REASON[r.checked.reason] ?? 'failed'] })}</small>` : null}</span>
         <span class="st-src-cell"><span class="status-chip" data-original-word=${r.original}>${S.originals[r.original] ?? r.original}</span></span>
       </div>`)}
     </div>

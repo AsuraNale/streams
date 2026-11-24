@@ -28,8 +28,14 @@
  *   stopped: notice | null, trouble: { code } | null, turns: [{ role: 'you', text } | { role: 'agent', kind, say, question?,
  *   card?, before?, changes?, urls?, canConfirm?, problems?, notice? }] } (changes: [{ key, before, after }], core cardChanges) — the agent's turns as createBuild gave them, its notes to itself
  *   left out. Each change sends `build-changed { phase }` (started · done · ended).
+ *   - 1.1.1 P1 (B19): each address of a card handed in is read by Streams' own readers (readers(): the page reader and the
+ *     link reader of the update) — an address the agent did not open counts when Streams read it; the results are kept on the
+ *     card (来源与要求's 「原文」 has them the day the library is made).
  * Development and tests only (not in a packaged app; main.mjs reads it): STREAMS_DEV_BUILD, a JSON file
- * { replies: [{ json, reads?, searches?, ok?, code? }] } — the agent's session answers the n-th call with the n-th reply.
+ * { replies: [{ json, reads?, searches?, ok?, code? }] } — the agent's session answers the n-th call with the n-th reply;
+ * STREAMS_DEV_READS, a JSON file { [url]: { ok, method?, reason?, links? } } — Streams' readers in a build (and in the update
+ * of that run, main.mjs) answer from it
+ * (an address not in it: a server that does not answer); with the development connection and no file, nothing answers.
  * @module desktop/main/services/build
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
@@ -51,6 +57,16 @@ export const DEV_BUILD_REPLIES = Object.freeze([{ json: { say: '', question: { t
  * A stand-in for the agent's session (STREAMS_DEV_BUILD): the n-th call gets the n-th reply (n = the build's calls so far).
  * file null: DEV_BUILD_REPLIES (main.mjs: STREAMS_DEV_CONNECTION without STREAMS_DEV_BUILD).
  */
+export function devBuildReaders(file) {
+  let table = {}
+  if (file) try { table = JSON.parse(readFileSync(file, 'utf8')) ?? {} } catch { table = {} }
+  const look = url => (table && typeof table[url] === 'object' && table[url]) || { ok: false, reason: 'failed' }
+  return {
+    readPage: async url => { const r = look(url); return r.ok ? { url, ok: true, method: r.method ?? 'direct', title: '', text: '' } : { url, ok: false, method: null, reason: r.reason ?? 'failed' } },
+    readLinks: async url => { const r = look(url); return r.ok ? { ok: true, url, links: Array.isArray(r.links) ? r.links : [], method: 'direct' } : { ok: false, url, links: [], reason: r.reason ?? 'failed' } },
+  }
+}
+
 export function devBuildSession(file, callsSoFar) {
   return {
     async send() {
@@ -77,8 +93,9 @@ export function devBuildSession(file, callsSoFar) {
  * @param {() => {resolved: string}} [o.locale]
  * @param {() => Date} [o.now]
  * @param {(active: object, callsSoFar: () => number) => object} [o.session] - the agent's session for the active connection
+ * @param {() => {readPage: Function, readLinks: Function}} [o.readers] - 1.1.1 P1: Streams' own readers for the card's addresses
  */
-export function createBuildService({ appDataDir, library, connections, emit, log, libraryRoot, locale = () => ({ resolved: 'zh-CN' }), now = () => new Date(), session = active => createSessionConnector(active.connection, {}, { cwd: BUILD_CWD, web: true }), afterBuilt = null }) {
+export function createBuildService({ appDataDir, library, connections, emit, log, libraryRoot, locale = () => ({ resolved: 'zh-CN' }), now = () => new Date(), session = active => createSessionConnector(active.connection, {}, { cwd: BUILD_CWD, web: true }), afterBuilt = null, readers = () => ({}) }) {
   const dir = join(appDataDir, 'build')
   const file = join(dir, 'build.json')
   const pendingDir = join(dir, 'pending')
@@ -137,7 +154,7 @@ export function createBuildService({ appDataDir, library, connections, emit, log
     if (build) return build
     if (!saved) return null
     const active = activeOrRefuse()
-    build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: saved.core.language, state: saved.core, now })
+    build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: saved.core.language, state: saved.core, now, ...readers() })
     return build
   }
 
@@ -222,7 +239,7 @@ export function createBuildService({ appDataDir, library, connections, emit, log
         else convert = { library: libraryId }
       }
       if (saved) end('stopped')
-      build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert })
+      build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert, ...readers() })
       saved = { v: 1, core: build.state(), stopped: null, trouble: null, retry: null }
       return turn('start', text)
     },

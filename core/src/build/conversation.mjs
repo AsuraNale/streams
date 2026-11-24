@@ -12,6 +12,10 @@
 //              card it has now; its new card is the action edit_card (held until 确认, B3); the 1st question may be a choice;
 //              the addresses already on the card count as read; the budget is the one for a change (changeSearches,
 //              changeReads)
+//   readPage, readLinks  1.1.1 P1 (B19): Streams' own readers (read/read-page.mjs, update/links.mjs). Each address of a card
+//              handed in is read once (check-urls.mjs): an address outside 「读不到的来源」 counts when the model opened it
+//              (an open that came back as an error does not) or Streams read it; the result is kept on the card's entries
+//              (checked). Left out: only the model's opens count.
 //   convert    1.1 W7a (E3): { library } to bring a library made by the last version over — a build like a new one (the user's
 //              words carry its old requirements and sources; every address must be read this time), whose card is the action
 //              convert_library, asked for in the user's name (the definition lets only the user do it) and held until 确认
@@ -20,8 +24,10 @@
 //   { kind: 'card', say, card, canConfirm, problems, proposal?, before }
 //                                                       before: the card shown before this one in the build (or, changing a
 //                                                       library's card, the card it has now); null for the first (A2)
-//                                                       canConfirm only for a whole card whose every address was read in
-//                                                       this build (all turns' reads); then proposal is its pending card
+//                                                       canConfirm only for a whole card whose every address (but those
+//                                                       in 「读不到的来源」) was opened in this build or read by Streams;
+//                                                       then proposal is its pending card. problems 'not-read' carry the
+//                                                       address and Streams' reason (1.1.1 P1)
 //   { kind: 'say', say, notice? }                       words only; notice 'question-not-shown' when a question failed its
 //                                                       checks twice (the user never sees it)
 //   { kind: 'failed', code, detail? }                   the connection failed; the state is as before, the turn can be tried again
@@ -33,6 +39,7 @@ import { answerJson } from '../agentrun/stream.mjs';
 import { StreamsError } from '../errors.mjs';
 import { checkQuestion, answerText } from './questions.mjs';
 import { checkCard, cardUrls, CARD_WORDS } from './card.mjs';
+import { checkCardUrls, knownOfCard } from './check-urls.mjs';
 import { toolsText, budgetText, actionsText, OUTPUT_TEXT, BUILD_BUDGET } from './format.mjs';
 import { proposalCards } from './proposals.mjs';
 
@@ -50,13 +57,16 @@ const QUESTION_WORDS = {
   'bad-option': '选项不能为空，也不能重复',
 };
 
+// what Streams' reader got, in the words the agent is told (1.1.1 P1)
+const READ_WORDS = { dead: '地址失效', blocked: '访问被拒', login: '要登录', check: '要人机验证', failed: '服务器没有应答或超时', 'no-article': '打开了但没有正文' };
+
 export function problemText(p) {
   const w = CARD_WORDS['zh-CN'];
   if (typeof p === 'string') return QUESTION_WORDS[p] ?? p;
   switch (p.code) {
     case 'missing-part': return `建库卡缺「${w[p.part] ?? p.part}」这一部分`;
     case 'missing-line': return p.line === 'summary' ? '库的定义缺开头那一段话' : `库的定义缺「${w[p.line] ?? p.line}」一行`;
-    case 'not-read': return `网址 ${p.url} 你这一次没有打开过：打开它再写进卡里；打不开的写进「读不到的来源」`;
+    case 'not-read': return `网址 ${p.url} 你这一次没有打开成功的记录，流息自己读${p.reason ? `也读不到（${READ_WORDS[p.reason] ?? p.reason}）` : '也没有读到'}：换一个读得到的地址再写进卡里；确实读不到的，写进「读不到的来源」并写明原因`;
     case 'too-many-decisions': return '「要你定的事」最多 3 件';
     case 'no-name': return '建库卡缺库的名字（name）';
     case 'bad-entry': return `「${w[p.part] ?? p.part}」里第 ${(p.index ?? 0) + 1} 条缺内容或缺网址`;
@@ -82,7 +92,7 @@ export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, so
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null, convert = null } = {}) {
+export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null, convert = null, readPage = null, readLinks = null } = {}) {
   if (!connector || typeof connector.send !== 'function') throw new StreamsError('bad-argument', 'a build needs a session connection with the web tools');
   if (!runner) throw new StreamsError('bad-argument', 'a build needs the action runner');
   if (edit !== null && (!isObj(edit) || typeof edit.library !== 'string' || !isObj(edit.card))) throw new StreamsError('bad-argument', 'a change of a card needs { library, card }');
@@ -119,10 +129,20 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
       return c.ok ? { kind: 'question', say, question: c.question } : { problem: 'question', say, problems: c.problems };
     }
     if (json.card !== undefined) {
-      const c = checkCard(json.card, { reads: readsSoFar() });
+      const c = checkCard(json.card, { reads: null });
       return c.ok ? { kind: 'card', say, card: json.card } : { problem: 'card', say, card: json.card, problems: c.problems };
     }
     return { kind: 'say', say };
+  }
+
+  // 1.1.1 P1 (B19): a card's addresses — the model's opens that worked, or Streams' own reads (once per address per build)
+  async function withUrls(a) {
+    if (!(a.kind === 'card' || a.problem === 'card') || !isObj(a.card)) return a;
+    const known = { ...(editing() ? knownOfCard(s.edit.card) : {}), ...(s.checked ?? {}) };
+    const r = await checkCardUrls(a.card, { reads: readsSoFar(), readPage, readLinks, known });
+    s.checked = r.known;
+    const problems = [...(a.problems ?? []), ...r.problems];
+    return problems.length ? { problem: 'card', say: a.say, card: r.card, problems } : { kind: 'card', say: a.say, card: r.card };
   }
 
   async function turn(prompt, userText) {
@@ -136,14 +156,14 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
       return { kind: 'failed', code: r.code, detail: r.detail };
     }
     if ((r.otherTools ?? []).length) { s.status = 'stopped'; return { kind: 'stopped', notice: 'other-tool' }; }
-    let a = interpret(r);
+    let a = await withUrls(interpret(r));
     if (a.problem) {
       const back = `（流息）你上一轮交的内容没有给用户看，原因：${a.problems.map(problemText).join('；')}。请按要求重交这一轮，只交一个 JSON。`;
       s.turns.push({ role: 'note', text: back, at: now().toISOString() });
       r = await call(back);
       if (!usable(r)) return { kind: 'failed', code: r.code, detail: r.detail };
       if ((r.otherTools ?? []).length) { s.status = 'stopped'; return { kind: 'stopped', notice: 'other-tool' }; }
-      a = interpret(r);
+      a = await withUrls(interpret(r));
     }
     if (over()) s.overBudget = true;
     let out;

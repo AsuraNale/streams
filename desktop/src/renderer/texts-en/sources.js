@@ -24,6 +24,9 @@ export const SOURCES = Object.freeze({
     originals: Object.freeze({ read: 'Readable', pdf: 'A PDF, its text taken out', link: 'Links only', search: 'Searched by the update agent', unknown: 'Not known yet' }),
     searchWord: 'Search word: {q}',
     unreadable: 'The card says it cannot be read',
+    // 1.1.1 P1 (B19): what Streams got when it read the address itself, the day the card was handed in
+    checked: 'Streams got: {why}',
+    checkedOk: 'Streams can read it',
     confirmLine: 'Add to the library card: {what}',
     confirm: 'Confirm',
     drop: 'Do not add',

@@ -1,0 +1,325 @@
+{
+ "what": "11-24 Codex 实测客户 3（tests/live/build/build-live.mjs --connection codex）最后一张卡与这一次的打开记录（旧的 codexWebOf 读出来的）。卡确认不了：「读不到的来源」里 4 个网址没有打开记录。1.1.1 P1 的重放用",
+ "connection": "codex",
+ "persona": 3,
+ "card": {
+  "name": "中国电动车行业跟踪",
+  "definition": {
+   "summary": "为基金行业研究建立一座可回溯的中国电动车资料库。重点跟踪比亚迪、蔚来、小鹏、理想和小米汽车的月度销量与交付、价格战和出海，同时跟踪国内动力电池装车、主要供应商和车用固态电池进展。每个工作日查新，有重要进展才放进「待看」。",
+   "purpose": "用于基金行业研究，重点看月度销量和交付量、价格战、出海和固态电池进展。",
+   "scope": "对象以比亚迪、蔚来、小鹏、理想、小米汽车及相关子品牌为主，电池覆盖宁德时代、比亚迪、中创新航、国轩高科等主要供应商。行业覆盖纯电、插混和增程新能源乘用车及车用动力电池。地域以中国大陆为基准，覆盖中国重点车企和电池供应商的相关海外业务。规模上逐家跟踪五家重点车企，其他车企只在有行业或同价位竞争影响时纳入，电池供应商优先看国内装车前十及有可核实固态进展的企业。（我替你定的）",
+   "exclude": "跳过股价和交易观点、未经证实的消息、常规车型宣传、孤立的门店促销、独立储能，以及与车用固态电池进展无直接关系的上游材料和设备。（我替你定的）",
+   "trust": "优先采用车企、交易所、协会和监管部门的公开原文。原文暂时不可读时，关键事实须由两家有明确出处的媒体分别报道且口径一致，并注明原始出处和原文查证状态。（我替你定的）",
+   "rhythm": "每个工作日更新，有重要进展才入库。月初优先查上月交付和产销快报，月内补查乘用车零售和动力电池装车，覆盖上次查阅以来的周末、节假日和迟发公告。（补查安排我替你定的）",
+   "language": "简报和 Markdown 笔记用简体中文，收录有用的外文原文，保留原语种、标题和链接。（我替你定的）",
+   "hard": "用户另有无硬性条件，我还不知道。每条保存可读的原文或公开报道及其出处，明确数据口径，所有条目仅用于行业研究。"
+  },
+  "decide": [
+   {
+    "what": "原文暂时读不到时，要不要保留有出处的媒体报道？",
+    "default": "默认保留经两家媒体分别报道、关键事实与口径一致的条目。2026-11-24 实测，比亚迪港交所公告、蔚来和小鹏投资者关系页、理想单篇公告、小米季度公告、乘联分会、工信部、市场监管总局和欧盟委员会的相关页面可读。理想新闻总页返回 403，另一列表路径返回 404，中汽协首页超时，尝试的电池联盟网址无法访问且归属未核实。能读到署名为联盟的较早月报镜像，10 月装车数据这次核到的是媒体报道。若选只收可读一手原文，10 月装车这类当期数据，以及暂时只有媒体转述的月交付或促销，会延后或少收。"
+   },
+   {
+    "what": "其他车企是否做固定对照？",
+    "default": "默认逐家跟踪五家重点车企。吉利、零跑、特斯拉中国等只在同价位调价、份额变化或出海进展能解释竞争格局时纳入。"
+   }
+  ],
+  "collect": [
+   "收五家重点车企每月首次公布的销量或交付，以及乘联分会的国内新能源乘用车零售、批发和出口数据。",
+   "收全国或多地适用的官降、限时补贴、置换权益和金融方案，以及能核实同车型同配置价差的多品牌跟进。",
+   "收中国电动车出口、海外注册或交付、海外工厂开工和投产，以及直接影响市场准入的贸易政策和正式监管文件。",
+   "收国内动力电池月度装车量、技术路线份额、主要供应商排名及份额变化，以及有合同、配套车型或量产公告支持的供应变化。",
+   "收车用全固态和半固态电池的新测试结果、中试线、送样验证、装车示范、量产进展和标准变化，分别标明技术路线和当前阶段。"
+  ],
+  "skip": [
+   "跳过股价异动、估值和评级观点、买卖建议、论坛传闻及无出处的榜单。",
+   "跳过重复转载、只有预热的发布会消息、常规车型评测、单店报价和无法核实适用条件的折扣。",
+   "跳过独立储能、非车用电池、常规原材料行情和设备订单，以及与中国企业出海无直接关系的海外车市新闻。",
+   "跳过没有新增测试数据、验证节点或商业进展的固态电池宣传和重复亮相。"
+  ],
+  "sources": [
+   {
+    "name": "比亚迪｜巨潮资讯公告入口",
+    "url": "https://www.cninfo.com.cn/new/disclosure/stock?orgId=gshk0001211&stockCode=002594",
+    "status": "2026-11-24 公告页可打开，未在可读列表中检出 10 月快报。",
+    "note": "查后续产销快报和投资者关系记录，列表缺项时按公司名和统计月查交易所原文。"
+   },
+   {
+    "name": "比亚迪｜港交所 10 月产销快报",
+    "url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/1101/2026110100044_c.pdf",
+    "status": "2026-11-24 可读中文 PDF，含产销表和出口附注。",
+    "note": "后续在港交所按股份代号 01211 和统计月查新。"
+   },
+   {
+    "name": "蔚来｜投资者关系新闻",
+    "url": "https://ir.nio.com/news-events/news-releases",
+    "status": "2026-11-24 可读新闻列表，另核到 10 月交付的 6-K 附件。",
+    "note": "跟踪集团和蔚来、乐道、萤火虫分品牌交付。"
+   },
+   {
+    "name": "小鹏｜投资者关系新闻",
+    "url": "https://ir.xiaopeng.com/news-events/news-releases",
+    "status": "2026-11-24 可读新闻列表，含 10 月交付和第三季度业绩。",
+    "note": "查总交付、海外交付及相关经营披露。"
+   },
+   {
+    "name": "理想｜10 月交付公告",
+    "url": "https://ir.lixiang.com/news-releases/news-release-details/li-auto-inc-october-2026-delivery-update/",
+    "status": "2026-11-24 单篇正文可读，同月官方 PDF 也可读。",
+    "note": "用公司名、月份及 Delivery Update 搜索单篇官方公告或 6-K。"
+   },
+   {
+    "name": "小米集团｜季度业绩",
+    "url": "https://ir.mi.com/zh-hans/financial-information/quarterly-results",
+    "status": "2026-11-24 季度业绩入口可读，另打开第三季度公告 PDF 核到了交付数字。",
+    "note": "核对汽车季度交付，月度数字另查小米汽车公开发布，保留「超过某数量」等原有精度。"
+   },
+   {
+    "name": "小米汽车｜官网",
+    "url": "https://www.xiaomiev.com/",
+    "status": "2026-11-24 官网公开车型入口可读。",
+    "note": "查车型和官方价格，促销另核日期、适用地区及附带条件。"
+   },
+   {
+    "name": "乘联分会｜行业统计入口",
+    "url": "https://www.cpcaauto.com/",
+    "status": "2026-11-24 首页可读，首页可提取文本未检出 10 月月报正文。",
+    "note": "按统计月查全国乘用车市场分析，区分新能源乘用车零售、厂商批发和出口。"
+   },
+   {
+    "name": "市场监管总局｜汽车行业价格行为合规指南",
+    "url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/jjjzs/art/2026/art_10120651065444b5b3b070dcae41e98a.html",
+    "status": "2026-11-24 公告和指南正文可读。",
+    "note": "用于核对价格竞争监管口径，按发布部门查后续正式文件。"
+   },
+   {
+    "name": "欧盟委员会｜中国纯电动车价格承诺指引",
+    "url": "https://policy.trade.ec.europa.eu/news/commission-issues-guidance-document-submission-price-undertaking-offers-battery-electric-vehicles-2026-01-12_en",
+    "status": "2026-11-24 官方英文公告可读。",
+    "note": "追踪欧盟纯电动车贸易措施，核查程序阶段、适用车型和生效日期。"
+   },
+   {
+    "name": "商务部｜国别贸易投资环境信息网",
+    "url": "https://itpp.mofcom.gov.cn/dqhzz/dqhzz.shtml?conditions=3",
+    "status": "2026-11-24 欧洲动态列表可读，列有混合动力汽车贸易调查条目。",
+    "note": "发现出海政策线索后，打开适用市场的正式文件核实。"
+   },
+   {
+    "name": "工信部｜2026 年汽车标准化工作要点",
+    "url": "https://www.miit.gov.cn/xwfb/gxdt/sjdt/art/2026/art_202b76b65f354309a28d38686d988108.html",
+    "status": "2026-11-24 正文可读，列有车用固态电池标准体系研究。",
+    "note": "查后续标准草案、发布和实施节点。"
+   },
+   {
+    "name": "宁德时代｜官方新闻",
+    "url": "https://www.catl.com/news/",
+    "status": "2026-11-24 中文新闻入口可读。",
+    "note": "跟踪公开披露的车用电池技术、客户配套和海外产能进展。"
+   },
+   {
+    "name": "国轩高科｜固态电池公开披露",
+    "url": "https://www.gotion.com.cn/newsInfo/953",
+    "status": "2026-11-24 正文可读，分别披露全固态和混合固液产品。",
+    "note": "以企业自报的技术指标作基线，通过官网和交易所公告查后续验证进展。"
+   },
+   {
+    "name": "动力电池联盟月报｜2026 年 3 月公开镜像",
+    "url": "https://www.jtcopper.com/wp-content/uploads/2026/04/2026%E5%B9%B43%E6%9C%88%E5%8A%A8%E5%8A%9B%E7%94%B5%E6%B1%A0%E6%9C%88%E5%BA%A6%E4%BF%A1%E6%81%AF.pdf",
+    "status": "2026-11-24 可读第三方托管的署名联盟 PDF，统计期为 3 月。",
+    "note": "用于辨认联盟月报结构与装车口径，查新时按统计月搜联盟发布的整份报告。"
+   },
+   {
+    "name": "中国证券报·中证金牛座｜东方财富转载",
+    "url": "https://finance.eastmoney.com/a/202611193935330650.html",
+    "status": "2026-11-24 正文可读，明确引用联盟 10 月数据。",
+    "note": "作为联盟原文缺失时的备用，核对全国装车量、集中度和供应商数据。"
+   },
+   {
+    "name": "上海有色网｜10 月动力电池装车报道",
+    "url": "https://news.smm.cn/news/4IKITJOAYYIRSL7MA62X5YWSLX6HYAYLOMLSR2A",
+    "status": "2026-11-24 正文可读，含技术路线数据和供应商排名。",
+    "note": "用于交叉核对同一份联盟统计，注明共同原始出处。"
+   }
+  ],
+  "unreadable": [
+   {
+    "name": "理想投资者关系新闻总页",
+    "url": "https://ir.lixiang.com/news",
+    "reason": "2026-11-24 重新尝试打开，仍返回 403。可改用单篇官方公告或 6-K。"
+   },
+   {
+    "name": "理想投资者关系新闻列表尝试路径",
+    "url": "https://ir.lixiang.com/news-releases",
+    "reason": "2026-11-24 重新尝试打开，仍返回 404。"
+   },
+   {
+    "name": "中国汽车工业协会首页",
+    "url": "https://www.caam.org.cn/",
+    "reason": "2026-11-24 重新尝试打开，仍抓取超时。相关数据先另找协会公开发布，乘联分会数据另记统计口径。"
+   },
+   {
+    "name": "尝试访问的动力电池联盟网址",
+    "url": "https://www.cabia.org.cn/",
+    "reason": "2026-11-24 重新尝试打开，工具仍无法访问，域名归属未核实。另找发布入口后，本次仍未找到可读的 10 月联盟月报原文。"
+   }
+  ],
+  "pick": [
+   "每个工作日按北京时间从上次成功查阅时点查到本次，补查新发布的旧月份数据和更正。首次查阅从最近一个完整统计月及其后发布的相关进展查起。",
+   "先巡检公司和官方入口，再用公司、统计月和事件词补搜。依次尝试原发布方、交易所或监管附件、署名原文镜像，最后才用达到可信门槛的媒体报道。",
+   "收五家车企和行业装车的每月首次正式数据。其他事件须有可核验的实质变化，如全国或多地调价、首批海外交付、海外工厂实际投产，或固态电池完成新阶段验证。",
+   "按主体、事件、统计期和口径去重。同一事件保留最完整的原文并附核对来源，有正式更正或新增事实再更新条目。",
+   "分开比较交付、批发、零售、上牌、出口和海外本地产销。范围和统计期一致时计算同比、环比或份额变化。遇到冲突先查口径，无法核实就暂缓收录相关数字。",
+   "正文可读才入库。媒体互相转载只算一份报道。没有达到条件的重要线索留待下次复查，无合格更新时留空。"
+  ],
+  "write": [
+   "每条用中文标题和两三句话说明发生了什么、相较哪一期有何变化，以及对竞争、需求、出海或产业化研究有什么意义。",
+   "记录主体、发布时间、事件日期或统计期、地区、数据口径、单位、原文标题和链接。保存可读原文或公开报道全文，标注一手公告、原文镜像或二手报道。",
+   "价格条目写明车型及配置、原价和新价或优惠金额、适用地区、有效期、置换或金融条件，并区分指导价和活动价格。",
+   "出海条目写明国家或地区、销量口径或工厂实际阶段。政策条目写明适用对象、生效时间及当前程序阶段。",
+   "固态电池条目写明全固态或半固态、研发或商业阶段、公开测试条件和披露方。公司目标和实测结果分别标记，未知字段留空。",
+   "收藏后生成 Markdown 笔记，包含标题、日期、主体、主题标签、要点、口径、待核问题及原文链接。"
+  ],
+  "samples": [
+   {
+    "title": "比亚迪 10 月产销快报披露新能源汽车出口 170,194 辆",
+    "url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/1101/2026110100044_c.pdf",
+    "date": "2026-11-01",
+    "why": "11 月 24 日核过港交所 PDF。快报单列新能源汽车出口量，注明产销量未经审核，可作为出海研究的月度记录。"
+   },
+   {
+    "title": "小鹏 10 月交付 50,237 辆，其中海外交付 13,326 辆",
+    "url": "https://ir.xiaopeng.com/news-releases/news-release-details/xpeng-announces-vehicle-delivery-results-october-2026",
+    "date": "2026-10-31",
+    "why": "11 月 24 日核过公司公告。原文分别披露总交付和海外交付，可以跟踪交付规模和海外贡献。"
+   },
+   {
+    "title": "小米集团三季报披露汽车季度交付 100,975 辆",
+    "url": "https://ir.mi.com/static-files/e0d8d0c0-ee3e-40b3-9c2c-b31833e2abc9",
+    "date": "2026-11-24",
+    "why": "当天核过业绩公告 PDF。这是小米集团披露的第三季度车辆交付，可作为季度研究基线。"
+   },
+   {
+    "title": "10 月国内动力电池装车 99.4 GWh，同比增长 18.2%",
+    "url": "https://finance.eastmoney.com/a/202611193935330650.html",
+    "date": "2026-11-19",
+    "why": "11 月 24 日打开了中证金牛座和上海有色网的报道。双方均引述联盟统计，装车总量和同比增幅一致。作为二手报道收录，待补当期联盟月报原文。"
+   },
+   {
+    "title": "工信部将车用固态电池标准体系研究列入 2026 年工作要点",
+    "url": "https://www.miit.gov.cn/xwfb/gxdt/sjdt/art/2026/art_202b76b65f354309a28d38686d988108.html",
+    "date": "2026-05-26",
+    "why": "11 月 24 日核过官方正文。这是标准体系研究阶段的历史基线，可用于判断后续征求意见稿和正式标准带来的变化。"
+   }
+  ]
+ },
+ "reads": [
+  {
+   "url": "https://cnevpost.com/2026/11/01/roundup-oct-2026-deliveries-chinese-automakers/",
+   "ok": true
+  },
+  {
+   "url": "https://news.bjd.com.cn/2026/11/01/12014368.shtml",
+   "ok": true
+  },
+  {
+   "url": "https://finance.sina.com.cn/stock/t/2026-11-21/doc-iniznnyk9776006.shtml",
+   "ok": true
+  },
+  {
+   "url": "https://ir.lixiang.com/static-files/5ab92b1d-ab14-4ae8-8d6e-812af678f6fe",
+   "ok": true
+  },
+  {
+   "url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/1101/2026110100044_c.pdf",
+   "ok": true
+  },
+  {
+   "url": "https://www.cninfo.com.cn/new/disclosure/stock?orgId=gshk0001211&stockCode=002594",
+   "ok": true
+  },
+  {
+   "url": "https://ir.nio.com/static-files/b679f07c-8e0d-4063-bf14-7c3969f918d0",
+   "ok": true
+  },
+  {
+   "url": "https://ir.nio.com/news-events/news-releases",
+   "ok": true
+  },
+  {
+   "url": "https://ir.xiaopeng.com/news-releases/news-release-details/xpeng-announces-vehicle-delivery-results-october-2026",
+   "ok": true
+  },
+  {
+   "url": "https://ir.xiaopeng.com/news-events/news-releases",
+   "ok": true
+  },
+  {
+   "url": "https://ir.mi.com/static-files/e0d8d0c0-ee3e-40b3-9c2c-b31833e2abc9",
+   "ok": true
+  },
+  {
+   "url": "https://ir.mi.com/zh-hans/financial-information/quarterly-results",
+   "ok": true
+  },
+  {
+   "url": "https://www.xiaomiev.com/",
+   "ok": true
+  },
+  {
+   "url": "https://www.cpcaauto.com/",
+   "ok": true
+  },
+  {
+   "url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/jjjzs/art/2026/art_10120651065444b5b3b070dcae41e98a.html",
+   "ok": true
+  },
+  {
+   "url": "https://policy.trade.ec.europa.eu/news/commission-issues-guidance-document-submission-price-undertaking-offers-battery-electric-vehicles-2026-01-12_en",
+   "ok": true
+  },
+  {
+   "url": "https://www.miit.gov.cn/xwfb/gxdt/sjdt/art/2026/art_202b76b65f354309a28d38686d988108.html",
+   "ok": true
+  },
+  {
+   "url": "https://www.gotion.com.cn/newsInfo/986",
+   "ok": true
+  },
+  {
+   "url": "https://www.catl.com/news/",
+   "ok": true
+  },
+  {
+   "url": "https://finance.eastmoney.com/a/202611193935330650.html",
+   "ok": true
+  },
+  {
+   "url": "https://news.smm.cn/news/4IKITJOAYYIRSL7MA62X5YWSLX6HYAYLOMLSR2A",
+   "ok": true
+  },
+  {
+   "url": "https://ir.lixiang.com/news-releases/news-release-details/li-auto-inc-october-2026-delivery-update/",
+   "ok": true
+  },
+  {
+   "url": "https://www.jtcopper.com/wp-content/uploads/2026/04/2026%E5%B9%B43%E6%9C%88%E5%8A%A8%E5%8A%9B%E7%94%B5%E6%B1%A0%E6%9C%88%E5%BA%A6%E4%BF%A1%E6%81%AF.pdf",
+   "ok": true
+  },
+  {
+   "url": "https://itpp.mofcom.gov.cn/dqhzz/dqhzz.shtml?conditions=3",
+   "ok": true
+  },
+  {
+   "url": "https://www.gotion.com.cn/newsInfo/953",
+   "ok": true
+  },
+  {
+   "url": "https://apnews.com/article/2779fbbf91f391dd8a59c7ee626cb1b5",
+   "ok": true
+  },
+  {
+   "url": "https://ir.lixiang.com/news",
+   "ok": true
+  }
+ ]
+}

@@ -22,6 +22,8 @@
 // [data-part=start-why|from-old|going|progress-chip|conversation|thinking|not-shown|trouble|stopped|how-it-works];
 // [data-row=you|agent][data-kind]; [data-part=question][data-n][data-kind] with [data-option=<text>][aria-pressed];
 // article[data-part=build-card][data-can-confirm][data-last] with [data-part=card-points|card-full|card-changes|card-problems],
+// 1.1.1 P1 (B19): [data-part=card-unchecked] with [data-unchecked=<url>][data-why], [data-action=ask-fix] (the last card, not
+// confirmable: a message asking the agent to fix it, sent as the user's), [data-part=card-links-only][data-n];
 // [data-change=<key>]; [data-action=start|answer|send|retry|restart|go-settings|drop|full|confirm].
 import { html, useEffect, useLayoutEffect, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
@@ -65,12 +67,16 @@ function How() {
 
 // ---- the card ---------------------------------------------------------------------------------------------------------
 
+const readWord = why => T.readWords[why] ?? T.readWords[why === null || why === undefined ? 'none' : 'failed']
+// 1.1.1 P1: what Streams got when it read an address of the card itself (an entry's checked)
+const checkedWords = c => (c && typeof c === 'object' && typeof c.ok === 'boolean' ? (c.ok ? T.checkedOk : fmt(T.checked, { why: readWord(c.reason) })) : '')
+
 /** One entry of a part in words (a source, a sample, a thing to decide …). */
 function entryWords(part, e) {
   if (typeof e === 'string') return e
   if (!e || typeof e !== 'object') return ''
   if (part === 'sources') return [e.name, e.url ?? e.query, e.status].filter(Boolean).join(SEP)
-  if (part === 'unreadable') return [e.name, e.url, e.reason].filter(Boolean).join(SEP)
+  if (part === 'unreadable') return [e.name, e.url, e.reason, checkedWords(e.checked)].filter(Boolean).join(SEP)
   if (part === 'samples') return [e.title, e.url, e.date].filter(Boolean).join(SEP)
   if (part === 'decide') return `${e.what ?? ''}${e.default ? fmt(T.defaultMark, { value: e.default }) : ''}`
   return Object.values(e).filter(v => typeof v === 'string').join(SEP)
@@ -81,6 +87,7 @@ export function problemWords(problems) {
   const out = []
   for (const p of Array.isArray(problems) ? problems : []) {
     const code = p?.code
+    if (code === 'not-read' && typeof p.url === 'string') continue // listed one by one (BuildCard)
     const part = T.parts[p?.part] ?? p?.part ?? ''
     const line = T.parts[p?.line] ?? p?.line ?? ''
     const w = Object.hasOwn(T.problems, code ?? '') ? fmt(T.problems[code], { part, line }) : T.problems.other
@@ -119,7 +126,7 @@ function Changes({ changes, edit }) {
 }
 
 /** The card the main agent handed in (the conversation's; `last`: the newest card, the one 确认 is for). */
-function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConfirm }) {
+function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConfirm, onAskFix }) {
   const [full, setFull] = useState(false)
   const card = turn.card ?? {}
   const d = card.definition ?? {}
@@ -128,6 +135,10 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
   const decide = list(card.decide)
   const can = last && turn.canConfirm === true
   const problems = problemWords(turn.problems)
+  const unchecked = (Array.isArray(turn.problems) ? turn.problems : []).filter(p => p?.code === 'not-read' && typeof p.url === 'string')
+  const what = [problems.join(PUNCT.semi), unchecked.length ? fmt(T.notReadN, { n: unchecked.length }) : ''].filter(Boolean).join(PUNCT.semi)
+  const askText = fmt(unchecked.length ? T.askFixUrls : T.askFixText, { what: [...problems, ...unchecked.map(p => fmt(T.unchecked, { url: p.url, why: readWord(p.reason) }))].join(PUNCT.semi) })
+  const linksOnly = list(card.sources).filter(s => s && typeof s === 'object' && s.checked && s.checked.original === 'link')
   const rows = [
     [T.lines.summary, d.summary],
     [T.lines.purposeScope, [d.purpose, d.scope].filter(Boolean).join(PUNCT.semi)],
@@ -147,7 +158,12 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
       </div>`)}</dl>
       <${Changes} changes=${turn.changes} edit=${edit} />
       ${full ? html`<${CardFull} card=${card} />` : null}
-      ${problems.length ? html`<p class="progress-alert" role="status" data-part="card-problems">${fmt(T.notWhole, { what: problems.join(PUNCT.semi) })}</p>` : null}
+      ${linksOnly.length ? html`<p class="limit-note" data-part="card-links-only" data-n=${linksOnly.length}>${fmt(T.linksOnly, { n: linksOnly.length, names: linksOnly.map(s => s.name ?? s.url).join(PUNCT.list) })}</p>` : null}
+      ${what ? html`<div class="progress-alert st-build-problems" role="status" data-part="card-problems">
+        <p>${fmt(T.notWhole, { what })}</p>
+        ${unchecked.length ? html`<p class="limit-note">${T.uncheckedLead}</p><ul data-part="card-unchecked">${unchecked.map(p => html`<li key=${p.url} data-unchecked=${p.url} data-why=${p.reason ?? ''}>${fmt(T.unchecked, { url: p.url, why: readWord(p.reason) })}</li>`)}</ul>` : null}
+        ${last && turn.canConfirm !== true && onAskFix ? html`<span class="st-act" data-action="ask-fix"><button type="button" class="btn" disabled=${busy || acting} onClick=${() => onAskFix(askText)}>${T.askFix}</button></span>` : null}
+      </div>` : null}
     </div>
     <div class="confirm-footer">
       <span class="muted" data-part="note">${cv ? fmt(cv.folder, { name: libraryName ?? card.name ?? '' }) : edit ? fmt(T.editFolder, { name: libraryName ?? card.name ?? '' }) : fmt(T.folder, { name: card.name ?? '' })}</span>
@@ -333,7 +349,7 @@ function Talk({ view, onView }) {
                 ${t.notice === 'question-not-shown' ? html`<p class="limit-note st-faint" data-part="not-shown">${T.notShown}</p>` : null}
                 ${t.kind === 'question' && t.question ? html`<${Question} q=${t.question} open=${i === openQuestion} busy=${working} onAnswer=${a => run('replyBuild', a)} />` : null}
                 ${t.kind === 'card' && t.card ? html`<${BuildCard} turn=${t} last=${i === lastCard && i === lastAgent} mode=${view.mode} libraryName=${libraryName}
-                  busy=${working} acting=${acting} onDrop=${drop} onConfirm=${confirm} />` : null}
+                  busy=${working} acting=${acting} onDrop=${drop} onConfirm=${confirm} onAskFix=${m => run('replyBuild', m)} />` : null}
               </div>`
             })}
             ${working ? html`<div class="assistant-message" data-part="thinking-row"><${Speaker} /><p class="limit-note" data-part="thinking" role="status">${T.thinking}</p></div>` : null}

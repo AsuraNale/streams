@@ -56,7 +56,7 @@ import { pdfText } from './pdf-text.mjs'
 import { createPageReader, createLinkReader } from './core.mjs'
 // 1.1 W5: a library with a card is updated by it (services/library-update.mjs; services/update.mjs is the app's own update)
 import { createLibraryUpdateService } from './services/library-update.mjs'
-import { createBuildService, devBuildSession } from './services/build.mjs'
+import { createBuildService, devBuildReaders, devBuildSession } from './services/build.mjs'
 import { defaultLibraryRoot as defaultRootOf } from './library-root.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -111,6 +111,8 @@ const DEV_QUOTA = !app.isPackaged && typeof process.env.STREAMS_DEV_QUOTA === 's
 const DEV_SOP_DIR = !app.isPackaged && typeof process.env.STREAMS_DEV_SOP_DIR === 'string' && isAbsolute(process.env.STREAMS_DEV_SOP_DIR) ? process.env.STREAMS_DEV_SOP_DIR : null
 // 1.1 W6b, development and tests only: the build agent's replies (services/build.mjs devBuildSession)
 const DEV_BUILD = !app.isPackaged && typeof process.env.STREAMS_DEV_BUILD === 'string' && isAbsolute(process.env.STREAMS_DEV_BUILD) ? process.env.STREAMS_DEV_BUILD : null
+// 1.1.1 P1: what Streams' own readers answer in a build of a test (services/build.mjs devBuildReaders); never the network there
+const DEV_READS = !app.isPackaged && typeof process.env.STREAMS_DEV_READS === 'string' && isAbsolute(process.env.STREAMS_DEV_READS) ? process.env.STREAMS_DEV_READS : null
 const DEV_DEFINITION = !app.isPackaged && typeof process.env.STREAMS_DEV_DEFINITION === 'string' && isAbsolute(process.env.STREAMS_DEV_DEFINITION) ? process.env.STREAMS_DEV_DEFINITION : null
 const STARTED_AT = Date.now()
 const clock = DEV_NOW === null ? () => new Date() : () => new Date(DEV_NOW + (Date.now() - STARTED_AT))
@@ -349,7 +351,9 @@ app.whenReady().then(() => {
       return { ok: true, json: { items: [] }, text: '{"items":[]}', sessionId: 'dev-update', resumed: false, reads: [], searches: [], otherTools: [] }
     },
   })
-  libraryUpdate = createLibraryUpdateService({ readPages, readLinks: () => createLinkReader({ render: renderService.render }), log, now: clock, ...(DEV_CONNECTION ? { session: devWebSession } : {}) })
+  libraryUpdate = createLibraryUpdateService({ readPages, readLinks: () => createLinkReader({ render: renderService.render }), log, now: clock, ...(DEV_CONNECTION ? { session: devWebSession } : {}),
+    // 1.1.1 P1, tests only: with STREAMS_DEV_READS the update's readers answer from the same table as the build's
+    ...(DEV_READS ? { readPages: () => ({ read: devBuildReaders(DEV_READS).readPage }), readLinks: () => ({ read: devBuildReaders(DEV_READS).readLinks }) } : {}) })
   closeReader = () => { reader.window()?.close() }
   restyleReader = () => reader.restyle()
   // v2 package K2: 「跟随系统」 follows Windows while the app runs — nativeTheme says when the system's light / dark changed (with
@@ -390,7 +394,9 @@ app.whenReady().then(() => {
     libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
     // a test or development run with the development connection never reaches the real command line: the script, or the
     // stand-in's one question
-    ...(DEV_BUILD || DEV_CONNECTION ? { session: (active, callsSoFar) => devBuildSession(DEV_BUILD, callsSoFar) } : {}),
+    ...(DEV_BUILD || DEV_CONNECTION ? { session: (active, callsSoFar) => devBuildSession(DEV_BUILD, callsSoFar), readers: () => devBuildReaders(DEV_READS) } : {}),
+    // 1.1.1 P1 (B19): the card's addresses read by Streams itself — the update's page reader and link reader
+    ...(DEV_BUILD || DEV_CONNECTION ? {} : { readers: () => ({ readPage: readPages().read, readLinks: createLinkReader({ render: renderService.render }).read }) }),
     // 1.1 W10 (the maintainer 11-23): a library made or brought over has its first update queued at once (the queue's why: first)
     afterBuilt: ({ libraryId }) => {
       const entry = library.find(libraryId)

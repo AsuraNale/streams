@@ -242,12 +242,17 @@ export function claudeWebOf(stdout) {
 /** What a Codex run read and searched (`codex --search exec --json`, 0.167, real runs of 2026-11-21): a completed
  *  web_search item carries `results`, each with a `ref_id`. `turn<N>view<M>` is a page the model opened and looked at
  *  (whatever the item's action: open_page, find_in_page, other); `turn<N>search<M>` is only a search result, never
- *  counted as read. An open_page action's own url counts too. A search action's queries are the searches. */
+ *  counted as read. An open_page action's own url counts too — 1.1.1 P1 (B19): only when it worked, i.e. a result came back
+ *  with the page's address; an open that came back as an error (11-24: one result, no address, 「Internal Error」) is
+ *  { url, ok: false }, not a read. A search action's queries are the searches. */
 const CODEX_VIEW = /^turn\d+view\d+$/;
 export function codexWebOf(stdout) {
   const reads = [];
-  const seen = new Set();
-  const read = (url) => { if (typeof url === 'string' && url !== '' && !seen.has(url)) { seen.add(url); reads.push({ url, ok: true }); } };
+  const at = new Map();
+  const read = (url, ok = true) => {
+    if (typeof url !== 'string' || url === '') return;
+    if (!at.has(url)) { at.set(url, reads.length); reads.push({ url, ok }); } else if (ok) reads[at.get(url)].ok = true;
+  };
   const searches = [];
   for (const raw of String(stdout || '').split('\n')) {
     const line = raw.trim();
@@ -257,8 +262,9 @@ export function codexWebOf(stdout) {
     const item = ev?.type === 'item.completed' ? ev.item : null;
     if (!item || item.type !== 'web_search') continue;
     const a = item.action ?? {};
-    if (a.type === 'open_page') read(a.url);
-    for (const res of Array.isArray(item.results) ? item.results : []) if (CODEX_VIEW.test(String(res?.ref_id ?? ''))) read(res.url);
+    const results = Array.isArray(item.results) ? item.results : [];
+    if (a.type === 'open_page') read(a.url, results.some((res) => typeof res?.url === 'string' && res.url !== ''));
+    for (const res of results) if (CODEX_VIEW.test(String(res?.ref_id ?? ''))) read(res.url);
     if (a.type === 'search') {
       const q = typeof a.query === 'string' && a.query !== '' ? a.query : typeof item.query === 'string' ? item.query : '';
       if (q) searches.push(q);

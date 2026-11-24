@@ -869,6 +869,25 @@ const MUTANTS = [
     edits: [["src/pipeline/schedule.mjs", "(?:周|星期|礼拜)([一二三四五六日天])(?![次回遍])/g", "(?:周|星期|礼拜)([一二三四五六日天])/g"]],
     test: ["test/v111-schedule.test.mjs", "--test-name-pattern=A10: the card"],
   },
+  // 1.1.1 P1 (B19)
+  {
+    id: "v111-p1-no-own-read",
+    what: "Streams does not read the card's addresses itself: only the model's opens count",
+    edits: [["src/build/check-urls.mjs", "    const rec = await readOne(url);", "    const rec = null;"]],
+    test: ["test/v111-check-urls.test.mjs", "--test-name-pattern=B19 ①"],
+  },
+  {
+    id: "v111-p1-codex-error-read",
+    what: "a Codex open that came back as an error counts as read",
+    edits: [["src/connect/session.mjs", "read(a.url, results.some((res) => typeof res?.url === 'string' && res.url !== ''));", "read(a.url, true);"]],
+    test: ["test/v111-check-urls.test.mjs", "--test-name-pattern=B19 ③"],
+  },
+  {
+    id: "v111-p1-unreadable-needs-open",
+    what: "an address in 「读不到的来源」 needs an open again (the 1.1.0 rule)",
+    edits: [["src/build/check-urls.mjs", "if (unreadable.has(k) || opened.has(k) || out[k]?.ok) continue;", "if (opened.has(k) || out[k]?.ok) continue;"]],
+    test: ["test/v111-check-urls.test.mjs", "--test-name-pattern=B19 ④"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

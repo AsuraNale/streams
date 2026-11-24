@@ -7,6 +7,10 @@
 //   original  what Streams could do with the pages of the source:
 //             'read' (it read some: 读得到) · 'pdf' (only PDFs, their text taken out) · 'link' (only links: no page read,
 //             or the source itself cannot be read) · 'search' (a search word: the update agent searches it) · 'unknown'
+//             1.1.1 P1: until an update has read a page of the source (the first one only notes its links), what
+//             Streams found when the card was handed in (the entry's checked.original, build/check-urls.mjs)
+//   checked   1.1.1 P1: Streams' own read when the card was handed in, { ok, original, reason } (or null): for a source the
+//             card lists as unreadable it goes beside the reason
 // sourceHandlers({ dirOfLibrary, language }) -> { add_source, remove_source } for createActionRunner
 //   add_source({ library, source: { name, url } | { name, query } }): the card gets the source (status 「你加的」), its new version
 //     kept in _card/history; remove_source({ library, source: url | query | name }): the card loses it.
@@ -27,6 +31,13 @@ function originalOf(entry, isQuery) {
   return 'unknown';
 }
 
+const ORIGINALS = ['read', 'pdf', 'link'];
+function checkedOf(entry) {
+  const c = entry?.checked;
+  if (c === null || typeof c !== 'object' || typeof c.ok !== 'boolean') return null;
+  return { ok: c.ok, original: ORIGINALS.includes(c.original) ? c.original : c.ok ? 'read' : 'link', reason: typeof c.reason === 'string' ? c.reason : null };
+}
+
 export function sourceRows(libraryDir) {
   const card = readCard(libraryDir);
   if (!card) return [];
@@ -38,10 +49,11 @@ export function sourceRows(libraryDir) {
       name: s.name, url: s.url ?? null, query: isQuery ? s.query : null, status: s.status ?? '',
       state: isQuery ? 'search' : e ? (e.ok ? 'ok' : e.reason ?? 'failed') : 'never',
       reason: e && !e.ok ? e.reason ?? null : null,
-      original: originalOf(e, isQuery),
+      original: originalOf(e, isQuery) === 'unknown' ? checkedOf(s)?.original ?? 'unknown' : originalOf(e, isQuery),
+      checked: checkedOf(s),
     };
   });
-  for (const u of card.unreadable ?? []) rows.push({ name: u.name, url: u.url ?? null, query: null, status: u.reason ?? '', state: 'blocked', reason: u.reason ?? null, original: 'link', unreadable: true });
+  for (const u of card.unreadable ?? []) rows.push({ name: u.name, url: u.url ?? null, query: null, status: u.reason ?? '', state: 'blocked', reason: u.reason ?? null, original: 'link', unreadable: true, checked: checkedOf(u) });
   return rows;
 }
 

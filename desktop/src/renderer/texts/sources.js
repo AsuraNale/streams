@@ -28,6 +28,9 @@ export const SOURCES = Object.freeze({
     originals: Object.freeze({ read: '读得到', pdf: '是 PDF，已取出文字', link: '只有链接', search: '由更新 Agent 搜', unknown: '还不知道' }),
     searchWord: '检索词：{q}',
     unreadable: '卡上写明读不到',
+    // 1.1.1 P1 (B19): what Streams got when it read the address itself, the day the card was handed in
+    checked: '流息读的结果：{why}',
+    checkedOk: '流息读得到',
     confirmLine: '加进建库卡：{what}',
     confirm: '确认',
     drop: '不加',
