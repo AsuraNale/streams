@@ -21,7 +21,7 @@ export const STANDARDS = [
     standard: '登录过期时，本次运行不开始，库页顶上的横幅说明，已抓取的条目完整保留',
     how: '假连接器返回登录过期文案' },
   { id: 'V7', file: 'v07-banned-words.test.mjs',
-    standard: '界面禁词零命中：Bronze、Silver、Gold、judge、keeper、gate、Medallion、pending、ledger；品牌词 Claude、Anthropic、OpenAI、ChatGPT 只出现在「连接你电脑上的 …」、型号表和许可证页',
+    standard: '界面禁词零命中：Bronze、Silver、Gold、judge、keeper、gate、Medallion、pending、ledger；品牌词 Claude、Anthropic、OpenAI、ChatGPT 只出现在「连接你电脑上的 …」、型号表和许可证页；1.1.1 起设置页的搜索服务一处也可以出现服务商的名字（比照型号表；维护者 11-24 晚「按照你的推荐」，即 1.1 标准 E4 的例外）',
     how: '扫描器跑全部界面文件（中英两套）' },
   { id: 'V8', file: 'v08-bad-note-quarantined.test.mjs',
     standard: '一个故意写坏的 .md 被列为「缺少文件头」的文件，不进索引、图谱、问库，且文件内容未被改动',
