@@ -1360,6 +1360,26 @@ const MUTANTS = [
     edits: [['src/main/services/browse.mjs', ".map(t => t.trim()).filter(t => !fallback.has(t)))]", ".map(t => t.trim()))]"]],
     test: ['test/ui-p11b.test.mjs'],
   },
+  // 1.1.1 P1 (B19)
+  {
+    id: 'p1-no-why',
+    what: 'a card that cannot be confirmed does not say which addresses could not be checked, nor why',
+    edits: [['src/renderer/screens/build.js', "const unchecked = (Array.isArray(turn.problems) ? turn.problems : []).filter(", "const unchecked = [].filter("]],
+    test: ['test/ui-p1.test.mjs'],
+  },
+  {
+    id: 'p1-no-ask-fix',
+    what: 'no 「请它改好再交」 on a card that cannot be confirmed',
+    edits: [['src/renderer/screens/build.js', "${last && turn.canConfirm !== true && onAskFix ? html", "${false ? html"]],
+    test: ['test/ui-p1.test.mjs'],
+  },
+  // 1.1.1 P12 (C3)
+  {
+    id: 'p12-mark-dark',
+    what: "the reading window's marked sentence takes the theme's light mark colours again: light words on a light ground in dark",
+    edits: [['src/main/reader.mjs', "background:color-mix(in srgb,var(--accent,currentColor) 24%,transparent)!important;color:inherit!important;", "background:color-mix(in srgb,var(--accent) 20%,transparent);color:inherit;"]],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=A4'],
+  },
 ]
 
 function runTest(desktop, test) {

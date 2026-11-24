@@ -315,7 +315,9 @@ export function storedPage({ stored, mark = null, point = null, words, look, css
   }).join('')
   const vals = { when: localTime(stored.fetchedAt), method: words.methods?.[stored.method] ?? '', n: Number.isInteger(point) ? point + 1 : '' }
   const note = fill(Number.isInteger(point) ? words.storedNoteFrom : words.storedNote, vals)
-  const html = '<style>.rd-mark{background:color-mix(in srgb,var(--accent) 20%,transparent);color:inherit;box-shadow:inset 0 -2px 0 var(--accent);border-radius:2px;padding:1px 0;scroll-margin-top:96px}</style>'
+  // 1.1.1 P12 (C3): the theme sheets have their own mark rules (a light background, made for light pages) that outranked this
+  // one: in dark the marked sentence was light words on a light ground. The mark's own colours win now, in both looks.
+  const html = '<style>mark.rd-mark{background:color-mix(in srgb,var(--accent,currentColor) 24%,transparent)!important;color:inherit!important;box-shadow:inset 0 -2px 0 var(--accent,currentColor);border-radius:2px;padding:1px 0;scroll-margin-top:96px}</style>'
     + '<div class="reader-scroll rd-scroll"><article class="reader-paper rd-article" data-reader-article data-reader-stored>'
     + `<span class="eyebrow rd-article__note" data-reader-note-line>${escapeHtml(note)}</span>`
     + `<h1 class="reader-title rd-article__title">${escapeHtml(stored.title || '')}</h1>`

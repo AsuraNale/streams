@@ -123,6 +123,35 @@ describe('W6a: 待看, the reading window, 来源与要求, 设置', () => {
       assert.equal(site.hits.filter(h => it.url.endsWith(h)).length, before, 'the page was not fetched again')
       await readerShot(`reader-${new URL(it.url).pathname.replace(/\//g, '')}-point${point + 1}`)
     }
+    // 1.1.1 P12 C3 (A7): the same page of the reading window in dark — its page follows the app (what would fail it: the
+    // light page, whose background is near white)
+    const BG = 'JSON.stringify(getComputedStyle(document.body).backgroundColor)'
+    const lum = c => { const [r, g, b] = String(c).match(/\d+(\.\d+)?/g).slice(0, 3).map(Number); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 }
+    // the marked sentence can be read, in light and in dark: its words against its own background (the mark's colour over
+    // the page's), at least 4.5 : 1 (1.1.1 P12 C3 found 1.13 in dark: the theme's light mark rule won)
+    const markedReads = async look => {
+      const MARKED = 'JSON.stringify((() => { const m = document.querySelector("mark#streams-mark") ?? document.querySelector("mark.rd-mark"); const c = getComputedStyle(m); const card = m.closest("article, main, body"); return { fg: c.color, bg: c.backgroundColor, under: getComputedStyle(card).backgroundColor, page: getComputedStyle(document.body).backgroundColor } })())'
+      const rgba = c => { const n = String(c).match(/[\d.]+/g).map(Number); return String(c).startsWith('color(') ? [n[0] * 255, n[1] * 255, n[2] * 255, n[3] ?? 1] : [n[0], n[1], n[2], n[3] ?? 1] }
+      const over = (top, base) => { const [r, g, b, a] = rgba(top); const [R, G, B] = rgba(base); return [r * a + R * (1 - a), g * a + G * (1 - a), b * a + B * (1 - a)] }
+      const rel = ([r, g, b]) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
+      const marked = (await readerPage(MARKED)).page
+      const base = rgba(marked.under)[3] === 0 ? marked.page : marked.under
+      const bgMark = over(marked.bg, base)
+      const fgMark = over(marked.fg, bgMark)
+      const [hi, lo] = [rel(fgMark), rel(bgMark)].sort((x, y) => y - x)
+      assert.ok((hi + 0.05) / (lo + 0.05) >= 4.5, `the marked sentence in ${look}: ${JSON.stringify(marked)} → ${((hi + 0.05) / (lo + 0.05)).toFixed(2)}`)
+    }
+    const light = await readerPage(BG)
+    await markedReads('light')
+    assert.ok(light && lum(light.page) > 0.7, `light first: ${light?.page}`)
+    assert.ok((await s.page.evaluate(() => window.streams.setAppearance('dark'))).ok)
+    let dark = null
+    for (let i = 0; i < 100; i++) { dark = await readerPage(BG); if (dark && lum(dark.page) < 0.3) break; await new Promise(x => setTimeout(x, 200)) }
+    assert.ok(dark && lum(dark.page) < 0.3, `the reading window in dark: ${dark?.page}`)
+    await markedReads('dark')
+    const [last, lastPoint] = picks.at(-1)
+    await readerShot(`reader-${new URL(last.url).pathname.replace(/\//g, '')}-point${lastPoint + 1}-dark`)
+    await s.page.evaluate(() => window.streams.setAppearance('light'))
   })
 
   test('A5: 来源与要求 shows the card and its sources — address or search word, and the three kinds of 「原文」 — and a source added waits for 确认', async () => {

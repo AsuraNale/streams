@@ -1,3 +1,4 @@
+// 1.1.1 P12 (待办 D2): 1.1 replaced what this 1.0 test checks — V5 is checked by 1.1's B13 now (1.0 的格式退回重试由 1.1 更新的「摘要没写出来」取代); kept here, not run by tests/acceptance/run.mjs (../replaced.mjs).
 // V5 · 模型输出坏格式时重试一次，再坏就标未评分，条目不丢
 // 怎么核：假连接器
 //
@@ -14,8 +15,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { core } from './support/paths.mjs'
-import { feedLibrary, fetchCtx, withProbeOk, ledger, rounds, modelCalls } from './support/library.mjs'
+import { core } from '../support/paths.mjs'
+import { feedLibrary, fetchCtx, withProbeOk, ledger, rounds, modelCalls } from '../support/library.mjs'
 
 const RETRY = '你的输出不符合格式'
 const gatePrompts = (conn, key) => modelCalls(conn).filter(c => c.model !== 'verify' && new RegExp(`"${key}": 0到1的小数`).test(c.prompt)).map(c => c.prompt)

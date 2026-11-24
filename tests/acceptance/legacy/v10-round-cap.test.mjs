@@ -1,3 +1,4 @@
+// 1.1.1 P12 (待办 D2): 1.1 replaced what this 1.0 test checks — V10 is checked by 1.1's B11 now (每轮上限由 1.1 更新的额度（来源数、新链接数）取代); kept here, not run by tests/acceptance/run.mjs (../replaced.mjs).
 // V10 · 单次运行上限生效：上限设 5，第 6 条不调模型，剩余条目下次运行接着处理
 // 怎么核：假连接器计数
 // (Redesign R6a: the standard's sentence is the one 维护者 saw on 11-11 — was 「每轮上限生效：上限设 5，第 6 条不调模型，剩余条目下一轮
@@ -20,13 +21,13 @@ import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { core, fake, DESKTOP_DIR } from './support/paths.mjs'
-import { feedLibrary, fetchCtx, setPipeline, modelCalls, ledger, rounds, startFakeServer, serveItems, feedRoute } from './support/library.mjs'
-import { worldSession } from '../../desktop/test/support/seed.mjs'
-import { RUN } from '../../desktop/src/renderer/texts/run.js'
-import { RUN as RUN_EN } from '../../desktop/src/renderer/texts-en/run.js'
-import { ADVANCED, SOURCES } from '../../desktop/src/renderer/texts/sources.js'
-import { ADVANCED as ADVANCED_EN, SOURCES as SOURCES_EN } from '../../desktop/src/renderer/texts-en/sources.js'
+import { core, fake, DESKTOP_DIR } from '../support/paths.mjs'
+import { feedLibrary, fetchCtx, setPipeline, modelCalls, ledger, rounds, startFakeServer, serveItems, feedRoute } from '../support/library.mjs'
+import { worldSession } from '../../../desktop/test/support/seed.mjs'
+import { RUN } from '../../../desktop/src/renderer/texts/run.js'
+import { RUN as RUN_EN } from '../../../desktop/src/renderer/texts-en/run.js'
+import { ADVANCED, SOURCES } from '../../../desktop/src/renderer/texts/sources.js'
+import { ADVANCED as ADVANCED_EN, SOURCES as SOURCES_EN } from '../../../desktop/src/renderer/texts-en/sources.js'
 
 const pairs = conn => modelCalls(conn).filter(c => fake.promptKind(c) === 'gate').map(c => `${fake.titleOf(c.prompt)}|${fake.scoreKeyOf(c.prompt)}`)
 const titled = (items, i) => items[i - 1].title

@@ -495,9 +495,10 @@ function releaseNotes({ file, bytes, sha256, electron }) {
     '',
     '## 没有在干净机器上验过 / Not verified on a clean machine',
     '',
-    'v1.0 未在干净机器上验过：发版前的人工验收是在开发者自己的 Windows 11 家庭版上直接装这个安装包、走完一遍（真连接一并测），没有在全新的 Windows 或虚拟机上装过。自动测试另在只有系统目录的环境里装过、启动过、走过一遍。',
+    // 1.1.1 P12 (待办 C2): the version written here is this release's (it read 「v1.0」 in every release since)
+    `${v} 未在干净机器上验过：发版前的人工验收是在开发者自己的 Windows 11 家庭版上直接装这个安装包、走完一遍（真连接一并测），没有在全新的 Windows 或虚拟机上装过。自动测试另在只有系统目录的环境里装过、启动过、走过一遍。`,
     '',
-    'v1.0 has not been verified on a clean machine: the hands-on check before release installed this installer on the developer\'s own Windows 11 Home PC (real connections included), not on a fresh Windows or a virtual machine. The automated tests also install, start and walk through it with only the system folders on the path.',
+    `Version ${v} has not been verified on a clean machine: the hands-on check before release installed this installer on the developer\'s own Windows 11 Home PC (real connections included), not on a fresh Windows or a virtual machine. The automated tests also install, start and walk through it with only the system folders on the path.`,
     '',
     '## 安装与卸载 / Install and uninstall',
     '',

@@ -1,3 +1,4 @@
+// 1.1.1 P12 (待办 D2): 1.1 replaced what this 1.0 test checks — V3 is checked by 1.1's B8 now (来源状态由 1.1 的六种状态取代（多一种「要登录」）); kept here, not run by tests/acceptance/run.mjs (../replaced.mjs).
 // V3 · 五种抓取状态各能触发，且界面文案和「怎么办」对应正确
 // 怎么核：用假服务器分别返回 200 空、404、503、429、403 和代理拒绝
 //
@@ -13,12 +14,12 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
-import { CORE_DIR, core, fileUrl } from './support/paths.mjs'
-import { startFakeServer } from './support/library.mjs'
-import { EMPTY_RSS, RSS2 } from '../../core/test/support/feeds.mjs'
-import { createSourcesService } from '../../desktop/src/main/services/sources.mjs'
-import * as ZH from '../../desktop/src/renderer/texts/common.js'
-import * as EN from '../../desktop/src/renderer/texts-en/common.js'
+import { CORE_DIR, core, fileUrl } from '../support/paths.mjs'
+import { startFakeServer } from '../support/library.mjs'
+import { EMPTY_RSS, RSS2 } from '../../../core/test/support/feeds.mjs'
+import { createSourcesService } from '../../../desktop/src/main/services/sources.mjs'
+import * as ZH from '../../../desktop/src/renderer/texts/common.js'
+import * as EN from '../../../desktop/src/renderer/texts-en/common.js'
 
 // redesign R6b-1: the five states' words (05-措辞规范 第三节「五种抓取状态」: 正常 / 无更新 / 地址无效 / 暂时失败 / 访问被拒; English from
 // 05 and docs/checks/2026-11-13-r6b/contract.md R6b-1) and what the 处理建议 of each must say. The names PLAN_WORDS / PLAN_HINTS

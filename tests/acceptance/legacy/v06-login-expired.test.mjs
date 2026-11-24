@@ -1,3 +1,4 @@
+// 1.1.1 P12 (待办 D2): 1.1 replaced what this 1.0 test checks — V6 is checked by 1.1's B12 now (登录过期由 1.1 更新的「没登录不开始」取代); kept here, not run by tests/acceptance/run.mjs (../replaced.mjs).
 // V6 · 登录过期时，本次运行不开始，库页顶上的横幅说明，已抓取的条目完整保留
 // 怎么核：假连接器返回登录过期文案
 // (Redesign R6a: the standard's sentence is the one 维护者 saw on 11-11 — was 「登录过期时，当轮不开始，首页横幅说明，抓到的条目完整保留」.
@@ -32,13 +33,13 @@
 // byte. Shown to fail with the sentence before R6a put back (desktop/scripts/mutation-check.mjs r6a-v6-old-banner).
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { core } from './support/paths.mjs'
-import { feedLibrary, feedRoute, serveItems, fetchCtx, hashes } from './support/library.mjs'
-import { worldSession } from '../../desktop/test/support/seed.mjs'
-import { TODAY } from '../../desktop/src/renderer/texts/today.js'
-import { TODAY as TODAY_EN } from '../../desktop/src/renderer/texts-en/today.js'
-import { CONNECTIONS } from '../../desktop/src/renderer/texts/common.js'
-import { fmt } from '../../desktop/src/renderer/lib/format.js'
+import { core } from '../support/paths.mjs'
+import { feedLibrary, feedRoute, serveItems, fetchCtx, hashes } from '../support/library.mjs'
+import { worldSession } from '../../../desktop/test/support/seed.mjs'
+import { TODAY } from '../../../desktop/src/renderer/texts/today.js'
+import { TODAY as TODAY_EN } from '../../../desktop/src/renderer/texts-en/today.js'
+import { CONNECTIONS } from '../../../desktop/src/renderer/texts/common.js'
+import { fmt } from '../../../desktop/src/renderer/lib/format.js'
 
 const KEPT = rel => rel === 'streams.json' || rel === 'index.jsonl' || rel.startsWith('notes/') || rel.startsWith('_pipeline/inbox/') ||
   ['_pipeline/ledger.jsonl', '_pipeline/fetch_log.jsonl', '_pipeline/rounds.jsonl', '_pipeline/verdicts.jsonl'].includes(rel)
