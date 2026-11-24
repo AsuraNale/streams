@@ -412,14 +412,15 @@ function CardSourcesPart({ rows, onAdded }) {
 }
 
 /** A library with no card: built by the last version — what still works, and the way on (A6). */
-function OldNotice({ connection, onRecheck }) {
+function OldNotice({ connection, hasKey, onRecheck }) {
   const O = T.old
-  const can = connection === 'claude-code' || connection === 'codex'
+  // 1.1.1 P6 (A6): an API key with the model's key can check the sources again too
+  const can = connection === 'claude-code' || connection === 'codex' || (connection === 'api' && hasKey !== false)
   return html`<section class="st-src-part progress-alert st-src-old" data-part="old-library" data-can=${String(can)} role="note">
     <div class="section-label"><span>${O.heading}</span></div>
     <p class="limit-note">${O.text}</p>
     <div class="row"><${Btn} name="recheck-sources" kind="primary" disabled=${!can} onClick=${onRecheck}>${O.action}<//>
-      ${can ? null : html`<small class="muted" data-part="recheck-why">${fmt(O.needsClaude, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })}</small>`}</div>
+      ${can ? null : html`<small class="muted" data-part="recheck-why">${fmt(O.needsClaude, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex, api: CONNECTIONS.names.api })}</small>`}</div>
   </section>`
 }
 
@@ -458,7 +459,7 @@ export function SourcesScreen({ params = {} }) {
           <p data-lead>${hasCard ? T.cardLead : old ? T.old.lead : T.lead}</p>
           ${cardView.status === 'error' && !cv ? html`<div class="progress-alert" role="alert">${cardView.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}
             <${Btn} name="retry-sources" onClick=${() => cardView.reload()}>${ERRORS.retry}<//></div>` : null}
-          ${old ? html`<${OldNotice} connection=${appState?.data?.activeConnection ?? null} onRecheck=${() => navigate('build', { from: libraryId, brief: cv?.brief ?? '' })} />
+          ${old ? html`<${OldNotice} connection=${appState?.data?.activeConnection ?? null} hasKey=${appState?.data?.activeHasKey ?? null} onRecheck=${() => navigate('build', { from: libraryId, brief: cv?.brief ?? '' })} />
             <${OldBriefPart} brief=${cv?.brief ?? null} />
             ${view.status === 'error' && !view.data ? html`<p class="progress-alert" role="alert">${T.loadFailed}</p>` : null}
             ${view.data ? html`<${OldSourcesPart} view=${view.data} />` : null}` : null}

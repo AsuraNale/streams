@@ -12,10 +12,10 @@
  */
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createLinkReader, createSessionConnector, readCard, runUpdate } from '../core.mjs'
+import { createLinkReader, createSessionConnector, readCard, runUpdate, saveOriginal } from '../core.mjs'
 
 // 1.1.1 P3 (C8): Codex updates too (its four cards' updates passed the same line as Claude Code's)
-export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex'])
+export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex', 'api'])
 export const UPDATE_CWD = join(tmpdir(), 'streams-update-cwd')
 
 /**
@@ -23,10 +23,14 @@ export const UPDATE_CWD = join(tmpdir(), 'streams-update-cwd')
  * @param {() => {read: Function}} o.readPages - a page reader (core createPageReader with the render service and the PDF reader)
  * @param {() => {read: Function}} [o.readLinks] - a link reader (core createLinkReader with the render service)
  * @param {(active: object) => object} [o.session] - the update agent's session for the active connection
+ * @param {(active: object, o: {search: Function|null, onPage: Function}) => object} [o.apiSession] - 1.1.1 P6: an API connection's
+ *   update agent with Streams' tools (main.mjs: core createApiToolSession, the update's budget as hard numbers); each page it
+ *   reads is kept as its original at once (onPage), so what it quotes is what is kept
+ * @param {(active: object) => Promise<{search: Function}|null>} [o.apiSearch] - its search (core searchFor), or null
  * @param {(line: string) => void} o.log
  * @param {() => Date} [o.now]
  */
-export function createLibraryUpdateService({ readPages, readLinks = () => createLinkReader(), session = active => createSessionConnector(active.connection, {}, { cwd: UPDATE_CWD, web: true }), log, now = () => new Date() }) {
+export function createLibraryUpdateService({ readPages, readLinks = () => createLinkReader(), session = active => createSessionConnector(active.connection, {}, { cwd: UPDATE_CWD, web: true }), log, now = () => new Date(), apiSession = null, apiSearch = async () => null }) {
   return {
     /** The library at `dir` is updated by its card (it has _card/card.json). */
     applies(dir) {
@@ -40,7 +44,14 @@ export function createLibraryUpdateService({ readPages, readLinks = () => create
     },
     /** One update of the library at `dir` on the active connection (1.1 W7a: `signal` — 停止). */
     async run(dir, active, { round, signal = null } = {}) {
-      const r = await runUpdate(dir, { connector: session(active), judge: active.connector, readPage: readPages().read, readLinks: readLinks().read, now, round, signal, kind: active.kind })
+      let connector
+      let search = true
+      if (active.kind === 'api' && apiSession) {
+        const found = await apiSearch(active)
+        search = Boolean(found)
+        connector = apiSession(active, { search: found?.search ?? null, onPage: (url, page) => saveOriginal(dir, { url, title: page.title ?? '', text: page.text, method: page.method, fetchedAt: now() }) })
+      } else connector = session(active)
+      const r = await runUpdate(dir, { connector, judge: active.connector, readPage: readPages().read, readLinks: readLinks().read, now, round, signal, kind: active.kind, search })
       log(`update: ${round ?? '-'} of ${dir}: ${r.status}${r.record ? ` · sources ${r.record.counts.read} · new ${r.record.counts.newLinks} · inbox ${r.record.counts.inbox} · calls ${r.record.calls ?? 0}` : ''}`)
       return r
     },

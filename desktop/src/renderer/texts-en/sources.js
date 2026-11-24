@@ -40,7 +40,7 @@ export const SOURCES = Object.freeze({
     lead: 'This library has no library card yet: it was made from the last version\'s brief and sources, and this version no longer updates it the old way.',
     text: 'Its notes, the library and asking it all work as before. To keep it updating, go over its sources again with the main agent: it starts from this library\'s brief and sources and hands you a library card; nothing in the library changes until you confirm.',
     action: 'Go over the sources again',
-    needsClaude: 'This needs "{cc}" or "{cx}": with the current connection this version can only ask the library.',
+    needsClaude: 'This needs a connection that makes libraries: "{cc}", "{cx}", or "{api}" with the model\'s key. Choose one in Settings.',
   }),
   loadFailed: 'The sources and topics could not be read.',
   failed: 'That did not work. Please try again.',

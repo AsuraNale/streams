@@ -46,6 +46,9 @@ describe('P5: 设置\'s 搜索 row', () => {
     await until(() => document.querySelector('[data-part="search-row"]') !== null)
     const r = await row()
     assert.deepEqual(r, { from: 'none', words: SETTINGS.search.none, input: true, remove: false })
+    // 1.1.1 P6: another vendor's models are not tested
+    const marks = await s.page.evaluate(() => [...document.querySelectorAll('#settings-model-api option[data-tested]')].map(o => [o.dataset.tested, o.textContent]))
+    assert.ok(marks.length > 0 && marks.every(([t, label]) => t === 'false' && label.endsWith(SETTINGS.conn.untested)), JSON.stringify(marks))
     await looks('search-none')
   })
 
@@ -75,6 +78,10 @@ describe('P5: 设置\'s 搜索 row', () => {
     assert.ok((await s.page.evaluate(k => window.streams.setApiKey('deepseek', k), MODEL_KEY)).ok)
     await until(() => document.querySelector('[data-part="search-row"]')?.dataset.from === 'model')
     assert.deepEqual(await row(), { from: 'model', words: SETTINGS.search.fromModel, input: false, remove: false })
+    // 1.1.1 P6: DeepSeek's tested model is marked 已实测
+    await until(() => document.querySelector('#settings-model-api option[value="deepseek-chat"]') !== null)
+    const ds = await s.page.evaluate(() => { const o = document.querySelector('#settings-model-api option[value="deepseek-chat"]'); return [o.dataset.tested, o.textContent] })
+    assert.deepEqual(ds, ['true', 'DeepSeek Chat' + SETTINGS.conn.tested])
     await looks('search-model')
   })
 

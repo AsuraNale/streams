@@ -56,7 +56,7 @@ const QUESTION_WORDS = {
   'options-on-input': '纯输入题不给选项',
   'bad-kind': 'kind 只能写 input、single 或 multi',
   'no-text': '问题没有写字',
-  'bad-option': '选项不能为空，也不能重复',
+  'bad-option': '每个选项是一个字符串，不能为空，也不能重复',
 };
 
 // what Streams' reader got, in the words the agent is told (1.1.1 P1)

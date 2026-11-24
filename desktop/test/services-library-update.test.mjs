@@ -78,21 +78,21 @@ test('a library with a card: its round is an update (the update agent, a run rec
   assert.equal(ends.some(p => p.phase === 'self-check'), false, 'v1.0\'s self-check did not run')
 })
 
-test('Claude Code and (1.1.1 P3) Codex update: an API key does not start, and says why', async () => {
-  assert.deepEqual(UPDATE_KINDS, ['claude-code', 'codex'])
+test('Claude Code, (1.1.1 P3) Codex and (P6) an API key update', async () => {
+  assert.deepEqual(UPDATE_KINDS, ['claude-code', 'codex', 'api'])
   // Codex: the update agent's session is made and runs (what would fail it: update-not-supported, no session)
   const cx = await setup({ kind: 'codex' })
   const started = await cx.pipeline.startRoundIn({ id: cx.id, path: cx.dir })
   assert.equal(started.started, true, JSON.stringify(started))
   await until(() => cx.done.length === 1)
   assert.equal(cx.sessions.length, 1, 'the update agent\'s session was made on Codex')
-  for (const kind of ['api']) {
-    const s = await setup({ kind })
-    const r = await s.pipeline.startRoundIn({ id: s.id, path: s.dir })
-    assert.deepEqual(r, { started: false, problems: [{ code: 'update-not-supported', connection: kind }] }, kind)
-    assert.equal(s.sessions.length, 0)
-    assert.deepEqual(listRounds(s.dir, 5), [])
-  }
+  // 1.1.1 P6: an API key too (its own session with Streams' tools in the app — main.mjs; here the same stand-in session)
+  const api = await setup({ kind: 'api' })
+  const r = await api.pipeline.startRoundIn({ id: api.id, path: api.dir })
+  assert.equal(r.started, true, JSON.stringify(r))
+  await until(() => api.done.length === 1)
+  assert.equal(api.sessions.length, 1, 'the update agent\'s session was made on an API key')
+  assert.equal(listRounds(api.dir, 5)[0]?.kind, 'update')
 })
 
 // 1.1 W7a (E3): a library without a card (made by the last version) is not updated the old way any more: not started, code

@@ -1384,20 +1384,14 @@ const MUTANTS = [
   {
     id: 'p3-codex-no-build',
     what: 'Codex cannot build again (BUILD_KINDS without it)',
-    edits: [['src/main/services/build.mjs', "export const BUILD_KINDS = Object.freeze(['claude-code', 'codex'])", "export const BUILD_KINDS = Object.freeze(['claude-code'])"]],
+    edits: [['src/main/services/build.mjs', "export const BUILD_KINDS = Object.freeze(['claude-code', 'codex', 'api'])", "export const BUILD_KINDS = Object.freeze(['claude-code', 'api'])"]],
     test: ['test/services-build.test.mjs'],
   },
   {
     id: 'p3-codex-no-update',
     what: 'Codex cannot update again (UPDATE_KINDS without it)',
-    edits: [['src/main/services/library-update.mjs', "export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex'])", "export const UPDATE_KINDS = Object.freeze(['claude-code'])"]],
+    edits: [['src/main/services/library-update.mjs', "export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex', 'api'])", "export const UPDATE_KINDS = Object.freeze(['claude-code', 'api'])"]],
     test: ['test/services-library-update.test.mjs'],
-  },
-  {
-    id: 'p3-codex-only-ask-note',
-    what: '设置 still says Codex only asks a library',
-    edits: [['src/renderer/screens/settings.js', "${kind === 'api' ? html`<small data-part=\"only-ask\">", "${kind === 'codex' || kind === 'api' ? html`<small data-part=\"only-ask\">"]],
-    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=A6'],
   },
   // 1.1.1 P5
   {
@@ -1411,6 +1405,37 @@ const MUTANTS = [
     what: "设置 has no 搜索 row",
     edits: [['src/renderer/screens/settings.js', '${data ? html`<${SearchRow} search=${data.search} onChanged=${() => conns.reload()} />` : null}', '']],
     test: ['test/ui-p5.test.mjs'],
+  },
+  // 1.1.1 P6 (B17, A6, C9)
+  {
+    id: 'p6-api-no-build',
+    what: 'an API key cannot build again (BUILD_KINDS without it)',
+    edits: [['src/main/services/build.mjs', "export const BUILD_KINDS = Object.freeze(['claude-code', 'codex', 'api'])", "export const BUILD_KINDS = Object.freeze(['claude-code', 'codex'])"]],
+    test: ['test/services-build.test.mjs'],
+  },
+  {
+    id: 'p6-no-key-starts',
+    what: 'an API key with no model key stored starts a build anyway',
+    edits: [['src/main/services/build.mjs', "if (active.kind === 'api' && !hasModelKey(active)) throw new BridgeError('bad_arguments', 'build-needs-key')", '']],
+    test: ['test/services-build.test.mjs'],
+  },
+  {
+    id: 'p6-api-no-update',
+    what: 'an API key cannot update again (UPDATE_KINDS without it)',
+    edits: [['src/main/services/library-update.mjs', "export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex', 'api'])", "export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex'])"]],
+    test: ['test/services-library-update.test.mjs'],
+  },
+  {
+    id: 'p6-api-no-tools',
+    what: "an API key builds without Streams' own tools (the stand-in session, not the tool session)",
+    edits: [['src/main/services/build.mjs', "const connectorFor = (active, callsSoFar, found) => (active.kind === 'api' && apiSession", "const connectorFor = (active, callsSoFar, found) => (false && apiSession"]],
+    test: ['test/ui-p6.test.mjs'],
+  },
+  {
+    id: 'p6-only-ask-back',
+    what: '设置 says 「只能问库」 of the API key again (A6\'s failing input)',
+    edits: [['src/renderer/texts/settings.js', "    apiHint: '", "    apiHint: '这一版用这种连接只能问库。'"]],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=A6'],
   },
 ]
 

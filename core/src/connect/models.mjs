@@ -51,7 +51,9 @@ export const VENDORS = {
     label: 'DeepSeek',
     style: 'openai',
     baseUrl: 'https://api.deepseek.com/v1',
-    models: [{ id: 'deepseek-chat', label: 'DeepSeek Chat', recommended: true, unverified: true }],
+    // 1.1.1 P6 (C9): tested — building (4 customers, 23 / 26) and updating (4 cards) passed the same line as Claude Code's,
+    // 2026-11-24, docs/checks/2026-11-24-1.1.1/p6/; the others are not tested (设置 marks them so)
+    models: [{ id: 'deepseek-chat', label: 'DeepSeek Chat', recommended: true, tested: '2026-11-24' }],
   },
   moonshot: {
     label: 'Moonshot (Kimi)',

@@ -30,7 +30,7 @@ export const CARD = () => ({
 const question = (text, kind = 'input', options = []) => ({ json: { say: '', question: { text, kind, options } } })
 const card = (c, reads = []) => ({ json: { say: '请看卡', card: c }, reads: reads.map(url => ({ url, ok: true })) })
 
-async function setup({ kind = 'claude-code', replies = [], afterBuilt } = {}) {
+async function setup({ kind = 'claude-code', replies = [], afterBuilt, key = null } = {}) {
   const w = testWorld('st-build-')
   worlds.push(w)
   const script = join(w.root, 'build-replies.json')
@@ -38,7 +38,8 @@ async function setup({ kind = 'claude-code', replies = [], afterBuilt } = {}) {
   const locale = () => w.locale
   const library = createLibraryService({ settingsFile: w.settingsFile, emit: w.emit, log: w.log, dialog: w.dialog, shell: w.shell, locale })
   const now = { kind }
-  const connections = { active: () => (now.kind ? { kind: now.kind, connection: { kind: now.kind } } : null) }
+  // 1.1.1 P6: an API connection's model key (getKey by its reference), or none
+  const connections = { active: () => (now.kind ? { kind: now.kind, connection: { kind: now.kind, ...(now.kind === 'api' ? { api: { vendor: 'anthropic', keyRef: 'key-anthropic' } } : {}) } } : null), getKey: ref => (ref === 'key-anthropic' ? key : null) }
   // 1.1 W10: what the service hands the first update (main.mjs: the queue); by default a stand-in that says it was queued
   const queued = []
   const hook = afterBuilt === undefined ? (x => { queued.push(x); return { queued: true, position: 1 } }) : afterBuilt
@@ -51,17 +52,20 @@ async function setup({ kind = 'claude-code', replies = [], afterBuilt } = {}) {
 }
 const hash = p => (existsSync(p) ? createHash('sha256').update(readFileSync(p)).digest('hex') : 'absent')
 
-test('Claude Code and (1.1.1 P3) Codex build: an API key is refused, none chosen is no_connection; an empty sentence is refused', async () => {
+test('Claude Code, (1.1.1 P3) Codex and (P6) an API key with its key build; an API key without one is refused; none chosen is no_connection; an empty sentence is refused', async () => {
   // Codex starts a build (what would fail it: BUILD_KINDS without codex — refused with build-not-supported)
   const cx = await setup({ kind: 'codex', replies: [question('拿来做什么？')] })
   const view = await cx.b.startBuild('跟踪电车')
   assert.equal(view.status, 'talking')
   assert.equal(view.turns.at(-1).kind, 'question')
-  for (const kind of ['api']) {
-    const s = await setup({ kind })
-    await assert.rejects(() => s.b.startBuild('跟踪电车'), e => e.code === 'bad_arguments' && /build-not-supported/.test(e.message))
-    assert.equal(s.b.getBuild(), null)
-  }
+  // an API key with no model key stored: refused, nothing started (B17's failing input)
+  const nokey = await setup({ kind: 'api' })
+  await assert.rejects(() => nokey.b.startBuild('跟踪电车'), e => e.code === 'bad_arguments' && /build-needs-key/.test(e.message))
+  assert.equal(nokey.b.getBuild(), null)
+  // with the model's key: it starts
+  const withKey = await setup({ kind: 'api', key: 'sk-p6-services-not-real', replies: [question('拿来做什么？')] })
+  const v = await withKey.b.startBuild('跟踪电车')
+  assert.equal(v.status, 'talking')
   const none = await setup({ kind: null })
   await assert.rejects(() => none.b.startBuild('跟踪电车'), e => e.code === 'no_connection')
   const s = await setup({ replies: [question('拿来做什么？')] })

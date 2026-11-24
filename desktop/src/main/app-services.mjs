@@ -52,6 +52,9 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       // v2 package I: the connection chosen in settings.json (claude-code · codex · api), or null — 和主 Agent 聊's guide says
       // 「还没有连接」 without it (no detection: only the setting is read)
       activeConnection: s.connections.active,
+      // 1.1.1 P6 (B17): with an API key connection, whether the model's key is stored (新建库 says so before starting); null
+      // for another connection
+      activeHasKey: s.connections.active === 'api' ? (() => { try { return secrets.has(`key-${s.connections.api.vendor}`) } catch { return false } })() : null,
       // the registered libraries (settings 「库 · 其他」 lists those that are not the current one; openRecentLibrary takes
       // only one of these): path and name. v2 package A: from the registry, no longer settings.json's recentLibraries
       recentLibraries: library.entries().filter(l => !l.temporary).map(l => ({ path: l.path, name: l.name })),

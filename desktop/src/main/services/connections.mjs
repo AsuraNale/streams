@@ -68,7 +68,7 @@ export const SEARCH_KEY_REF = 'key-search-deepseek'
  * @param {{note: Function}|null} [o.rawErrors] - redesign R5a (O9): raw-errors.mjs — a failed probe's own text goes there (the
  *   log, 「复制诊断信息」); the page gets its code only (texts/common.js CONNECTIONS.codes words it)
  */
-export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, devAskScript = null, devDetect = null, connectorDeps = {}, usageWrap = c => c, onQuota = () => {}, rawErrors = null }) {
+export function createConnectionsService({ settingsFile, emit, log, hidden = false, secrets, locale, devConnection = null, devAskScript = null, devDetect = null, devApi = false, connectorDeps = {}, usageWrap = c => c, onQuota = () => {}, rawErrors = null }) {
   if (devConnection !== null && !DEV_CONNECTION_MODES.includes(devConnection)) throw new TypeError(`STREAMS_DEV_CONNECTION must be one of ${DEV_CONNECTION_MODES.join(' | ')}`)
   const settings = () => readSettings(settingsFile)
   const devAskAnswer = devConnection === 'fake' && devAskScript ? JSON.parse(readFileSync(devAskScript, 'utf8')) : null
@@ -92,6 +92,8 @@ export function createConnectionsService({ settingsFile, emit, log, hidden = fal
   /** The connector for a kind: the core's, or the development stand-in. */
   const connector = kind => {
     checkKind(kind)
+    // 1.1.1 P6, tests only (STREAMS_DEV_API): the API connection stays the real one — its vendor's address is the test's stand-in
+    if (devApi && kind === 'api') return createConnector(connection(kind), { ...connectorDeps, getKey: ref => secrets.get(ref), onQuota: q => onQuota(kind, q) })
     if (devConnection === 'fake') return devAskAnswer ? withAskAnswer(scriptedConnector(), devAskAnswer) : scriptedConnector()
     if (devConnection) return fakeConnector({ mode: devConnection })
     // v2 package M: every call's quota (Claude Code's stream) goes to the corner under this kind

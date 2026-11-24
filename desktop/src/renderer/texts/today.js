@@ -36,7 +36,7 @@ export const TODAY = Object.freeze({
     config: '库的设置文件无法读取，本次运行未开始。',
     // 1.1 W7a: a library made by the last version is not updated the old way any more; a connection that can only ask
     'needs-build': '这座库是上一版建的，不再按原来的方式更新，本次运行未开始。要继续更新，先到「来源与要求」点「重新查一遍来源」，确认新的建库卡。笔记、资料库和问库照常。',
-    'update-not-supported': '当前连接这一版只能问库，本次更新未开始。建库和更新要用「{cc}」或「{cx}」，到设置里换一个连接。',
+    'update-not-supported': '当前连接不能更新，本次更新未开始。到设置里选「{cc}」「{cx}」，或填了模型 key 的 API key。',
     rebuild: '重新查一遍来源',
     // the buttons (at most three): login · login again and retry · change the connection; otherwise retry · change (redesign R4b:
     // 复制诊断信息 is only in 设置 → 关于 → 高级)

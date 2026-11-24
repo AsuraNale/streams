@@ -33,7 +33,7 @@ export function problemWords(problem) {
     return { text, fix, login }
   }
   // redesign R5b (O9): a problem the page has no words for is said as a connection problem, never by its code
-  const text = Object.hasOwn(P, problem.code) && typeof P[problem.code] === 'string' ? fmt(P[problem.code], { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex }) : fmt(P.connection.other, { name, n })
+  const text = Object.hasOwn(P, problem.code) && typeof P[problem.code] === 'string' ? fmt(P[problem.code], { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex, api: CONNECTIONS.names.api }) : fmt(P.connection.other, { name, n })
   return { text, fix: null, login: false }
 }
 

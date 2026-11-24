@@ -5,8 +5,9 @@
  *   - One conversation at a time, kept in <appData>\build\build.json after every turn, so it is there again after leaving
  *     the page or a restart. Its card waits as a pending action in <appData>\build\pending (create_library, or edit_card for
  *     a change) — nothing is made or changed until 确认 (B3). 不建了 takes the card back and ends the conversation.
- *   - Claude Code and (1.1.1 P3, its live runs passed C8) Codex build; an API key does not start yet (P4–P6), with the code
- *     'build-not-supported'; none chosen: 'no_connection'.
+ *   - Claude Code, (1.1.1 P3) Codex and (1.1.1 P6, B17) an API key build. An API key builds with Streams' own tools (read a
+ *     page with Streams' reader; search with the search service when there is one) and only with the model's key: none stored
+ *     → 'build-needs-key'; none chosen: 'no_connection'.
  *   - The agent's session has the two web tools (core createSessionConnector … { web: true }) in a working folder of its own
  *     under the system's temporary folder.
  *   - A new library goes to <libraryRoot>\<the card's name as a folder name> (a free name: ' 2', ' 3' … when that folder is
@@ -33,7 +34,7 @@
  *     card (来源与要求's 「原文」 has them the day the library is made).
  * Development and tests only (not in a packaged app; main.mjs reads it): STREAMS_DEV_BUILD, a JSON file
  * { replies: [{ json, reads?, searches?, ok?, code? }] } — the agent's session answers the n-th call with the n-th reply;
- * STREAMS_DEV_READS, a JSON file { [url]: { ok, method?, reason?, links? } } — Streams' readers in a build (and in the update
+ * STREAMS_DEV_READS, a JSON file { [url]: { ok, method?, reason?, links?, title?, text? } } — Streams' readers in a build (and in the update
  * of that run, main.mjs) answer from it
  * (an address not in it: a server that does not answer); with the development connection and no file, nothing answers.
  * @module desktop/main/services/build
@@ -47,7 +48,8 @@ import {
 } from '../core.mjs'
 
 // 1.1.1 P3 (C8): Codex too — its four customers' builds passed the same line as Claude Code's (24 / 26, every line)
-export const BUILD_KINDS = Object.freeze(['claude-code', 'codex'])
+// 1.1.1 P6 (B17): an API key too — with Streams' own tools (apiSession: core createApiToolSession), and only with the model's key
+export const BUILD_KINDS = Object.freeze(['claude-code', 'codex', 'api'])
 export const BUILD_CWD = join(tmpdir(), 'streams-build-cwd')
 const OPENER_MAX = 2000
 
@@ -63,7 +65,7 @@ export function devBuildReaders(file) {
   if (file) try { table = JSON.parse(readFileSync(file, 'utf8')) ?? {} } catch { table = {} }
   const look = url => (table && typeof table[url] === 'object' && table[url]) || { ok: false, reason: 'failed' }
   return {
-    readPage: async url => { const r = look(url); return r.ok ? { url, ok: true, method: r.method ?? 'direct', title: '', text: '' } : { url, ok: false, method: null, reason: r.reason ?? 'failed' } },
+    readPage: async url => { const r = look(url); return r.ok ? { url, ok: true, method: r.method ?? 'direct', title: typeof r.title === 'string' ? r.title : '', text: typeof r.text === 'string' ? r.text : '' } : { url, ok: false, method: null, reason: r.reason ?? 'failed' } },
     readLinks: async url => { const r = look(url); return r.ok ? { ok: true, url, links: Array.isArray(r.links) ? r.links : [], method: 'direct' } : { ok: false, url, links: [], reason: r.reason ?? 'failed' } },
   }
 }
@@ -95,8 +97,11 @@ export function devBuildSession(file, callsSoFar) {
  * @param {() => Date} [o.now]
  * @param {(active: object, callsSoFar: () => number) => object} [o.session] - the agent's session for the active connection
  * @param {() => {readPage: Function, readLinks: Function}} [o.readers] - 1.1.1 P1: Streams' own readers for the card's addresses
+ * @param {(active: object, search: Function|null) => object} [o.apiSession] - 1.1.1 P6: the API connection's session with
+ *   Streams' tools (main.mjs: core createApiToolSession with the page reader, the build's budget as hard numbers)
+ * @param {(active: object) => Promise<{search: Function}|null>} [o.apiSearch] - 1.1.1 P6: its search (core searchFor), or null
  */
-export function createBuildService({ appDataDir, library, connections, emit, log, libraryRoot, locale = () => ({ resolved: 'zh-CN' }), now = () => new Date(), session = active => createSessionConnector(active.connection, {}, { cwd: BUILD_CWD, web: true }), afterBuilt = null, readers = () => ({}) }) {
+export function createBuildService({ appDataDir, library, connections, emit, log, libraryRoot, locale = () => ({ resolved: 'zh-CN' }), now = () => new Date(), session = active => createSessionConnector(active.connection, {}, { cwd: BUILD_CWD, web: true }), afterBuilt = null, readers = () => ({}), apiSession = null, apiSearch = async () => null }) {
   const dir = join(appDataDir, 'build')
   const file = join(dir, 'build.json')
   const pendingDir = join(dir, 'pending')
@@ -148,14 +153,27 @@ export function createBuildService({ appDataDir, library, connections, emit, log
     const active = connections.active()
     if (!active) throw new BridgeError('no_connection')
     if (!BUILD_KINDS.includes(active.kind)) throw new BridgeError('bad_arguments', 'build-not-supported')
+    // 1.1.1 P6 (B17): an API key connection with no model key does not start (the page says so before: activeHasKey)
+    if (active.kind === 'api' && !hasModelKey(active)) throw new BridgeError('bad_arguments', 'build-needs-key')
     return active
   }
+  const hasModelKey = active => { try { return Boolean(connections.getKey?.(active.connection?.api?.keyRef)) } catch { return false } }
+  // 1.1.1 P6: the connector of a build — an API connection's with Streams' tools (its search known at the start; a build made
+  // again after a restart finds it at its next turn), any other connection's session as before
+  const lazyApi = active => {
+    let made = null
+    const get = async () => (made ??= apiSession(active, (await apiSearch(active))?.search ?? null))
+    return { sessionful: true, async send(req, o) { return (await get()).send(req, o) } }
+  }
+  const connectorFor = (active, callsSoFar, found) => (active.kind === 'api' && apiSession
+    ? (found === undefined ? lazyApi(active) : apiSession(active, found?.search ?? null))
+    : session(active, callsSoFar))
   /** The core's conversation for the saved state (made again after a restart). */
   const conversation = () => {
     if (build) return build
     if (!saved) return null
     const active = activeOrRefuse()
-    build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: saved.core.language, state: saved.core, now, ...readers() })
+    build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: saved.core.language, state: saved.core, now, ...readers() })
     return build
   }
 
@@ -240,7 +258,8 @@ export function createBuildService({ appDataDir, library, connections, emit, log
         else convert = { library: libraryId }
       }
       if (saved) end('stopped')
-      build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert, ...readers() })
+      const found = active.kind === 'api' && apiSession ? await apiSearch(active) : undefined
+      build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0, found), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert, search: active.kind !== 'api' || Boolean(found), ...readers() })
       saved = { v: 1, core: build.state(), stopped: null, trouble: null, retry: null }
       return turn('start', text)
     },

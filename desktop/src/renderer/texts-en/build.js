@@ -25,7 +25,9 @@ export const BUILD = Object.freeze({
   start: 'Start',
   cancel: 'Cancel',
   starting: 'The main agent is looking…',
-  needClaude: 'Making a library and changing its card need “{name}” or “{codex}”. The connection now is “{current}”, which in this version can only ask the library; choose another connection in Settings and come back.',
+  needClaude: 'Making a library and changing its card need a connection: “{name}”, “{codex}” or “{api}”. The connection now is “{current}”; choose one in Settings and come back.',
+  // 1.1.1 P6 (B17): an API key connection with no model key
+  needKey: 'To make a library with “{api}”, enter the model\'s key first: in Settings, press “Set up” on the “{api}” row.',
   goSettings: 'Go to Settings',
   going: 'A library is being worked out: go on with it, or press Discard to start a new one.',
 
@@ -37,7 +39,7 @@ export const BUILD = Object.freeze({
     steps: Object.freeze(['The main agent looks around the web on this topic', 'It asks you at most 5 questions', 'It checks the sources and writes the library card', 'You confirm, and Streams makes the library']),
     note: 'Only what you keep becomes notes in the library folder. Changing the library card needs your confirmation too.',
     usageLabel: 'Connection',
-    usage: 'Making and updating a library need “{name}” or “{codex}”. With “{api}”, this version can only ask the library.',
+    usage: 'Making and updating a library work with “{name}”, “{codex}” or “{api}”; with “{api}”, Streams itself reads the pages and searches.',
   }),
 
   convert: Object.freeze({

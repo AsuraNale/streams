@@ -155,7 +155,10 @@ describe('W7a: on an API key (B17), and on Codex', () => {
     env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'inbox', ...(SHOTS ? { STREAMS_WINDOW: 'shown' } : {}) }),
   })
   const untilA = (fn, arg) => a.page.waitForFunction(fn, arg, POLL)
-  test('问库 answers; 新建库, 改建库卡, 立即运行 do not start and say to use Claude Code; the library byte for byte; the key stays', async () => {
+  // 1.1.1 P6 (B17 as 1.1.1 changed it): on an API key 问库, 立即运行, 新建库 and 改建库卡 all start; with no model key 新建库
+  // stops at the connection's words and nothing starts. (ui-p6 walks a build and an update on a stand-in vendor API; here the
+  // command-line stand-ins carry the turns.)
+  test('B17 (1.1.1): 问库 answers; 立即运行, 新建库 and 改建库卡 start; with no key 新建库 says to enter it and nothing starts; the key stays until removed', async () => {
     const stored = await a.page.evaluate(() => window.streams.setApiKey('anthropic', 'sk-test-w7a-not-real'))
     assert.ok(stored.ok, JSON.stringify(stored))
     const set = await a.page.evaluate(() => window.streams.setActiveConnection('api'))
@@ -164,33 +167,36 @@ describe('W7a: on an API key (B17), and on Codex', () => {
       const r = await a.page.evaluate(x => window.streams.askLibrary(x), q)
       assert.ok(r.ok, `${q}: ${JSON.stringify(r)}`)
     }
-    // 问库 records what was asked (_pipeline/demand.jsonl, its own record); from here on nothing may change
-    const before = tree(k.library)
-    // 立即运行
-    await a.page.click('[data-part="run-button"] button')
-    await untilA(() => document.querySelector('[data-part="problem"][data-code="update-not-supported"]') !== null)
-    const text = await a.page.evaluate(() => document.querySelector('[data-part="problem"]').textContent)
-    assert.ok(text.includes('只能问库') && text.includes('连接你电脑上的 Claude Code'), text)
+    // 立即运行: the update starts (no 「只能问库」 any more)
+    const run = (await a.page.evaluate(() => window.streams.startRound())).data
+    assert.equal(run.started, true, JSON.stringify(run))
+    await untilA(() => document.querySelector('[data-part="run-button"]')?.dataset.runState === 'idle')
+    assert.equal(await a.page.evaluate(() => document.body.innerText.includes('只能问库')), false)
     if (SHOTS) await a.page.screenshot({ path: join(SHOTS, 'api-update.png') })
-    // 新建库
+    // 改建库卡 starts (through the bridge as the page would), and is dropped: the card file the same
+    const id = (await a.page.evaluate(() => window.streams.getAppState())).data.library.libraryId
+    const before = tree(k.library)
+    const edit = await a.page.evaluate(x => window.streams.startBuild('加一个来源', x), id)
+    assert.equal(edit.ok, true, JSON.stringify(edit))
+    await a.page.evaluate(() => window.streams.dropBuild())
+    assert.deepEqual(tree(k.library), before, 'nothing changed before 确认')
+    // 新建库 on the key: 开始 can be pressed
     await a.page.click('[data-action="add-library"]')
     await ready(a.page, 'build')
     await a.page.fill('textarea[data-field="opener"]', '跟踪储能')
+    assert.equal(await a.page.evaluate(() => document.querySelector('[data-action="start"] button').disabled), false)
+    const conns = (await a.page.evaluate(() => window.streams.getConnections())).data
+    assert.ok(JSON.stringify(conns).includes('"hasKey":true'), 'the key stays')
+    // the key removed: 新建库 says to enter it, 开始 cannot be pressed, startBuild is refused
+    assert.ok((await a.page.evaluate(() => window.streams.removeApiKey('anthropic'))).ok)
+    await a.page.evaluate(() => window.streams.setActiveConnection('api'))
+    await untilA(() => document.querySelector('[data-part="start-why"]') !== null)
     assert.equal(await a.page.evaluate(() => document.querySelector('[data-action="start"] button').disabled), true)
     assert.ok((await a.page.evaluate(() => document.querySelector('[data-part="start-why"]').textContent)).includes('输入 API key'))
     const refused = await a.page.evaluate(() => window.streams.startBuild('跟踪储能'))
     assert.equal(refused.ok, false)
-    // 改建库卡 (through the bridge as the page would: refused the same way)
-    const id = (await a.page.evaluate(() => window.streams.getAppState())).data.library.libraryId
-    assert.equal((await a.page.evaluate(x => window.streams.startBuild('加一个来源', x), id)).ok, false)
-    assert.deepEqual(tree(k.library), before, 'the library byte for byte')
-    const conns = (await a.page.evaluate(() => window.streams.getConnections())).data
-    assert.ok(JSON.stringify(conns).includes('"hasKey":true'), 'the key stays')
-    // (1.1.1 P3: Codex builds and updates now — services-build, services-library-update and ui-w6b check it; an API key, above,
-    // still only asks)
-    const run = (await a.page.evaluate(() => window.streams.startRound())).data
-    assert.deepEqual([run.started, run.problems?.[0]?.code], [false, 'update-not-supported'], JSON.stringify(run))
-    assert.deepEqual(tree(k.library), before, 'the library byte for byte')
+    assert.equal(refused.error?.code, 'bad_arguments')
+    assert.equal((await a.page.evaluate(() => window.streams.getBuild())).data, null, 'nothing started')
   })
 })
 

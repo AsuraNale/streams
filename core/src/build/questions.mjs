@@ -33,7 +33,10 @@ export function checkQuestion(q, asked = [], { firstInput = true } = {}) {
   if (!QUESTION_KINDS.includes(kind)) problems.push('bad-kind');
   const raw = Array.isArray(q.options) ? q.options : q.options === undefined || q.options === null ? [] : null;
   if (raw === null) problems.push('bad-option');
-  const options = (raw ?? []).map((o) => (typeof o === 'string' ? o.trim() : '')).filter((o) => !OTHER.test(o));
+  // 1.1.1 P6: an option written as an object with its words in text / label (a model API's habit: DeepSeek, 11-24 live run)
+  // is read as those words; anything else is an empty option
+  const words = (o) => (typeof o === 'string' ? o : isObj(o) ? [o.text, o.label, o.value].find((x) => typeof x === 'string') ?? '' : '');
+  const options = (raw ?? []).map((o) => words(o).trim()).filter((o) => !OTHER.test(o));
   if (options.some((o) => o === '') || new Set(options).size !== options.length) problems.push('bad-option');
   if (kind === 'input') {
     if (options.length > 0) problems.push('options-on-input');

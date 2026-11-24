@@ -11,6 +11,10 @@
 //   node tests/live/update/update-live.mjs --out <folder> [--persona 1,2,3,5] [--connection claude-code|codex]
 //   1.1.1 P3 (acceptance C8): --connection codex runs the update agent on Codex (its default model); the judge stays Claude
 //   Code with no tools (Opus 5.5), the same as for Claude Code's runs
+//   1.1.1 P6 (acceptance C9): --connection deepseek runs it on the model API (DeepSeek's recommended model) with Streams' own
+//   tools (core connect/api-tools.mjs): read_page with Streams' reader — each page read kept as its original at once (onPage),
+//   search with DeepSeek's search API on the same key, the update's budget as hard numbers. The key: the environment variable
+//   DEEPSEEK_API_KEY, read at call time, only in request headers, never printed or recorded
 // Spends quota. Pages are read the direct way only (no Electron here: the render tier is the app's).
 import { mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,11 +25,12 @@ import { randomBytes } from 'node:crypto';
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO = join(here, '..', '..', '..');
 const core = await import(pathToFileURL(join(REPO, 'core', 'src', 'index.mjs')).href);
-const { createLibrary, writeCard, appendEvent, runUpdate, createSessionConnector, createConnector, createPageReader, createLinkReader, listInbox, sameUrl, renderCard } = core;
+const { createLibrary, writeCard, appendEvent, runUpdate, createSessionConnector, createConnector, createPageReader, createLinkReader, listInbox, sameUrl, renderCard, createApiToolSession, searchFor, saveOriginal, UPDATE_BUDGET } = core;
 
 const MAIN_MODEL = 'claude-opus-5-5';
 const KIND = (() => { const i = process.argv.indexOf('--connection'); return i < 0 ? 'claude-code' : process.argv[i + 1]; })();
-if (!['claude-code', 'codex'].includes(KIND)) { console.error('--connection claude-code | codex'); process.exit(2); }
+if (!['claude-code', 'codex', 'deepseek'].includes(KIND)) { console.error('--connection claude-code | codex | deepseek'); process.exit(2); }
+if (KIND === 'deepseek' && !process.env.DEEPSEEK_API_KEY) { console.error('the environment variable DEEPSEEK_API_KEY is not set'); process.exit(2); }
 const JUDGE_MODEL = 'claude-opus-5-5';
 const CARDS = join(REPO, 'docs', 'checks', '2026-11-20-1.1', 'w4', 'evidence', 'live', 'round-2');
 const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); return i < 0 ? dflt : process.argv[i + 1]; };
@@ -65,12 +70,26 @@ async function runOne(n, out) {
     appendEvent(dir, { ev: 'seen', url: e.url, source: 'card', title: e.title });
     appendEvent(dir, { ev: 'kept', url: e.url, id: `kept-${randomBytes(2).toString('hex')}` });
   }
-  const connector = createSessionConnector(KIND === 'claude-code' ? { kind: KIND, model: MAIN_MODEL } : { kind: KIND }, { env }, { cwd: join(work, 'cwd'), web: true });
+  let connector;
+  let search = true;
+  if (KIND === 'deepseek') {
+    const conn = { kind: 'api', api: { vendor: 'deepseek', keyRef: 'env' } };
+    const getKey = async () => process.env.DEEPSEEK_API_KEY;
+    const found = await searchFor(conn, { getKey });
+    search = Boolean(found);
+    connector = createApiToolSession(conn, { getKey, timeoutMs: 300_000 }, {
+      sessionDir: join(work, 'sessions'), readPage: createPageReader().read, search: found?.search ?? null,
+      budget: { reads: UPDATE_BUDGET.reads, searches: UPDATE_BUDGET.searches },
+      onPage: (url, page) => saveOriginal(dir, { url, title: page.title ?? '', text: page.text, method: page.method, fetchedAt: new Date() }),
+    });
+  } else {
+    connector = createSessionConnector(KIND === 'claude-code' ? { kind: KIND, model: MAIN_MODEL } : { kind: KIND }, { env }, { cwd: join(work, 'cwd'), web: true });
+  }
   const judge = createConnector({ kind: 'claude-code', model: JUDGE_MODEL }, { env, timeoutMs: 300_000 });
   const t0 = Date.now();
   let result;
   try {
-    result = await runUpdate(dir, { connector, judge, kind: KIND, readPage: createPageReader().read, readLinks: createLinkReader().read, pendingDir: join(work, 'pending') });
+    result = await runUpdate(dir, { connector, judge, kind: KIND === 'deepseek' ? 'api' : KIND, search, readPage: createPageReader().read, readLinks: createLinkReader().read, pendingDir: join(work, 'pending') });
   } catch (e) {
     result = { started: false, status: 'error', problems: [{ code: 'error', detail: String(e?.message ?? e) }] };
   }

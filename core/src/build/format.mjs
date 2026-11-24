@@ -47,7 +47,7 @@ export function actionsText(definition) {
 
 export const OUTPUT_TEXT = `每一轮只交一个 JSON 对象，前后不要有别的字。三种里选一种：
 1. 提一个问题：{"say": "问题前想说的一两句，可以是空字符串", "question": {"text": "问题", "kind": "input", "options": []}}
-   kind 写 input（纯输入题，options 留空）、single（单选）或 multi（多选）；选择题的 options 写 2 到 4 个，不要写「其它」，界面会自己加上。
+   kind 写 input（纯输入题，options 留空）、single（单选）或 multi（多选）；选择题的 options 写 2 到 4 个，每个是一个字符串（不要写成对象），不要写「其它」，界面会自己加上。
 2. 交建库卡：{"say": "给用户的话：请他看卡，没问题就点「确认」", "card": {建库卡}}
 3. 只说话（例如回答用户的疑问）：{"say": "……"}
 

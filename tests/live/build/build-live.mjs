@@ -5,6 +5,11 @@
 // against the customer's requirements.
 //   node tests/live/build/build-live.mjs --connection claude-code|codex [--model <id>] [--persona 1,2,3,5] --out <folder>
 //   [--no-streams-read]   only the model's opens count for the card's addresses (1.1.0's rule, for comparison)
+// 1.1.1 P6: --connection deepseek — the model API (DeepSeek, its recommended model unless --model) with Streams' own tools
+//   (core connect/api-tools.mjs: read_page with Streams' reader, search with DeepSeek's search API on the same key, the build's
+//   budget as hard numbers). The key is read from the environment variable DEEPSEEK_API_KEY at call time and goes only into
+//   request headers: nothing here prints, logs or records it (the records hold no key, the session folder is the run's own
+//   temp folder, removed after the run).
 //   node tests/live/build/build-live.mjs --judge-control --out <folder>   one judge call on a card made to miss things
 // Spends quota (real connections). Writes <out>/<connection>-<n>.json after every step (a run cut short keeps what it
 // had) and <out>/<connection>-summary.json. Page texts are not kept: the questions, the cards, the addresses read.
@@ -19,14 +24,14 @@ import { scoreRun, scoreAll, controls } from './score.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO = join(here, '..', '..', '..');
 const core = await import(pathToFileURL(join(REPO, 'core', 'src', 'index.mjs')).href);
-const { createBuild, createActionRunner, cardHandlers, loadDefinition, createSessionConnector, createConnector, renderCard, createPageReader, createLinkReader } = core;
+const { createBuild, createActionRunner, cardHandlers, loadDefinition, createSessionConnector, createConnector, renderCard, createPageReader, createLinkReader, createApiToolSession, searchFor, BUILD_BUDGET } = core;
 // 1.1.1 P1 (B19): the card's addresses are read by Streams itself, as the app does — here without the hidden browser window
 // (no Electron): direct and a PDF's text only, so Streams reads no more than the app would
 const { pdfText } = await import(pathToFileURL(join(REPO, 'desktop', 'src', 'main', 'pdf-text.mjs')).href);
 
 export const CUSTOMER_MODEL = 'claude-sonnet-5-5';
 export const JUDGE_MODEL = 'claude-opus-5-5';
-export const MAIN_MODEL = { 'claude-code': 'claude-opus-5-5', codex: null };
+export const MAIN_MODEL = { 'claude-code': 'claude-opus-5-5', codex: null, deepseek: null };
 const MAX_STEPS = 9; // answers the harness gives before it stops a run that does not end (the line is 6)
 
 const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); return i < 0 ? dflt : process.argv[i + 1]; };
@@ -117,10 +122,25 @@ async function runOne(kind, model, p, out) {
     definition, handlers: cardHandlers({ libraryDirFor: () => libDir, dirOfLibrary: () => libDir, language: p.language }),
     pendingDir: join(work, 'pending'), logFile: (a, params, result) => join(result.object.id, '_actions.jsonl'),
   });
-  const conn = { kind, ...(model ? { model } : {}) };
-  const session = createSessionConnector(conn, { env }, { cwd: join(work, 'cwd'), web: true });
   const readers = has('no-streams-read') ? {} : { readPage: createPageReader({ pdfText }).read, readLinks: createLinkReader().read };
-  const build = createBuild({ connector: session, definition, runner, kind, language: p.language, ...readers });
+  let session;
+  let buildKind = kind;
+  let search = true;
+  if (kind === 'deepseek') {
+    const conn = { kind: 'api', ...(model ? { model } : {}), api: { vendor: 'deepseek', keyRef: 'env' } };
+    const getKey = async () => process.env.DEEPSEEK_API_KEY;
+    const found = await searchFor(conn, { getKey });
+    search = Boolean(found);
+    session = createApiToolSession(conn, { getKey, timeoutMs: 300_000 }, {
+      sessionDir: join(work, 'sessions'), readPage: createPageReader({ pdfText }).read, search: found?.search ?? null,
+      budget: { reads: BUILD_BUDGET.reads + BUILD_BUDGET.changeReads, searches: BUILD_BUDGET.searches + BUILD_BUDGET.changeSearches },
+    });
+    buildKind = 'api';
+  } else {
+    const conn = { kind, ...(model ? { model } : {}) };
+    session = createSessionConnector(conn, { env }, { cwd: join(work, 'cwd'), web: true });
+  }
+  const build = createBuild({ connector: session, definition, runner, kind: buildKind, language: p.language, search, ...readers });
   const customer = zeroTool(CUSTOMER_MODEL);
   const record = { connection: kind, model: model ?? 'default', persona: p.n, title: p.title, startedAt: new Date().toISOString(), steps: [], answers: 0, dropped: 0, questions: [], built: false, card: null };
   const history = [{ who: '客户', text: p.opener }];
@@ -200,7 +220,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (!c.ok) { console.error('the scoring controls did not fail where they should: not running'); process.exit(2); }
   if (has('judge-control')) { const r = await judgeControl(out); process.exit(r.ok ? 0 : 1); }
   const kind = arg('connection');
-  if (!['claude-code', 'codex'].includes(kind)) { console.error('--connection claude-code | codex'); process.exit(2); }
+  if (!['claude-code', 'codex', 'deepseek'].includes(kind)) { console.error('--connection claude-code | codex | deepseek'); process.exit(2); }
+  if (kind === 'deepseek' && !process.env.DEEPSEEK_API_KEY) { console.error('the environment variable DEEPSEEK_API_KEY is not set'); process.exit(2); }
   const model = arg('model', MAIN_MODEL[kind]);
   const wanted = String(arg('persona', '1,2,3,5')).split(',').map(Number);
   const personas = PERSONAS.personas.filter((x) => wanted.includes(x.n));

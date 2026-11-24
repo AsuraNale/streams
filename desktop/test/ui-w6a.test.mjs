@@ -200,13 +200,13 @@ describe('W6a: 待看, the reading window, 来源与要求, 设置', () => {
     assert.equal(fileHash(cardFile), hash)
   })
 
-  test('A6: 设置 says an API key only asks a library in this version (1.1.1 P3: Codex builds and updates, no note)', async () => {
+  test('A6 (1.1.1): 设置 says 「只能问库」 of no connection — Codex (P3) and an API key (P6) build and update too', async () => {
     await s.page.click('.st-sidebar__footer-button')
-    await until(() => document.querySelectorAll('[data-part="only-ask"]').length > 0)
-    const r = await s.page.evaluate(() => ({ notes: [...document.querySelectorAll('[data-connection]')].map(e => [e.dataset.connection, e.querySelector('[data-part="only-ask"]')?.textContent ?? null]), uses: document.querySelector('[data-part="agent-uses"]').textContent }))
-    const onlyAsk = fmt(SETTINGS.conn.onlyAsk, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })
-    assert.ok(onlyAsk.includes(CONNECTIONS.names['claude-code']) && onlyAsk.includes(CONNECTIONS.names.codex) && !/\{c[cx]\}/.test(onlyAsk), 'the note names the connections to use')
-    assert.deepEqual(r.notes, [['claude-code', null], ['codex', null], ['api', onlyAsk]])
+    await until(() => document.querySelectorAll('[data-connection]').length === 3)
+    const r = await s.page.evaluate(() => ({ notes: [...document.querySelectorAll('[data-connection]')].map(e => [e.dataset.connection, e.querySelector('[data-part="only-ask"]')?.textContent ?? null]), uses: document.querySelector('[data-part="agent-uses"]').textContent, page: document.querySelector('main').innerText }))
+    // what would fail it (A6's failing input): the words 「只能问库」 anywhere on the settings page
+    assert.equal(r.page.includes('只能问库'), false, 'no 「只能问库」 on 设置')
+    assert.deepEqual(r.notes, [['claude-code', null], ['codex', null], ['api', null]])
     assert.equal(r.uses, SETTINGS.conn.agentUses)
     assert.equal(r.uses.includes('评分'), false)
     await shot('settings-light')
@@ -293,7 +293,8 @@ describe('W6a: a library built by the last version (A6)', () => {
     assert.ok((await o.page.evaluate(() => window.streams.setActiveConnection('api'))).ok)
     await o.page.waitForFunction(() => document.querySelector('[data-part="old-library"]')?.dataset.can === 'false', null, POLL)
     const off = await state()
-    assert.deepEqual([off.can, off.disabled, off.why], ['false', true, fmt(SOURCES.old.needsClaude, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })])
+    // (1.1.1 P6: an API key with no model key stored — off, with the reason)
+    assert.deepEqual([off.can, off.disabled, off.why], ['false', true, fmt(SOURCES.old.needsClaude, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex, api: CONNECTIONS.names.api })])
     assert.equal(off.lead, SOURCES.old.lead)
     const set = await o.page.evaluate(() => window.streams.setActiveConnection('claude-code'))
     assert.ok(set.ok, JSON.stringify(set))
@@ -305,7 +306,9 @@ describe('W6a: a library built by the last version (A6)', () => {
 
   // 1.1 W9 (A6 names the API key; B17's 换库): on an API key the button is off with the reason, and bringing the library
   // over is refused with nothing written
-  test('on an API key: 「重新查一遍来源」 off with the reason; bringing the library over is refused; the folder byte for byte', async () => {
+  // 1.1.1 P6 (A6, B17): with the model's key an API key checks the sources again too — bringing the library over starts; nothing
+  // in its folder changes before 确认
+  test('on an API key with its key: 「重新查一遍来源」 on; bringing the library over starts; the folder byte for byte', async () => {
     const tree = dir => {
       const out = {}
       const walk = d => { for (const n of readdirSync(d, { withFileTypes: true })) { const p = join(d, n.name); if (n.isDirectory()) walk(p); else out[p.slice(dir.length)] = createHash('sha256').update(readFileSync(p)).digest('hex') } }
@@ -316,14 +319,16 @@ describe('W6a: a library built by the last version (A6)', () => {
     assert.ok(Object.keys(before).some(f => f.includes('notes')), 'control: the folder has its notes')
     assert.ok((await o.page.evaluate(() => window.streams.setApiKey('anthropic', 'sk-test-w9-not-real'))).ok)
     assert.ok((await o.page.evaluate(() => window.streams.setActiveConnection('api'))).ok)
-    await o.page.waitForFunction(() => document.querySelector('[data-part="old-library"]')?.dataset.can === 'false', null, POLL)
-    const off = await o.page.evaluate(() => ({ disabled: document.querySelector('[data-action="recheck-sources"] button').disabled, why: document.querySelector('[data-part="recheck-why"]')?.textContent ?? null }))
-    assert.deepEqual([off.disabled, off.why], [true, fmt(SOURCES.old.needsClaude, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })])
+    await o.page.waitForFunction(() => document.querySelector('[data-part="old-library"]')?.dataset.can === 'true', null, POLL)
+    const on = await o.page.evaluate(() => ({ disabled: document.querySelector('[data-action="recheck-sources"] button').disabled, why: document.querySelector('[data-part="recheck-why"]')?.textContent ?? null }))
+    assert.deepEqual([on.disabled, on.why], [false, null])
     if (SHOTS) await o.page.screenshot({ path: join(SHOTS, 'sources-old-api.png') })
     const id = (await o.page.evaluate(() => window.streams.getAppState())).data.library.libraryId
     const r = await o.page.evaluate(x => window.streams.startBuild('换过来', x), id)
-    assert.equal(r.ok, false, JSON.stringify(r))
-    assert.deepEqual(tree(oldWorld.library), before, 'the library byte for byte')
+    assert.equal(r.ok, true, JSON.stringify(r))
+    assert.equal(r.data.mode, 'convert')
+    await o.page.evaluate(() => window.streams.dropBuild())
+    assert.deepEqual(tree(oldWorld.library), before, 'the library byte for byte (nothing before 确认)')
   })
 })
 

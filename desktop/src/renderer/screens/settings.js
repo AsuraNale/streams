@@ -192,12 +192,13 @@ function Group({ id, name, hint = null, children }) {
   </section>`
 }
 
-function ModelSelect({ id, label, value, models, noneLabel, disabled, onChange }) {
+// 1.1.1 P6: an API connection's models are marked 「已实测」 (the core's table: tested) or 「未实测」
+function ModelSelect({ id, label, value, models, noneLabel, disabled, onChange, marks = false }) {
   return html`<label class="st-set-slot" for=${id}>
     <span>${label}</span>
     <select id=${id} data-field=${id.endsWith('-verify') ? 'verify-model' : 'model'} value=${value ?? ''} disabled=${disabled} onChange=${e => onChange(e.currentTarget.value === '' ? null : e.currentTarget.value)}>
       <option value="" selected=${!value}>${noneLabel}</option>
-      ${(models ?? []).map(m => html`<option key=${m.id} value=${m.id} selected=${m.id === value}>${m.label ?? m.id}</option>`)}
+      ${(models ?? []).map(m => html`<option key=${m.id} value=${m.id} selected=${m.id === value} data-tested=${marks ? String(Boolean(m.tested)) : null}>${m.label ?? m.id}${marks ? (m.tested ? T.conn.tested : T.conn.untested) : ''}</option>`)}
     </select>
   </label>`
 }
@@ -230,11 +231,10 @@ function ConnectionsPart() {
       return html`<div key=${kind} class=${`file-row st-set-conn${active ? ' st-set-conn--active' : ''}`} data-connection=${kind} data-conn-state=${state} data-active=${String(active)}>
         <span class="file-icon"><${TIcon} name="spark" /></span>
         <span class="file-text st-set-conn__name"><b>${CONNECTIONS.names[kind]}</b><small data-conn-words>${words.join(SEP)}</small>
-          ${kind === 'api' ? html`<small>${T.conn.apiHint}</small>` : null}
-          ${kind === 'api' ? html`<small data-part="only-ask">${fmt(T.conn.onlyAsk, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })}</small>` : null}</span>
+          ${kind === 'api' ? html`<small>${T.conn.apiHint}</small>` : null}</span>
         <span class="st-set-slots">
-          <${ModelSelect} id=${`settings-model-${kind}`} label=${T.conn.model} value=${k.model ?? null} models=${k.models} noneLabel=${CONNECTIONS.defaultModel} disabled=${busy} onChange=${v => setModels(kind, k, { model: v })} />
-          <${ModelSelect} id=${`settings-model-${kind}-verify`} label=${T.conn.verify} value=${k.verifyModel ?? null} models=${k.models} noneLabel=${CONNECTIONS.sameAsMain} disabled=${busy} onChange=${v => setModels(kind, k, { verifyModel: v })} />
+          <${ModelSelect} id=${`settings-model-${kind}`} label=${T.conn.model} value=${k.model ?? null} models=${k.models} noneLabel=${CONNECTIONS.defaultModel} disabled=${busy} onChange=${v => setModels(kind, k, { model: v })} marks=${kind === 'api'} />
+          <${ModelSelect} id=${`settings-model-${kind}-verify`} label=${T.conn.verify} value=${k.verifyModel ?? null} models=${k.models} noneLabel=${CONNECTIONS.sameAsMain} disabled=${busy} onChange=${v => setModels(kind, k, { verifyModel: v })} marks=${kind === 'api'} />
         </span>
         <span class="st-set-conn__acts">
           ${active ? html`<span class="status-chip" data-part="in-use"><span class="dot"></span> ${T.conn.inUse}</span>`

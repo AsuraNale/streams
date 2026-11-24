@@ -12,6 +12,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { isAbsolute, join } from 'node:path'
 import { readCard, writeCard } from '../src/main/core.mjs'
 import { BUILD } from '../src/renderer/texts/build.js'
+import { fmt } from '../src/renderer/lib/format.js'
+import { CONNECTIONS } from '../src/renderer/texts/common.js'
 import { worldSession } from './support/seed.mjs'
 import { closeApp, launch, ready } from './support/app.mjs'
 
@@ -111,13 +113,13 @@ describe('W6b: 新建库 and the build conversation', () => {
     await until(() => document.querySelector('[data-part="connection-chip"]')?.textContent.includes('Codex'))
     p = await page()
     assert.deepEqual([p.start, p.why], [false, null], 'on Codex 开始 can be pressed')
-    // an API key still only asks (P4–P6): 开始 cannot be pressed, and why — naming both connections that build
+    // 1.1.1 P6 (B17): an API key with no model key stored — 开始 cannot be pressed, and why: enter the key first
     set = await s.page.evaluate(() => window.streams.setActiveConnection('api'))
     assert.ok(set.ok, JSON.stringify(set))
     await until(() => document.querySelector('[data-part="start-why"]') !== null)
     p = await page()
-    assert.equal(p.start, true, 'on an API key 开始 cannot be pressed')
-    assert.ok(p.why.includes('连接你电脑上的 Claude Code') && p.why.includes('连接你电脑上的 Codex'), p.why)
+    assert.equal(p.start, true, 'on an API key with no key 开始 cannot be pressed')
+    assert.ok(p.why.includes(fmt(BUILD.needKey, { api: CONNECTIONS.names.api })), p.why)
     if (SHOTS) await shot('start-api')
     await s.page.evaluate(() => window.streams.setActiveConnection('claude-code'))
     await until(() => document.querySelector('[data-part="start-why"]') === null)

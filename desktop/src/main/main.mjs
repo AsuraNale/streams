@@ -53,7 +53,7 @@ import { startupProblem } from './startup-check.mjs'
 // 1.1 W2: reading a page three ways (core read/), the hidden render window and the PDF reader it is given
 import { createRenderService, isRenderSession } from './render.mjs'
 import { pdfText } from './pdf-text.mjs'
-import { createPageReader, createLinkReader } from './core.mjs'
+import { createPageReader, createLinkReader, createApiToolSession, searchFor, BUILD_BUDGET, UPDATE_BUDGET } from './core.mjs'
 // 1.1 W5: a library with a card is updated by it (services/library-update.mjs; services/update.mjs is the app's own update)
 import { createLibraryUpdateService } from './services/library-update.mjs'
 import { createBuildService, devBuildReaders, devBuildSession } from './services/build.mjs'
@@ -111,6 +111,9 @@ const DEV_QUOTA = !app.isPackaged && typeof process.env.STREAMS_DEV_QUOTA === 's
 const DEV_SOP_DIR = !app.isPackaged && typeof process.env.STREAMS_DEV_SOP_DIR === 'string' && isAbsolute(process.env.STREAMS_DEV_SOP_DIR) ? process.env.STREAMS_DEV_SOP_DIR : null
 // 1.1 W6b, development and tests only: the build agent's replies (services/build.mjs devBuildSession)
 const DEV_BUILD = !app.isPackaged && typeof process.env.STREAMS_DEV_BUILD === 'string' && isAbsolute(process.env.STREAMS_DEV_BUILD) ? process.env.STREAMS_DEV_BUILD : null
+// 1.1.1 P6 (B17), development and tests only: the API connection stays the real one (its vendor's address the test's own
+// stand-in server) while the command-line connections are the development stand-ins (STREAMS_DEV_CONNECTION)
+const DEV_API = !app.isPackaged && process.env.STREAMS_DEV_API === '1'
 // 1.1.1 P1: what Streams' own readers answer in a build of a test (services/build.mjs devBuildReaders); never the network there
 const DEV_READS = !app.isPackaged && typeof process.env.STREAMS_DEV_READS === 'string' && isAbsolute(process.env.STREAMS_DEV_READS) ? process.env.STREAMS_DEV_READS : null
 const DEV_DEFINITION = !app.isPackaged && typeof process.env.STREAMS_DEV_DEFINITION === 'string' && isAbsolute(process.env.STREAMS_DEV_DEFINITION) ? process.env.STREAMS_DEV_DEFINITION : null
@@ -305,7 +308,7 @@ app.whenReady().then(() => {
   // v2 package M: the corner above 设置 (services/quota.mjs) — made right after the connections, which hand it every call's quota
   let quota = null
   const connections = createConnectionsService({
-    settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION, devAskScript: DEV_ASK_SCRIPT, devDetect: DEV_DETECT,
+    settingsFile: layout.settingsFile, emit, log, hidden: HIDDEN, secrets, locale: currentLocale, devConnection: DEV_CONNECTION, devAskScript: DEV_ASK_SCRIPT, devDetect: DEV_DETECT, devApi: DEV_API,
     // a probe made from the page counts in the open library's usage (core createUsageCounter), under `probe`
     usageWrap: c => { const d = library.dir(); return d ? createUsageCounter(d).wrap(c, 'probe') : c },
     onQuota: (kind, q) => quota?.record(kind, q),
@@ -351,7 +354,22 @@ app.whenReady().then(() => {
       return { ok: true, json: { items: [] }, text: '{"items":[]}', sessionId: 'dev-update', resumed: false, reads: [], searches: [], otherTools: [] }
     },
   })
+  // 1.1.1 P6 (B17): an API connection's build and update run with Streams' own tools (core createApiToolSession): pages read by
+  // Streams' reader, the search service when there is one (core searchFor: a DeepSeek model's own key, or the search key), the
+  // budgets as hard numbers. Not with the development stand-ins, unless a test keeps the API connection real (STREAMS_DEV_API)
+  const apiPages = () => (DEV_READS ? devBuildReaders(DEV_READS).readPage : readPages().read)
+  const apiSearch = active => searchFor(active.connection, { getKey: connections.getKey, getSearchKey: () => connections.searchKey() })
+  const apiWired = !DEV_CONNECTION || DEV_API
+  const buildApi = (active, search) => createApiToolSession(active.connection, { getKey: connections.getKey }, {
+    sessionDir: join(layout.appData, 'build', 'api-sessions'), readPage: apiPages(), search,
+    budget: { reads: BUILD_BUDGET.reads + BUILD_BUDGET.changeReads, searches: BUILD_BUDGET.searches + BUILD_BUDGET.changeSearches },
+  })
+  const updateApi = (active, { search, onPage }) => createApiToolSession(active.connection, { getKey: connections.getKey }, {
+    sessionDir: join(layout.appData, 'update-api-sessions'), readPage: apiPages(), search, onPage,
+    budget: { reads: UPDATE_BUDGET.reads, searches: UPDATE_BUDGET.searches },
+  })
   libraryUpdate = createLibraryUpdateService({ readPages, readLinks: () => createLinkReader({ render: renderService.render }), log, now: clock, ...(DEV_CONNECTION ? { session: devWebSession } : {}),
+    ...(apiWired ? { apiSession: updateApi, apiSearch } : {}),
     // 1.1.1 P1, tests only: with STREAMS_DEV_READS the update's readers answer from the same table as the build's
     ...(DEV_READS ? { readPages: () => ({ read: devBuildReaders(DEV_READS).readPage }), readLinks: () => ({ read: devBuildReaders(DEV_READS).readLinks }) } : {}) })
   closeReader = () => { reader.window()?.close() }
@@ -397,6 +415,7 @@ app.whenReady().then(() => {
     ...(DEV_BUILD || DEV_CONNECTION ? { session: (active, callsSoFar) => devBuildSession(DEV_BUILD, callsSoFar), readers: () => devBuildReaders(DEV_READS) } : {}),
     // 1.1.1 P1 (B19): the card's addresses read by Streams itself — the update's page reader and link reader
     ...(DEV_BUILD || DEV_CONNECTION ? {} : { readers: () => ({ readPage: readPages().read, readLinks: createLinkReader({ render: renderService.render }).read }) }),
+    ...(apiWired ? { apiSession: buildApi, apiSearch } : {}),
     // 1.1 W10 (the maintainer 11-23): a library made or brought over has its first update queued at once (the queue's why: first)
     afterBuilt: ({ libraryId }) => {
       const entry = library.find(libraryId)
