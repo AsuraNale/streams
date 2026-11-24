@@ -51,8 +51,13 @@ async function setup({ kind = 'claude-code', replies = [], afterBuilt } = {}) {
 }
 const hash = p => (existsSync(p) ? createHash('sha256').update(readFileSync(p)).digest('hex') : 'absent')
 
-test('only Claude Code builds: Codex or an API key is refused, none chosen is no_connection; an empty sentence is refused', async () => {
-  for (const kind of ['codex', 'api']) {
+test('Claude Code and (1.1.1 P3) Codex build: an API key is refused, none chosen is no_connection; an empty sentence is refused', async () => {
+  // Codex starts a build (what would fail it: BUILD_KINDS without codex — refused with build-not-supported)
+  const cx = await setup({ kind: 'codex', replies: [question('拿来做什么？')] })
+  const view = await cx.b.startBuild('跟踪电车')
+  assert.equal(view.status, 'talking')
+  assert.equal(view.turns.at(-1).kind, 'question')
+  for (const kind of ['api']) {
     const s = await setup({ kind })
     await assert.rejects(() => s.b.startBuild('跟踪电车'), e => e.code === 'bad_arguments' && /build-not-supported/.test(e.message))
     assert.equal(s.b.getBuild(), null)
@@ -176,7 +181,7 @@ test('不建了 after the connection changed to one that cannot build: the waiti
   await s.b.startBuild('x')
   const pending = () => readdirSync(join(s.w.root, 'app', 'build', 'pending')).filter(n => n.endsWith('.json')).length
   assert.equal(pending(), 1)
-  s.setKind('codex')
+  s.setKind('api')
   const again = s.make().handlers
   assert.equal(again.dropBuild(), null)
   assert.equal(pending(), 0, 'taken back without the connection')

@@ -5,21 +5,33 @@
 //                the 1st with no options); dropped = how many the code kept from the customer (reported, not a line)
 //   built        the customer confirmed a card and the library was made
 //   card         the confirmed card is whole: eight parts, the summary and seven lines, at most 3 things to decide
-//   urls         every address on the confirmed card was read in this build
+//   urls         every address on the confirmed card was checked in this build (1.1.1 P1, acceptance C8: an open of the model
+//                that worked, or Streams' own read — the card entry's checked, or run.checked; an address in 「读不到的来源」
+//                needs neither)
 //   budget       searches and reads within the build's budget (with the change allowance)
 // and for the four: requirements caught ≥ 22 of 26 (the judge's verdicts, one per requirement).
 // No model call here: the controls below run on made-up runs and must fail where they are broken.
 import { pathToFileURL } from 'node:url';
+import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const core = await import(pathToFileURL(join(REPO, 'core', 'src', 'index.mjs')).href);
-const { checkQuestion, checkCard, BUILD_BUDGET } = core;
+const { checkQuestion, checkCard, cardUrls, cardUrlKey: urlKey, BUILD_BUDGET } = core;
 
 export const MAX_ANSWERS = 6;
 export const MIN_REQUIREMENTS = 22;
 export const TOTAL_REQUIREMENTS = 26;
+
+// the card's addresses neither opened (with a page) by the model nor read by Streams, those in 「读不到的来源」 left out
+export function uncheckedUrls(card, run) {
+  const ok = new Set((run.reads ?? []).filter((r) => r && r.ok !== false).map((r) => urlKey(r.url)).filter(Boolean));
+  for (const [k, v] of Object.entries(run.checked ?? {})) if (v && v.ok === true) ok.add(k);
+  for (const part of ['sources', 'samples', 'unreadable']) for (const e of Array.isArray(card[part]) ? card[part] : []) if (e && e.checked && e.checked.ok === true && e.url) ok.add(urlKey(e.url));
+  const exempt = new Set((Array.isArray(card.unreadable) ? card.unreadable : []).map((e) => (e && e.url ? urlKey(e.url) : null)).filter(Boolean));
+  return cardUrls(card).filter((u) => !exempt.has(urlKey(u)) && !ok.has(urlKey(u)));
+}
 
 export function scoreRun(run, { budget = BUILD_BUDGET } = {}) {
   const asked = [];
@@ -35,7 +47,7 @@ export function scoreRun(run, { budget = BUILD_BUDGET } = {}) {
     questions: { ok: questionsOk && asked.length <= 5, value: asked.length, dropped: run.dropped ?? 0 },
     built: { ok: run.built === true },
     card: { ok: card !== null && checkCard(card, { reads: null }).ok, problems: card ? checkCard(card, { reads: null }).problems : [{ code: 'no-card' }] },
-    urls: { ok: card !== null && checkCard(card, { reads: run.reads ?? [] }).problems.every((p) => p.code !== 'not-read'), notRead: card ? checkCard(card, { reads: run.reads ?? [] }).problems.filter((p) => p.code === 'not-read').map((p) => p.url) : [] },
+    urls: { ok: card !== null && uncheckedUrls(card, run).length === 0, notRead: card ? uncheckedUrls(card, run) : [] },
     budget: { ok: (run.searches ?? []).length <= budget.searches + budget.changeSearches && (run.reads ?? []).length <= budget.reads + budget.changeReads, searches: (run.searches ?? []).length, reads: (run.reads ?? []).length },
   };
   return { ok: Object.values(lines).every((l) => l.ok), lines };
@@ -73,6 +85,18 @@ export function controls() {
   expect('a first question with options fails the questions line', scoreRun(firstChoice).lines.questions.ok, false);
   const notBuilt = SOUND(); notBuilt.built = false;
   expect('a run never confirmed fails the built line', scoreRun(notBuilt).lines.built.ok, false);
+  // 1.1.1 P1 / C8: what counts as checked
+  const failedOpen = SOUND(); failedOpen.reads = [{ url: 'https://a.test', ok: true }, { url: 'https://a.test/1', ok: false }];
+  expect('an open that came back as an error does not count', scoreRun(failedOpen).lines.urls.ok, false);
+  const streamsRead = SOUND(); streamsRead.reads = [{ url: 'https://a.test' }]; streamsRead.card.samples[0].checked = { ok: true, original: 'read', reason: null };
+  expect('an address Streams read itself counts', scoreRun(streamsRead).lines.urls.ok, true);
+  const unreadable = SOUND(); unreadable.card.unreadable = [{ name: 'u', url: 'https://u.test/x', reason: '要登录' }];
+  expect('an address in 读不到的来源 needs no open', scoreRun(unreadable).lines.urls.ok, true);
+  // the 11-24 Codex round (tests/live/build/fixtures/codex-2026-11-24-summary.json): 19 of 26, customer 3 not built
+  const nov24 = JSON.parse(readFileSync(join(REPO, 'tests', 'live', 'build', 'fixtures', 'codex-2026-11-24-summary.json'), 'utf8'));
+  const nov24Runs = nov24.runs.map((r) => ({ ...SOUND(), built: r.built, verdicts: verdicts(r.of, r.caught) }));
+  expect('the 11-24 Codex round (19 of 26, one not built) fails', scoreAll(nov24Runs).ok, false);
+  expect('the 11-24 Codex round has 19 requirements caught', scoreAll(nov24Runs).requirements.caught, 19);
   const runs = (c) => [6, 8, 7, 5].map((n, i) => ({ ...SOUND(), verdicts: verdicts(n, i === 0 ? n - (26 - c) : n) }));
   expect('21 of 26 requirements fail the four', scoreAll(runs(21)).requirements.ok, false);
   expect('22 of 26 requirements pass the four', scoreAll(runs(22)).requirements.ok, true);

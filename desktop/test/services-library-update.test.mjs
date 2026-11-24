@@ -78,9 +78,15 @@ test('a library with a card: its round is an update (the update agent, a run rec
   assert.equal(ends.some(p => p.phase === 'self-check'), false, 'v1.0\'s self-check did not run')
 })
 
-test('only Claude Code updates in 1.1: Codex or an API key does not start, and says why', async () => {
-  assert.deepEqual(UPDATE_KINDS, ['claude-code'])
-  for (const kind of ['codex', 'api']) {
+test('Claude Code and (1.1.1 P3) Codex update: an API key does not start, and says why', async () => {
+  assert.deepEqual(UPDATE_KINDS, ['claude-code', 'codex'])
+  // Codex: the update agent's session is made and runs (what would fail it: update-not-supported, no session)
+  const cx = await setup({ kind: 'codex' })
+  const started = await cx.pipeline.startRoundIn({ id: cx.id, path: cx.dir })
+  assert.equal(started.started, true, JSON.stringify(started))
+  await until(() => cx.done.length === 1)
+  assert.equal(cx.sessions.length, 1, 'the update agent\'s session was made on Codex')
+  for (const kind of ['api']) {
     const s = await setup({ kind })
     const r = await s.pipeline.startRoundIn({ id: s.id, path: s.dir })
     assert.deepEqual(r, { started: false, problems: [{ code: 'update-not-supported', connection: kind }] }, kind)

@@ -414,12 +414,12 @@ function CardSourcesPart({ rows, onAdded }) {
 /** A library with no card: built by the last version — what still works, and the way on (A6). */
 function OldNotice({ connection, onRecheck }) {
   const O = T.old
-  const can = connection === 'claude-code'
+  const can = connection === 'claude-code' || connection === 'codex'
   return html`<section class="st-src-part progress-alert st-src-old" data-part="old-library" data-can=${String(can)} role="note">
     <div class="section-label"><span>${O.heading}</span></div>
     <p class="limit-note">${O.text}</p>
     <div class="row"><${Btn} name="recheck-sources" kind="primary" disabled=${!can} onClick=${onRecheck}>${O.action}<//>
-      ${can ? null : html`<small class="muted" data-part="recheck-why">${fmt(O.needsClaude, { cc: CONNECTIONS.names['claude-code'] })}</small>`}</div>
+      ${can ? null : html`<small class="muted" data-part="recheck-why">${fmt(O.needsClaude, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })}</small>`}</div>
   </section>`
 }
 

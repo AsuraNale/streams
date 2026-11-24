@@ -888,6 +888,25 @@ const MUTANTS = [
     edits: [["src/build/check-urls.mjs", "if (unreadable.has(k) || opened.has(k) || out[k]?.ok) continue;", "if (opened.has(k) || out[k]?.ok) continue;"]],
     test: ["test/v111-check-urls.test.mjs", "--test-name-pattern=B19 ④"],
   },
+  // 1.1.1 P4 (A3, C6)
+  {
+    id: "v111-p4-no-budget",
+    what: "the API tools' read budget is not checked: past the number the reader is still called",
+    edits: [["src/connect/api-tools.mjs", "if (s.used.reads >= budget.reads) return { id: call.id, error: true, text: OUT_OF_BUDGET };", ""]],
+    test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=the budget is hard"],
+  },
+  {
+    id: "v111-p4-no-address-guard",
+    what: "any address is read, this machine's and a private network's too",
+    edits: [["src/connect/api-tools.mjs", "const g = await publicAddress(url, { lookup });", "const g = { ok: true };"]],
+    test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=public pages only"],
+  },
+  {
+    id: "v111-p4-any-tool",
+    what: "a tool off the list is not recorded: the build goes on as if nothing happened",
+    edits: [["src/connect/api-tools.mjs", "out.otherTools.push(call.name || '(no name)');", ""]],
+    test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=a tool not on the list"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

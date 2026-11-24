@@ -1,0 +1,185 @@
+{
+ "connection": "codex",
+ "model": "default",
+ "at": "2026-11-24T15:05:08.403Z",
+ "ok": false,
+ "requirements": {
+  "ok": false,
+  "caught": 19,
+  "of": 26
+ },
+ "runs": [
+  {
+   "persona": 1,
+   "built": true,
+   "answers": 4,
+   "questions": 3,
+   "dropped": 0,
+   "seconds": 300,
+   "searches": 9,
+   "reads": 16,
+   "caught": 6,
+   "of": 6,
+   "end": {
+    "kind": "confirmed-after-change",
+    "status": "done"
+   },
+   "lines": {
+    "answers": {
+     "ok": true,
+     "value": 4
+    },
+    "questions": {
+     "ok": true,
+     "value": 3,
+     "dropped": 0
+    },
+    "built": {
+     "ok": true
+    },
+    "card": {
+     "ok": true,
+     "problems": []
+    },
+    "urls": {
+     "ok": true,
+     "notRead": []
+    },
+    "budget": {
+     "ok": true,
+     "searches": 9,
+     "reads": 16
+    }
+   }
+  },
+  {
+   "persona": 2,
+   "built": true,
+   "answers": 8,
+   "questions": 3,
+   "dropped": 0,
+   "seconds": 620,
+   "searches": 22,
+   "reads": 25,
+   "caught": 8,
+   "of": 8,
+   "end": {
+    "kind": "confirmed-after-change",
+    "status": "done"
+   },
+   "lines": {
+    "answers": {
+     "ok": false,
+     "value": 8
+    },
+    "questions": {
+     "ok": true,
+     "value": 3,
+     "dropped": 0
+    },
+    "built": {
+     "ok": true
+    },
+    "card": {
+     "ok": true,
+     "problems": []
+    },
+    "urls": {
+     "ok": true,
+     "notRead": []
+    },
+    "budget": {
+     "ok": true,
+     "searches": 22,
+     "reads": 25
+    }
+   }
+  },
+  {
+   "persona": 3,
+   "built": false,
+   "answers": 9,
+   "questions": 3,
+   "dropped": 0,
+   "seconds": 338,
+   "searches": 24,
+   "reads": 27,
+   "caught": 0,
+   "of": 0,
+   "lines": {
+    "answers": {
+     "ok": false,
+     "value": 9
+    },
+    "questions": {
+     "ok": true,
+     "value": 3,
+     "dropped": 0
+    },
+    "built": {
+     "ok": false
+    },
+    "card": {
+     "ok": true,
+     "problems": []
+    },
+    "urls": {
+     "ok": false,
+     "notRead": [
+      "https://ir.lixiang.com/news-releases",
+      "https://www.caam.org.cn/",
+      "https://www.cabia.org.cn/"
+     ]
+    },
+    "budget": {
+     "ok": true,
+     "searches": 24,
+     "reads": 27
+    }
+   }
+  },
+  {
+   "persona": 5,
+   "built": true,
+   "answers": 3,
+   "questions": 2,
+   "dropped": 0,
+   "seconds": 256,
+   "searches": 9,
+   "reads": 16,
+   "caught": 5,
+   "of": 5,
+   "end": {
+    "kind": "confirmed-after-change",
+    "status": "done"
+   },
+   "lines": {
+    "answers": {
+     "ok": true,
+     "value": 3
+    },
+    "questions": {
+     "ok": true,
+     "value": 2,
+     "dropped": 0
+    },
+    "built": {
+     "ok": true
+    },
+    "card": {
+     "ok": true,
+     "problems": []
+    },
+    "urls": {
+     "ok": true,
+     "notRead": []
+    },
+    "budget": {
+     "ok": true,
+     "searches": 9,
+     "reads": 16
+    }
+   }
+  }
+ ]
+}

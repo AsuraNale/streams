@@ -200,13 +200,13 @@ describe('W6a: 待看, the reading window, 来源与要求, 设置', () => {
     assert.equal(fileHash(cardFile), hash)
   })
 
-  test('A6: 设置 says Codex and an API key only ask a library in this version', async () => {
+  test('A6: 设置 says an API key only asks a library in this version (1.1.1 P3: Codex builds and updates, no note)', async () => {
     await s.page.click('.st-sidebar__footer-button')
     await until(() => document.querySelectorAll('[data-part="only-ask"]').length > 0)
     const r = await s.page.evaluate(() => ({ notes: [...document.querySelectorAll('[data-connection]')].map(e => [e.dataset.connection, e.querySelector('[data-part="only-ask"]')?.textContent ?? null]), uses: document.querySelector('[data-part="agent-uses"]').textContent }))
-    const onlyAsk = fmt(SETTINGS.conn.onlyAsk, { cc: CONNECTIONS.names['claude-code'] })
-    assert.ok(onlyAsk.includes(CONNECTIONS.names['claude-code']) && !onlyAsk.includes('{cc}'), 'the note names the connection to use')
-    assert.deepEqual(r.notes, [['claude-code', null], ['codex', onlyAsk], ['api', onlyAsk]])
+    const onlyAsk = fmt(SETTINGS.conn.onlyAsk, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })
+    assert.ok(onlyAsk.includes(CONNECTIONS.names['claude-code']) && onlyAsk.includes(CONNECTIONS.names.codex) && !/\{c[cx]\}/.test(onlyAsk), 'the note names the connections to use')
+    assert.deepEqual(r.notes, [['claude-code', null], ['codex', null], ['api', onlyAsk]])
     assert.equal(r.uses, SETTINGS.conn.agentUses)
     assert.equal(r.uses.includes('评分'), false)
     await shot('settings-light')
@@ -284,12 +284,17 @@ describe('W6a: a library built by the last version (A6)', () => {
     settings: { connections: { active: 'codex' }, panel: { open: true, tab: 'detail' } },
     env: world => ({ STREAMS_DEV_LIBRARY: world.library, STREAMS_DEV_CONNECTION: 'fake', STREAMS_START_SCREEN: 'sources', ...(SHOTS ? { STREAMS_WINDOW: 'shown' } : {}) }),
   })
-  test('the notice and 「重新查一遍来源」: off on Codex with the reason, on with Claude Code', async () => {
+  test('the notice and 「重新查一遍来源」: on with Codex (1.1.1 P3); off on an API key with the reason; on with Claude Code', async () => {
     await o.page.waitForSelector('[data-part="old-library"]', POLL)
-    const off = await o.page.evaluate(() => ({ can: document.querySelector('[data-part="old-library"]').dataset.can, disabled: document.querySelector('[data-action="recheck-sources"] button').disabled, why: document.querySelector('[data-part="recheck-why"]')?.textContent ?? null, lead: document.querySelector('[data-lead]').textContent }))
-    assert.deepEqual([off.can, off.disabled, off.why], ['false', true, fmt(SOURCES.old.needsClaude, { cc: CONNECTIONS.names['claude-code'] })])
-    assert.equal(off.lead, SOURCES.old.lead)
+    const state = () => o.page.evaluate(() => ({ can: document.querySelector('[data-part="old-library"]').dataset.can, disabled: document.querySelector('[data-action="recheck-sources"] button').disabled, why: document.querySelector('[data-part="recheck-why"]')?.textContent ?? null, lead: document.querySelector('[data-lead]').textContent }))
+    const onCodex = await state()
+    assert.deepEqual([onCodex.can, onCodex.disabled, onCodex.why], ['true', false, null], 'Codex can check the sources again')
     if (SHOTS) await o.page.screenshot({ path: join(SHOTS, 'sources-old-codex.png') })
+    assert.ok((await o.page.evaluate(() => window.streams.setActiveConnection('api'))).ok)
+    await o.page.waitForFunction(() => document.querySelector('[data-part="old-library"]')?.dataset.can === 'false', null, POLL)
+    const off = await state()
+    assert.deepEqual([off.can, off.disabled, off.why], ['false', true, fmt(SOURCES.old.needsClaude, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })])
+    assert.equal(off.lead, SOURCES.old.lead)
     const set = await o.page.evaluate(() => window.streams.setActiveConnection('claude-code'))
     assert.ok(set.ok, JSON.stringify(set))
     await o.page.waitForFunction(() => document.querySelector('[data-part="old-library"]')?.dataset.can === 'true', null, POLL)
@@ -313,7 +318,7 @@ describe('W6a: a library built by the last version (A6)', () => {
     assert.ok((await o.page.evaluate(() => window.streams.setActiveConnection('api'))).ok)
     await o.page.waitForFunction(() => document.querySelector('[data-part="old-library"]')?.dataset.can === 'false', null, POLL)
     const off = await o.page.evaluate(() => ({ disabled: document.querySelector('[data-action="recheck-sources"] button').disabled, why: document.querySelector('[data-part="recheck-why"]')?.textContent ?? null }))
-    assert.deepEqual([off.disabled, off.why], [true, fmt(SOURCES.old.needsClaude, { cc: CONNECTIONS.names['claude-code'] })])
+    assert.deepEqual([off.disabled, off.why], [true, fmt(SOURCES.old.needsClaude, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })])
     if (SHOTS) await o.page.screenshot({ path: join(SHOTS, 'sources-old-api.png') })
     const id = (await o.page.evaluate(() => window.streams.getAppState())).data.library.libraryId
     const r = await o.page.evaluate(x => window.streams.startBuild('换过来', x), id)

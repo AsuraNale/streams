@@ -186,14 +186,11 @@ describe('W7a: on an API key (B17), and on Codex', () => {
     assert.deepEqual(tree(k.library), before, 'the library byte for byte')
     const conns = (await a.page.evaluate(() => window.streams.getConnections())).data
     assert.ok(JSON.stringify(conns).includes('"hasKey":true'), 'the key stays')
-    // on Codex: the same
-    await a.page.evaluate(() => window.streams.setActiveConnection('codex'))
-    assert.equal((await a.page.evaluate(() => window.streams.startBuild('跟踪储能'))).ok, false)
-    // on Codex too: 立即运行 does not update, and a library cannot be brought over or have its card changed
+    // (1.1.1 P3: Codex builds and updates now — services-build, services-library-update and ui-w6b check it; an API key, above,
+    // still only asks)
     const run = (await a.page.evaluate(() => window.streams.startRound())).data
     assert.deepEqual([run.started, run.problems?.[0]?.code], [false, 'update-not-supported'], JSON.stringify(run))
-    assert.equal((await a.page.evaluate(x => window.streams.startBuild('换过来', x), id)).ok, false)
-    assert.deepEqual(tree(k.library), before, 'on Codex too: the library byte for byte')
+    assert.deepEqual(tree(k.library), before, 'the library byte for byte')
   })
 })
 

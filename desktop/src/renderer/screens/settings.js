@@ -202,7 +202,7 @@ function ConnectionsPart() {
         <span class="file-icon"><${TIcon} name="spark" /></span>
         <span class="file-text st-set-conn__name"><b>${CONNECTIONS.names[kind]}</b><small data-conn-words>${words.join(SEP)}</small>
           ${kind === 'api' ? html`<small>${T.conn.apiHint}</small>` : null}
-          ${kind === 'codex' || kind === 'api' ? html`<small data-part="only-ask">${fmt(T.conn.onlyAsk, { cc: CONNECTIONS.names['claude-code'] })}</small>` : null}</span>
+          ${kind === 'api' ? html`<small data-part="only-ask">${fmt(T.conn.onlyAsk, { cc: CONNECTIONS.names['claude-code'], cx: CONNECTIONS.names.codex })}</small>` : null}</span>
         <span class="st-set-slots">
           <${ModelSelect} id=${`settings-model-${kind}`} label=${T.conn.model} value=${k.model ?? null} models=${k.models} noneLabel=${CONNECTIONS.defaultModel} disabled=${busy} onChange=${v => setModels(kind, k, { model: v })} />
           <${ModelSelect} id=${`settings-model-${kind}-verify`} label=${T.conn.verify} value=${k.verifyModel ?? null} models=${k.models} noneLabel=${CONNECTIONS.sameAsMain} disabled=${busy} onChange=${v => setModels(kind, k, { verifyModel: v })} />

@@ -16,6 +16,8 @@
 //              handed in is read once (check-urls.mjs): an address outside 「读不到的来源」 counts when the model opened it
 //              (an open that came back as an error does not) or Streams read it; the result is kept on the card's entries
 //              (checked). Left out: only the model's opens count.
+//   search     1.1.1 P4: false for an API connection with no search service — the SOP's tools and budget speak of reading
+//              pages only (kind 'api': Streams' own two tools, the numbers hard)
 //   convert    1.1 W7a (E3): { library } to bring a library made by the last version over — a build like a new one (the user's
 //              words carry its old requirements and sources; every address must be read this time), whose card is the action
 //              convert_library, asked for in the user's name (the definition lets only the user do it) and held until 确认
@@ -79,12 +81,12 @@ export function problemText(p) {
 // checks read, the tools, the budget …), so a SOP without one is refused rather than sent
 export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS', 'OUTPUT']);
 
-export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, sopDir, opener, current = null }) {
+export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, sopDir, opener, current = null, search = true }) {
   const text = loadSop('build', sopDir ? { dir: sopDir } : {});
   const missing = BUILD_SOP_PLACES.filter((k) => !placeholdersOf(text).includes(k));
   if (missing.length) throw new StreamsError('sop-incomplete', `the build SOP has no place for ${missing.join(', ')}`);
   const sop = renderSop(text, {
-    TODAY: today, TOOLS: toolsText(kind), BUDGET: budgetText(budget), ACTIONS: actionsText(definition), OUTPUT: OUTPUT_TEXT,
+    TODAY: today, TOOLS: toolsText(kind, { search }), BUDGET: budgetText(budget, { search, hard: kind === 'api' }), ACTIONS: actionsText(definition), OUTPUT: OUTPUT_TEXT,
   });
   const now = current ? `\n\n## 这座库现在的建库卡（用户要改它）\n\`\`\`json\n${JSON.stringify(current, null, 2)}\n\`\`\`` : '';
   return `${sop}${now}\n\n## 用户的开场白\n用户：${opener}`;
@@ -92,7 +94,7 @@ export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, so
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null, convert = null, readPage = null, readLinks = null } = {}) {
+export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null, convert = null, readPage = null, readLinks = null, search = true } = {}) {
   if (!connector || typeof connector.send !== 'function') throw new StreamsError('bad-argument', 'a build needs a session connection with the web tools');
   if (!runner) throw new StreamsError('bad-argument', 'a build needs the action runner');
   if (edit !== null && (!isObj(edit) || typeof edit.library !== 'string' || !isObj(edit.card))) throw new StreamsError('bad-argument', 'a change of a card needs { library, card }');
@@ -210,7 +212,7 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
       if (s.status !== 'new') throw new StreamsError('bad-state', 'this build has started already');
       if (typeof opener !== 'string' || opener.trim() === '') throw new StreamsError('bad-argument', 'what the user wants to follow is needed');
       s.opener = opener.trim();
-      const prompt = buildPrompt({ definition, kind: s.kind, today: day, budget, sopDir, opener: s.opener, current: s.edit?.card ?? null });
+      const prompt = buildPrompt({ definition, kind: s.kind, today: day, budget, sopDir, opener: s.opener, current: s.edit?.card ?? null, search });
       return turn(prompt, s.opener);
     },
     async reply(answer) {

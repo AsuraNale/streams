@@ -14,7 +14,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createLinkReader, createSessionConnector, readCard, runUpdate } from '../core.mjs'
 
-export const UPDATE_KINDS = Object.freeze(['claude-code'])
+// 1.1.1 P3 (C8): Codex updates too (its four cards' updates passed the same line as Claude Code's)
+export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex'])
 export const UPDATE_CWD = join(tmpdir(), 'streams-update-cwd')
 
 /**
@@ -39,7 +40,7 @@ export function createLibraryUpdateService({ readPages, readLinks = () => create
     },
     /** One update of the library at `dir` on the active connection (1.1 W7a: `signal` — 停止). */
     async run(dir, active, { round, signal = null } = {}) {
-      const r = await runUpdate(dir, { connector: session(active), judge: active.connector, readPage: readPages().read, readLinks: readLinks().read, now, round, signal })
+      const r = await runUpdate(dir, { connector: session(active), judge: active.connector, readPage: readPages().read, readLinks: readLinks().read, now, round, signal, kind: active.kind })
       log(`update: ${round ?? '-'} of ${dir}: ${r.status}${r.record ? ` · sources ${r.record.counts.read} · new ${r.record.counts.newLinks} · inbox ${r.record.counts.inbox} · calls ${r.record.calls ?? 0}` : ''}`)
       return r
     },

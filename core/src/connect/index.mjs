@@ -11,6 +11,10 @@ export { readCodexQuota, CODEX_QUOTA_ARGS, CODEX_QUOTA_METHODS } from './codex-q
 export { readApiBalance, BALANCE_TIMEOUT_MS } from './balance.mjs';
 export { runDialogue, DIALOGUE_TIMEOUT_MS } from './process.mjs';
 export { createApiConnector, buildRequest, codeFromHttp, parseSuccess, ANTHROPIC_VERSION } from './api.mjs';
+// 1.1.1 P4 (A3, C6): the model API with Streams' own tools (read_page, search), the conversation kept by Streams
+export { createApiToolSession, publicAddress, privateAddress, API_TOOL_MAX_STEPS, PAGE_TEXT_MAX, OUT_OF_BUDGET, OUT_OF_SEARCHES } from './api-tools.mjs';
+// 1.1.1 P5: the search service of an API connection (DeepSeek's search API), and which key it uses
+export { createDeepSeekSearch, searchFor, DEEPSEEK_SEARCH_BASE, SEARCH_COUNT, QUERY_MAX } from './search.mjs';
 export { CLAUDE_CODE_MODELS, CODEX_MODELS, VENDORS, VENDOR_IDS, modelsFor, recommendedModel, defaultModelFor, resolveModel } from './models.mjs';
 export { extractJson } from './json-output.mjs';
 export { completeJson, RETRY_SUFFIX } from './complete-json.mjs';

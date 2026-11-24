@@ -27,7 +27,7 @@ export const SETTINGS = Object.freeze({
     // the one sentence under the three rows (F63, F64: 主 Agent uses the current connection's main model)
     agentUses: '建库、更新和问库都用当前连接的主模型；核验用核验模型。',
     // 1.1 W6a (A6; W4's live runs, contract C7): with these two, this version only asks the library
-    onlyAsk: '这一版用这种连接只能问库；建库和更新要用「{cc}」。',
+    onlyAsk: '这一版用这种连接只能问库；建库和更新要用「{cc}」或「{cx}」。',
   }),
 
   // 新建库默认存储位置 (getLibraryRoot / chooseLibraryRoot / setLibraryRoot)

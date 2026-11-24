@@ -20,7 +20,7 @@ export const SETTINGS = Object.freeze({
     apiHint: 'Any vendor; the vendor and its address are set under Configure',
     agentUses: 'Building, updating and asking a library use the current connection’s main model; verification uses the verification model.',
     // 1.1 W6a (A6)
-    onlyAsk: 'With this connection this version can only ask a library; building and updating need “{cc}”.',
+    onlyAsk: 'With this connection this version can only ask a library; building and updating need “{cc}” or “{cx}”.',
   }),
 
   root: Object.freeze({

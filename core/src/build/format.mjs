@@ -8,15 +8,29 @@ export const BUILD_BUDGET = Object.freeze({ searches: 20, reads: 35, changeSearc
 
 const TOOLS = {
   'claude-code': '- 只有搜索（WebSearch）和读网页（WebFetch）两个工具。不读写本地文件，不跑命令，不用别的工具。',
-  codex: '- 只用网页搜索和打开网页（web_search）。不跑命令，不读写本地文件，不用别的工具。',
+  // 1.1.1 P3: Codex's one web tool as it is (codex --search exec, 0.167): web_search searches, opens a page, finds words in
+  // an open page
+  codex: '- 只有网页搜索（web_search）一个工具：可以搜索、打开网页、在打开的网页里找字。不跑命令，不读写本地文件，不用别的工具。',
 };
 
-export function toolsText(kind) {
+// 1.1.1 P4: an API connection's tools are Streams' own (connect/api-tools.mjs): reading a page always, searching only with a
+// search service — without one, nothing here speaks of searching
+export const API_TOOLS = Object.freeze({
+  search: '- 只有两个工具，都由流息执行：读网页（read_page，流息自己的读取器读）和搜索（search）。不读写本地文件，不跑命令，不用别的工具；要别的工具，流息不会执行。',
+  noSearch: '- 只有一个工具，由流息执行：读网页（read_page，流息自己的读取器读）。不读写本地文件，不跑命令，不用别的工具；要别的工具，流息不会执行。',
+});
+
+export function toolsText(kind, { search = true } = {}) {
+  if (kind === 'api') return search ? API_TOOLS.search : API_TOOLS.noSearch;
   return TOOLS[kind] ?? TOOLS['claude-code'];
 }
 
-export function budgetText(b = BUILD_BUDGET) {
-  return `建库全程最多约 ${b.searches} 次搜索、${b.reads} 次读网页；用户的改动需要再查的话，改卡另有 ${b.changeSearches} 次搜索、${b.changeReads} 次读网页。`;
+// hard: an API connection — Streams counts and stops at the number (not 「约」); search: false — no searching at all
+export function budgetText(b = BUILD_BUDGET, { search = true, hard = false } = {}) {
+  const about = hard ? '' : '约 ';
+  const stop = hard ? '（流息数着，到了就不再执行）' : '';
+  if (!search) return `建库全程最多 ${about}${b.reads} 次读网页；用户的改动需要再查的话，改卡另有 ${b.changeReads} 次读网页${stop}。`;
+  return `建库全程最多${about}${b.searches} 次搜索、${b.reads} 次读网页；用户的改动需要再查的话，改卡另有 ${b.changeSearches} 次搜索、${b.changeReads} 次读网页${stop}。`;
 }
 
 // the actions the main agent may hand in (its tools are the two above, not listed here), from the definition file

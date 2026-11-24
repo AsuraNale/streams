@@ -5,8 +5,8 @@
  *   - One conversation at a time, kept in <appData>\build\build.json after every turn, so it is there again after leaving
  *     the page or a restart. Its card waits as a pending action in <appData>\build\pending (create_library, or edit_card for
  *     a change) — nothing is made or changed until 确认 (B3). 不建了 takes the card back and ends the conversation.
- *   - Only Claude Code builds in 1.1 (W4's live runs: Codex did not pass, contract C7): another connection does not start,
- *     with the code 'build-not-supported'; none chosen: 'no_connection'.
+ *   - Claude Code and (1.1.1 P3, its live runs passed C8) Codex build; an API key does not start yet (P4–P6), with the code
+ *     'build-not-supported'; none chosen: 'no_connection'.
  *   - The agent's session has the two web tools (core createSessionConnector … { web: true }) in a working folder of its own
  *     under the system's temporary folder.
  *   - A new library goes to <libraryRoot>\<the card's name as a folder name> (a free name: ' 2', ' 3' … when that folder is
@@ -46,7 +46,8 @@ import {
   cardChanges, cardHandlers, cardUrls, createActionRunner, createBuild, createSessionConnector, libraryFolderName, loadDefinition, readCard,
 } from '../core.mjs'
 
-export const BUILD_KINDS = Object.freeze(['claude-code'])
+// 1.1.1 P3 (C8): Codex too — its four customers' builds passed the same line as Claude Code's (24 / 26, every line)
+export const BUILD_KINDS = Object.freeze(['claude-code', 'codex'])
 export const BUILD_CWD = join(tmpdir(), 'streams-build-cwd')
 const OPENER_MAX = 2000
 

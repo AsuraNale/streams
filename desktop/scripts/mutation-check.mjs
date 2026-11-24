@@ -1380,6 +1380,25 @@ const MUTANTS = [
     edits: [['src/main/reader.mjs', "background:color-mix(in srgb,var(--accent,currentColor) 24%,transparent)!important;color:inherit!important;", "background:color-mix(in srgb,var(--accent) 20%,transparent);color:inherit;"]],
     test: ['test/ui-w6a.test.mjs', '--test-name-pattern=A4'],
   },
+  // 1.1.1 P3 (C7, C8)
+  {
+    id: 'p3-codex-no-build',
+    what: 'Codex cannot build again (BUILD_KINDS without it)',
+    edits: [['src/main/services/build.mjs', "export const BUILD_KINDS = Object.freeze(['claude-code', 'codex'])", "export const BUILD_KINDS = Object.freeze(['claude-code'])"]],
+    test: ['test/services-build.test.mjs'],
+  },
+  {
+    id: 'p3-codex-no-update',
+    what: 'Codex cannot update again (UPDATE_KINDS without it)',
+    edits: [['src/main/services/library-update.mjs', "export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex'])", "export const UPDATE_KINDS = Object.freeze(['claude-code'])"]],
+    test: ['test/services-library-update.test.mjs'],
+  },
+  {
+    id: 'p3-codex-only-ask-note',
+    what: '设置 still says Codex only asks a library',
+    edits: [['src/renderer/screens/settings.js', "${kind === 'api' ? html`<small data-part=\"only-ask\">", "${kind === 'codex' || kind === 'api' ? html`<small data-part=\"only-ask\">"]],
+    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=A6'],
+  },
 ]
 
 function runTest(desktop, test) {

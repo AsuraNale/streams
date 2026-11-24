@@ -118,17 +118,17 @@ test('R4a-2 更换连接 → 连接选择 (Claude Code is the current one) → �
 // 1.1 W6b: 发送 goes to 新建库 (screens/build.js) with the sentence — no longer v1.0's main agent page. This session's connection
 // is Codex (the step above chose it), and in 1.1 only Claude Code builds: the page keeps the sentence, says why it cannot start
 // and sends nothing. (On Claude Code the sentence starts the conversation at once: test/ui-w6b.test.mjs.)
-test('R4a-1 发送 → 新建库 with the sentence; on Codex it says why it cannot start and nothing is sent; nothing to the main agent, nothing made', async () => {
+test('R4a-1 发送 → 新建库 with the sentence; on Codex (1.1.1 P3: it builds) the conversation starts with it; nothing made before 确认', async () => {
   const sentence = '我想跟踪 AI agent 的新工具和评测，不要营销稿。'
   await a.page.fill('textarea[data-field="track"]', sentence)
   await a.page.click('[data-action="send"] button')
   await ready(a.page, 'build')
   assert.equal((await a.page.evaluate(() => window.streams.getAppState())).data.activeConnection, 'codex', 'control: the connection of this session')
-  const p = await a.page.evaluate(() => ({ view: document.querySelector('main[data-screen="build"]').dataset.view, box: document.querySelector('textarea[data-field="opener"]').value, why: Boolean(document.querySelector('[data-part="start-why"]')), start: document.querySelector('[data-action="start"] button').disabled }))
-  assert.deepEqual(p, { view: 'start', box: sentence, why: true, start: true })
-  assert.equal((await a.page.evaluate(() => window.streams.getBuild())).data, null, 'nothing sent')
-  assert.equal(existsSync(conversationOf(a.world)), false, 'nothing went to the main agent (no build conversation)')
+  await a.page.waitForFunction(() => document.querySelector('main[data-screen="build"][data-view="talk"]') !== null && document.querySelector('[data-part="thinking"]') === null, null, { polling: 100, timeout: 60_000 })
+  assert.equal((await a.page.evaluate(() => window.streams.getBuild())).data?.opener, sentence, 'the sentence went to the main agent')
+  assert.equal(await a.page.evaluate(() => document.querySelector('[data-part="start-why"]')), null, 'no reason it cannot start')
   assert.deepEqual(registryOf(a.world)?.libraries ?? [], [], 'nothing made')
+  await a.page.evaluate(() => window.streams.dropBuild())
   assert.deepEqual(a.errors, [])
 })
 

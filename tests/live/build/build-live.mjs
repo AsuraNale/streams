@@ -4,6 +4,7 @@
 // the customer, by personas.json's rules. Then score.mjs's lines, and a model that only judges reads the confirmed card
 // against the customer's requirements.
 //   node tests/live/build/build-live.mjs --connection claude-code|codex [--model <id>] [--persona 1,2,3,5] --out <folder>
+//   [--no-streams-read]   only the model's opens count for the card's addresses (1.1.0's rule, for comparison)
 //   node tests/live/build/build-live.mjs --judge-control --out <folder>   one judge call on a card made to miss things
 // Spends quota (real connections). Writes <out>/<connection>-<n>.json after every step (a run cut short keeps what it
 // had) and <out>/<connection>-summary.json. Page texts are not kept: the questions, the cards, the addresses read.
@@ -18,7 +19,10 @@ import { scoreRun, scoreAll, controls } from './score.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO = join(here, '..', '..', '..');
 const core = await import(pathToFileURL(join(REPO, 'core', 'src', 'index.mjs')).href);
-const { createBuild, createActionRunner, cardHandlers, loadDefinition, createSessionConnector, createConnector, renderCard } = core;
+const { createBuild, createActionRunner, cardHandlers, loadDefinition, createSessionConnector, createConnector, renderCard, createPageReader, createLinkReader } = core;
+// 1.1.1 P1 (B19): the card's addresses are read by Streams itself, as the app does — here without the hidden browser window
+// (no Electron): direct and a PDF's text only, so Streams reads no more than the app would
+const { pdfText } = await import(pathToFileURL(join(REPO, 'desktop', 'src', 'main', 'pdf-text.mjs')).href);
 
 export const CUSTOMER_MODEL = 'claude-sonnet-5-5';
 export const JUDGE_MODEL = 'claude-opus-5-5';
@@ -115,13 +119,14 @@ async function runOne(kind, model, p, out) {
   });
   const conn = { kind, ...(model ? { model } : {}) };
   const session = createSessionConnector(conn, { env }, { cwd: join(work, 'cwd'), web: true });
-  const build = createBuild({ connector: session, definition, runner, kind, language: p.language });
+  const readers = has('no-streams-read') ? {} : { readPage: createPageReader({ pdfText }).read, readLinks: createLinkReader().read };
+  const build = createBuild({ connector: session, definition, runner, kind, language: p.language, ...readers });
   const customer = zeroTool(CUSTOMER_MODEL);
   const record = { connection: kind, model: model ?? 'default', persona: p.n, title: p.title, startedAt: new Date().toISOString(), steps: [], answers: 0, dropped: 0, questions: [], built: false, card: null };
   const history = [{ who: '客户', text: p.opener }];
   const save = () => {
     const st = build.state();
-    Object.assign(record, { reads: st.reads, searches: st.searches, calls: st.calls, status: st.status });
+    Object.assign(record, { reads: st.reads, searches: st.searches, checked: st.checked ?? {}, calls: st.calls, status: st.status });
     writeFileSync(file, JSON.stringify(record, null, 1));
   };
   const t0 = Date.now();

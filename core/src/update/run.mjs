@@ -4,7 +4,9 @@
 // not due: no agent at all (B9). After: what it hands in (the action submit_items of the definition) is checked one item
 // at a time — already in the library, a source it never read, the original kept, the summary against the original (W3).
 //
-// runUpdate(libraryDir, { connector, judge, readPage, readLinks, definition, budget, sopDir, now, kind, round })
+// runUpdate(libraryDir, { connector, judge, readPage, readLinks, definition, budget, sopDir, now, kind, round, search })
+//   kind / search (1.1.1 P3, P4): the update agent's tools as its connection has them; search false (an API connection with no
+//   search service): the agent is told of reading pages only
 //   connector  the update agent's session with the web tools: createSessionConnector(connection, deps, { cwd, web: true })
 //              (detect() first: not logged in -> the update does not start, B12)
 //   judge      a connection for the one independent judgment of each item's check (complete(); zero tools)
@@ -32,7 +34,7 @@ import { detectAiInstructions } from '../verify/ai-instructions.mjs';
 import { readState, writeState, sweepDaysOf } from './state.mjs';
 import { putInInbox, putMissingInInbox } from './inbox.mjs';
 import { cleanLink } from './links.mjs';
-import { UPDATE_BUDGET, UPDATE_TOOLS, UPDATE_OUTPUT, updateBudgetText, updateActionsText, stateText, newText } from './format.mjs';
+import { UPDATE_BUDGET, UPDATE_OUTPUT, updateToolsText, updateBudgetText, updateActionsText, stateText, newText } from './format.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 
 const DAY_MS = 86_400_000;
@@ -42,7 +44,7 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 export async function runUpdate(libraryDir, {
   connector, judge, readPage, readLinks, definition = loadDefinition(), budget = UPDATE_BUDGET, sopDir, now = () => new Date(), round,
-  pendingDir = join(tmpdir(), 'streams-update-pending'), signal = null,
+  pendingDir = join(tmpdir(), 'streams-update-pending'), signal = null, kind = 'claude-code', search = true,
 } = {}) {
   // 1.1 W7a: 停止 (signal aborted) — no more sources or pages are read; what was kept stays, the sources not read stay for the
   // next update, the originals kept are carried to it; no agent run starts. The record says 'cancelled'.
@@ -150,7 +152,7 @@ export async function runUpdate(libraryDir, {
   const known = [...[...replayLedger(libraryDir).states.values()].map((s) => ({ url: s.url, title: s.title ?? '' })), ...samples.map((s) => ({ url: s.url, title: `${s.title ?? ''}（建库卡上的样例）` }))];
   const cardMd = existsSync(join(libraryDir, CARD_DIR, CARD_MD)) ? readFileSync(join(libraryDir, CARD_DIR, CARD_MD), 'utf8') : JSON.stringify(card, null, 2);
   const prompt = renderSop(loadSop('update', sopDir ? { dir: sopDir } : {}), {
-    TODAY: startedAt.slice(0, 10), TOOLS: UPDATE_TOOLS, BUDGET: updateBudgetText(budget), CARD: cardMd,
+    TODAY: startedAt.slice(0, 10), TOOLS: updateToolsText(kind, { search }), BUDGET: updateBudgetText(budget, { search, hard: kind === 'api' }), CARD: cardMd,
     STATE: stateText({ lastAgentAt: state.lastAgentAt, known, unfinished: state.unfinished, sources: state.sources, queries: (card.sources ?? []).filter((s) => !s.url && s.query).map((s) => s.query), sweep: sweepDue ? (state.lastAgentAt ? Math.floor((now().getTime() - Date.parse(state.lastAgentAt)) / DAY_MS) : 1) : 0 }),
     NEW: newText(originals, missing), ACTIONS: updateActionsText(definition), OUTPUT: UPDATE_OUTPUT,
   });

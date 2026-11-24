@@ -223,7 +223,8 @@ function StartPage({ params, onStarted }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const active = appState?.data?.activeConnection ?? null
-  const can = active === 'claude-code'
+  // 1.1.1 P3: Claude Code or Codex (an API key only asks until P4–P6)
+  const can = active === 'claude-code' || active === 'codex'
   const names = CONNECTIONS.names
   // 1.1.1 P11a (A14): the cost line names the connection in use, and only one that can build (no other connection's quota)
   const start = async (words = text) => {
@@ -260,7 +261,7 @@ function StartPage({ params, onStarted }) {
               onInput=${e => setText(e.currentTarget.value)}></textarea></label>
           <p class="limit-note st-build-lead">${cv ? cv.subtitle : edit ? T.editLead : T.lead}</p>
           ${can ? null : html`<div class="progress-alert" role="alert" data-part="start-why">
-            <span>${fmt(T.needClaude, { name: names['claude-code'], current: active ? names[active] ?? active : T.chipNone })}</span>
+            <span>${fmt(T.needClaude, { name: names['claude-code'], codex: names.codex, current: active ? names[active] ?? active : T.chipNone })}</span>
             <span class="st-act" data-action="go-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></div>`}
           ${error === 'going' ? html`<p class="progress-alert" role="alert" data-part="going">${T.going}</p>` : null}
           ${error === 'failed' ? html`<p class="progress-alert" role="alert" data-part="start-failed">${T.failedCall}</p>` : null}

@@ -30,7 +30,7 @@ export const BUILD = Object.freeze({
   start: '开始',
   cancel: '取消',
   starting: '主 Agent 正在看…',
-  needClaude: '建库和改建库卡要用「{name}」。现在的连接是「{current}」，这一版只能问库；到设置里换一个连接再来。',
+  needClaude: '建库和改建库卡要用「{name}」或「{codex}」。现在的连接是「{current}」，这一版只能问库；到设置里换一个连接再来。',
   goSettings: '去设置',
   going: '有一个建库对话没谈完：接着谈，或者点「不建了」再开始新的。',
 
@@ -43,7 +43,7 @@ export const BUILD = Object.freeze({
     steps: Object.freeze(['主 Agent 上网看一眼这个主题', '问你最多 5 个问题', '查证来源，写建库卡', '你确认，流息建库']),
     note: '只有收藏的内容会写成库文件夹里的笔记。改建库卡也要你确认。',
     usageLabel: '连接',
-    usage: '建库和更新要用「{name}」。用「{codex}」或「{api}」时，这一版只能问库。',
+    usage: '建库和更新要用「{name}」或「{codex}」。用「{api}」时，这一版只能问库。',
   }),
 
   // 1.1 W7a: bringing a library of the last version over (来源与要求's 「重新查一遍来源」)

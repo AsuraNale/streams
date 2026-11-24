@@ -2,6 +2,7 @@
 // the actions and the format the answer comes back in. The format is the code's side of the contract (run.mjs reads
 // exactly this); how to pick is the SOP's and the card's.
 import { actionsFor } from '../actions/definition.mjs';
+import { API_TOOLS } from '../build/format.mjs';
 
 // one update: how many of the card's sources the code reads, how many new links it fetches, and the agent's own use of
 // the web (the 11-19 update test's numbers: 8 searches, 20 reads)
@@ -9,9 +10,18 @@ export const UPDATE_BUDGET = Object.freeze({ sources: 30, newLinks: 20, searches
 export const NEW_TEXT_CHARS = 4000;
 
 export const UPDATE_TOOLS = '- 只有搜索（WebSearch）和读网页（WebFetch）两个工具。不读写本地文件，不跑命令，不用别的工具。';
+// 1.1.1 P3: the update agent's tools as its connection has them (the same words as the build's, build/format.mjs toolsText)
+const UPDATE_TOOLS_BY_KIND = { 'claude-code': UPDATE_TOOLS, codex: '- 只有网页搜索（web_search）一个工具：可以搜索、打开网页、在打开的网页里找字。不跑命令，不读写本地文件，不用别的工具。' };
+export function updateToolsText(kind, { search = true } = {}) {
+  // 1.1.1 P4: an API connection's two tools are Streams' own (the same words as the build's)
+  if (kind === 'api') return search ? API_TOOLS.search : API_TOOLS.noSearch;
+  return UPDATE_TOOLS_BY_KIND[kind] ?? UPDATE_TOOLS;
+}
 
-export function updateBudgetText(b = UPDATE_BUDGET) {
-  return `这一次最多约 ${b.searches} 次搜索、${b.reads} 次读网页。`;
+export function updateBudgetText(b = UPDATE_BUDGET, { search = true, hard = false } = {}) {
+  const about = hard ? '' : '约 ';
+  const stop = hard ? '（流息数着，到了就不再执行）' : '';
+  return search ? `这一次最多${about}${b.searches} 次搜索、${b.reads} 次读网页${stop}。` : `这一次最多${about}${b.reads} 次读网页${stop}。`;
 }
 
 export function updateActionsText(definition) {
