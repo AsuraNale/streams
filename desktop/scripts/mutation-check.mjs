@@ -381,7 +381,8 @@ const MUTANTS = [
   {
     id: 'r4b-draft-overwritten',
     what: '定时与上限: a re-read that lands while the user types puts the saved time back over what they typed',
-    edits: [['src/renderer/screens/sources.js', '  useEffect(() => { if (d && !draft.current) { setOn(d.enabled); setTime(d.time) } }, [d?.enabled, d?.time])', '  useEffect(() => { if (d) { setOn(d.enabled); setTime(d.time) } }, [d?.enabled, d?.time])']],
+    // (1.1.1 P11a: the same guard, the effect sets the rhythm too)
+    edits: [['src/renderer/screens/sources.js', '    if (d && !draft.current) { setOn(d.enabled);', '    if (d) { setOn(d.enabled);']],
     // redesign R6b-5: pointed at the test that makes a re-read land for real (a third time through the bridge, waited for). The
     // test it used to name (「a new time」) only met the re-read by timing: with 80 ms between 保存 and the next fill it missed
     test: ['test/ui-schedule.test.mjs', '--test-name-pattern=R6b-5 a time typed and not saved'],
@@ -992,9 +993,10 @@ const MUTANTS = [
   },
   {
     id: 'w5-codex-updates',
-    what: 'Codex may update in 1.1 (W4\'s live runs said it may not)',
-    edits: [['src/main/services/library-update.mjs', "export const UPDATE_KINDS = Object.freeze(['claude-code'])", "export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex'])"]],
-    test: ['test/services-library-update.test.mjs', '--test-name-pattern=^only Claude Code'],
+    // (1.1.1 P13: turned round — 1.1 kept Codex from updating; 1.1.1 lets it, acceptance C8; taking it off must fail)
+    what: 'Codex may not update (1.1.1 lets it: C8)',
+    edits: [['src/main/services/library-update.mjs', "export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex', 'api'])", "export const UPDATE_KINDS = Object.freeze(['claude-code', 'api'])"]],
+    test: ['test/services-library-update.test.mjs', '--test-name-pattern=Codex and \\(P6\\) an API key update'],
   },
   // 1.1 W6a (docs/checks/2026-11-20-1.1/w6a/scorecard.json): the interface in the real window
   {
@@ -1027,12 +1029,7 @@ const MUTANTS = [
     edits: [['src/main/services/sources.mjs', "      log(`sources: a source proposed (${url ? 'address' : 'search word'}), waiting for the user to confirm it`)", "      await cardRunner().confirm(r.pending.id)"]],
     test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^A5'],
   },
-  {
-    id: 'w6a-settings-no-note',
-    what: '设置 says nothing under Codex and an API key',
-    edits: [['src/renderer/screens/settings.js', "          ${kind === 'codex' || kind === 'api' ? html`<small data-part=\"only-ask\">", "          ${false ? html`<small data-part=\"only-ask\">"]],
-    test: ['test/ui-w6a.test.mjs', '--test-name-pattern=^A6'],
-  },
+  // w6a-settings-no-note: retired in 1.1.1 P13 — 设置's 「只能问库」 under Codex and an API key is gone (acceptance A6 as settled for 1.1.1; ui-p6 checks no such words)
   {
     id: 'w6a-old-any-connection',
     what: '「重新查一遍来源」 can be pressed on any connection',
@@ -1067,7 +1064,8 @@ const MUTANTS = [
   {
     id: 'w7a-convert-writes-early',
     what: 'the card of a library brought over is written before 确认',
-    edits: [['src/main/services/build.mjs', "      build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert })", "      if (convert) writeCard(dirOfLibrary(libraryId), { name: 'early' })\n      build = createBuild({ connector: session(active, () => saved?.core?.calls ?? 0), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert })"], ['src/main/services/build.mjs', "  cardChanges, cardHandlers,", "  writeCard, cardChanges, cardHandlers,"]],
+    // (1.1.1 P6: the build is made with its connection's connector; the early write is a file in the library brought over)
+    edits: [['src/main/services/build.mjs', "      build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0, found)", "      if (convert) writeFileSync(join(dirOfLibrary(libraryId), 'early-card.md'), 'early')\n      build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0, found)"]],
     test: ['test/services-build.test.mjs', '--test-name-pattern=^bringing a library'],
   },
   {
@@ -1079,7 +1077,8 @@ const MUTANTS = [
   {
     id: 'w7a-update-no-signal',
     what: '停止 is not handed to the update',
-    edits: [['src/main/services/pipeline.mjs', '        result = await u.run(dir, a, { round: roundId, signal: controller.signal })', '        result = await u.run(dir, a, { round: roundId })']],
+    // (1.1.1 P10: the update is handed its progress too)
+    edits: [['src/main/services/pipeline.mjs', '        result = await u.run(dir, a, { round: roundId, signal: controller.signal, progress:', '        result = await u.run(dir, a, { round: roundId, progress:']],
     test: ['test/ui-run.test.mjs', '--test-name-pattern=^运行中'],
   },
   // 1.1 W6b: 新建库 and the build conversation
@@ -1218,9 +1217,9 @@ const MUTANTS = [
   },
   {
     id: 'w7b-update-steps-two',
-    what: 'a running update is shown as more than its one step (a self-check of v1.0 before it)',
-    edits: [['src/renderer/screens/run-steps.js', "export const UPDATE_STEPS = Object.freeze(['update'])", "export const UPDATE_STEPS = Object.freeze(['self-check', 'update'])"]],
-    test: ['test/ui-panel.test.mjs', '--test-name-pattern=^R2 · the running library'],
+    what: 'a running update is shown with a step it does not have (a self-check of v1.0 before its four, 1.1.1 P10)',
+    edits: [['src/renderer/screens/run-steps.js', "export const UPDATE_STEPS = Object.freeze(['sources', 'originals', 'agent', 'check'])", "export const UPDATE_STEPS = Object.freeze(['self-check', 'sources', 'originals', 'agent', 'check'])"]],
+    test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=the step dots'],
   },
   {
     id: 'w7b-old-library-editable',

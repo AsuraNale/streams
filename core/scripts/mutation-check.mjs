@@ -250,7 +250,8 @@ const MUTANTS = [
   {
     id: 'w2-own-ua-gone',
     what: 'the direct way does not say it is Streams (no User-Agent of its own)',
-    edits: [['src/read/read-page.mjs', "headers: { 'user-agent': userAgent, accept: ACCEPT_PAGE }", 'headers: { accept: ACCEPT_PAGE }']],
+    // 1.1.1 P9: the request is made in fetch/site-auth.mjs fetchAs (the User-Agent may depend on the address); its plain way
+    edits: [['src/fetch/site-auth.mjs', "headers: { 'user-agent': userAgent, accept }, redirect: 'follow'", "headers: { accept }, redirect: 'follow'"]],
     test: ['test/read-w2.test.mjs', '--test-name-pattern=^guards · both ways read as Streams'],
   },
   {
@@ -441,7 +442,9 @@ const MUTANTS = [
   {
     id: 'w4-urls-not-checked',
     what: 'the card\'s addresses are not checked against what was read',
-    edits: [['src/build/card.mjs', '    for (const url of cardUrls(card)) if (!read.has(urlKey(url))) problems.push', '    for (const url of []) if (!read.has(urlKey(url))) problems.push']],
+    // (1.1.1 P1: every build passes reads: null to checkCard; the addresses are checked in build/check-urls.mjs — the model's
+    // opens or Streams' own reads. The old edit in card.mjs no longer changes a build: tried in P13, not caught)
+    edits: [['src/build/check-urls.mjs', '    if (unreadable.has(k) || opened.has(k) || out[k]?.ok) continue;', '    continue;']],
     test: ['test/build-w4.test.mjs', '--test-name-pattern=^urls: every address'],
   },
   {
@@ -465,7 +468,8 @@ const MUTANTS = [
   {
     id: 'w4-codex-views-not-read',
     what: 'the pages Codex viewed without an open_page action are not counted as read (every card of a Codex build would fail)',
-    edits: [['src/connect/session.mjs', '    for (const res of Array.isArray(item.results) ? item.results : []) if (CODEX_VIEW.test(String(res?.ref_id ?? \'\'))) read(res.url);\n', '']],
+    // (1.1.1 P1: the same line, its loop now over the results taken once above)
+    edits: [['src/connect/session.mjs', '    for (const res of results) if (CODEX_VIEW.test(String(res?.ref_id ?? \'\'))) read(res.url);\n', '']],
     test: ['test/build-w4.test.mjs', '--test-name-pattern=^urls: what was read comes from'],
   },
   {
@@ -607,7 +611,8 @@ const MUTANTS = [
   {
     id: 'w6b-edit-any-url',
     what: 'changing a card, a new address need not be read',
-    edits: [['src/build/conversation.mjs', '      const c = checkCard(json.card, { reads: readsSoFar() });', '      const c = checkCard(json.card, { reads: editing() ? null : readsSoFar() });']],
+    // (1.1.1 P1: the card's addresses are checked in withUrls — the model's opens or Streams' own reads)
+    edits: [['src/build/conversation.mjs', '    const problems = [...(a.problems ?? []), ...r.problems];', '    const problems = [...(a.problems ?? []), ...(editing() ? [] : r.problems)];']],
     test: ['test/w6b.test.mjs', '--test-name-pattern=^changing a card: the addresses'],
   },
   {
@@ -705,13 +710,13 @@ const MUTANTS = [
   {
     id: 'w4-other-tool-ok',
     what: 'a build goes on when the agent used another tool',
-    edits: [['src/build/conversation.mjs', "    if ((r.otherTools ?? []).length) { s.status = 'stopped'; return { kind: 'stopped', notice: 'other-tool' }; }\n    let a = interpret(r);", '    let a = interpret(r);']],
+    edits: [['src/build/conversation.mjs', "    if ((r.otherTools ?? []).length) { s.status = 'stopped'; return { kind: 'stopped', notice: 'other-tool' }; }\n    let a = await withUrls(interpret(r));", '    let a = await withUrls(interpret(r));']],
     test: ['test/build-w4.test.mjs', '--test-name-pattern=^a build stops'],
   },
   {
     id: 'w4-sop-place-not-required',
     what: 'a build SOP without the place of the answer format is sent anyway',
-    edits: [['src/build/conversation.mjs', "export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS', 'OUTPUT']);", "export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS']);"]],
+    edits: [['src/build/conversation.mjs', "export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS', 'OUTPUT', 'LOOK']);", "export const BUILD_SOP_PLACES = Object.freeze(['TODAY', 'TOOLS', 'BUDGET', 'ACTIONS', 'LOOK']);"]],
     test: ['test/build-w4.test.mjs', '--test-name-pattern=^sop: a rule changed'],
   },
   // 1.1 W8: 问库 with the saved originals, the note's line to its original, a broken note kept out (B1, B15, B16)
