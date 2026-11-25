@@ -87,11 +87,11 @@ button, a, .btn, .filter, .tab, .file-row, .project-item, .navitem { transition-
 
 /* M7: a page being read, after 300 ms: grey blocks with a light running over them */
 .st-skeleton { display: grid; gap: 10px; padding: 18px 0; }
-.st-skeleton i { display: block; height: 14px; border-radius: 6px; background: color-mix(in srgb, var(--muted, #888) 16%, transparent); position: relative; overflow: hidden; }
+.st-skeleton i { display: block; height: 14px; border-radius: 6px; background: color-mix(in srgb, var(--muted) 16%, transparent); position: relative; overflow: hidden; }
 .st-skeleton i:nth-child(1) { width: 55%; }
 .st-skeleton i:nth-child(2) { width: 92%; }
 .st-skeleton i:nth-child(3) { width: 78%; }
-.st-skeleton i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface, #fff) 60%, transparent), transparent); animation: st-mo-shimmer var(--mo-shimmer) linear infinite; }
+.st-skeleton i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 60%, transparent), transparent); animation: st-mo-shimmer var(--mo-shimmer) linear infinite; }
 
 /* M8: dialogs grow from a little smaller over a darkening ground; menus open from their button; 放弃's bar comes up */
 dialog[open] { animation: st-mo-dialog var(--mo-big) var(--mo-ease); }
