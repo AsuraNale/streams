@@ -801,6 +801,31 @@ R5a 以前记的卡没有 `basis`：只查来源是否移除 / 暂停与 ④。�
 
 **变异体**（`node core/scripts/mutation-check.mjs "v101-*"`，8 个）：`v101-f1-whole-sources`（来源卡改回看整个列表）· `v101-f1-ignore-source`（来源卡什么都不看）· `v101-f3-no-language`（局面不写界面语言）· `v101-f3-rule5`（规则 5 改回 1.0.0 的）· `v101-f3-turn-language`（`agentTurn` 不把界面语言交给局面）· `v101-f4-rule-last`（规则最后一句改回 1.0.0 的）· `v101-f5-no-connection`（局面不写连接）· `v101-f5-key-leak`（局面把整个连接对象写进去）。原有的 `b-hash-whole-config` 仍抓得到（锚点那一行还在，管别的种类）。
 
+## 5.21 1.1.2：每次更新的量、续聊给主 Agent 的上下文（2026-11-25）
+
+- `library/volume.mjs`：
+  - `VOLUMES` 是 standard / more / most。
+  - `readLibraryVolume(dir)` 返回 `{ volume, stored }`；`saveLibraryVolume(dir, v)` 写入，别的键不动，不认识的档被拒绝。
+  - `updateBudgetFor(v, { sources })`：五项上限（来源、新链接、搜索、读网页、交回条目）按 ×1 / ×2 / ×3 放大，读网页至少是卡上来源数加 8。
+  - `UPDATE_BUDGET` 就是标准档，比以前多了 `items: 30`。
+- `update/run.mjs`：
+  - 不传 `budget` 时用这座库自己的（`libraryUpdateBudget(dir)`）。
+  - 记录里写下 `volume` 和 `budget`；交回的条目按 `budget.items` 截断。
+  - U1：一个来源第一次被读时，页上像文章的链接（`update/links.mjs` `articleLike`）各来源轮流取，作为这次的候选，不超过新链接的上限；没取上的照旧记成见过。
+  - 告诉更新 Agent 的用量那句，加上「合格的都交，最多交 N 条」。
+- `build/store.mjs`：卡上的 `volume` 只是改档提议（`splitVolume`）。确认时写进 `streams.json`：建库用卡上的，没写就用 `defaultVolume()`；改卡只在卡上写了时才改。卡文件里不存。
+- `build/card.mjs` `cardChanges`：多一行 `volume`，用文字写档位（`VOLUME_WORDS`）。卡上没写档位，就不算改了档。
+- `build/context.mjs`：
+  - `buildContext({ volume, conversations, lastUpdate })` 拼出给主 Agent 的三段：档位、之前的对话要点、最近一次更新。
+  - `nearLimit(record)`：接近上限时返回 `{ reads, limit, notRead, volume }`，否则返回 null。
+  - `createBuild` 和 `buildPrompt` 多一个参数 `extra`，接在 SOP 后面、开场白前面，并存进对话状态。
+- `build/conversation.mjs`：用户答选择题那一轮多存 `answer: { picked, other }`；给主 Agent 的那句里用「其他」。
+- `library/changes.mjs`：改动记录多一个字段 `volume`。
+- SOP `build.md`：
+  - 卡上「每次怎么挑」不写条数上下限（U3）。
+  - 多选题没勾的选项就是用户没选，不由主 Agent 定（U9；改了 11-19 选的「没勾等于交给主 Agent 定」）。
+  - 改卡时先看之前的对话和最近一次更新。
+
 ## 六、桌面桥（desktop 主进程 → 页面）
 
 页面唯一入口 `window.streams`；主进程把上面每个函数包成桥方法（名字同核心函数，加 `library:` / `fetch:` / `connect:` / `pipeline:` / `ask:` 前缀），事件：`round-progress`、`inbox-changed`、`status-changed`、`settings-changed`、`update`；v2 加了 `libraries-changed`、`proposals-changed`、`agent-changed`，和某个库有关的事件都带 `libraryId`（桥里有「当前库」，跨库的方法显式带 id：architecture 第三节「包 A 实做」）。桥方法表与事件表写在 `docs/desktop.md` §四。

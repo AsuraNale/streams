@@ -1209,6 +1209,40 @@ frame-ancestors 'none'
   - 问库替身脚本的 `delayMs`（`STREAMS_DEV_ASK_SCRIPT`）让回答晚一点到。
 - **测试**：真窗口 `test/ui-p14.test.mjs`。
 
+### 4.28 §四补：1.1.2——每次更新的量、回到和主 Agent 的对话（11-25）
+
+依据：维护者 11-25 测 1.1.1 时提的第 4、5 件，以及用户用例 U1–U9（`docs/feedback/2026-11-25-*`）。界面照赞妮的样稿第 04、05、06 节做，文案照她定的写法规范。
+
+- **每次更新的量**（`services/volume.mjs`）：
+  - 每座库三档：标准、较多、最多，存在库的 `streams.json` 的 `update.volume` 里（core `library/volume.mjs`）。
+  - `getLibraryVolume(id)` 返回 `{ volume, volumes, budget, near }`。
+  - `setLibraryVolume(id, v)` 改档，记进改动记录，算用户改的（字段 `volume`），并发出 `library-changed`。
+  - 「来源与要求」的「定时」下面是档位：点一下就保存。上次更新读网页到了上限附近、或有来源因为上限没读时，档位下面出一行提示（core `nearLimit`）；没到上限时不出。
+  - 设置「库与用量」有「新建库的默认更新量」（`settings.json` 的 `defaultVolume`，`getDefaultVolume` / `setDefaultVolume`）。新建的库，卡上没写档位时用它。
+  - API key 连接的硬上限跟着这座库的档（`services/library-update.mjs` 用 core `libraryUpdateBudget` 算出来，传给 `apiSession`）。
+- **回到和主 Agent 的对话**（`services/build.mjs`）：
+  - 对话结束后照旧存成 `<appData>\build\ended-<时间>-<结局>.json`。1.1.2 起，确认时先把「已建好」的状态写进去，再存档。
+  - 存档按库找回：
+    - 新建的库，按存档里建出来的文件夹找。
+    - 改卡、转换的，按库的编号找。
+    - 1.1.1 的存档没有文件夹，按待确认动作的编号，对上库里 `_actions.jsonl` 的 create_library 那一行。
+  - `listConversations()` 返回 `{ going, libraries }`，每座登记的库都在里面，带 `hasCard`。
+  - `getConversation(id)` 返回一段旧对话的来回。
+  - 从一座库进入对话，开的就是这座库的改卡对话。给主 Agent 的提示词里，卡后面依次附上：这座库现在的档位、之前的对话要点（最多 3 段）、最近一次更新的情况（core `buildContext`）。交给主 Agent 的卡带着档位（`volume`），所以它提议改档时，改前改后里会列出来；点确认才写进 `streams.json`，卡文件里不存档位。
+  - 改卡对话的视图里多一项 `earlier`：这座库之前的对话。
+- **主 Agent 页**（`screens/build.js`）：
+  - 左边一列对话：最上面是新建库，然后是进行中的那段，再往下按库排。
+  - 点一座库，先显示之前的对话，每段收起成一行、可以展开，下面是输入框；接着聊的时候，之前的对话留在上面，并写一句「已将建库卡和之前对话的要点交给主 Agent，开始新的会话。」
+  - 另一段对话还在进行时点了别的库，显示提示和「前往进行中的对话」。仍然一次只有一段对话在进行。
+  - 打开「减少动态效果」时，切换对话不放动画。
+- **其它入口**：
+  - 「来源与要求」的按钮改名「与主 Agent 继续对话」。
+  - 问库答「库内暂无相关内容」时，出「请主 Agent 补充资料」：把问题放进这座库对话的输入框，不替用户发出。
+  - 页头「下次运行」在定时和卡上的节奏不一致时带一个提示点（U6）。
+  - 卡上「每次怎么挑」里写了条数上限时，「来源与要求」出提示（U3）。
+- **已答小卡**：用户那一轮带 `answer: { picked, other }`（core 存下）时，界面画已答小卡；1.1.1 的对话没有这一项，照旧显示原句。
+- 测试：`test/services-v112.test.mjs`、`test/ui-v112.test.mjs`；`ui-w6b` 改成断言已答小卡。
+
 ## 五、界面写法
 
 > 本节按重设计 R1–R6b 之后的样子重写（2026-11-14，R6b）。v1 / v2 时代的写法（概览、今日、运行状态、首次设置四步、K2 的三套 token、每块旁的操作来源标记等）已不存在，历史见 §4.1–§4.12 与 git 记录；各屏的细节在 §4.13–§4.22，本节只说现在的结构与规矩。
