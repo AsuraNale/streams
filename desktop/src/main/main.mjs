@@ -479,7 +479,7 @@ app.whenReady().then(() => {
     else if (topic === 'libraries-changed') scheduler.librariesChanged()
     // v2 package M: Codex and the API read their quota again after a run, after a turn of the build conversation, and for a
     // new current connection (another one, a vendor, a key)
-    else if (topic === 'round-progress' && payload?.done === true) { void quota.afterTurn('a round ended'); dueReminder.check('a round ended') }
+    else if (topic === 'round-progress' && payload?.done === true) void quota.afterTurn('a round ended')
     else if (topic === 'build-changed' && payload?.phase === 'done') void quota.afterTurn('a turn of the build conversation ended')
     else if (topic === 'connections-changed') void quota.connectionsChanged()
   })
@@ -487,6 +487,8 @@ app.whenReady().then(() => {
   app.on('will-quit', () => quota.stop())
   powerMonitor.on('resume', () => { void scheduler.resumed(); dueReminder.check('the computer woke') })
   dueReminder.start()
+  // 1.1.1 P8: after a run ends, the deadlines are looked at again (an item it put in 待看 may be due soon)
+  emitListeners.push((topic, payload) => { if (topic === 'round-progress' && payload?.done === true) dueReminder.check('a round ended') })
   app.on('will-quit', () => dueReminder.stop())
   app.on('will-quit', () => { scheduler.stop(); tray.destroy() })
   // the update (update-wiring.mjs): a check only when the user asks; the setup program replaces the install in place

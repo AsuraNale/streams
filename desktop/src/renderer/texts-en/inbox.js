@@ -60,7 +60,7 @@ export const INBOX = Object.freeze({
     today: 'Due today',
     tomorrow: 'Due tomorrow',
     days: 'Due in {n} days',
-    date: '{mon} {d}',
+    date: '{m}/{d}',
     inbox: 'In the Inbox',
     kept: 'Kept',
     line: '{when} ({date})',

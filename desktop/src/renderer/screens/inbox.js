@@ -189,9 +189,8 @@ function dueWhen(days) {
   return days === 0 ? T.due.today : days === 1 ? T.due.tomorrow : fmt(T.due.days, { n: days })
 }
 function dueDate(iso) {
-  const [y, m, d] = String(iso).split('-').map(Number)
-  const mon = new Date(y, m - 1, d).toLocaleDateString('en', { month: 'short' })
-  return fmt(T.due.date, { y, m, d, mon })
+  const [, m, d] = String(iso).split('-').map(Number)
+  return fmt(T.due.date, { m, d })
 }
 function DueSoon({ items, onOpen }) {
   if (!items?.length) return null
