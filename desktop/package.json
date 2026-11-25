@@ -1,7 +1,7 @@
 {
   "name": "@streams/desktop",
   "productName": "Streams",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "private": true,
   "description": "Streams desktop shell (Electron 44.0.0): main process, preload bridge, renderer frame and component kit. See ../docs/desktop.md.",
   "license": "MIT",
