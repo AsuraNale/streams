@@ -1084,9 +1084,11 @@ const MUTANTS = [
   // 1.1 W6b: 新建库 and the build conversation
   {
     id: 'w6b-build-any-connection',
-    what: 'a build starts on Codex or an API key',
-    edits: [['src/main/services/build.mjs', "    if (!BUILD_KINDS.includes(active.kind)) throw new BridgeError('bad_arguments', 'build-not-supported')\n", '']],
-    test: ['test/services-build.test.mjs', '--test-name-pattern=^only Claude Code'],
+    // (1.1.1 P13: turned round, as w5-codex-updates — 1.1 kept Codex and an API key from building; 1.1.1 lets both (C8, C9,
+    // B17), so taking the guard out changed nothing any more: tried, not caught. Taking Codex off the list must fail now.)
+    what: 'Codex may not build (1.1.1 lets it: C8)',
+    edits: [['src/main/services/build.mjs', "export const BUILD_KINDS = Object.freeze(['claude-code', 'codex', 'api'])", "export const BUILD_KINDS = Object.freeze(['claude-code', 'api'])"]],
+    test: ['test/services-build.test.mjs', '--test-name-pattern=Codex and \\(P6\\) an API key with its key build'],
   },
   {
     id: 'w6b-drop-leaves-card',
