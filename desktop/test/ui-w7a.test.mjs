@@ -219,7 +219,7 @@ describe('W7a in English (E5)', () => {
     await ready(e.page, 'sources')
     await e.page.click('[data-action="recheck-sources"] button')
     await ready(e.page, 'build')
-    await e.page.waitForFunction(() => document.querySelector('textarea[data-field="opener"]')?.value.includes('last version'), null, POLL)
+    await e.page.waitForFunction(() => document.querySelector('textarea[data-field="opener"]')?.value.includes('earlier version'), null, POLL) // 1.1.2 第 2 件: last version → earlier version
     const page = await e.page.evaluate(() => { const m = document.querySelector('main').cloneNode(true); for (const x of m.querySelectorAll('textarea')) x.remove(); return m.textContent })
     // the library's own words (its brief, its sources' names) are the user's, not ours: only our words are checked
     const ours = page.replace(/v101-library/g, '')
