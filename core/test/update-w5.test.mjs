@@ -392,3 +392,23 @@ test('W11: an item at the address of one of the card\'s samples is dropped as al
   assert.deepEqual(r.record.dropped.map((d) => [d.url.replace(base, ''), d.why]), [['/p/a1', 'already']]);
   assert.deepEqual(listInbox(dir).map((c) => c.url.replace(base, '')), ['/p/w11s']);
 });
+
+// ---------- 1.1.2 第 4 件: the library's step ----------
+
+test('1.1.2: the library\'s step — the agent is told its numbers, the record keeps the step and its limits; items beyond the limit are not taken', async () => {
+  const { saveLibraryVolume } = await import('../src/index.mjs');
+  const dir = library('w5-volume');
+  saveLibraryVolume(dir, 'more');
+  const a = agent(() => ({ json: { items: [] } }));
+  const r = await update(dir, a);
+  assert.match(a.calls[0].prompt, /这一次最多约 16 次搜索、40 次读网页。合格的都交，最多交 60 条/);
+  assert.equal(r.record.volume, 'more');
+  assert.deepEqual(r.record.budget, { sources: 60, newLinks: 40, searches: 16, reads: 40, items: 60 });
+  // a budget given (as a test gives one) is that one; its items limit cuts what the agent hands in
+  for (const [p, t] of [['/p/v1', '量甲'], ['/p/v2', '量乙']]) page(p, `新的 ${p}`, t);
+  site.list = [...site.list, '/p/v1', '/p/v2'];
+  const b = agent(() => ({ json: { items: [itemFor('/p/v1', '量甲'), itemFor('/p/v2', '量乙')] } }));
+  const r2 = await update(dir, b, { budget: { sources: 30, newLinks: 20, searches: 8, reads: 20, items: 1 } });
+  assert.equal(r2.record.counts.items, 1);
+  assert.equal(r2.record.volume, null, 'a given budget is not the library\'s step');
+});

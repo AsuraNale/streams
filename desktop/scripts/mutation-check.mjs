@@ -1201,7 +1201,8 @@ const MUTANTS = [
   {
     id: 'w7b-sidebar-talk-not-marked',
     what: 'a build conversation going marks 新建库 in the sidebar, not 主 Agent',
-    edits: [['src/renderer/screens/build.js', '  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`}', '  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="build" />`}']],
+    // 1.1.2: OtherGoing marks 主 Agent too — the anchor is Talk's (its main's data-view talk follows)
+    edits: [['src/renderer/screens/build.js', "  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=\"chat\" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>\n    <${Main} screen=\"build\" state=\"ready\" labelledby=\"build-title\" attrs=${{ 'data-mode': view.mode, 'data-view': 'talk' }}>", "  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=\"build\" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>\n    <${Main} screen=\"build\" state=\"ready\" labelledby=\"build-title\" attrs=${{ 'data-mode': view.mode, 'data-view': 'talk' }}>"]],
     test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 主 Agent opens'],
   },
   {
@@ -1521,6 +1522,37 @@ const MUTANTS = [
     what: '新建库 does not say that this time there is no search',
     edits: [['src/renderer/screens/build.js', "  const noSearch = active === 'api' && !noKey && appState?.data?.activeCanSearch === false\n", '  const noSearch = false\n']],
     test: ['test/ui-p6.test.mjs'],
+  },
+  // 1.1.2 P1 (第 4、5 件, U4; 维护者 11-25)
+  {
+    id: "v112-list-no-pending",
+    what: "a 1.1.1 conversation (no folder, only its pending id) is not found by its library",
+    edits: [["src/main/services/build.mjs", "      return all.find(l => byPending.get(l.id)?.includes(c.pendingId))?.id ?? null", "      return null"]],
+    test: ["test/services-v112.test.mjs", "--test-name-pattern=1.1.1 files find their library"],
+  },
+  {
+    id: "v112-not-told-library",
+    what: "a change of a card is not told the library's step, conversations and last update",
+    edits: [["src/main/services/build.mjs", "        extra = ctx.extra\n", ""]],
+    test: ["test/services-v112.test.mjs", "--test-name-pattern=from a library, the agent is told"],
+  },
+  {
+    id: "v112-step-not-saved",
+    what: "来源与要求's step is shown as chosen but not saved",
+    edits: [["src/renderer/screens/sources.js", "const r = await call('setLibraryVolume', libraryId, v); view.mutate(() => r)", "const r = { ...d, volume: v }; view.mutate(() => r)"]],
+    test: ["test/ui-v112.test.mjs", "--test-name-pattern=^1.1.2"],
+  },
+  {
+    id: "v112-ask-sends",
+    what: "「请主 Agent 补充资料」 sends the question at once (it is to be put in the box, not sent)",
+    edits: [["src/renderer/screens/ask.js", "q => navigate('build', { edit: libId, opener: q })", "q => navigate('build', { edit: libId, send: q })"]],
+    test: ["test/ui-v112.test.mjs", "--test-name-pattern=^1.1.2"],
+  },
+  {
+    id: "v112-earlier-hidden",
+    what: "a conversation going on hides the library's earlier ones",
+    edits: [["src/renderer/screens/build.js", "            ${Array.isArray(view.earlier) && view.earlier.length ? html`<${Earlier} items=${view.earlier} />", "            ${false ? html`<${Earlier} items=${view.earlier} />"]],
+    test: ["test/ui-v112.test.mjs", "--test-name-pattern=^1.1.2"],
   },
 ]
 

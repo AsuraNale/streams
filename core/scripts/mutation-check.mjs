@@ -592,7 +592,8 @@ const MUTANTS = [
   {
     id: 'w6b-no-changes',
     what: 'two cards are always said to be the same (no before / after)',
-    edits: [['src/build/card.mjs', '    if (a !== b) out.push({ key, label: label[key] ?? key, before: a, after: b });', '    void a; void b;']],
+    // 1.1.2: the line names the step in words too
+    edits: [['src/build/card.mjs', "    if (a !== b) out.push({ key, label: label[key] ?? key, before: key === 'volume' ? vw[a] ?? a : a, after: key === 'volume' ? vw[b] ?? b : b });", '    void a; void b;']],
     test: ['test/w6b.test.mjs', '--test-name-pattern=^cardChanges'],
   },
   {
@@ -680,7 +681,7 @@ const MUTANTS = [
   {
     id: 'w7b-change-log-scoring-field',
     what: 'the change log takes v1.0\'s gate marks as a field again',
-    edits: [['src/library/changes.mjs', "export const CHANGE_FIELDS = Object.freeze(['brief', 'sources', 'topics', 'schedule', 'name']);", "export const CHANGE_FIELDS = Object.freeze(['brief', 'sources', 'topics', 'thresholds', 'schedule', 'name']);"]],
+    edits: [['src/library/changes.mjs', "export const CHANGE_FIELDS = Object.freeze(['brief', 'sources', 'topics', 'schedule', 'name', 'volume']);", "export const CHANGE_FIELDS = Object.freeze(['brief', 'sources', 'topics', 'thresholds', 'schedule', 'name', 'volume']);"]],
     test: ['test/r4b-sources.test.mjs', '--test-name-pattern=^R4b'],
   },
   {
@@ -995,6 +996,67 @@ const MUTANTS = [
     what: "a \"call\" of the update's own action submit_items is a tool off the list again (the update stops)",
     edits: [["src/connect/api-tools.mjs", "const asAnswer = a.calls.find((c) => answerActions.includes(c.name) && c.input && typeof c.input === 'object' && !Array.isArray(c.input));", "const asAnswer = null;"]],
     test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=submit_items is the answer"],
+  },
+  // 1.1.2 P1 (第 4、5 件, U1, U3, U9; 维护者 11-25)
+  {
+    id: "v112-volume-ignored",
+    what: "an update ignores the library's step (always the standard limits)",
+    edits: [["src/update/run.mjs", "const budget = given ?? mine.budget;", "const budget = given ?? updateBudgetFor('standard');"]],
+    test: ["test/update-w5.test.mjs", "--test-name-pattern=the library's step"],
+  },
+  {
+    id: "v112-reads-floor-gone",
+    what: "a card with many sources gets no more reads than the step's (the user case: 14 sources, 20 reads)",
+    edits: [["src/library/volume.mjs", "  b.reads = Math.max(b.reads, n + READS_OVER_SOURCES);\n", ""]],
+    test: ["test/v112-volume.test.mjs", "--test-name-pattern=^steps: standard"],
+  },
+  {
+    id: "v112-items-cap-30",
+    what: "the items handed in are cut at 30 whatever the step",
+    edits: [["src/update/run.mjs", "const items = answer.items.slice(0, Number.isInteger(budget.items) && budget.items > 0 ? budget.items : 30);", "const items = answer.items.slice(0, 30);"]],
+    test: ["test/update-w5.test.mjs", "--test-name-pattern=the library's step"],
+  },
+  {
+    id: "v112-u1-off",
+    what: "a source read for the first time gives no candidates again (U1)",
+    edits: [["src/update/run.mjs", "      if (!(prev && Array.isArray(prev.seen))) firstLinks.set(src, r.links.filter((l) => articleLike(l, src)));\n", ""]],
+    test: ["test/update-w5.test.mjs", "--test-name-pattern=^new links"],
+  },
+  {
+    id: "v112-u1-nav-taken",
+    what: "the pages every site has (关于, 价格, 标签…) count as articles of a source",
+    edits: [["src/update/links.mjs", "  if (parts.some((p) => NAV.has(p))) return false;\n", ""]],
+    test: ["test/v112-volume.test.mjs", "--test-name-pattern=^U1"],
+  },
+  {
+    id: "v112-card-keeps-step",
+    what: "a changed card is written with the step in it (the step is the user's, in streams.json)",
+    edits: [["src/build/store.mjs", "      writeCard(dir, split.card, { now, language });\n      if (split.volume) saveLibraryVolume(dir, split.volume);\n      return { object: { type: 'card'", "      writeCard(dir, params.card, { now, language });\n      if (split.volume) saveLibraryVolume(dir, split.volume);\n      return { object: { type: 'card'"]],
+    test: ["test/v112-volume.test.mjs", "--test-name-pattern=^edit_card"],
+  },
+  {
+    id: "v112-no-last-update",
+    what: "the main agent is not told the library's last update",
+    edits: [["src/build/context.mjs", "return [volumeBlock(volume), conversationsBlock(conversations), lastUpdateBlock(lastUpdate)]", "return [volumeBlock(volume), conversationsBlock(conversations)]"]],
+    test: ["test/v112-volume.test.mjs", "--test-name-pattern=^a build is given those blocks"],
+  },
+  {
+    id: "v112-near-always",
+    what: "the near-limit hint for any last update (far from its limit too)",
+    edits: [["src/build/context.mjs", "  if (!near && notRead === 0 && unfinished === 0) return null;\n", ""]],
+    test: ["test/v112-volume.test.mjs", "--test-name-pattern=^the last update for the main agent"],
+  },
+  {
+    id: "v112-answer-not-kept",
+    what: "the user's choice is kept as its sentence only (no 已答小卡)",
+    edits: [["src/build/conversation.mjs", "...(answer ? { answer } : {}), at: now().toISOString()", "at: now().toISOString()"]],
+    test: ["test/v112-volume.test.mjs", "--test-name-pattern=^a choice answer keeps"],
+  },
+  {
+    id: "v112-sop-u9-back",
+    what: "the build SOP lets the main agent decide what a multi-choice answer left unticked again (U9)",
+    edits: [["src/sop/build.md", "多选题用户没勾的选项就是他没选：问「要哪些」的，没勾的就是不要；问「不要哪些」的，没勾的就是不排除。没勾的不由你定，卡上也不标「我替你定的」。", "多选题用户没勾的，由你定，卡上标「我替你定的」。"]],
+    test: ["test/v112-volume.test.mjs", "--test-name-pattern=^the build SOP"],
   },
 ];
 
