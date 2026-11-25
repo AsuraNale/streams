@@ -18,7 +18,7 @@ export const INBOX = Object.freeze({
     waiting: 'Waiting {n} day{n?|s}',
     unverified: 'Verification failed',
     titleOnly: 'Title only',
-    titleOnlyHint: 'This source provides titles only, so the overview is based on the title. Open the original to verify.',
+    titleOnlyHint: 'This source provides titles only, so the overview is based on the title alone. Open the original to verify.',
     aiInstruction: 'Instructions aimed at AI were detected and ignored',
     aiInstructionHint: 'Matched sentences: {phrases}',
     aiInstructionPhrase: '“{phrase}”',

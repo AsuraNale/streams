@@ -22,7 +22,7 @@ export const INBOX = Object.freeze({
     unverified: '未通过核验',
     // 11-18 (proposal D2): a news aggregator's item (Google News): its body cannot be read, it was judged on its title
     titleOnly: '只有标题',
-    titleOnlyHint: '该来源仅提供标题，概述据标题生成。请打开原文核实。',
+    titleOnlyHint: '该来源仅提供标题，概述只依据标题生成。请打开原文核实。',
     // v2 package H: the material had 「写给 AI 的话」; hovering shows what was found
     aiInstruction: '检测到面向 AI 的指令，已忽略',
     aiInstructionHint: '命中的原句：{phrases}',
@@ -76,7 +76,7 @@ export const INBOX = Object.freeze({
 
   later: Object.freeze({
     title: '稍后处理',
-    count: '{n} 条（下次运行后重新进入待看）',
+    count: '{n} 条（下次运行后重新列入待看）',
     line: '{source} · {date}',
   }),
 

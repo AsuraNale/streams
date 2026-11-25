@@ -275,7 +275,7 @@ describe('W6b: 新建库 and the build conversation', () => {
     await talkIdle()
     let cs = await cards()
     assert.deepEqual([cs[0].can, cs[0].changes], ['true', ['collect']])
-    assert.ok(cs[0].changeText.includes('和这座库现在的卡比'), cs[0].changeText)
+    assert.ok(cs[0].changeText.includes('与此库当前的建库卡相比'), cs[0].changeText)
     assert.equal(hashOf(file), before, 'not confirmed: the same card file')
     await looks('edit')
     await s.page.click('[data-action="drop"] button')

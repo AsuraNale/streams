@@ -95,7 +95,7 @@ describe('W6a: 待看, the reading window, 来源与要求, 设置', () => {
     const page = await s.page.evaluate(() => ({ main: document.querySelector('main').innerText, panel: document.querySelector('[data-part="right-panel"]').innerText, why: document.querySelector('[data-part="detail-why"]')?.innerText ?? '' }))
     assert.ok(page.why.includes('建库卡要'), page.why)
     for (const w of ['相关度', '实质', '新鲜度', '按评分排序']) { assert.equal(page.main.includes(w), false, `main: ${w}`); assert.equal(page.panel.includes(w), false, `panel: ${w}`) }
-    assert.ok(page.panel.includes('收藏以后一直留着'), 'the original\'s keeping in 详情')
+    assert.ok(page.panel.includes('收藏后永久保留') /* 1.1.2 第 2 件: 收藏以后一直留着 → 收藏后永久保留 */, 'the original\'s keeping in 详情')
     // the library's head is the card's: its paragraph and its sources (not 1.0's 「尚未填写追踪要求」 and 0 sources)
     const head = await s.page.evaluate(() => document.querySelector('[data-part="library-head"]').innerText)
     assert.ok(head.includes('一座跟进中国电动车和动力电池的测试库') && head.includes('4 个来源'), head)

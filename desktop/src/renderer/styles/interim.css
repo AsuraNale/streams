@@ -124,7 +124,7 @@
 .st-q__opt.is-on::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--accent); }
 .st-q__opt[aria-disabled="true"] { cursor: default; opacity: .55; }
 .st-q__key { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; font: 11px/1 Consolas, monospace; color: var(--muted); background: var(--well, var(--surface2)); }
-.st-q__opt.is-on .st-q__key { background: var(--accent); color: var(--inverse11, #fff); }
+.st-q__opt.is-on .st-q__key { background: var(--accent); color: var(--inverse11); }
 .st-q__box { display: grid; place-items: center; width: 16px; height: 16px; border: 1.5px solid color-mix(in srgb, currentColor 45%, transparent); }
 .st-q__box--radio { border-radius: 50%; }
 .st-q__box--check { border-radius: 4px; }
@@ -132,7 +132,7 @@
 .st-q__opt.is-on .st-q__box { border-color: var(--accent); }
 .st-q__opt.is-on .st-q__box--check { background: var(--accent); }
 .st-q__opt.is-on .st-q__box--radio i { transform: none; animation: st-mo-tick var(--mo-tick) var(--mo-ease) both; }
-.st-q__tick { width: 11px; height: 11px; fill: none; stroke: var(--inverse11, #fff); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.st-q__tick { width: 11px; height: 11px; fill: none; stroke: var(--inverse11); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .st-q__box .st-q__tick { opacity: 0; }
 .st-q__opt.is-on .st-q__box .st-q__tick { opacity: 1; animation: st-mo-tick var(--mo-tick) var(--mo-ease) both; }
 .st-q__label { font-size: 13.5px; line-height: 1.55; min-width: 0; overflow-wrap: anywhere; }
