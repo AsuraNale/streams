@@ -315,11 +315,11 @@ export function storedPage({ stored, mark = null, point = null, words, look, css
   }).join('')
   const vals = { when: localTime(stored.fetchedAt), method: words.methods?.[stored.method] ?? '', n: Number.isInteger(point) ? point + 1 : '' }
   const note = fill(Number.isInteger(point) ? words.storedNoteFrom : words.storedNote, vals)
-  // 1.1.1 P14 (M9): opened at a point, the marked sentence glows twice (its ring, 420 ms each), then stays marked; none with
+  // 1.1.1 P14 (M9): opened at a point, the marked sentence glows twice (its ring, 240 ms each — a 「刚发生了什么」 within the in/out band), then stays marked; none with
   // 减少动态效果. The page carries no script, so it opens scrolled to the sentence (#streams-mark) rather than scrolling there.
   // 1.1.1 P12 (C3): the theme sheets have their own mark rules (a light background, made for light pages) that outranked this
   // one: in dark the marked sentence was light words on a light ground. The mark's own colours win now, in both looks.
-  const html = '<style>mark.rd-mark{background:color-mix(in srgb,var(--accent,currentColor) 24%,transparent)!important;color:inherit!important;box-shadow:inset 0 -2px 0 var(--accent,currentColor);border-radius:2px;padding:1px 0;scroll-margin-top:96px}@keyframes rd-glow{50%{box-shadow:inset 0 -2px 0 var(--accent,currentColor),0 0 0 4px color-mix(in srgb,var(--accent,currentColor) 40%,transparent)}}mark#' + MARK_ID + '{animation:rd-glow 420ms cubic-bezier(.2,.7,.2,1) 2 200ms}@media (prefers-reduced-motion:reduce){mark#' + MARK_ID + '{animation:none}}</style>'
+  const html = '<style>mark.rd-mark{background:color-mix(in srgb,var(--accent,currentColor) 24%,transparent)!important;color:inherit!important;box-shadow:inset 0 -2px 0 var(--accent,currentColor);border-radius:2px;padding:1px 0;scroll-margin-top:96px}@keyframes rd-glow{50%{box-shadow:inset 0 -2px 0 var(--accent,currentColor),0 0 0 4px color-mix(in srgb,var(--accent,currentColor) 40%,transparent)}}mark#' + MARK_ID + '{animation:rd-glow 240ms cubic-bezier(.2,.7,.2,1) 2 200ms}@media (prefers-reduced-motion:reduce){mark#' + MARK_ID + '{animation:none}}</style>'
     + '<div class="reader-scroll rd-scroll"><article class="reader-paper rd-article" data-reader-article data-reader-stored>'
     + `<span class="eyebrow rd-article__note" data-reader-note-line>${escapeHtml(note)}</span>`
     + `<h1 class="reader-title rd-article__title">${escapeHtml(stored.title || '')}</h1>`

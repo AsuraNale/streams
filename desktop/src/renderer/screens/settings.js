@@ -34,6 +34,7 @@ import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
+import { moMs, stillMotion } from '../lib/motion.js'
 import { useEvent } from '../lib/use-events.js'
 import { TIcon } from '../lib/template-icons.js'
 import { AppFrame, AppSidebar, Main, TopBar } from '../kit/index.js'
@@ -317,9 +318,8 @@ function SourceAuthPart() {
   // 1.1.1 P14 (M13): what was typed is not an address — the box shakes once (the same box: its words and the focus stay)
   const box = useRef(null)
   useEffect(() => {
-    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (tries > 0 && !still && typeof box.current?.animate === 'function') {
-      box.current.animate([{ transform: 'none' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(-4px)' }, { transform: 'none' }], { id: 'st-mo-shake', duration: 240 })
+    if (tries > 0 && !stillMotion() && typeof box.current?.animate === 'function') {
+      box.current.animate([{ transform: 'none' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(-4px)' }, { transform: 'none' }], { id: 'st-mo-shake', duration: moMs('--mo-tick', 240) })
     }
   }, [tries])
   const d = auth.data

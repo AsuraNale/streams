@@ -383,3 +383,23 @@ test("redesign R6d: the bar draws the look's own back and external — the paths
   }
   assert.equal(new Set(backs.values()).size, THEME_IDS.length, 'the four themes do not share one back')
 })
+
+// 1.1.1 P14 (M9; A19): opened at a point of the summary, the marked sentence glows twice — 240 ms each, within the in/out band —
+// and stays marked; with 减少动态效果 it does not glow (the page carries no script: CSS only)
+test('M9: the stored page at a point — the marked sentence glows twice (240 ms each), not with reduced motion; none without a point', async () => {
+  const { storedPage, MARK_ID } = await import('../src/main/reader.mjs')
+  const stored = { title: '原文', text: '第一段。\n\n第二段，标出的句子在这里。\n\n第三段。', fetchedAt: '2026-11-24T10:00:00.000Z', method: 'direct' }
+  const start = stored.text.indexOf('标出的句子')
+  const words = { notePrefix: '', stored: '', direct: '', render: '', pdf: '' }
+  const page = storedPage({ stored, mark: { start, end: start + 5 }, point: 1, words, look: { theme: 'research', scheme: 'light' }, css: '' })
+  assert.match(page, new RegExp(`<mark class="rd-mark" id="${MARK_ID}">标出的句子</mark>`))
+  const rule = new RegExp(String.raw`mark#${MARK_ID}\{animation:rd-glow (\d+)ms [^ ]+ (\d+) `)
+  const m = rule.exec(page)
+  assert.ok(m, 'the glow rule is there')
+  assert.equal(Number(m[1]), 240)
+  assert.ok(Number(m[1]) >= 160 && Number(m[1]) <= 240, 'in the in/out band')
+  assert.equal(Number(m[2]), 2, 'twice, then it stays marked')
+  assert.match(page, new RegExp(String.raw`@media \(prefers-reduced-motion:reduce\)\{mark#${MARK_ID}\{animation:none\}\}`))
+  const plain = storedPage({ stored, words, look: { theme: 'research', scheme: 'light' }, css: '' })
+  assert.equal(plain.includes(`<mark class="rd-mark" id="${MARK_ID}">`), false, 'no point: no marked sentence')
+})

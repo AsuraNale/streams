@@ -31,6 +31,7 @@ import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
 import { dayText, fmt, nextText, whenText } from '../lib/format.js'
 import { useLoad } from '../lib/use-load.js'
+import { moEase, moMs, stillMotion } from '../lib/motion.js'
 import { isOfLibrary, useEvent } from '../lib/use-events.js'
 import { TIcon } from '../lib/template-icons.js'
 import { DAY, ERRORS, NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
@@ -42,10 +43,9 @@ import { DetailBlock } from './right-panel.js'
 import { LastRun, RunSteps, UpdateNote } from './run-steps.js'
 
 const LONG_WAIT = 14
-// 1.1.1 P14 (M2): how long a leaving card is drawn (its animation is var(--mo-in), 200 ms; a little more so it ends unseen)
-// and how long the cards below take to move up into its place
+// 1.1.1 P14 (M2): how long a leaving card is drawn (its animation is var(--mo-in), 200 ms; a little more so it ends unseen);
+// the cards below move up into its place in var(--mo-in) too (lib/motion.js reads it from motion.css)
 const LEAVE_MS = 240
-const FILL_MS = 200
 /** The list as drawn: the cards, and each leaving one at the place it had (its index then, kept within the list). */
 function withLeaving(items, leaving) {
   const out = items.map((item, i) => ({ item, i, ghost: null }))
@@ -298,12 +298,13 @@ export function InboxScreen() {
     const now = new Map()
     const cards = stack ? [...stack.querySelectorAll('article[data-card]')] : []
     for (const el of cards) now.set(el.dataset.url, el.offsetTop)
-    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!still) {
+    if (!stillMotion()) {
+      const duration = moMs('--mo-in', 200)
+      const easing = moEase()
       for (const el of cards) {
         const was = tops.current.get(el.dataset.url)
         const dy = was === undefined ? 0 : was - el.offsetTop
-        if (dy > 1 && typeof el.animate === 'function') el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { id: 'st-mo-fill', duration: FILL_MS, easing: 'cubic-bezier(.2, .7, .2, 1)' })
+        if (dy > 1 && typeof el.animate === 'function') el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { id: 'st-mo-fill', duration, easing })
       }
     }
     tops.current = now
