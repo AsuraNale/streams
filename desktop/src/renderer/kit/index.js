@@ -4,7 +4,7 @@
 export { AppFrame, Main, Panel } from './frame.js'
 // v2 package M: SidebarQuota, the corner above 设置 (plan quota / API balance)
 export { AppSidebar, Sidebar, SidebarAdd, SidebarFooterButton, SidebarGroup, SidebarLibraryItem, SidebarNav, SidebarNote, SidebarQuota, SidebarSpacer } from './sidebar.js'
-export { LIBRARY_COLOR_NAMES, LIBRARY_ROUTES, LIBRARY_SECTIONS, LibraryMark, LibrarySections, TAB_OF } from './library-sections.js'
+export { LIBRARY_COLOR_NAMES, LIBRARY_ROUTES, LIBRARY_SECTIONS, LibrarySections, TAB_OF } from './library-sections.js'
 export { TopBar } from './topbar.js'
 export { Button, LinkButton } from './button.js'
 export { PanelTabs } from './tabs.js'

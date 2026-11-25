@@ -24,7 +24,7 @@ export const ASK = Object.freeze({
   asking: '正在检索库内内容…',
   speaker: '问库',
   speakerRole: '库内问答',
-  tooLong: '每次最多 500 个字。',
+  tooLong: '每次提问最多 500 字。',
   busy: '上一个问题仍在处理，请在回答完成后再提问。',
   failed: '本次提问未完成：{reason}',
   failedOther: '本次提问未完成，请重试。',
@@ -39,7 +39,7 @@ export const ASK = Object.freeze({
     removedCites: '有 {n} 处引用不在库内，已删除。',
     removedSentences: '有 {n} 句未标注引用，已删除。',
     notInLibrary: '库内暂无相关内容。',
-    notInLibraryText: '库内的笔记无法回答该问题，因此未生成回答。',
+    notInLibraryText: '库内笔记中没有可回答该问题的内容，未生成回答。',
     missing: '库内缺少：{missing}',
   }),
 
@@ -58,7 +58,7 @@ export const ASK = Object.freeze({
     send: '提交',
     cancel: '取消',
     sent: '已记录，感谢反馈。',
-    failed: '未能记录，请填写内容后再提交。',
+    failed: '未能记录，请填写内容后重新提交。',
   }),
 
   // the right panel's 详情 of the latest answer

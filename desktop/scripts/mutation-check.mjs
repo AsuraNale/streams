@@ -683,7 +683,7 @@ const MUTANTS = [
   {
     id: 'r6b-en-round-for-run',
     what: 'an English sentence calls a run a round again (round is kept only for the verification rounds)',
-    edits: [['src/renderer/texts-en/settings.js', "    turnRunning: 'A run is in progress. Update once this run has finished.',", "    turnRunning: 'A " + 'round' + " is in progress. Update once it has finished.',"]],
+    edits: [['src/renderer/texts-en/settings.js', "    turnRunning: 'A run is in progress. Update after it finishes.',", "    turnRunning: 'A " + 'round' + " is in progress. Update after it finishes.',"]],
     test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 the English word list holds'],
   },
   {
@@ -695,7 +695,7 @@ const MUTANTS = [
   {
     id: 'r6b-en-save-for-keep',
     what: '收藏 is save again in the line under 流息怎样工作 (the word list says Keep)',
-    edits: [['src/renderer/texts-en/first-run.js', 'Only what you keep becomes a note in the library folder.', 'Only what you ' + 'save' + ' becomes a note in the library folder.']],
+    edits: [['src/renderer/texts-en/first-run.js', 'Only items you keep become notes in the library folder.', 'Only items you ' + 'save' + ' become notes in the library folder.']],
     test: ['test/r6b-english.test.mjs', '--test-name-pattern=R6b-3 the English word list holds'],
   },
   {
@@ -786,9 +786,9 @@ const MUTANTS = [
     test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 新建库 in 单线黑白 and the dark looks'],
   },
   {
-    id: 'r6d-contrast-lib-mark',
-    what: 'the library\'s mark in the sidebar is at opacity .7 again',
-    edits: [['src/renderer/styles/template-app.css', '.st-lib-mark { opacity: .85; }\n', '.st-lib-mark { opacity: .7; }\n']],
+    id: 'r6d-contrast-lib-name',
+    what: 'the library\'s name in the sidebar is faded (1.1.2: the marks are gone, the contrast check reads the names)',
+    edits: [['src/renderer/styles/template-app.css', '.st-sidebar__lib-name { overflow: hidden; text-overflow: ellipsis; }\n', '.st-sidebar__lib-name { overflow: hidden; text-overflow: ellipsis; opacity: .45; }\n']],
     test: ['test/ui-r6d-looks.test.mjs', '--test-name-pattern=R6d-3 待看 in 澄明玻璃 dark and 研究对话 light'],
   },
   {
@@ -910,8 +910,13 @@ const MUTANTS = [
   },
   {
     id: 'r6d-cmp-inbox-title',
-    what: 'a 待看 card\'s title is in the body face of a link again',
-    edits: [['src/renderer/styles/template-app.css', '.r9.r9 .confirm-title h2 .st-card__title { font-family: inherit; }\n', '']],
+    // 1.1.2: 待看卡 v2 (赞妮) says it again for its own card (.r11.r11.r11 .st-card …): with one left the title keeps its
+    // heading's face, so both go
+    what: 'a 待看 card\'s title is in the body face of a link again (both rules that give it its heading\'s face gone)',
+    edits: [
+      ['src/renderer/styles/template-app.css', '.r9.r9 .confirm-title h2 .st-card__title { font-family: inherit; }\n', ''],
+      ['src/renderer/styles/template-app.css', '.r11.r11.r11 .st-card .confirm-title h2 .st-card__title { font-family: inherit; }\n', ''],
+    ],
     test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 待看'],
   },
   {
@@ -1117,7 +1122,7 @@ const MUTANTS = [
   {
     id: 'w6b-ui-single-as-multi',
     what: 'a single-choice question lets several options be pressed',
-    edits: [['src/renderer/screens/build.js', "(q.kind === 'single' ? (p.includes(o) ? [] : [o]) : p.includes(o)", "(false ? (p.includes(o) ? [] : [o]) : p.includes(o)"]],
+    edits: [['src/renderer/screens/build.js', "  const multi = q.kind === 'multi'\n", "  const multi = q.kind === 'multi' || q.kind === 'single'\n"]],
     test: ['test/ui-w6b.test.mjs', '--test-name-pattern=^W6b: 新建库'],
   },
   {
@@ -1148,7 +1153,7 @@ const MUTANTS = [
   {
     id: 'w7b-e4-planted-en',
     what: 'an English text table says relevance again (a card\'s label in 待看)',
-    edits: [['src/renderer/texts-en/inbox.js', "    label: 'An item to review',", "    label: 'An item to review by relevance',"]],
+    edits: [['src/renderer/texts-en/inbox.js', "    label: 'Inbox item',", "    label: 'Inbox item by relevance',"]],
     test: ['test/wording.test.mjs', '--test-name-pattern=^E4 · every interface text file'],
   },
   {
@@ -1162,7 +1167,7 @@ const MUTANTS = [
     what: 'E4 reads the Chinese tables only (texts-en left out) — and an English table says substance',
     edits: [
       ['test/wording.test.mjs', 'const ALL_TEXT_DIRS = [TEXTS, EN_TEXTS, MAIN_TEXTS, MAIN_EN_TEXTS]', 'const ALL_TEXT_DIRS = [TEXTS, MAIN_TEXTS]'],
-      ['src/renderer/texts-en/inbox.js', "    label: 'An item to review',", "    label: 'An item of substance to review',"],
+      ['src/renderer/texts-en/inbox.js', "    label: 'Inbox item',", "    label: 'Inbox item of substance',"],
     ],
     test: ['test/wording.test.mjs', '--test-name-pattern=^E4 · every interface text file'],
   },
@@ -1340,7 +1345,7 @@ const MUTANTS = [
   {
     id: 'p11b-gaps-hidden',
     what: "待看's 「上次更新」 block shows the counts but not what the update agent left",
-    edits: [['src/renderer/screens/run-steps.js', "const gaps = (Array.isArray(record.agent?.gaps) ? record.agent.gaps : [])", "const gaps = ([])"]],
+    edits: [['src/renderer/screens/run-steps.js', "  return (Array.isArray(record?.agent?.gaps) ? record.agent.gaps : [])", "  return ([])"]],
     test: ['test/ui-p11b.test.mjs'],
   },
   {

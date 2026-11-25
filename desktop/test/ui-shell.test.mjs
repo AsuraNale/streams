@@ -1,7 +1,7 @@
 // The v2 shell (package F; docs/checks/2026-11-05-wp-f/contract.md F1–F4; docs/desktop.md §五「界面结构」) on the running app,
 // three registered libraries (test/support/seed.mjs seedShelf: the seeded one current, 「电动车」 with a brief, 「时尚」 with three
 // rounds without output; all three made as v1.0 made them — core/legacy — so they have no library card):
-//   - the sidebar of plan B: 库架 · 和主 Agent 聊 (its badge = the pending card) · 我的库 (each library's mark, name, 待看
+//   - the sidebar of plan B: 库架 · 和主 Agent 聊 (its badge = the pending card) · 我的库 (each library's name — 1.1.2: no mark —, 待看
 //     count from the core, the amber dot of its problem, the current one highlighted) · 新建库 · 设置; an inbox-changed of one
 //     library changes that line only (control: the others keep theirs);
 //   - a click on a library makes it the current one (libraries.json) and opens its 待看; the five tabs, each on that library;
@@ -68,7 +68,9 @@ test('the sidebar: 新建库 · 库架 · 主 Agent (no number) · 我的库 (th
   const n = shelf.dirs.map(d => core.homeNumbers(d))
   assert.deepEqual(n.map(x => x.inbox), [4, 0, 0], 'control: only the seeded library has cards waiting')
   const got = await rows()
-  assert.deepEqual(got.map(r => [r.id, r.name, r.mark, r.color]), shelf.ids.map((id, i) => [id, SHELF.names[i], SHELF.icons[i], SHELF.colors[i]]))
+  assert.deepEqual(got.map(r => [r.id, r.name]), shelf.ids.map((id, i) => [id, SHELF.names[i]]))
+  // 1.1.2 (维护者 11-25 第 1 件): no mark before a library's name (it had the seed's icons, SHELF.icons)
+  assert.deepEqual(got.map(r => r.mark ?? null), [null, null, null], 'no library mark in the sidebar')
   assert.deepEqual(got.map(r => r.badge), ['4', null, null], 'a count only where there is one')
   assert.deepEqual(got.map(r => r.problem), ['sources', null, 'no-output'], 'the seed\'s dead source; three rounds without output')
   assert.deepEqual(got.map(r => [r.active, r.current]), [['true', 'page'], ['false', null], ['false', null]], 'the current library is highlighted on its page')

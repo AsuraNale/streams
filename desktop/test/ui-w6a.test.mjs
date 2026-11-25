@@ -84,7 +84,7 @@ describe('W6a: 待看, the reading window, 来源与要求, 设置', () => {
     assert.ok(card.opening.startsWith('十月新能源乘用车零售量为一百一十万辆'), card.opening)
     assert.ok(card.meta.includes(INBOX.card.methods.direct), card.meta)
     assert.deepEqual(card.links.map(([p, para]) => [p, para]), [['0', '0'], ['1', '2'], ['2', '3']])
-    assert.equal(card.links[1][2], '原文第 3 段 · 看原话')
+    assert.equal(card.links[1][2], '原文第 3 段 · 查看原句') // 1.1.2 第 2 件: 看原话 → 查看原句
     const missing = await s.page.evaluate(sel => {
       const c = document.querySelector(sel)
       return { mark: c.querySelector('[data-original-missing]')?.dataset.originalMissing ?? null, note: c.querySelector('[data-part="missing-note"]')?.textContent ?? '', what: Boolean(c.querySelector('[data-part="what"]')), points: Boolean(c.querySelector('[data-part="points"]')) }
@@ -95,7 +95,7 @@ describe('W6a: 待看, the reading window, 来源与要求, 设置', () => {
     const page = await s.page.evaluate(() => ({ main: document.querySelector('main').innerText, panel: document.querySelector('[data-part="right-panel"]').innerText, why: document.querySelector('[data-part="detail-why"]')?.innerText ?? '' }))
     assert.ok(page.why.includes('建库卡要'), page.why)
     for (const w of ['相关度', '实质', '新鲜度', '按评分排序']) { assert.equal(page.main.includes(w), false, `main: ${w}`); assert.equal(page.panel.includes(w), false, `panel: ${w}`) }
-    assert.ok(page.panel.includes('收藏以后一直留着'), 'the original\'s keeping in 详情')
+    assert.ok(page.panel.includes('收藏后永久保留') /* 1.1.2 第 2 件: 收藏以后一直留着 → 收藏后永久保留 */, 'the original\'s keeping in 详情')
     // the library's head is the card's: its paragraph and its sources (not 1.0's 「尚未填写追踪要求」 and 0 sources)
     const head = await s.page.evaluate(() => document.querySelector('[data-part="library-head"]').innerText)
     assert.ok(head.includes('一座跟进中国电动车和动力电池的测试库') && head.includes('4 个来源'), head)

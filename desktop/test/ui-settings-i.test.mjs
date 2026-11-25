@@ -46,7 +46,7 @@ const core = await import(pathToFileURL(join(REPO_DIR, 'core', 'src', 'index.mjs
 
 test('R4b-4 four parts in the design\'s order with the four jumps on top; 主 Agent and 定时一览 are gone; the one sentence under the connections; nothing of the current library', async () => {
   await until(() => document.querySelector('[data-group="library"] [data-part="library-root"] [data-root-path]')?.dataset.rootPath !== '' && document.querySelectorAll('[data-part="connections"] [data-connection]').length === 3)
-  const groups = await s.page.evaluate(() => [...document.querySelectorAll('main[data-screen="settings"] [data-group]')].map(g => [g.dataset.group, g.querySelector('.section-label').textContent, [...g.querySelectorAll(':scope > [data-part]')].map(p => p.dataset.part)]))
+  const groups = await s.page.evaluate(() => [...document.querySelectorAll('main[data-screen="settings"] [data-group]')].map(g => [g.dataset.group, g.querySelector('.section-label').textContent, [...g.querySelectorAll(':scope > .st-set-group__body > [data-part]')] /* 1.1.2: a group's parts on one panel */.map(p => p.dataset.part)]))
   assert.deepEqual(groups, [
     ['connection', SETTINGS.groups.connection, ['connections']],
     ['look', SETTINGS.groups.look, ['theme', 'appearance', 'language']],

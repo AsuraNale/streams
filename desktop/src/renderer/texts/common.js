@@ -67,7 +67,7 @@ export const CONNECTIONS = Object.freeze({
   }),
   // what the detection found
   found: '已找到',
-  notFound: '没找到',
+  notFound: '未找到',
   version: '版本 {version}',
   loggedIn: '已登录',
   notLoggedIn: '未登录',
@@ -148,7 +148,7 @@ export const NOTE_STATUS = Object.freeze({
 
 // the bridge's error code no_connection (askLibrary, previewNode): no connection chosen yet
 export const NO_CONNECTION = Object.freeze({
-  text: '尚未选择连接方式，该操作需要调用模型。',
+  text: '尚未选择连接方式。该操作需要调用模型。',
   go: '前往设置',
 })
 
@@ -175,5 +175,5 @@ export const SCHEDULE = Object.freeze({
   daysSep: '、',
   month: '每月 {n} 号',
   tagOn: '{when} {time} 自动运行',
-  tagOff: '未开定时',
+  tagOff: '未设置定时',
 })

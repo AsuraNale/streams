@@ -8,8 +8,8 @@
 //   去设置); params.send (首次打开's sentence) starts at once. The right panel's 详情 is 「流息怎样工作」.
 //   A conversation going: the 主 Agent page's conversation parts (thread, user-message, assistant-message, composer), titled
 //   新建库 (or 改建库卡). The main agent's questions as the core let them through (core checkQuestion: at most 5, at most 4 options
-//   and 「其它」, the 1st one with no options in a new build) — a choice question is buttons (single: one pressed; multi: any) with
-//   「其它」 to type and 确定; a question with no options is answered in the box. Its card (screens/build.js BuildCard): the
+//   and 「其他」, the 1st one with no options in a new build) — a choice question is a choice card (1.1.2: Question, AnswerCard);
+//   a question with no options is answered in the box. Its card (screens/build.js BuildCard): the
 //   paragraph, the seven lines in three rows, what is left to decide, the other six parts counted; 看全文 shows every part; when
 //   a card came before it (or the library's card, changing one), the lines that changed with 改前 / 改后 (A2). 「确认，建库」 only on
 //   the last card while the core can confirm it (whole, every address read: A2); 不建了 ends the conversation, nothing made (B3).
@@ -20,7 +20,8 @@
 // Test hooks: main[data-screen="build"][data-state][data-mode=create|edit|convert][data-view=start|talk]; [data-field=opener|message|other];
 // [data-action=cancel-build] (params.back: the screen 新建库 was opened from, as v1.0's form had it);
 // [data-part=start-why|from-old|going|progress-chip|conversation|thinking|not-shown|trouble|stopped|how-it-works];
-// [data-row=you|agent][data-kind]; [data-part=question][data-n][data-kind] with [data-option=<text>][aria-pressed];
+// [data-row=you|agent][data-kind]; [data-part=question][data-n][data-kind][data-state] with li[data-option=<text>][aria-checked]
+// and li[data-other] (1.1.2: the choice card, see Question); [data-part=answer-card];
 // article[data-part=build-card][data-can-confirm][data-last] with [data-part=card-points|card-full|card-changes|card-problems],
 // 1.1.1 P1 (B19): [data-part=card-unchecked] with [data-unchecked=<url>][data-why], [data-action=ask-fix] (the last card, not
 // confirmable: a message asking the agent to fix it, sent as the user's), [data-part=card-links-only][data-n];
@@ -33,6 +34,7 @@ import { dayText, fmt } from '../lib/format.js'
 import { confirmAndOpen } from '../lib/build.js'
 import { TIcon } from '../lib/template-icons.js'
 import { BrandMark } from '../lib/brand-mark.js'
+import { moMs, stillMotion } from '../lib/motion.js'
 import { AppFrame, AppSidebar, Main, TopBar } from '../kit/index.js'
 import { CONNECTIONS, DAY, PUNCT, SEP } from '../texts/common.js'
 import { BUILD as T } from '../texts/build.js'
@@ -179,24 +181,106 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
 }
 
 // ---- a question -------------------------------------------------------------------------------------------------------
+// 1.1.2 (维护者 11-25 第 3 件, U8): a choice question is a choice card — one row per option with its number key, a radio dot
+// (single) or a check box (multi), 「其他」 last with its box opening under it; ↑ ↓ move, space picks, a number key picks that
+// row, Enter answers. Pressing 提交回答 sends at once (the call is not held up); the picked rows are drawn round once
+// (st-mo-confirm) while the others leave (st-mo-leave-option), then the card folds to one line and the answer shows on your
+// side until the conversation brings your turn. 减少动态效果: no animation, the folded card at once.
+// Test hooks: [data-part=question][data-n][data-kind][data-open][data-state=open|sending|answered]; ul[data-part=options]
+// [role=radiogroup|group]; li[data-option=<text>][role=radio|checkbox][aria-checked]; li[data-other][aria-checked] with
+// input[data-field=other]; [data-action=answer]; [data-part=answered-line]; [data-part=answer-card] (yours, see AnswerCard).
 
-function Question({ q, open, busy, onAnswer }) {
+const CHECK_PATH = 'M3.5 8.4 6.6 11.3 12.6 4.8'
+
+function Tick() {
+  return html`<svg class="st-q__tick" viewBox="0 0 16 16" aria-hidden="true"><path d=${CHECK_PATH} /></svg>`
+}
+
+/** What you answered, as a card on your side (`picked`: the options' words; `other`: what you typed). */
+export function AnswerCard({ n, picked = [], other = '', pending = false }) {
+  const all = [...picked.map(p => ({ k: `p${p}`, text: p })), ...(other ? [{ k: 'o', text: fmt(T.otherAnswer, { text: other }) }] : [])]
+  return html`<div class="user-message st-answer" data-row=${pending ? undefined : 'you'} data-kind="answer" data-part="answer-card" data-pending=${String(pending)}>
+    <div class="st-answer__head">${fmt(T.yourChoice, { n })}</div>
+    <div class="st-answer__picks">${all.map(a => html`<span key=${a.k} class="st-answer__pick"><${Tick} />${a.text}</span>`)}</div>
+  </div>`
+}
+
+function Question({ q, open, answered, busy, onAnswer }) {
+  const choice = q.kind === 'single' || q.kind === 'multi'
+  const multi = q.kind === 'multi'
+  const options = choice ? q.options : []
+  const rows = options.length + (q.other ? 1 : 0)
+  const otherAt = q.other ? options.length : -1
   const [picked, setPicked] = useState([])
   const [other, setOther] = useState('')
-  const choice = q.kind === 'single' || q.kind === 'multi'
-  const press = o => setPicked(p => (q.kind === 'single' ? (p.includes(o) ? [] : [o]) : p.includes(o) ? p.filter(x => x !== o) : [...p, o]))
-  const ready = picked.length > 0 || other.trim() !== ''
-  return html`<div data-part="question" data-n=${q.n} data-kind=${q.kind} data-open=${String(open)}>
-    <p class="intro-copy"><b class="st-build-qn">${fmt(T.questionN, { n: q.n })}</b> ${q.text}${choice ? html` <small class="muted">${q.kind === 'single' ? T.single : T.multi}</small>` : null}</p>
-    ${choice && open ? html`<div class="filters st-build-options" role="group" aria-label=${q.text}>
-        ${q.options.map(o => html`<button type="button" key=${o} class=${`filter${picked.includes(o) ? ' active' : ''}`} aria-pressed=${String(picked.includes(o))}
-          data-option=${o} disabled=${busy} onClick=${() => press(o)}>${o}</button>`)}
-      </div>
-      ${q.other ? html`<label class="search-field st-build-other"><span class="muted">${T.other}</span>
-        <input data-field="other" placeholder=${T.otherPlaceholder} maxlength="2000" value=${other} disabled=${busy} onInput=${e => setOther(e.currentTarget.value)} /></label>` : null}
-      <div class="row st-build-answer"><span class="st-act" data-action="answer"><button type="button" class="btn primary" disabled=${busy || !ready}
-        onClick=${() => onAnswer({ picked, ...(other.trim() ? { other: other.trim() } : {}) })}>${T.answer}</button></span></div>` : null}
+  const [focus, setFocus] = useState(0)
+  const [focused, setFocused] = useState(false)
+  // sending: the rows chosen when 提交回答 was pressed (the animation plays on them); sent: the answer as it went
+  const [sending, setSending] = useState(null)
+  const [sent, setSent] = useState(null)
+  const listRef = useRef(null)
+  const otherRef = useRef(null)
+  const otherOn = picked.includes(otherAt)
+  const ready = picked.some(i => i !== otherAt) || (otherOn && other.trim() !== '')
+  const toggle = i => setPicked(p => (multi ? (p.includes(i) ? p.filter(x => x !== i) : [...p, i]) : [i]))
+  useEffect(() => { if (otherOn && otherRef.current && !sending) otherRef.current.focus() }, [otherOn])
+  const send = () => {
+    if (busy || !ready || sending || sent) return
+    const answer = { picked: picked.filter(i => i !== otherAt).sort((a, b) => a - b).map(i => options[i]), ...(otherOn && other.trim() ? { other: other.trim() } : {}) }
+    // the call goes now; the animation only follows it. A call that failed opens the card again.
+    Promise.resolve(onAnswer(answer)).then(ok => { if (ok === false) { setSending(null); setSent(null) } })
+    const fold = () => { setSending(null); setSent(answer) }
+    if (stillMotion()) { fold(); return }
+    setSending(picked)
+    setTimeout(fold, Math.max(moMs('--mo-tick', 240), moMs('--mo-in', 200)))
+  }
+  const onKey = e => {
+    if (e.target !== listRef.current || busy || sending) return
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setFocus(f => (f + (e.key === 'ArrowDown' ? 1 : rows - 1)) % rows); return }
+    if (e.key === ' ') { e.preventDefault(); toggle(focus); return }
+    if (/^[1-9]$/.test(e.key) && Number(e.key) <= rows) { e.preventDefault(); setFocus(Number(e.key) - 1); toggle(Number(e.key) - 1); return }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (!multi && picked.length === 0) { toggle(focus); return }
+      send()
+    }
+  }
+  const state = sent || answered ? 'answered' : sending ? 'sending' : 'open'
+  const live = choice && open && state !== 'answered'
+  const head = html`<div class="st-q__head">
+    <div class="st-q__n"><b>${fmt(T.questionN, { n: q.n })}</b>${choice ? html`<span>${multi ? T.multi : T.single}</span>` : null}</div>
+    <p class="st-q__text">${q.text}</p>
   </div>`
+  if (!choice) return html`<div class="st-q st-q--input" data-part="question" data-n=${q.n} data-kind=${q.kind} data-open=${String(open)} data-state=${answered ? 'answered' : 'open'}>${head}</div>`
+  const row = (label, i, extra = null) => {
+    const on = picked.includes(i)
+    const isOther = i === otherAt
+    return html`<li key=${isOther ? '~other' : label} class=${`st-q__opt${on ? ' is-on' : ''}${focused && focus === i ? ' is-focus' : ''}`}
+      role=${multi ? 'checkbox' : 'radio'} aria-checked=${String(on)} aria-disabled=${busy ? 'true' : undefined}
+      data-option=${isOther ? undefined : label} data-other=${isOther ? '' : undefined}
+      onClick=${e => { if (busy || sending || e.target.tagName === 'INPUT') return; setFocus(i); toggle(i); if (!isOther) listRef.current?.focus() }}>
+      <span class="st-q__key" aria-hidden="true">${i + 1}</span>
+      <span class=${`st-q__box st-q__box--${multi ? 'check' : 'radio'}`} aria-hidden="true">${multi ? html`<${Tick} />` : html`<i></i>`}</span>
+      <span class="st-q__label">${label}</span>
+      ${extra}
+    </li>`
+  }
+  return html`<div class=${`st-q confirmation${state === 'sending' ? ' st-mo-sending' : ''}`} data-part="question" data-n=${q.n} data-kind=${q.kind} data-open=${String(open)} data-state=${state}>
+    ${head}
+    ${live ? html`<ul class="st-q__opts" data-part="options" role=${multi ? 'group' : 'radiogroup'} aria-label=${q.text} tabindex="0" ref=${listRef}
+        onKeyDown=${onKey} onFocus=${() => setFocused(true)} onBlur=${() => setFocused(false)}>
+        ${options.map((o, i) => row(o, i))}
+        ${q.other ? row(T.other, otherAt, otherOn ? html`<span class="st-q__other"><input data-field="other" ref=${otherRef} placeholder=${T.otherPlaceholder} aria-label=${T.other} maxlength="2000"
+          value=${other} disabled=${busy || Boolean(sending)} onInput=${e => setOther(e.currentTarget.value)}
+          onKeyDown=${e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); send() } else if (e.key === 'Escape') { e.preventDefault(); listRef.current?.focus() } }} /></span>` : null) : null}
+      </ul>
+      <div class="st-q__foot">
+        <span class="st-q__keys" aria-hidden="true"><span><kbd>↑</kbd><kbd>↓</kbd> ${T.keys.move}</span>${multi ? html`<span><kbd>${T.keys.spaceKey}</kbd> ${T.keys.space}</span>` : null}<span><kbd>1</kbd>–<kbd>${rows}</kbd> ${T.keys.pick}</span><span><kbd>Enter</kbd> ${T.keys.enter}</span></span>
+        <span class="spacer"></span>
+        <span class="st-act" data-action="answer"><button type="button" class="btn primary" disabled=${busy || !ready || Boolean(sending)} onClick=${send}>${sending ? T.answering : T.answer}</button></span>
+      </div>` : state === 'answered' ? html`<p class="st-q__done" data-part="answered-line"><span class="st-q__ok" aria-hidden="true"><${Tick} /></span>${T.answered}</p>` : null}
+  </div>
+  ${sent && open ? html`<${AnswerCard} n=${q.n} picked=${sent.picked} other=${sent.other ?? ''} pending=${true} />` : null}`
 }
 
 // ---- the one-sentence page --------------------------------------------------------------------------------------------
@@ -257,13 +341,14 @@ function StartPage({ params, onStarted }) {
       <${TopBar} title=${cv?.title ?? (edit ? T.editTitle : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.editSubtitle : T.subtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
       <div class="st-main__body">
         <section class="new-content st-build-start" data-part="build-start">
-          <span class="eyebrow">${cv?.eyebrow ?? (edit ? T.editEyebrow : T.eyebrow)}</span>
           <h2>${cv ? fmt(cv.heading, { name: libraryName }) : edit ? fmt(T.editHeading, { name: libraryName }) : T.heading}</h2>
           ${cv ? html`<p class="progress-alert" data-part="from-old">${cv.note}</p>` : null}
-          <label class="field"><span>${cv?.label ?? (edit ? T.editLabel : T.label)}</span>
+          <label class="field"><span class="st-sr">${cv?.label ?? (edit ? T.editLabel : T.label)}</span>
             <textarea data-field="opener" rows="4" maxlength=${OPENER_MAX} placeholder=${edit ? T.editPlaceholder : T.placeholder} value=${text} disabled=${busy}
-              onInput=${e => setText(e.currentTarget.value)}></textarea></label>
-          <p class="limit-note st-build-lead">${cv ? cv.subtitle : edit ? T.editLead : T.lead}</p>
+              onInput=${e => setText(e.currentTarget.value)}
+              onKeyDown=${e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); void start() } }}></textarea></label>
+          ${cv || edit ? html`<p class="limit-note st-build-lead">${cv ? cv.subtitle : T.editLead}</p>`
+            : html`<ul class="st-build-points" data-part="build-points">${T.leadPoints.map(([b, s]) => html`<li key=${b}><b>${b}</b><span>${s}</span></li>`)}</ul>`}
           ${can ? null : html`<div class="progress-alert" role="alert" data-part="start-why">
             <span>${noKey ? fmt(T.needKey, { api: names.api }) : fmt(T.needClaude, { name: names['claude-code'], codex: names.codex, api: names.api, current: active ? names[active] ?? active : T.chipNone })}</span>
             <span class="st-act" data-action="go-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></div>`}
@@ -274,6 +359,7 @@ function StartPage({ params, onStarted }) {
           <div class="form-footer">
             <span class="muted st-build-cost" data-part="build-cost">${busy ? T.starting : can ? fmt(active === 'api' ? T.costApi : T.cost, { name: names[active] ?? active }) : ''}</span>
             ${typeof params.back === 'string' && params.back !== 'build' ? html`<${Btn} name="cancel-build" kind="quiet" disabled=${busy} onClick=${() => navigate(params.back)}>${T.cancel}<//>` : null}
+            <small class="st-build-key" aria-hidden="true">${T.startKey}</small>
             <span class="st-act" data-action="start"><button type="button" class="btn primary" disabled=${busy || !can || !text.trim()} onClick=${() => start()}>${T.start}</button></span>
           </div>
         </section>
@@ -311,10 +397,10 @@ function Talk({ view, onView }) {
   useLayoutEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight }, [turns.length, working, view.trouble, view.stopped])
 
   const run = async (method, ...args) => {
-    if (working) return
+    if (working) return false
     setBusy(true)
     setNote(null)
-    try { onView(await call(method, ...args)) } catch (err) { setNote(err?.code === 'busy' ? T.thinking : T.failedCall) } finally { setBusy(false) }
+    try { onView(await call(method, ...args)); return true } catch (err) { setNote(err?.code === 'busy' ? T.thinking : T.failedCall); return false } finally { setBusy(false) }
   }
   const send = () => {
     const t = text.trim()
@@ -355,12 +441,19 @@ function Talk({ view, onView }) {
           <div class="thread" data-part="conversation">
             <div class="date-line" data-part="date-line">${fmt(cv?.dateLine ?? (edit ? T.editDateLine : T.dateLine), { day: today })}</div>
             ${turns.map((t, i) => {
-              if (t.role === 'you') return html`<div key=${i} class="user-message" data-row="you">${t.text}</div>`
+              // 1.1.2 (第 3 件): an answer to a choice question, when the turn carries it (answer: { picked, other }, the main
+              // process), is the card of what you chose; an older turn without it is its sentence, as before
+              if (t.role === 'you') {
+                const asked = turns[i - 1]?.role === 'agent' && turns[i - 1]?.kind === 'question' ? turns[i - 1].question : null
+                const a = t.answer && typeof t.answer === 'object' && asked ? t.answer : null
+                return a ? html`<${AnswerCard} key=${i} n=${asked.n} picked=${Array.isArray(a.picked) ? a.picked.filter(x => typeof x === 'string') : []} other=${typeof a.other === 'string' ? a.other : ''} />`
+                  : html`<div key=${i} class="user-message" data-row="you">${t.text}</div>`
+              }
               return html`<div key=${i} class="assistant-message" data-row="agent" data-kind=${t.kind}>
                 <${Speaker} />
                 ${t.say ? html`<p class="intro-copy" data-part="reply">${t.say}</p>` : null}
                 ${t.notice === 'question-not-shown' ? html`<p class="limit-note st-faint" data-part="not-shown">${T.notShown}</p>` : null}
-                ${t.kind === 'question' && t.question ? html`<${Question} q=${t.question} open=${i === openQuestion} busy=${working} onAnswer=${a => run('replyBuild', a)} />` : null}
+                ${t.kind === 'question' && t.question ? html`<${Question} q=${t.question} open=${i === openQuestion} answered=${turns[i + 1]?.role === 'you'} busy=${working} onAnswer=${a => run('replyBuild', a)} />` : null}
                 ${t.kind === 'card' && t.card ? html`<${BuildCard} turn=${t} last=${i === lastCard && i === lastAgent} mode=${view.mode} libraryName=${libraryName}
                   busy=${working} acting=${acting} onDrop=${drop} onConfirm=${confirm} onAskFix=${m => run('replyBuild', m)} />` : null}
               </div>`

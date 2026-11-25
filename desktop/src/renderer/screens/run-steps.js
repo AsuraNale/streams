@@ -87,8 +87,8 @@ export function RunSteps({ running, last = null }) {
 
 /**
  * 1.1.1 P11b (A13): the last update in one block at the top of 待看 — how many sources it read, how many could not be read, how
- * many it put into 待看; and, folded, what the update agent left (its 「卡上哪里不够用」, the record's agent.gaps), each with
- * 「拿这条去改卡」 (onToCard(text): the card's conversation with that sentence in its box, nothing sent). Shown when 待看 is
+ * many it put into 待看; and what the update agent left (its 「卡上哪里不够用」, the record's agent.gaps) as 「改卡建议」
+ * (CardSuggestions, 1.1.2: shown, no longer folded behind a button). Shown when 待看 is
  * empty too: an empty 待看 after a run that could not read is not 「nothing new」. Only an update's record (kind 'update').
  * Test hooks: [data-part="update-note"][data-status][data-read][data-unreadable][data-added], [data-action="update-notes"],
  * [data-update-gap=<i>], [data-action="gap-to-card"].
@@ -118,14 +118,38 @@ function useCountUp(n, id) {
   return v
 }
 
-export function UpdateNote({ record, onToCard }) {
+/** The update agent's gaps of a run record, as sentences (agent.gaps: strings or { text }). */
+export function gapsOf(record) {
+  return (Array.isArray(record?.agent?.gaps) ? record.agent.gaps : []).map(g => (typeof g === 'string' ? g : typeof g?.text === 'string' ? g.text : '')).filter(g => g.trim() !== '')
+}
+
+/**
+ * 1.1.2 (维护者 11-25 第 6 条, U7): 「改卡建议」 — what the update agent says the card lacks, shown, not folded away: the first two,
+ * then 「查看全部 n 条」; each with 「交给主 Agent」 (onToCard(text): the card's conversation with that sentence in its box,
+ * nothing sent; the continued conversation of 第 5 件 takes its place later). In 待看's update note and under 来源与要求's card.
+ * Test hooks: [data-part=card-suggestions][data-n], [data-update-gap=<i>] (> span:first-child: the sentence),
+ * [data-action=gap-to-card], [data-action=update-notes] (all / fewer, only past two).
+ */
+const GAPS_SHOWN = 2
+export function CardSuggestions({ gaps, onToCard }) {
   const [open, setOpen] = useState(false)
+  if (!gaps.length) return null
+  const shown = open ? gaps : gaps.slice(0, GAPS_SHOWN)
+  return html`<div class="st-gaps" data-part="card-suggestions" data-n=${gaps.length}>
+    <div class="st-gaps__head"><b>${N.notes}</b><small class="muted">${fmt(N.notesN, { n: gaps.length })}</small></div>
+    <ul class="st-update-gaps">${shown.map((g, i) => html`<li key=${i} data-update-gap=${i}><span>${g}</span>
+      <span class="st-act" data-action="gap-to-card"><button type="button" class="btn quiet" onClick=${() => onToCard?.(g)}>${N.toCard}</button></span></li>`)}</ul>
+    ${gaps.length > GAPS_SHOWN ? html`<span class="st-act" data-action="update-notes"><button type="button" class="btn quiet" aria-expanded=${String(open)} onClick=${() => setOpen(o => !o)}>${open ? N.hide : fmt(N.more, { n: gaps.length })}</button></span>` : null}
+  </div>`
+}
+
+export function UpdateNote({ record, onToCard }) {
   const c = record?.counts ?? {}
   // 1.1.1 P14 (M12): a run that ended while the page is open — its 「新增 n 条」 counts up from 0 (once; the first record seen does not)
   const shown = useCountUp(Number.isInteger(c.inbox) ? c.inbox : 0, record?.id ?? null)
   if (!record || record.kind !== 'update') return null
   const when = whenText(record.finishedAt ?? record.startedAt, WHEN) ?? ''
-  const gaps = (Array.isArray(record.agent?.gaps) ? record.agent.gaps : []).map(g => (typeof g === 'string' ? g : typeof g?.text === 'string' ? g.text : '')).filter(g => g.trim() !== '')
+  const gaps = gapsOf(record)
   const read = Number.isInteger(c.read) ? c.read : 0
   const bad = Number.isInteger(c.unreadable) ? c.unreadable : 0
   const added = Number.isInteger(c.inbox) ? c.inbox : 0
@@ -133,11 +157,8 @@ export function UpdateNote({ record, onToCard }) {
     : record.status === 'done' ? fmt(N.line, { when, read, n: shown, bad: bad > 0 ? fmt(N.bad, { n: bad }) : '' })
       : fmt(N.failed, { when })
   return html`<section class="panel-section st-update-note" data-part="update-note" data-status=${record.status ?? ''} data-read=${read} data-unreadable=${bad} data-added=${added}>
-    <div class="section-label"><span>${line}</span>
-      ${gaps.length ? html`<span class="st-act" data-action="update-notes"><button type="button" class="btn quiet" aria-expanded=${String(open)} onClick=${() => setOpen(o => !o)}>${open ? N.hide : fmt(N.notes, { n: gaps.length })}</button></span>` : null}
-    </div>
-    ${open ? html`<ul class="st-update-gaps">${gaps.map((g, i) => html`<li key=${i} data-update-gap=${i}><span>${g}</span>
-      <span class="st-act" data-action="gap-to-card"><button type="button" class="btn quiet" onClick=${() => onToCard?.(g)}>${N.toCard}</button></span></li>`)}</ul>` : null}
+    <div class="section-label"><span>${line}</span></div>
+    <${CardSuggestions} gaps=${gaps} onToCard=${onToCard} />
   </section>`
 }
 

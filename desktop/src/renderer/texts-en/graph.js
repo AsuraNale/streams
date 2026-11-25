@@ -15,7 +15,7 @@ export const GRAPH = Object.freeze({
   legend: 'Solid lines: topics and sources to items; dashed lines: [[links]] between notes.',
   detail: Object.freeze({
     eyebrow: 'Current node',
-    none: 'Choose a node in the graph to see its details here.',
+    none: 'Select a node in the graph to see its details.',
     topic: 'Topic: {label}',
     source: 'Source: {label}',
     topicMeta: '{n} item{n?|s} · {k} keyword{k?|s}',

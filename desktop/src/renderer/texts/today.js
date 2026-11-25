@@ -27,7 +27,7 @@ export const TODAY = Object.freeze({
       'not-installed': '安装该工具后点击「重试」，或更换连接方式。',
       'bad-key': '到设置中重新输入 API key，再点击「重试」。',
       network: '网络恢复后点击「重试」。',
-      timeout: '稍后点击「重试」。',
+      timeout: '请稍后点击「重试」。',
       other: '点击「重试」；如仍未解决，请在「设置 → 关于 → 高级」中复制诊断信息并发送给开发者。',
       none: '点击「更换连接方式」选择一种连接，再点击「重试」。',
     }),
@@ -35,9 +35,9 @@ export const TODAY = Object.freeze({
     index: '索引无法读取，本次运行未开始。请在「来源与要求 → 高级设置 → 库文件夹」中重建索引后重试。',
     config: '库的设置文件无法读取，本次运行未开始。',
     // 1.1 W7a: a library made by the last version is not updated the old way any more; a connection that can only ask
-    'needs-build': '这座库是上一版建的，不再按原来的方式更新，本次运行未开始。要继续更新，先到「来源与要求」点「重新查一遍来源」，确认新的建库卡。笔记、资料库和问库照常。',
-    'update-not-supported': '当前连接不能更新，本次更新未开始。到设置里选「{cc}」「{cx}」，或填了模型 key 的 API key。',
-    rebuild: '重新查一遍来源',
+    'needs-build': '此库由旧版本创建，需重新核查来源后才能继续更新，本次运行未开始。请在「来源与要求」中点击「重新核查来源」并确认新的建库卡。笔记、资料库和问库不受影响。',
+    'update-not-supported': '当前连接不支持更新，本次更新未开始。请在设置中选择「{cc}」「{cx}」，或已填写模型 key 的 API key。',
+    rebuild: '重新核查来源',
     // the buttons (at most three): login · login again and retry · change the connection; otherwise retry · change (redesign R4b:
     // 复制诊断信息 is only in 设置 → 关于 → 高级)
     login: '前往登录',

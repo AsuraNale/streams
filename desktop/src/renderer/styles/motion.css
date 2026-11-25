@@ -47,6 +47,9 @@
 @keyframes st-mo-banner { from { opacity: 0; transform: translateY(-8px); } }
 @keyframes st-mo-shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 @keyframes st-mo-glow { 50% { transform: scale(1.04); } }
+/* 1.1.2 (第 3 件): an answer sent — the picked rows drawn round once, the others leave (styles/interim.css .st-mo-sending) */
+@keyframes st-mo-confirm { 0%, 100% { opacity: 0; } 45% { opacity: 1; transform: scale(1.012); } }
+@keyframes st-mo-leave-option { to { opacity: 0; transform: translateX(-8px); } }
 
 /* small feedback (M10): hover and press within 120 ms, whatever the theme's own buttons say */
 button, a, .btn, .filter, .tab, .file-row, .project-item, .navitem { transition-duration: var(--mo-fast) !important; transition-timing-function: var(--mo-ease) !important; }
@@ -58,9 +61,9 @@ button, a, .btn, .filter, .tab, .file-row, .project-item, .navitem { transition-
 .step-line[data-done="true"] > .ico, .step-line[data-done="true"] > svg { animation: st-mo-tick var(--mo-tick) var(--mo-ease) both; }
 [data-part="step-count"] { display: inline-block; animation: st-mo-num var(--mo-fast) var(--mo-ease); }
 
-/* M3: the library that runs — a ring turning round its mark; one waiting — a still hollow dot; a count that grew pops */
-.st-mo-mark { position: relative; display: inline-flex; }
-.st-mo-ring { position: absolute; inset: -3px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); pointer-events: none; animation: st-mo-ring var(--mo-ring) linear infinite; }
+/* M3: the library that runs — a small ring turning at the head of the line under its name (1.1.2: the mark it went round is
+   gone); one waiting — a still hollow dot in the same place; a count that grew pops */
+.st-mo-ring { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; border: 1.6px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); pointer-events: none; animation: st-mo-ring var(--mo-ring) linear infinite; }
 .st-mo-queued { display: inline-block; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--accent); background: transparent; flex: none; }
 .st-mo-pop { display: inline-block; animation: st-mo-pop var(--mo-tick) var(--mo-ease); }
 

@@ -104,7 +104,6 @@ function ConnectPick({ data, busy, onUse, onSkip, onRedetect, onState }) {
     try { const r = await call('openLogin', kind); if (!r?.ok) setLoginFailed(kind) } catch { setLoginFailed(kind) }
   }
   return html`<div class="thread-scroll st-first-body"><form class="new-content st-first" data-part="connect" onSubmit=${e => e.preventDefault()}>
-    <span class="eyebrow">${C.eyebrow}</span>
     <h2>${C.heading}</h2>
     <p>${C.lead}</p>
     <div class="st-first-rows" data-part="connect-cards">
@@ -160,7 +159,6 @@ function TrackHome({ data, onChange, auto = null }) {
     navigate('build', { send: t })
   }
   return html`<div class="thread-scroll st-first-body"><form class="new-content st-first" data-part="track" onSubmit=${e => { e.preventDefault(); send() }}>
-    <span class="eyebrow">${T.eyebrow}</span>
     <h2>${T.heading}</h2>
     <p>${T.lead}</p>
     ${usable

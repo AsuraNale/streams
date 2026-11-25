@@ -30,8 +30,6 @@
 
 /* a library's 待看 count: quiet digits (the draft's .count) */
 
-/* a library's mark: its one or two characters on a square of its colour (kit/library-sections.js LibraryMark) */
-
 /* a library's five parts as tabs across its page (plan B; kit/library-sections.js LibrarySections layout="tabs") */
 
 /* the 待看 count after the tab's name (the draft's tab-count) */

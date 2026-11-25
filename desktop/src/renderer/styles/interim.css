@@ -106,12 +106,59 @@
 .st-build-start textarea { width: 100%; resize: vertical; }
 .st-build-lead { line-height: 1.75; }
 .st-build-cost { margin-right: auto; }
-.st-build-options { flex-wrap: wrap; gap: 8px; margin: 10px 0; }
-.st-build-options .filter { white-space: normal; text-align: left; max-width: 100%; }
-.st-build-other { margin: 6px 0; }
-.st-build-other .muted { white-space: nowrap; padding-left: 4px; }
-.st-build-answer { justify-content: flex-end; margin-top: 8px; }
-.st-build-qn { margin-right: 8px; }
+/* 1.1.2 (维护者 11-25 第 3 件): the choice card — one row per option, its number key, a radio dot or a check box; 「其他」 last
+   with its box; the keys and 提交回答 under it; once answered, one line. Your answer: a card on your side (AnswerCard). */
+.st-q { margin-top: 10px; overflow: hidden; }
+.st-q--input { margin-top: 4px; }
+.st-q__head { padding: 13px 16px 4px; }
+.st-q--input .st-q__head { padding: 0; }
+.st-q__n { display: flex; gap: 8px; align-items: center; font-size: 11.5px; color: var(--muted); }
+.st-q__n b { color: var(--accent); font-weight: 600; }
+.st-q__n span::before { content: '·'; margin-right: 8px; }
+.st-q__text { margin: 3px 0 0; font-size: 14.5px; font-weight: 600; line-height: 1.6; color: var(--ink); overflow-wrap: anywhere; }
+.st-q__opts { list-style: none; margin: 0; padding: 6px 8px 4px; display: grid; gap: 2px; outline: none; }
+.st-q__opt { position: relative; display: grid; grid-template-columns: 22px 18px minmax(0, 1fr); align-items: center; gap: 4px 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; user-select: none; transition: background-color var(--mo-fast) var(--mo-ease), color var(--mo-fast) var(--mo-ease); }
+.st-q__opt:hover { background: color-mix(in srgb, var(--selected-surface, var(--pick)) 55%, transparent); }
+.st-q__opt.is-focus { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 60%, transparent); }
+.st-q__opt.is-on { background: var(--selected-surface, var(--pick)); color: var(--selected-ink, var(--ink)); }
+.st-q__opt.is-on::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--accent); }
+.st-q__opt[aria-disabled="true"] { cursor: default; opacity: .55; }
+.st-q__key { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; font: 11px/1 Consolas, monospace; color: var(--muted); background: var(--well, var(--surface2)); }
+.st-q__opt.is-on .st-q__key { background: var(--accent); color: var(--inverse11); }
+.st-q__box { display: grid; place-items: center; width: 16px; height: 16px; border: 1.5px solid color-mix(in srgb, currentColor 45%, transparent); }
+.st-q__box--radio { border-radius: 50%; }
+.st-q__box--check { border-radius: 4px; }
+.st-q__box i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); transform: scale(0); }
+.st-q__opt.is-on .st-q__box { border-color: var(--accent); }
+.st-q__opt.is-on .st-q__box--check { background: var(--accent); }
+.st-q__opt.is-on .st-q__box--radio i { transform: none; animation: st-mo-tick var(--mo-tick) var(--mo-ease) both; }
+.st-q__tick { width: 11px; height: 11px; fill: none; stroke: var(--inverse11); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.st-q__box .st-q__tick { opacity: 0; }
+.st-q__opt.is-on .st-q__box .st-q__tick { opacity: 1; animation: st-mo-tick var(--mo-tick) var(--mo-ease) both; }
+.st-q__label { font-size: 13.5px; line-height: 1.55; min-width: 0; overflow-wrap: anywhere; }
+.st-q__other { grid-column: 3; display: block; animation: st-mo-in var(--mo-in) var(--mo-ease) both; }
+.st-q__other input { width: 100%; margin-top: 6px; border: 0; border-radius: 7px; padding: 8px 10px; background: var(--surface); color: var(--ink); outline: 1.5px solid var(--line); font-size: 13px; }
+.st-q__other input:focus { outline-color: var(--accent); }
+.st-q__foot { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 16px 12px; border-top: 1px solid var(--line); }
+.st-q__keys { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--muted); }
+.st-q__keys kbd { font: 10.5px Consolas, monospace; padding: 0 5px; border-radius: 4px; background: var(--well, var(--surface2)); color: var(--ink); }
+.st-q__done { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 16px 12px; font-size: 12px; color: var(--muted); animation: st-mo-fade var(--mo-in) var(--mo-ease) both; }
+.st-q__ok { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
+.st-q__ok .st-q__tick { width: 9px; height: 9px; }
+/* 提交回答 pressed: the picked rows drawn round once, the others leave; then the card folds (screens/build.js Question) */
+.st-mo-sending .st-q__opt.is-on::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 2px var(--accent); pointer-events: none; animation: st-mo-confirm var(--mo-tick) var(--mo-ease) both; }
+.st-mo-sending .st-q__opt:not(.is-on) { animation: st-mo-leave-option var(--mo-in) var(--mo-ease-out) both; }
+.st-mo-sending .st-q__foot { opacity: .45; }
+/* 单线黑白: a picked row is the selected surface itself (ink), so its marks take the row's own ink */
+.r12-line .st-q__opt.is-on::before, .r12-line .st-q__opt.is-on .st-q__key, .r12-line .st-q__opt.is-on .st-q__box--check { background: var(--selected-ink); color: var(--selected-surface); }
+.r12-line .st-q__opt.is-on .st-q__box { border-color: var(--selected-ink); }
+.r12-line .st-q__opt.is-on .st-q__box .st-q__tick { stroke: var(--selected-surface); }
+.r12-line .st-q__opt.is-on .st-q__box--radio i { background: var(--selected-ink); }
+.st-answer { display: grid; gap: 6px; white-space: normal; animation: st-mo-in var(--mo-in) var(--mo-ease) both; }
+.st-answer__head { font-size: 11px; color: var(--muted); }
+.st-answer__picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.st-answer__pick { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 7px; border-radius: 99px; background: var(--surface); color: var(--ink); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.st-answer__pick .st-q__tick { stroke: var(--accent); }
 .st-build-card dd, .st-build-card dt, .st-build-change p, .st-build-part li { overflow-wrap: anywhere; }
 .st-build-full { display: grid; gap: 10px; margin-top: 12px; }
 .st-build-part ul { margin: 0; padding-left: 20px; }

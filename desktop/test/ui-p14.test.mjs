@@ -98,7 +98,7 @@ const BAND = {
 const BAND_OF = {
   'st-mo-num': 'small', 'st-mo-in': 'inout', 'st-mo-fade': 'inout', 'st-mo-leave-keep': 'inout', 'st-mo-leave-dismiss': 'inout', 'st-mo-leave-later': 'inout',
   'st-mo-back': 'inout', 'st-mo-fill': 'inout', 'st-mo-bar': 'inout', 'st-mo-banner': 'inout', 'st-mo-menu': 'inout', 'st-mo-tick': 'inout', 'st-mo-pop': 'inout',
-  'st-mo-glow': 'inout', 'st-mo-shake': 'inout', 'st-mo-dialog': 'big', 'st-mo-rise': 'big', 'st-mo-breathe': 'loop', 'st-mo-dots': 'loop', 'st-mo-shimmer': 'loop', 'st-mo-ring': 'ring',
+  'st-mo-glow': 'inout', 'st-mo-shake': 'inout', 'st-mo-confirm': 'inout', 'st-mo-leave-option': 'inout', 'st-mo-dialog': 'big', 'st-mo-rise': 'big', 'st-mo-breathe': 'loop', 'st-mo-dots': 'loop', 'st-mo-shimmer': 'loop', 'st-mo-ring': 'ring',
 }
 
 describe('P14: motion', () => {

@@ -79,12 +79,14 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpe
   const anchors = Array.isArray(item.summary?.anchors) ? item.summary.anchors : []
   const placeOf = i => anchors.find(a => a.point === i) ?? null
   // 1.1.1 P14: a card leaving is drawn where it was (data-leaving: keep · dismiss · later), never a card of the list
+  // 1.1.2 (维护者 11-25, 待看卡第 2 版): three zones on their own grounds — the head (the line, then the title), the body (the
+  // overview as a quiet lead, the points, the opening as a quote of its own), the actions; the keys written in the buttons
   return html`<article class=${`confirmation st-card${isCurrent ? ' st-current' : ''}${motion ? ` ${motion}` : ''}`} style=${motionIndex === null ? undefined : { '--mo-i': motionIndex }} data-card=${leaving ? undefined : ''} data-leaving=${leaving ?? undefined} data-url=${item.url} data-current=${String(isCurrent)}
     aria-current=${isCurrent ? 'true' : undefined} aria-label=${T.card.label} tabindex="-1" onClick=${onPick}>
     <div class="confirm-top">
-      <div class="confirm-title"><${TIcon} name="file" />
-        <div><h2><a href="#" class="st-card__title" data-action="open" onClick=${e => { e.preventDefault(); e.stopPropagation(); onOpen() }}>${item.title}</a></h2>
-          <small data-part="card-line">${line}</small></div>
+      <div class="confirm-title">
+        <div><small data-part="card-line">${line}</small>
+          <h2><a href="#" class="st-card__title" data-action="open" onClick=${e => { e.preventDefault(); e.stopPropagation(); onOpen() }}>${item.title}</a></h2></div>
       </div>
       <div class="st-card__marks">
         ${missing ? html`<${Mark} attrs=${{ 'data-original-missing': item.original.reason ?? '' }}>${T.card.missing}<//>` : null}
@@ -100,7 +102,7 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpe
       ${missing && item.needsContact ? html`<p class="intro-copy" data-part="needs-contact" data-site=${item.needsContact}>${T.card.needsContact}
         <span class="st-act" data-action="to-source-auth"><button type="button" class="btn quiet" onClick=${e => { e.stopPropagation(); onToSettings() }}>${T.card.needsContactGo}</button></span></p>` : null}
       ${item.summaryMissing ? html`<p class="intro-copy" data-part="summary-missing-note">${T.card.summaryMissingNote}</p>` : null}
-      ${!missing && item.summary?.what ? html`<p class="intro-copy" data-part="what"><b>${T.card.what}</b>${item.summary.what}</p>` : null}
+      ${!missing && item.summary?.what ? html`<p class="intro-copy st-card__lead" data-part="what"><b class="st-sr">${T.card.what}</b>${item.summary.what}</p>` : null}
       ${points.length ? html`<dl class="decision-points" data-part="points">${points.map((p, i) => {
         const at = placeOf(i)
         return html`<div key=${i}><dt><span class="point-index">${pad(i + 1)}</span></dt><dd>${p}${at ? html`<br /><a href="#" class="muted st-card__place" data-action="open-point" data-point=${i} data-paragraph=${at.paragraph}
@@ -115,9 +117,9 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpe
     <div class="confirm-footer">
       <span class="muted">${waiting > 0 && waiting < LONG_WAIT ? html`<span data-waiting=${waiting}>${fmt(T.card.waiting, { n: waiting })}</span>` : ''}</span>
       <div class="row">
-        <span class="st-act" data-action="later"><button type="button" class="btn quiet" disabled=${busy} onClick=${e => { e.stopPropagation(); onLater() }}>${T.card.later}</button></span>
-        <span class="st-act" data-action="dismiss"><button type="button" class="btn" disabled=${busy} onClick=${e => { e.stopPropagation(); onDismiss() }}>${T.card.dismiss}</button></span>
-        <span class="st-act" data-action="keep"><button type="button" class="btn primary" disabled=${busy} onClick=${e => { e.stopPropagation(); onKeep() }}><${TIcon} name="approve" fallback="check" />${T.card.keep}</button></span>
+        <span class="st-act" data-action="later"><button type="button" class="btn quiet" data-key="L" disabled=${busy} onClick=${e => { e.stopPropagation(); onLater() }}>${T.card.later}</button></span>
+        <span class="st-act" data-action="dismiss"><button type="button" class="btn" data-key="D" disabled=${busy} onClick=${e => { e.stopPropagation(); onDismiss() }}>${T.card.dismiss}</button></span>
+        <span class="st-act" data-action="keep"><button type="button" class="btn primary" data-key="C" disabled=${busy} onClick=${e => { e.stopPropagation(); onKeep() }}><${TIcon} name="approve" fallback="check" />${T.card.keep}</button></span>
       </div>
     </div>
   </article>`

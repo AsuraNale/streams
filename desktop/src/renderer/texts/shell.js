@@ -55,7 +55,7 @@ export const SHELL = Object.freeze({
     // redesign R1 (N06): the head's run button is the state itself; the small line beside it
     run: Object.freeze({
       now: '立即运行',
-      running: '运行中 · 停止',
+      running: '停止运行',
       stopping: '正在停止',
       queued: '排队中 · 第 {n} 位',
       next: '下次运行 {when}',
@@ -71,9 +71,8 @@ export const SHELL = Object.freeze({
   shelf: Object.freeze({
     title: '库架',
     subtitle: '共 {n} 个库 · 各库按各自的定时运行',
-    eyebrow: '我的库 / LIBRARIES',
-    lead: '每天看新来的，存下值得的。',
-    text: '每个库盯一组来源，按自己的定时运行。通过筛选的内容进入待看，由你决定是否收藏。',
+    lead: '浏览每日新内容，收藏值得保留的条目。',
+    text: '每个库关注一组来源，按各自的定时运行。通过筛选的内容进入待看，由你决定是否收藏。',
     search: '搜索库',
     searchNone: '没有名称或追踪范围包含「{q}」的库。',
     newButton: '新建库',
@@ -90,18 +89,18 @@ export const SHELL = Object.freeze({
       sources: '来源异常',
       'no-output': '连续 {n} 次运行无新内容',
     }),
-    emptyText: '暂无库。向主 Agent 描述想追踪的内容，它会写一张建库卡给你确认。',
+    emptyText: '暂无资料库。描述想追踪的主题，主 Agent 将生成建库卡供你确认。',
     emptyChat: '由主 Agent 生成',
     emptyManual: '手动创建',
     loadFailed: '未能读取库列表。',
     // 1.1.1 P11a (A11): each card's 「更多」
-    more: Object.freeze({ button: '更多', label: '这座库的更多操作', reveal: '在资源管理器中显示', scheduleOff: '关掉定时', scheduleOn: '打开定时', remove: '移除该库', failed: '未能完成，请重试。' }),
+    more: Object.freeze({ button: '更多', label: '此库的更多操作', reveal: '在资源管理器中显示', scheduleOff: '关闭定时', scheduleOn: '开启定时', remove: '移除该库', failed: '操作未完成，请重试。' }),
   }),
 
   // 1.1.1 P11b (A15): libraries already in the place new ones go, found after the app's data was removed (lib/found-libraries.js)
   found: Object.freeze({
     title: '找到 {n} 座已有的库',
-    lead: '在新建库默认存储位置里找到这些库。加回后会出现在「我的库」里，库里的文件不会被改动。',
+    lead: '在新建库的默认存储位置中找到以下库。加回后将显示在「我的库」中，库内文件不会改动。',
     addAll: '全部加回',
     add: '加回',
     failed: '未能加回，请重试。',
@@ -110,7 +109,7 @@ export const SHELL = Object.freeze({
   // 1.1 W13: 「打开已有的库」 on the shelf (its toolbar and its empty state) and on 首次打开 (lib/open-existing.js)
   openExisting: Object.freeze({
     button: '打开已有的库',
-    notLibrary: '这个文件夹不是流息的库。请选建库时的那个文件夹（里面有 notes 文件夹）。',
+    notLibrary: '所选文件夹不是流息资料库。请选择包含 notes 文件夹的库文件夹。',
     failed: '未能打开这个库。',
   }),
 
