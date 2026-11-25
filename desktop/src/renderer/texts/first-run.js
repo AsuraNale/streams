@@ -11,7 +11,6 @@ export const FIRST_RUN = Object.freeze({
   subtitle: '说一句想追踪的内容，主 Agent 会写一张建库卡，确认后才会创建。',
   headChip: '当前连接：{name}',
   headChipNone: '未连接',
-  eyebrow: '首次打开 / WELCOME',
   heading: '你想追踪什么内容？',
   lead: '用一句话描述需求，主 Agent 将据此写一张建库卡（收什么、不收什么、看哪些来源），确认后才会创建。',
   connected: '已连接',
@@ -50,7 +49,6 @@ export const FIRST_RUN = Object.freeze({
   connect: Object.freeze({
     title: '连接模型',
     subtitle: '流息通过该连接建库、更新与问答。之后可在设置中更改。',
-    eyebrow: '连接 / CONNECTION',
     heading: '选择一种连接方式',
     lead: '三种方式任选其一。点击「前往登录」将打开终端窗口，由该工具自行完成登录，流息不接触账号密码。',
     recommended: '推荐',

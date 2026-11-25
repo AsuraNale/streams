@@ -15,16 +15,20 @@ export const BUILD = Object.freeze({
   chipNone: '未连接',
 
   // the one-sentence page
-  eyebrow: '新建库 / NEW LIBRARY',
-  editEyebrow: '改建库卡 / CHANGE THE CARD',
   heading: '这个库追踪什么',
   editHeading: '要改「{name}」的哪里',
   label: '用一两句话说你想追踪什么',
   editLabel: '用一两句话说要改哪里',
   placeholder: '例如：跟踪中国电动车行业，重点是比亚迪、蔚小理、小米汽车，还有电池这块。',
   editPlaceholder: '例如：电池那块加上国轩高科',
-  lead: '不用自己找来源、不用懂订阅地址。主 Agent 最多问 5 个问题，多数可以直接点选；写好的建库卡上每个网址都是它这次打开过的。你点「确认」之前，什么都不会建。',
   editLead: '主 Agent 按你说的改这张卡，改动要查的会去查。改好的卡显示改前改后；你点「确认」之前，这座库的建库卡不变。',
+  // 1.1.2 (第 1 件): the start page's three points (was one paragraph) and the key that starts it
+  leadPoints: Object.freeze([
+    Object.freeze(['最多 5 个问题', '多数可直接选择']),
+    Object.freeze(['来源均经验证', '卡上每个网址都已打开']),
+    Object.freeze(['确认后才创建', '之前不会建任何内容']),
+  ]),
+  startKey: 'Ctrl + Enter',
   cost: '建库大约要几分钟，用的是「{name}」的额度',
   costApi: '建库大约要几分钟，按你填的 API key 计费',
   // 1.1.1 B26: an API key connection with no search
@@ -54,7 +58,6 @@ export const BUILD = Object.freeze({
   convert: Object.freeze({
     title: '重新查一遍来源',
     subtitle: '把上一版建的库换成按建库卡更新。主 Agent 重新查一遍来源、写一张建库卡，你确认了才换；笔记、资料库和待看不动。',
-    eyebrow: '换库 / BRING IT OVER',
     heading: '把「{name}」换过来',
     label: '用一两句话说这座库追踪什么',
     note: '这座库是上一版建的。原来的追踪要求和来源放在下面了，可以改了再开始；确认以后，建库卡写进这座库自己的文件夹，笔记、资料库和待看不动。',

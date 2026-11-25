@@ -5,7 +5,6 @@ export const FIRST_RUN = Object.freeze({
   subtitle: 'Say what you want to track; the main agent writes a library card, and nothing is created until you confirm.',
   headChip: 'Current connection: {name}',
   headChipNone: 'Not connected',
-  eyebrow: 'First start / WELCOME',
   heading: 'What do you want to track?',
   lead: 'Describe it in a sentence. The main agent writes a library card from it (what to collect, what to skip, which sources to read); nothing is created until you confirm.',
   connected: 'Connected',
@@ -42,7 +41,6 @@ export const FIRST_RUN = Object.freeze({
   connect: Object.freeze({
     title: 'Connect a model',
     subtitle: 'Streams uses this connection to build and update libraries and to answer questions. You can change it later in Settings.',
-    eyebrow: 'Connection / CONNECTION',
     heading: 'Choose a way to connect',
     lead: 'Any one of the three will do. Sign in opens a terminal window where the tool signs itself in; Streams never sees your account or password.',
     recommended: 'Recommended',

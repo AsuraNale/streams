@@ -110,7 +110,9 @@ export const UPDATE_NOTE = Object.freeze({
   bad: '（{n} 个读不到）',
   nothingNew: '上次更新 {when}：来源上没有新链接，没有调用更新 Agent',
   failed: '上次更新 {when} 没有做完',
-  notes: '更新 Agent 留的话（{n}）',
+  notes: '改卡建议',
+  notesN: '{n} 条',
+  more: '查看全部 {n} 条',
   hide: '收起',
-  toCard: '拿这条去改卡',
+  toCard: '交给主 Agent',
 })

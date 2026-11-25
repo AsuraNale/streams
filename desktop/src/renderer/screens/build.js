@@ -341,13 +341,14 @@ function StartPage({ params, onStarted }) {
       <${TopBar} title=${cv?.title ?? (edit ? T.editTitle : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.editSubtitle : T.subtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
       <div class="st-main__body">
         <section class="new-content st-build-start" data-part="build-start">
-          <span class="eyebrow">${cv?.eyebrow ?? (edit ? T.editEyebrow : T.eyebrow)}</span>
           <h2>${cv ? fmt(cv.heading, { name: libraryName }) : edit ? fmt(T.editHeading, { name: libraryName }) : T.heading}</h2>
           ${cv ? html`<p class="progress-alert" data-part="from-old">${cv.note}</p>` : null}
-          <label class="field"><span>${cv?.label ?? (edit ? T.editLabel : T.label)}</span>
+          <label class="field"><span class="st-sr">${cv?.label ?? (edit ? T.editLabel : T.label)}</span>
             <textarea data-field="opener" rows="4" maxlength=${OPENER_MAX} placeholder=${edit ? T.editPlaceholder : T.placeholder} value=${text} disabled=${busy}
-              onInput=${e => setText(e.currentTarget.value)}></textarea></label>
-          <p class="limit-note st-build-lead">${cv ? cv.subtitle : edit ? T.editLead : T.lead}</p>
+              onInput=${e => setText(e.currentTarget.value)}
+              onKeyDown=${e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); void start() } }}></textarea></label>
+          ${cv || edit ? html`<p class="limit-note st-build-lead">${cv ? cv.subtitle : T.editLead}</p>`
+            : html`<ul class="st-build-points" data-part="build-points">${T.leadPoints.map(([b, s]) => html`<li key=${b}><b>${b}</b><span>${s}</span></li>`)}</ul>`}
           ${can ? null : html`<div class="progress-alert" role="alert" data-part="start-why">
             <span>${noKey ? fmt(T.needKey, { api: names.api }) : fmt(T.needClaude, { name: names['claude-code'], codex: names.codex, api: names.api, current: active ? names[active] ?? active : T.chipNone })}</span>
             <span class="st-act" data-action="go-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></div>`}
@@ -358,6 +359,7 @@ function StartPage({ params, onStarted }) {
           <div class="form-footer">
             <span class="muted st-build-cost" data-part="build-cost">${busy ? T.starting : can ? fmt(active === 'api' ? T.costApi : T.cost, { name: names[active] ?? active }) : ''}</span>
             ${typeof params.back === 'string' && params.back !== 'build' ? html`<${Btn} name="cancel-build" kind="quiet" disabled=${busy} onClick=${() => navigate(params.back)}>${T.cancel}<//>` : null}
+            <small class="st-build-key" aria-hidden="true">${T.startKey}</small>
             <span class="st-act" data-action="start"><button type="button" class="btn primary" disabled=${busy || !can || !text.trim()} onClick=${() => start()}>${T.start}</button></span>
           </div>
         </section>

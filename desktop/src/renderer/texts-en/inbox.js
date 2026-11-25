@@ -99,7 +99,9 @@ export const UPDATE_NOTE = Object.freeze({
   bad: ' ({n} could not be read)',
   nothingNew: 'Last update {when}: no new links on the sources; the update agent was not called',
   failed: 'The last update ({when}) did not finish',
-  notes: 'Notes from the update agent ({n})',
-  hide: 'Hide',
-  toCard: 'Change the card with this',
+  notes: 'Card suggestions',
+  notesN: '{n}',
+  more: 'Show all {n}',
+  hide: 'Show less',
+  toCard: 'Send to main agent',
 })

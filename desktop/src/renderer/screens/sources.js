@@ -44,6 +44,7 @@ import { ADVANCED as A, SOURCES as T } from '../texts/sources.js'
 import { SETTINGS } from '../texts/settings.js'
 import { LibraryFrame } from './library-frame.js'
 import { Btn, TDialog } from './t-dialog.js'
+import { CardSuggestions, gapsOf } from './run-steps.js'
 
 const FIVE = ['ok', 'empty', 'gap', 'failed', 'blocked']
 const kindWord = k => (Object.hasOwn(SOURCE_KINDS, k) ? SOURCE_KINDS[k] : String(k ?? ''))
@@ -118,7 +119,7 @@ function OldSourcesPart({ view }) {
 const EVERY = ['day', 'weekdays', 'week', 'month']
 const oftenOf = (every, days, day) => (every === 'week' ? { every, days: [...days].sort((a, b) => a - b) } : every === 'month' ? { every, day: Number(day) } : every === 'weekdays' ? { every } : {})
 
-function RunPart({ libraryId }) {
+function RunPart({ libraryId, onCard = null }) {
   const sched = useLoad(() => (libraryId ? call('getLibrarySchedule', libraryId) : null), [libraryId])
   useEvent('settings-changed', p => { if (!p || p.libraryId === undefined || p.libraryId === libraryId) sched.reload() })
   const [on, setOn] = useState(true)
@@ -175,8 +176,13 @@ function RunPart({ libraryId }) {
       <span>${T.run.at}</span>
       <span class="st-src-run-save"><${Btn} name="save-run" disabled=${!ready || busy} onClick=${save}>${T.run.save}<//></span>
     </div>
-    ${rhythm && !rhythm.matches ? html`<p class="limit-note st-src-mismatch" data-part="run-mismatch">${fmt(T.run.mismatch, { rhythm: rhythm.text.length > 40 ? `${[...rhythm.text].slice(0, 40).join('')}…` : rhythm.text, want: scheduleWhen(rhythm), now: scheduleWhen(d) })}
-      <span class="st-act" data-action="to-rhythm"><button type="button" class="btn quiet" disabled=${busy} onClick=${toRhythm}>${T.run.toRhythm}</button></span></p>` : null}
+    ${rhythm && !rhythm.matches ? html`<div class="st-alert st-src-mismatch" role="note" data-part="run-mismatch">
+      <p>${fmt(T.run.mismatch, { rhythm: rhythm.text.length > 40 ? `${[...rhythm.text].slice(0, 40).join('')}…` : rhythm.text, want: scheduleWhen(rhythm), now: scheduleWhen(d) })}</p>
+      <div class="row">
+        <span class="st-act" data-action="to-rhythm"><button type="button" class="btn" disabled=${busy} onClick=${toRhythm}>${T.run.toRhythm}</button></span>
+        ${onCard ? html`<span class="st-act" data-action="rhythm-to-card"><button type="button" class="btn quiet" disabled=${busy} onClick=${() => onCard(fmt(T.run.rhythmAsk, { now: scheduleWhen(d) }))}>${T.run.toCard}</button></span>` : null}
+      </div>
+    </div>` : null}
     ${note ? html`<p class=${note.kind === 'saved' ? 'limit-note' : 'progress-alert'} role=${note.kind === 'saved' ? 'status' : 'alert'} data-part="run-note" data-kind=${note.kind}>${note.text}</p>` : null}
     <p class="limit-note" data-next-run=${d?.nextRunAt ?? ''}>${d ? (d.nextRunAt ? fmt(T.run.next, { when: nextText(d.nextRunAt, NEXT_WHEN) ?? d.nextRunAt }) : T.run.off) : ''}${T.run.rule}</p>
   </section>`
@@ -296,7 +302,6 @@ function AdvancedView({ library, onRemove }) {
   const { navigate } = useApp()
   return html`<div class="new-content st-src st-src-advanced">
     <div class="after-card"><button type="button" data-action="back-sources" onClick=${() => navigate('sources')}><${TIcon} name="back" /> ${A.back}</button></div>
-    <span class="eyebrow">${A.eyebrow}</span>
     <h2 id="sources-title">${A.heading}</h2>
     <p>${A.lead}</p>
     <${Fold} index="01" part="changes-fold" title=${A.changes} small=${A.changesHint}><${ChangeLog} /><//>
@@ -437,6 +442,9 @@ export function SourcesScreen({ params = {} }) {
   const view = useLoad(() => (old ? call('getSources') : null), [libraryId, old])
   useEvent('library-changed', () => { cardView.reload(); if (old) view.reload() })
   const hasCard = Boolean(cv?.card)
+  // 1.1.2 (U7): the last update's 「改卡建议」, under the card too (getHome: the current library's last run record)
+  const home = useLoad(() => (hasCard ? call('getHome') : null), [libraryId, hasCard])
+  useEvent('round-progress', p => { if (p?.done && hasCard) home.reload() })
   const [dialog, setDialog] = useState(null)
   const close = () => setDialog(null)
   const state = advanced ? (library ? 'ready' : appState?.status ?? 'loading') : cv && (!old || view.data) ? 'ready' : cardView.status === 'error' || view.status === 'error' ? 'error' : 'loading'
@@ -454,7 +462,6 @@ export function SourcesScreen({ params = {} }) {
   return html`<${LibraryFrame} tab="sources" state=${state} labelledby="sources-title" section=${params.section}>
       <div class="st-main__body thread-scroll st-src-body" ref=${body} data-view=${advanced ? 'advanced' : 'main'}>
         ${advanced ? html`<${AdvancedView} library=${library} onRemove=${() => setDialog({ kind: 'remove-library' })} />` : html`<div class="new-content st-src">
-          <span class="eyebrow">${T.eyebrow}</span>
           <h2 id="sources-title">${T.heading}</h2>
           <p data-lead>${hasCard ? T.cardLead : old ? T.old.lead : T.lead}</p>
           ${cardView.status === 'error' && !cv ? html`<div class="progress-alert" role="alert">${cardView.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed}
@@ -464,8 +471,9 @@ export function SourcesScreen({ params = {} }) {
             ${view.status === 'error' && !view.data ? html`<p class="progress-alert" role="alert">${T.loadFailed}</p>` : null}
             ${view.data ? html`<${OldSourcesPart} view=${view.data} />` : null}` : null}
           ${hasCard ? html`<${CardPart} card=${cv.card} onChange=${() => navigate('build', { edit: libraryId })} />
+            <${CardSuggestions} gaps=${home.data?.lastRound?.kind === 'update' ? gapsOf(home.data.lastRound) : []} onToCard=${t => navigate('build', { edit: libraryId, opener: t })} />
             <${CardSourcesPart} rows=${cv.rows ?? []} onAdded=${() => cardView.reload()} />` : null}
-          <${RunPart} libraryId=${libraryId} />
+          <${RunPart} libraryId=${libraryId} onCard=${hasCard ? t => navigate('build', { edit: libraryId, opener: t }) : null} />
           <button type="button" class="document-link" data-action="go-advanced" onClick=${() => navigate('sources', { view: 'advanced' })}>
             <${TIcon} name="settings" /><span>${T.advancedLink}</span><${TIcon} name="arrow" />
           </button>

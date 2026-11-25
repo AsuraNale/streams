@@ -5,7 +5,6 @@
 // Source names, addresses, search words, topic names, the brief and the library's name are the library's data.
 
 export const SOURCES = Object.freeze({
-  eyebrow: '来源与要求 / SOURCES & BRIEF',
   heading: '这个库追踪什么',
   lead: '通常只需要修改这一页；不常用的设置收在最下面的「高级设置」里。',
   // 1.1 W6a (A5): a library with a card: the card, its sources (address or search word, state, 「原文」), a source added
@@ -89,6 +88,8 @@ export const SOURCES = Object.freeze({
     mismatch: '建库卡上的节奏是「{rhythm}」，按它应当是{want}；现在的定时是{now}。',
     toRhythm: '按节奏设',
     toRhythmDone: '已按节奏设好。',
+    toCard: '改建库卡上的节奏',
+    rhythmAsk: '请把建库卡上的节奏改成与当前定时一致：{now}。',
   }),
 
   advancedLink: '高级设置：变更记录 · 库文件夹',
@@ -97,7 +98,6 @@ export const SOURCES = Object.freeze({
 // 高级设置 (P15, F51–F55): two folds — 变更记录, 库文件夹
 export const ADVANCED = Object.freeze({
   back: '返回来源与要求',
-  eyebrow: '高级设置 / ADVANCED',
   heading: '高级设置',
   lead: '通常无需修改。此处包含设置的变更记录和库文件夹。',
   changes: '变更记录',

@@ -185,11 +185,11 @@ function SearchRow({ search, onChanged }) {
   </div>`
 }
 
-/** One part of the page (one of the four jumps): the template's section-label, then its content. */
+/** One part of the page (one of the four jumps): the template's section-label, then its content (1.1.2: on one panel). */
 function Group({ id, name, hint = null, children }) {
   return html`<section class="st-set-group" data-group=${id} id=${`settings-group-${id}`} aria-labelledby=${`settings-group-${id}-h`}>
     <div class="section-label"><span id=${`settings-group-${id}-h`}>${name}</span>${hint ? html`<small class="muted">${hint}</small>` : null}</div>
-    ${children}
+    <div class="st-set-group__body">${children}</div>
   </section>`
 }
 

@@ -90,11 +90,10 @@ describe('P11b: libraries found again, the last update\'s note, notes without a 
   test('A13: 待看\'s top — the last update read 3 sources, 1 could not be read, none new; the agent\'s two notes; with 待看 empty too', async () => {
     await until(() => document.querySelector('[data-part="update-note"]') !== null)
     const note = await s.page.evaluate(() => { const n = document.querySelector('[data-part="update-note"]'); return { read: n.dataset.read, bad: n.dataset.unreadable, added: n.dataset.added, line: n.querySelector('.section-label span').textContent, empty: document.querySelector('[data-part="empty"]') !== null, gaps: n.querySelectorAll('[data-update-gap]').length } })
-    assert.deepEqual([note.read, note.bad, note.added, note.empty, note.gaps], ['3', '1', '0', true, 0], JSON.stringify(note))
+    // 1.1.2 (U7): 「改卡建议」 are shown at once (two of them: no 「查看全部」); they were folded behind a button
+    assert.deepEqual([note.read, note.bad, note.added, note.empty, note.gaps], ['3', '1', '0', true, GAPS.length], JSON.stringify(note))
     assert.ok(note.line.includes(fmt(UPDATE_NOTE.bad, { n: 1 })) && note.line.endsWith(fmt('新增 {n} 条', { n: 0 })), note.line)
-    await shot('inbox-update-note-closed')
-    await s.page.click('[data-action="update-notes"] button')
-    await until(n => document.querySelectorAll('[data-update-gap]').length === n, GAPS.length)
+    assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="update-note"] [data-action="update-notes"]')), null, 'no 「查看全部」 for two')
     assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-update-gap] > span:first-child')].map(e => e.textContent)), GAPS)
     await shot('inbox-update-note')
   })

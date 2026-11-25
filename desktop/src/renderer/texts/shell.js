@@ -71,7 +71,6 @@ export const SHELL = Object.freeze({
   shelf: Object.freeze({
     title: '库架',
     subtitle: '共 {n} 个库 · 各库按各自的定时运行',
-    eyebrow: '我的库 / LIBRARIES',
     lead: '每天看新来的，存下值得的。',
     text: '每个库盯一组来源，按自己的定时运行。通过筛选的内容进入待看，由你决定是否收藏。',
     search: '搜索库',

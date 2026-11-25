@@ -1,7 +1,6 @@
 // English (docs/desktop.md §六) for src/renderer/texts/sources.js: the same exports and keys.
 
 export const SOURCES = Object.freeze({
-  eyebrow: 'Sources & Brief / SOURCES & BRIEF',
   heading: 'What this library tracks',
   lead: 'This page is usually all you need to change; the settings you rarely touch are under Advanced settings at the bottom.',
   // 1.1 W6a (A5)
@@ -81,6 +80,8 @@ export const SOURCES = Object.freeze({
     mismatch: 'The library card says "{rhythm}", which would be {want}; the schedule now is {now}.',
     toRhythm: 'Set it by the rhythm',
     toRhythmDone: 'Set by the rhythm.',
+    toCard: 'Change the rhythm on the card',
+    rhythmAsk: 'Please change the rhythm on the library card to match the schedule: {now}.',
   }),
 
   advancedLink: 'Advanced settings: change history · library folder',
@@ -88,7 +89,6 @@ export const SOURCES = Object.freeze({
 
 export const ADVANCED = Object.freeze({
   back: 'Back to Sources & Brief',
-  eyebrow: 'Advanced settings / ADVANCED',
   heading: 'Advanced settings',
   lead: 'Usually nothing to change here. The history of changes and the library folder.',
   changes: 'Change history',

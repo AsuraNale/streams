@@ -4,7 +4,7 @@
 //   html`<${LibrarySections} current="inbox" badges=${{ inbox: 7 }} onSelect=${id => …} />`
 // `current` is the part you are on: a route of LIBRARY_ROUTES is shown as its part (TAB_OF: 资料库's graph view is 资料库).
 // Test hooks: nav.st-lib-tabs (a hook class only) button[data-tab=<id>][aria-current] with [data-tab-badge].
-// And the library's mark: LibraryMark — its one or two characters (the sidebar's line, the shelf's card).
+// 1.1.2 (维护者 11-25 第 1 件): the library's mark (LibraryMark, its one or two characters before the name in the sidebar) is gone.
 import { html, useEffect, useRef, useState } from '../lib/html.js'
 import { fmt } from '../lib/format.js'
 import { TIcon, hasTabIcons } from '../lib/template-icons.js'
@@ -43,10 +43,4 @@ export function LibrarySections({ current, badges = {}, onSelect }) {
       </button>`
     })}
   </nav>`
-}
-
-/** A library's mark: its one or two characters. `size` 's' (the sidebar), 'm', 'l' (a card of the shelf). */
-export function LibraryMark({ icon, color, size = 'm' }) {
-  const c = LIBRARY_COLOR_NAMES.includes(color) ? color : 'river'
-  return html`<span class=${`st-lib-mark st-lib-mark--${size}`} data-color=${c} aria-hidden="true">${icon ?? ''}</span>`
 }

@@ -161,7 +161,7 @@ test('R6d-3 待看 in the four dark looks: 最近的放弃原因 (.activity-row)
 
 test('R6d-3 待看 in 澄明玻璃 dark and 研究对话 light: the current library\'s line and the libraries\' marks in the sidebar', async () => {
   const s = await onInbox()
-  await clean(s, ['glass-dark', 'research-light', 'glass-light'], ['.project-item.active .project-meta', '.project-item .st-lib-mark'], '待看')
+  await clean(s, ['glass-dark', 'research-light', 'glass-light'], ['.project-item.active .project-meta', '.project-item .st-sidebar__lib-name'], '待看') // 1.1.2: the marks are gone; the names stand there
 })
 
 test('R6d-3 待看 in 精密国际主义 and 研究对话, light: the quota rows (.chart-row) and 核验通过 (.step-line) are not left in round 6\'s grey', async () => {

@@ -56,7 +56,6 @@ export const SHELL = Object.freeze({
   shelf: Object.freeze({
     title: 'Shelf',
     subtitle: '{n} librar{n?y|ies} · each runs on its own schedule',
-    eyebrow: 'My libraries / LIBRARIES',
     lead: 'See what is new every day. Keep what is worth keeping.',
     text: 'Each library follows a set of sources and runs on its own schedule. Items that pass the filters go to the Inbox, where you decide what to keep.',
     search: 'Search libraries',

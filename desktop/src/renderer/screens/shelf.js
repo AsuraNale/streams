@@ -103,7 +103,6 @@ export function ShelfScreen() {
       <${TopBar} title=${T.title} subtitle=${rows ? fmt(T.subtitle, { n: rows.length }) : null} titleTag="h1" titleId="shelf-title" actions=${chip} />
       <div class="center">
         <div class="home-content st-main__body shelf-body">
-          <span class="eyebrow">${T.eyebrow}</span>
           <h2 class="home-title">${T.lead}</h2>
           <p>${T.text}</p>
           <div class="home-toolbar">
