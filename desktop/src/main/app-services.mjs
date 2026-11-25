@@ -16,6 +16,7 @@ import { BridgeError } from './bridge-methods.mjs'
 import { DEFAULT_THEME, isAppearance, isThemeId } from './theme.mjs'
 import { licensesView, noticesFileOf } from './licenses.mjs'
 import { SITE_AUTH, isContact } from './core.mjs'
+import { SEARCH_KEY_REF } from './services/connections.mjs'
 
 /**
  * @param {object} o
@@ -56,6 +57,11 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       // 1.1.1 P6 (B17): with an API key connection, whether the model's key is stored (新建库 says so before starting); null
       // for another connection
       activeHasKey: s.connections.active === 'api' ? (() => { try { return secrets.has(`key-${s.connections.api.vendor}`) } catch { return false } })() : null,
+      // 1.1.1 B26: with an API key connection, whether it can search this time — a DeepSeek model's own key, or the search key of
+      // 设置 (services/connections.mjs searchState); null for another connection (Claude Code and Codex search with their own tools)
+      activeCanSearch: s.connections.active === 'api' ? (() => {
+        try { return (s.connections.api.vendor === 'deepseek' && secrets.has('key-deepseek')) || secrets.has(SEARCH_KEY_REF) } catch { return false }
+      })() : null,
       // the registered libraries (settings 「库 · 其他」 lists those that are not the current one; openRecentLibrary takes
       // only one of these): path and name. v2 package A: from the registry, no longer settings.json's recentLibraries
       recentLibraries: library.entries().filter(l => !l.temporary).map(l => ({ path: l.path, name: l.name })),

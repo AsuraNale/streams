@@ -5,7 +5,7 @@
 // `current` is the part you are on: a route of LIBRARY_ROUTES is shown as its part (TAB_OF: 资料库's graph view is 资料库).
 // Test hooks: nav.st-lib-tabs (a hook class only) button[data-tab=<id>][aria-current] with [data-tab-badge].
 // And the library's mark: LibraryMark — its one or two characters (the sidebar's line, the shelf's card).
-import { html } from '../lib/html.js'
+import { html, useEffect, useRef, useState } from '../lib/html.js'
 import { fmt } from '../lib/format.js'
 import { TIcon, hasTabIcons } from '../lib/template-icons.js'
 import { SHELL } from '../texts/shell.js'
@@ -21,6 +21,17 @@ export const LIBRARY_COLOR_NAMES = Object.freeze(['river', 'violet', 'green', 'm
 
 const count = n => (typeof n === 'number' && n > 0 ? n : null)
 
+/** A tab's count; 1.1.1 P14 (M6): it pops once each time it grew (keyed by the growth, so the element is new). */
+function TabCount({ id, n }) {
+  const before = useRef(n)
+  const [pops, setPops] = useState(0)
+  useEffect(() => {
+    if (before.current !== null && n > before.current) setPops(k => k + 1)
+    before.current = n
+  }, [n])
+  return html`<small key=${`c${pops}`} class=${pops ? 'st-count st-mo-pop' : 'st-count'} data-tab-badge=${id} aria-label=${fmt(SHELL.sidebar.inboxBadge, { n })}>${n}</small>`
+}
+
 export function LibrarySections({ current, badges = {}, onSelect }) {
   const here = Object.hasOwn(TAB_OF, current) ? TAB_OF[current] : current
   const icons = hasTabIcons()
@@ -28,7 +39,7 @@ export function LibrarySections({ current, badges = {}, onSelect }) {
     ${LIBRARY_SECTIONS.map(([id, icon]) => {
       const n = count(badges[id])
       return html`<button type="button" key=${id} class=${`tab${here === id ? ' active' : ''}`} data-tab=${id} aria-current=${here === id ? 'page' : undefined} onClick=${() => onSelect?.(id)}>
-        ${icons ? html`<${TIcon} name=${icon} />` : null}${SHELL.tabs[id]}${n !== null ? html` <small class="st-count" data-tab-badge=${id} aria-label=${fmt(SHELL.sidebar.inboxBadge, { n })}>${n}</small>` : null}
+        ${icons ? html`<${TIcon} name=${icon} />` : null}${SHELL.tabs[id]}${n !== null ? html` <${TabCount} id=${id} n=${n} />` : null}
       </button>`
     })}
   </nav>`

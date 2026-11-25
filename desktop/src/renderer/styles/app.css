@@ -16,3 +16,5 @@
 @import url('./screens/panel.css');
 /* redesign R1: the app's layer over the template */
 @import url('./template-app.css');
+/* 1.1.1 P14: the app's motion, last (its variables, keyframes and the reduced-motion rule; one file for the four themes) */
+@import url('./motion.css');

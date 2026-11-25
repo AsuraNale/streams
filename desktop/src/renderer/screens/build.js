@@ -172,7 +172,7 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
         ${acting ? html`<span class="limit-note" role="status">${T.confirming}</span>` : null}
         ${last ? html`<${Btn} name="drop" kind="quiet" disabled=${busy || acting} onClick=${onDrop}>${cv?.drop ?? (edit ? T.dropEdit : T.drop)}<//>` : null}
         <${Btn} name="full" onClick=${() => setFull(f => !f)}>${full ? T.fold : T.full}<//>
-        ${can ? html`<span class="st-act" data-action="confirm"><button type="button" class="btn primary" disabled=${busy || acting} onClick=${onConfirm}><${TIcon} name="approve" fallback="check" /> ${cv?.confirm ?? (edit ? T.confirmEdit : T.confirm)}</button></span>` : null}
+        ${can ? html`<span class="st-act" data-action="confirm"><button type="button" class="btn primary st-mo-ready" disabled=${busy || acting} onClick=${onConfirm}><${TIcon} name="approve" fallback="check" /> ${cv?.confirm ?? (edit ? T.confirmEdit : T.confirm)}</button></span>` : null}
       </div>
     </div>
   </article>`
@@ -227,6 +227,8 @@ function StartPage({ params, onStarted }) {
   // 1.1.1 P3, P6: Claude Code, Codex, or an API key with the model's key stored
   const noKey = active === 'api' && appState?.data?.activeHasKey === false
   const can = active === 'claude-code' || active === 'codex' || (active === 'api' && !noKey)
+  // 1.1.1 B26: an API key connection with no search this time — it says so (building goes on, reading pages only)
+  const noSearch = active === 'api' && !noKey && appState?.data?.activeCanSearch === false
   const names = CONNECTIONS.names
   // 1.1.1 P11a (A14): the cost line names the connection in use, and only one that can build (no other connection's quota)
   const start = async (words = text) => {
@@ -265,6 +267,8 @@ function StartPage({ params, onStarted }) {
           ${can ? null : html`<div class="progress-alert" role="alert" data-part="start-why">
             <span>${noKey ? fmt(T.needKey, { api: names.api }) : fmt(T.needClaude, { name: names['claude-code'], codex: names.codex, api: names.api, current: active ? names[active] ?? active : T.chipNone })}</span>
             <span class="st-act" data-action="go-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></div>`}
+          ${noSearch ? html`<p class="limit-note" data-part="no-search">${T.noSearch}
+            <span class="st-act" data-action="search-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></p>` : null}
           ${error === 'going' ? html`<p class="progress-alert" role="alert" data-part="going">${T.going}</p>` : null}
           ${error === 'failed' ? html`<p class="progress-alert" role="alert" data-part="start-failed">${T.failedCall}</p>` : null}
           <div class="form-footer">
@@ -361,7 +365,7 @@ function Talk({ view, onView }) {
                   busy=${working} acting=${acting} onDrop=${drop} onConfirm=${confirm} onAskFix=${m => run('replyBuild', m)} />` : null}
               </div>`
             })}
-            ${working ? html`<div class="assistant-message" data-part="thinking-row"><${Speaker} /><p class="limit-note" data-part="thinking" role="status">${T.thinking}</p>
+            ${working ? html`<div class="assistant-message" data-part="thinking-row"><${Speaker} /><p class="limit-note" data-part="thinking" role="status"><span class="st-mo-dots" data-mo="build" aria-hidden="true"><i></i><i></i><i></i></span>${T.thinking}</p>
               ${live?.agent ? html`<p class="limit-note" data-part="thinking-live" data-step=${live.step}>${fmt(T.liveAgent, live.agent)}</p>` : null}
               ${live?.check ? html`<p class="limit-note" data-part="thinking-check">${fmt(T.liveCheck, live.check)}</p>` : null}
               <p class="limit-note st-faint" data-part="thinking-usually">${T.usuallyTurn}</p></div>` : null}

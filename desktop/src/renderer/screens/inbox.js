@@ -26,7 +26,7 @@
 // [data-part="recent"] [data-kept=<id>]; [data-part="update-banner"][data-code]. 详情: [data-part="detail-inbox"] …
 // [data-part="detail-why"], [data-part="detail-check"][data-verified][data-ai-instruction], [data-part="detail-record"][data-open]
 // (its .vd body when open), [data-part="detail-source"], [data-part="reasons"] [data-reason].
-import { html, useEffect, useRef, useState } from '../lib/html.js'
+import { html, useEffect, useLayoutEffect, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
 import { dayText, fmt, nextText, whenText } from '../lib/format.js'
@@ -42,6 +42,16 @@ import { DetailBlock } from './right-panel.js'
 import { LastRun, RunSteps, UpdateNote } from './run-steps.js'
 
 const LONG_WAIT = 14
+// 1.1.1 P14 (M2): how long a leaving card is drawn (its animation is var(--mo-in), 200 ms; a little more so it ends unseen)
+// and how long the cards below take to move up into its place
+const LEAVE_MS = 240
+const FILL_MS = 200
+/** The list as drawn: the cards, and each leaving one at the place it had (its index then, kept within the list). */
+function withLeaving(items, leaving) {
+  const out = items.map((item, i) => ({ item, i, ghost: null }))
+  for (const g of [...leaving].sort((a, b) => a.index - b.index)) out.splice(Math.max(0, Math.min(g.index, out.length)), 0, { item: g.item, i: -1, ghost: g.kind })
+  return out
+}
 const QUICK = ['marketing', 'irrelevant', 'shallow', 'duplicate']
 const pad = n => String(n).padStart(2, '0')
 // a note's date (YYYY-MM-DD) is a local day: without a time, Date would read it as UTC midnight
@@ -58,7 +68,7 @@ function Mark({ attrs, title, children }) {
   return html`<span class="status-chip st-mark" title=${title}><span class="dot"></span><span ...${attrs} title=${title}>${children}</span></span>`
 }
 
-function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpenPoint = () => {}, onOpenWeb = () => {}, onPick, onToSettings = () => {} }) {
+function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpenPoint = () => {}, onOpenWeb = () => {}, onPick, onToSettings = () => {}, motion = '', motionIndex = null, leaving = null }) {
   const waiting = typeof item.waitingDays === 'number' ? item.waitingDays : 0
   const unverified = Boolean(item.verification) && item.verification.passed === false
   // 1.1 W6a (A3; E4): the line is the source, the date and whether the original was kept — no score
@@ -68,7 +78,8 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpe
   const points = missing ? [] : Array.isArray(item.summary?.points) ? item.summary.points : []
   const anchors = Array.isArray(item.summary?.anchors) ? item.summary.anchors : []
   const placeOf = i => anchors.find(a => a.point === i) ?? null
-  return html`<article class=${`confirmation st-card${isCurrent ? ' st-current' : ''}`} data-card data-url=${item.url} data-current=${String(isCurrent)}
+  // 1.1.1 P14: a card leaving is drawn where it was (data-leaving: keep · dismiss · later), never a card of the list
+  return html`<article class=${`confirmation st-card${isCurrent ? ' st-current' : ''}${motion ? ` ${motion}` : ''}`} style=${motionIndex === null ? undefined : { '--mo-i': motionIndex }} data-card=${leaving ? undefined : ''} data-leaving=${leaving ?? undefined} data-url=${item.url} data-current=${String(isCurrent)}
     aria-current=${isCurrent ? 'true' : undefined} aria-label=${T.card.label} tabindex="-1" onClick=${onPick}>
     <div class="confirm-top">
       <div class="confirm-title"><${TIcon} name="file" />
@@ -209,7 +220,7 @@ export function InboxScreen() {
   const home = useLoad(() => call('getHome'), [libraryId])
   useEvent('inbox-changed', p => { if (isOfLibrary(p, libraryId)) inbox.reload() }, [libraryId])
   useEvent('library-changed', () => { inbox.reload(); home.reload() }, [libraryId])
-  useEvent('round-progress', p => { if (p?.done && isOfLibrary(p, libraryId)) { inbox.reload(); home.reload() } }, [libraryId])
+  useEvent('round-progress', p => { if (p?.done && isOfLibrary(p, libraryId)) { justRan.current = true; inbox.reload(); home.reload() } }, [libraryId])
   useEvent('connections-changed', () => home.reload(), [libraryId])
   const [current, setCurrent] = useState(0)
   const [error, setError] = useState(null)
@@ -219,7 +230,14 @@ export function InboxScreen() {
   const [focusTick, setFocusTick] = useState(0)
   const focusCurrent = () => setFocusTick(t => t + 1)
   const d = inbox.data
-  const items = d?.items ?? []
+  // 1.1.1 P14 (A17, M2): a decision runs at once — its bridge call is sent when it is pressed; the card leaves the list the
+  // keys walk at once (C pressed three times keeps three items) and is drawn where it was, leaving, for LEAVE_MS while the
+  // call goes; the cards below move up into its place (FLIP, below). One whose call failed comes back with the error.
+  const pending = useRef(new Set())
+  const [leaving, setLeaving] = useState([])
+  const [back, setBack] = useState(null)
+  const [fresh, setFresh] = useState(() => new Map())
+  const items = (d?.items ?? []).filter(i => !pending.current.has(i.url))
   const held = d?.held ?? null
   const cur = items[current] ?? null
   const last = Math.max(0, items.length - 1)
@@ -237,15 +255,59 @@ export function InboxScreen() {
     setError(null)
     try { await fn(); after?.() } catch { setError(T.failed) } finally { setBusy(false); inbox.reload(); home.reload() }
   }
-  const keep = item => item && act(async () => { await call('keepItem', item.url); inbox.mutate(x => ({ ...x, items: x.items.filter(i => i.url !== item.url), held: null })) }, focusCurrent)
-  const dismiss = item => item && act(async () => {
-    const title = item.title
-    await call('dismissItem', item.url)
-    inbox.mutate(x => ({ ...x, items: x.items.filter(i => i.url !== item.url), held: { url: item.url, title } }))
-  }, focusCurrent)
-  const later = item => item && act(async () => { await call('laterItem', item.url); inbox.mutate(x => ({ ...x, items: x.items.filter(i => i.url !== item.url), later: [...(x.later ?? []), item], held: null })) }, focusCurrent)
+  const decide = (item, kind, method, after) => {
+    if (!item || pending.current.has(item.url)) return
+    setError(null)
+    pending.current.add(item.url)
+    const index = items.findIndex(i => i.url === item.url)
+    setLeaving(l => [...l.filter(g => g.item.url !== item.url), { item, kind, index }])
+    setTimeout(() => setLeaving(l => l.filter(g => g.item.url !== item.url)), LEAVE_MS)
+    focusCurrent()
+    call(method, item.url)
+      .then(() => { inbox.mutate(x => after({ ...x, items: x.items.filter(i => i.url !== item.url) })) }, () => setError(T.failed))
+      .finally(() => { pending.current.delete(item.url); inbox.reload(); home.reload() })
+  }
+  const keep = item => decide(item, 'keep', 'keepItem', x => ({ ...x, held: null }))
+  const dismiss = item => decide(item, 'dismiss', 'dismissItem', x => ({ ...x, held: { url: item.url, title: item.title } }))
+  const later = item => decide(item, 'later', 'laterItem', x => ({ ...x, later: [...(x.later ?? []), item], held: null }))
   const settle = (reason, quick) => act(async () => { await call('settleDismiss', reason, quick); inbox.mutate(x => ({ ...x, held: null })) })
-  const undo = () => act(async () => { await call('undoDismiss') }, focusCurrent)
+  // 撤销: the card comes back where it was, fading in (M2)
+  const undo = () => {
+    const url = held?.url ?? null
+    act(async () => { await call('undoDismiss'); setBack(url); setTimeout(() => setBack(b => (b === url ? null : b)), 400) }, focusCurrent)
+  }
+  // M6: after a run, the items it put in 待看 come in one after another (the first six); the first load has none
+  const seen = useRef(null)
+  const justRan = useRef(false)
+  useEffect(() => {
+    if (!d) return
+    const urls = (d.items ?? []).map(i => i.url)
+    if (seen.current && justRan.current) {
+      justRan.current = false
+      const added = urls.filter(u => !seen.current.has(u)).slice(0, 6)
+      if (added.length) { setFresh(new Map(added.map((u, i) => [u, i]))); setTimeout(() => setFresh(new Map()), 900) }
+    }
+    seen.current = new Set([...(seen.current ?? []), ...urls])
+  }, [d])
+  // M2: the cards below a leaving one move up into its place — each card's offset before and after, the difference undone
+  // and played back (only transform; none with 减少动态效果)
+  const stackRef = useRef(null)
+  const tops = useRef(new Map())
+  useLayoutEffect(() => {
+    const stack = stackRef.current
+    const now = new Map()
+    const cards = stack ? [...stack.querySelectorAll('article[data-card]')] : []
+    for (const el of cards) now.set(el.dataset.url, el.offsetTop)
+    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!still) {
+      for (const el of cards) {
+        const was = tops.current.get(el.dataset.url)
+        const dy = was === undefined ? 0 : was - el.offsetTop
+        if (dy > 1 && typeof el.animate === 'function') el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { id: 'st-mo-fill', duration: FILL_MS, easing: 'cubic-bezier(.2, .7, .2, 1)' })
+      }
+    }
+    tops.current = now
+  })
   const open = url => { call('openReader', url, 'reader').catch(() => setError(T.failed)) }
   // 1.1 W6a (A4): a point's place in the kept original; the web page itself in the system browser
   const openAt = (url, point) => { call('openReader', url, 'reader', point).catch(() => setError(T.failed)) }
@@ -299,7 +361,9 @@ export function InboxScreen() {
         ${running ? html`${items.length ? null : html`<div class="empty-state" data-part="run-pending"><${TIcon} name="clock" /><b>${T.running.title}</b>${T.running.note}</div>`}
           <${RunSteps} running=${running} last=${h?.lastRound ?? null} />` : null}
         ${d && !items.length && !running ? html`<div class="empty-state" data-part="empty"><${TIcon} name="check" /><b>${T.empty.title}</b>${nextRun}</div>` : null}
-        ${items.length ? html`<div class="st-stack">${items.map((item, i) => html`<${Card} key=${item.url} item=${item} isCurrent=${i === current} busy=${busy}
+        ${items.length || leaving.length ? html`<div class="st-stack" ref=${stackRef}>${withLeaving(items, leaving).map(({ item, i, ghost }) => ghost ? html`<${Card} key=${`leave:${item.url}`} item=${item} isCurrent=${false} busy=${true} leaving=${ghost} motion=${`st-mo-leave-${ghost}`}
+          onPick=${() => {}} onKeep=${() => {}} onDismiss=${() => {}} onLater=${() => {}} onOpen=${() => {}} />` : html`<${Card} key=${item.url} item=${item} isCurrent=${i === current} busy=${busy}
+          motion=${item.url === back ? 'st-mo-back' : fresh.has(item.url) ? 'st-mo-new' : ''} motionIndex=${fresh.has(item.url) ? fresh.get(item.url) : null}
           onPick=${() => setCurrent(i)} onKeep=${() => { setCurrent(i); keep(item) }} onDismiss=${() => { setCurrent(i); dismiss(item) }} onLater=${() => { setCurrent(i); later(item) }} onOpen=${() => open(item.url)}
           onOpenPoint=${p => openAt(item.url, p)} onOpenWeb=${() => openWeb(item.url)} onToSettings=${() => navigate('settings')} />`)}</div>` : null}
         ${held ? html`<${DismissBar} key=${held.url} held=${held} busy=${busy} onReason=${settle} onUndo=${undo} onClose=${() => settle(null, null)} />` : null}

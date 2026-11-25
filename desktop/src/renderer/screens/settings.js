@@ -29,7 +29,7 @@
 // remove-key|cancel-key]; dialog[data-dialog="licenses"] with [data-part=own|license-text|font|font-license-text|components|notices|
 // licenses-made-by], [data-component=<name>], [data-action=open-notices|close-licenses]; the theme chips [data-theme-card=<id>]
 // [data-checked] with input[name="theme"]; select[data-field="appearance"]; the language radios #settings-language-<setting>.
-import { html, useEffect, useState } from '../lib/html.js'
+import { html, useEffect, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
 import { fmt } from '../lib/format.js'
@@ -177,7 +177,7 @@ function SearchRow({ search, onChanged }) {
     ${from === 'model' ? null : html`<span class="st-set-search__key">
       <input type="password" autocomplete="off" data-field="search-key" aria-label=${S.placeholder} placeholder=${S.placeholder} value=${key} disabled=${busy}
         onInput=${e => setKey(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter' && key.trim()) { e.preventDefault(); void run(() => call('setSearchKey', key.trim())) } }} />
-      <${Btn} name="save-search-key" kind="primary" disabled=${busy || key.trim() === ''} onClick=${() => run(() => call('setSearchKey', key.trim()))}>${S.save}<//>
+      <${Btn} name="save-search-key" kind="primary" busy=${busy} disabled=${key.trim() === ''} onClick=${() => run(() => call('setSearchKey', key.trim()))}>${S.save}<//>
       ${search?.hasKey ? html`<${Btn} name="remove-search-key" disabled=${busy} onClick=${() => run(() => call('removeSearchKey'))}>${S.remove}<//>` : null}
     </span>`}
     ${note ? html`<p class="progress-alert" role="alert" data-part="search-failed">${note}</p>` : null}
@@ -240,7 +240,7 @@ function ConnectionsPart() {
           ${active ? html`<span class="status-chip" data-part="in-use"><span class="dot"></span> ${T.conn.inUse}</span>`
             : html`<${Btn} name="use-connection" disabled=${busy || state !== 'usable'} onClick=${() => act(() => call('setActiveConnection', kind))}>${T.conn.use}<//>`}
           ${kind === 'api' ? html`<${Btn} name="setup-key" disabled=${busy} onClick=${() => setKeyDialog(true)}>${T.conn.setup}<//>` : null}
-          <${Btn} name="probe" kind="quiet" disabled=${busy || state !== 'usable'} onClick=${() => probe(kind)}>${T.conn.probe}<//>
+          <${Btn} name="probe" kind="quiet" busy=${probes[kind]?.status === 'trying'} disabled=${busy || state !== 'usable'} onClick=${() => probe(kind)}>${T.conn.probe}<//>
           <${ProbeLine} probe=${probes[kind] ?? probeView(data.probes?.[kind])} />
         </span>
         ${needsLogin(kind, k) ? html`<${LoginLoop} kind=${kind} busy=${busy} onRedetect=${redetect} />` : null}
@@ -313,11 +313,20 @@ function SourceAuthPart() {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState(null)
+  const [tries, setTries] = useState(0)
+  // 1.1.1 P14 (M13): what was typed is not an address — the box shakes once (the same box: its words and the focus stay)
+  const box = useRef(null)
+  useEffect(() => {
+    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (tries > 0 && !still && typeof box.current?.animate === 'function') {
+      box.current.animate([{ transform: 'none' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(-4px)' }, { transform: 'none' }], { id: 'st-mo-shake', duration: 240 })
+    }
+  }, [tries])
   const d = auth.data
   const act = async (value, ok) => {
     setBusy(true)
     setNote(null)
-    try { const r = await call('setSourceContact', value); auth.mutate(x => ({ ...x, contact: r.contact })); setText(''); setNote(ok) } catch (err) { setNote(err?.code === 'bad_arguments' ? 'bad' : 'failed') } finally { setBusy(false) }
+    try { const r = await call('setSourceContact', value); auth.mutate(x => ({ ...x, contact: r.contact })); setText(''); setNote(ok) } catch (err) { if (err?.code === 'bad_arguments') { setNote('bad'); setTries(t => t + 1) } else setNote('failed') } finally { setBusy(false) }
   }
   const save = () => { if (text.trim()) void act(text.trim(), 'saved') }
   return html`<div class="file-row st-set-auth" data-part="source-auth" data-filled=${d ? String(Boolean(d.contact)) : ''}>
@@ -330,9 +339,9 @@ function SourceAuthPart() {
       ${note ? html`<small role=${note === 'saved' || note === 'cleared' ? 'status' : 'alert'} data-contact-note=${note}>${A[note]}</small>` : null}
     </span>
     <span class="st-set-search__key">
-      <input type="email" autocomplete="email" data-field="source-contact" aria-label=${A.placeholder} placeholder=${A.placeholder} value=${text} disabled=${busy || !d}
+      <input ref=${box} type="email" autocomplete="email" data-field="source-contact" aria-label=${A.placeholder} placeholder=${A.placeholder} value=${text} disabled=${busy || !d}
         onInput=${e => setText(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); save() } }} />
-      <${Btn} name="save-contact" kind="primary" disabled=${busy || !d || text.trim() === ''} onClick=${save}>${A.save}<//>
+      <${Btn} name="save-contact" kind="primary" busy=${busy} disabled=${!d || text.trim() === ''} onClick=${save}>${A.save}<//>
       ${d?.contact ? html`<${Btn} name="clear-contact" disabled=${busy} onClick=${() => act(null, 'cleared')}>${A.clear}<//>` : null}
     </span>
   </div>`
@@ -482,8 +491,9 @@ export function SettingsScreen() {
     try { await call('setShowDeveloperInfo', on) } catch { /* the state says what happened */ }
     appState.reload()
   }
+  const [copyDone, setCopyDone] = useState(false)
   const copy = async () => {
-    try { await call('copyDiagnostics'); setCopied(true) } catch { setCopied(false) }
+    try { await call('copyDiagnostics'); setCopied(true); setCopyDone(true); setTimeout(() => setCopyDone(false), 1200) } catch { setCopied(false) }
   }
   const openLogs = async () => {
     setLogsFailed(false)
@@ -522,7 +532,7 @@ export function SettingsScreen() {
               <label class="st-nl-check st-set-dev" for="settings-dev-info"><input type="checkbox" id="settings-dev-info" checked=${devInfo} onChange=${e => toggleDevInfo(e.currentTarget.checked)} /> ${T.devInfo}</label>
               <p class="limit-note">${T.devInfoText}</p>
               <div class="form-footer st-set-adv-actions">
-                <${Btn} name="copy-diagnostics" onClick=${copy}><${TIcon} name="copy" fallback="file" /> ${T.copyDiagnostics}<//>
+                <${Btn} name="copy-diagnostics" onClick=${copy}>${copyDone ? html`<span class="st-mo-done" data-mo="done"><${TIcon} name="check" /></span>` : html`<${TIcon} name="copy" fallback="file" />`} ${T.copyDiagnostics}<//>
                 <${Btn} name="open-logs" onClick=${openLogs}>${T.openLogs}<//>
               </div>
               <p class="limit-note" role="status" data-part="diagnostics-note">${copied ? T.copied : T.diagnosticsText}</p>

@@ -33,7 +33,10 @@ export function withAskAnswer(inner, answer) {
     async complete(req) {
       if (!isAsk(req)) return inner.complete(req)
       inner.calls?.push({ prompt: req.prompt, system: req.system, model: req.model ?? 'main', format: req.format ?? 'json', at: new Date().toISOString() })
-      return { ok: true, json: structuredClone(answer), text: JSON.stringify(answer), usage: { calls: 1 }, model: inner.connection?.model ?? 'fake-model' }
+      // 1.1.1 P14, tests only: the script's delayMs (0–30000) holds the answer back, so 问库's waiting can be seen
+      const { delayMs, ...json } = answer
+      if (Number.isInteger(delayMs) && delayMs > 0) await new Promise(resolve => setTimeout(resolve, Math.min(30_000, delayMs)))
+      return { ok: true, json: structuredClone(json), text: JSON.stringify(json), usage: { calls: 1 }, model: inner.connection?.model ?? 'fake-model' }
     },
   }
 }

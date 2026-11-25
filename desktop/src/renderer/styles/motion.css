@@ -1,0 +1,127 @@
+/* 1.1.1 P14 动效 (维护者 11-24 晚; plan 第四节 P14, acceptance A16–A19) — one file for all four themes, loaded last (app.css).
+   The rules (plan P14 规矩):
+   1. motion says only that something is going on, where a thing went, or what just happened — no decoration;
+   2. it never holds an action up: the action runs when it is pressed, the animation only follows it;
+   3. a looping one is there only while something really goes on (a run, a reply being waited for), one per area;
+   4. 「减少动态效果」 (prefers-reduced-motion): no loop (a still mark instead: a running library still shows), entering and
+      leaving switch at once, nothing moves;
+   5. durations: small feedback ≤ 120 ms; in / out 160–240 ms; big blocks 240–320 ms; loops 1.4–2 s a round, the sidebar's
+      ring 0.9 s;
+   6. progress never lies: a loop says "going on", numbers move only with real events;
+   7. only transform and opacity move (no layout) — the right panel's width is the one named exception (M11).
+   Durations and curves are the variables below; no animation of the app names a time of its own.
+   Test hooks: every animation of the app is named st-mo-* (its keyframes here); a test reads document.getAnimations(). */
+
+:root {
+  --mo-fast: 110ms;     /* small feedback: hover, press, a number that changes */
+  --mo-in: 200ms;       /* a thing entering or leaving: a card, a banner, a bar */
+  --mo-back: 160ms;     /* a card coming back (撤销) */
+  --mo-tick: 240ms;     /* a step's check drawn, a count that pops */
+  --mo-big: 280ms;      /* big blocks: a dialog, the right panel, the build card */
+  --mo-breathe: 1.8s;   /* the dot of the step going on */
+  --mo-dots: 1.4s;      /* the three dots of a reply being waited for */
+  --mo-ring: .9s;       /* the ring of the library that runs; a busy button's spinner */
+  --mo-shimmer: 1.6s;   /* the placeholder of a page being read */
+  --mo-stagger: 40ms;   /* new items one after another */
+  --mo-ease: cubic-bezier(.2, .7, .2, 1);
+  --mo-ease-out: cubic-bezier(.4, 0, 1, 1);
+}
+
+@keyframes st-mo-breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(.7); } }
+@keyframes st-mo-ring { to { transform: rotate(360deg); } }
+@keyframes st-mo-dots { 0%, 80%, 100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1); } }
+@keyframes st-mo-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes st-mo-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes st-mo-fade { from { opacity: 0; } }
+@keyframes st-mo-rise { from { opacity: 0; transform: translateY(10px); } }   /* a big block coming in (var(--mo-big)) */
+@keyframes st-mo-num { from { opacity: .2; transform: translateY(3px); } }
+@keyframes st-mo-tick { from { opacity: 0; transform: scale(.4) rotate(-20deg); } }
+@keyframes st-mo-pop { 50% { transform: scale(1.3); } }
+@keyframes st-mo-leave-keep { to { opacity: 0; transform: translate(16px, -10px) scale(.96); } }
+@keyframes st-mo-leave-dismiss { to { opacity: 0; transform: translateY(14px); } }
+@keyframes st-mo-leave-later { to { opacity: 0; transform: translateX(48px); } }
+@keyframes st-mo-back { from { opacity: 0; } }
+@keyframes st-mo-dialog { from { opacity: 0; transform: scale(.96); } }
+@keyframes st-mo-menu { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes st-mo-bar { from { opacity: 0; transform: translateY(12px); } }
+@keyframes st-mo-banner { from { opacity: 0; transform: translateY(-8px); } }
+@keyframes st-mo-shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+@keyframes st-mo-glow { 50% { transform: scale(1.04); } }
+
+/* small feedback (M10): hover and press within 120 ms, whatever the theme's own buttons say */
+button, a, .btn, .filter, .tab, .file-row, .project-item, .navitem { transition-duration: var(--mo-fast) !important; transition-timing-function: var(--mo-ease) !important; }
+.btn:active:not(:disabled), .st-act button:active:not(:disabled) { transform: translateY(1px); }
+
+/* M1: the step going on — a breathing dot before it (待看's steps, 进度's running row); a step done — its check drawn once;
+   a count that changes — a short change (the count element is keyed by its value, so it is new each time) */
+.st-mo-breathe { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); vertical-align: middle; animation: st-mo-breathe var(--mo-breathe) var(--mo-ease) infinite; }
+.step-line[data-done="true"] > .ico, .step-line[data-done="true"] > svg { animation: st-mo-tick var(--mo-tick) var(--mo-ease) both; }
+[data-part="step-count"] { display: inline-block; animation: st-mo-num var(--mo-fast) var(--mo-ease); }
+
+/* M3: the library that runs — a ring turning round its mark; one waiting — a still hollow dot; a count that grew pops */
+.st-mo-mark { position: relative; display: inline-flex; }
+.st-mo-ring { position: absolute; inset: -3px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); pointer-events: none; animation: st-mo-ring var(--mo-ring) linear infinite; }
+.st-mo-queued { display: inline-block; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--accent); background: transparent; flex: none; }
+.st-mo-pop { display: inline-block; animation: st-mo-pop var(--mo-tick) var(--mo-ease); }
+
+/* M4 / M5: a reply being waited for — three dots one after another (the build conversation, 问库) */
+.st-mo-dots { display: inline-flex; gap: 4px; align-items: center; vertical-align: middle; margin-right: 6px; }
+.st-mo-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: st-mo-dots var(--mo-dots) var(--mo-ease) infinite; }
+.st-mo-dots i:nth-child(2) { animation-delay: calc(var(--mo-dots) / 7); }
+.st-mo-dots i:nth-child(3) { animation-delay: calc(var(--mo-dots) * 2 / 7); }
+/* M5: an answer comes in paragraph by paragraph */
+.st-mo-paras > * { animation: st-mo-in var(--mo-in) var(--mo-ease) both; }
+.st-mo-paras > :nth-child(2) { animation-delay: calc(var(--mo-stagger) * 1); }
+.st-mo-paras > :nth-child(3) { animation-delay: calc(var(--mo-stagger) * 2); }
+.st-mo-paras > :nth-child(4) { animation-delay: calc(var(--mo-stagger) * 3); }
+.st-mo-paras > :nth-child(n+5) { animation-delay: calc(var(--mo-stagger) * 4); }
+
+/* M2: a card of 待看 leaving (收藏 up and right, 放弃 down, 稍后处理 to the right), coming back after 撤销, a new one entering */
+.st-mo-leave-keep { animation: st-mo-leave-keep var(--mo-in) var(--mo-ease-out) both; pointer-events: none; }
+.st-mo-leave-dismiss { animation: st-mo-leave-dismiss var(--mo-in) var(--mo-ease-out) both; pointer-events: none; }
+.st-mo-leave-later { animation: st-mo-leave-later var(--mo-in) var(--mo-ease-out) both; pointer-events: none; }
+.st-mo-leave-keep [data-action="keep"] svg { animation: st-mo-pop var(--mo-tick) var(--mo-ease); }
+.st-mo-back { animation: st-mo-back var(--mo-back) var(--mo-ease) both; }
+/* M6: new items after a run, one after another (the delay: --mo-i, set by the page for the first six) */
+.st-mo-new { animation: st-mo-in var(--mo-in) var(--mo-ease) both; animation-delay: calc(var(--mo-stagger) * var(--mo-i, 0)); }
+
+/* M7: a page being read, after 300 ms: grey blocks with a light running over them */
+.st-skeleton { display: grid; gap: 10px; padding: 18px 0; }
+.st-skeleton i { display: block; height: 14px; border-radius: 6px; background: color-mix(in srgb, var(--muted, #888) 16%, transparent); position: relative; overflow: hidden; }
+.st-skeleton i:nth-child(1) { width: 55%; }
+.st-skeleton i:nth-child(2) { width: 92%; }
+.st-skeleton i:nth-child(3) { width: 78%; }
+.st-skeleton i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface, #fff) 60%, transparent), transparent); animation: st-mo-shimmer var(--mo-shimmer) linear infinite; }
+
+/* M8: dialogs grow from a little smaller over a darkening ground; menus open from their button; 放弃's bar comes up */
+dialog[open] { animation: st-mo-dialog var(--mo-big) var(--mo-ease); }
+dialog[open]::backdrop { animation: st-mo-fade var(--mo-big) var(--mo-ease); }
+.st-menu, [role="menu"] { transform-origin: top right; animation: st-mo-menu var(--mo-in) var(--mo-ease); }
+
+
+/* M10: a busy button — a small ring in it, and it cannot be pressed */
+.st-mo-spin { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: st-mo-ring var(--mo-ring) linear infinite; flex: none; }
+
+/* M11: a tab's content fades in; the right panel folds and unfolds smoothly (its width: the one named exception) */
+.lib-page__content > .st-main { animation: st-mo-fade var(--mo-in) var(--mo-ease); }
+.app { transition: grid-template-columns var(--mo-big) var(--mo-ease); }
+
+/* M12: the build card comes in as one block; 「确认」 that can be pressed now is shown once */
+[data-part="build-card"] { animation: st-mo-rise var(--mo-big) var(--mo-ease); }
+.st-mo-ready { animation: st-mo-glow var(--mo-tick) var(--mo-ease); }
+
+/* M13: a notice comes down from above; a box with what it cannot take shakes once */
+.progress-alert, .st-banner { animation: st-mo-banner var(--mo-in) var(--mo-ease); }
+/* 放弃's bar is a notice too (progress-alert): it comes up from below, not down from above (after the rule above, more particular) */
+.progress-alert[data-part="dismiss-bar"], [data-part="dismiss-bar"] { animation: st-mo-bar var(--mo-in) var(--mo-ease); }
+.st-mo-shake { animation: st-mo-shake var(--mo-tick) var(--mo-ease); }
+
+/* M14: a one-time success — the icon is a check for 1.2 s (the page swaps it), drawn in */
+.st-mo-done { display: inline-block; animation: st-mo-tick var(--mo-tick) var(--mo-ease) both; }
+
+/* rule 4: 减少动态效果 — no loop, nothing moves in or out; what goes on still shows: the ring is a still ring, the dot a dot */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, ::backdrop { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .st-mo-ring { border-color: var(--accent); }
+  .st-mo-breathe { opacity: 1; transform: none; }
+}

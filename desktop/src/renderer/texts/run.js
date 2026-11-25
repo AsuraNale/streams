@@ -30,6 +30,8 @@ export const RUN = Object.freeze({
     check: '{done} / {total} 条',
   }),
   // the first update's range: the 12 updates with tools of 11-24 took 115 to 319 seconds (plan 场景一②)
+  // 1.1.1 B26: an API key connection with no search
+  noSearch: '这一次不能搜：没有搜索来源，更新 Agent 只读来源上取回的原文和它打开的网页。要搜的话，在设置里填一个 DeepSeek 的搜索 key。',
   usuallyFirst: '第一次更新通常要 2 到 6 分钟。可以离开这个页面，运行结束后会通知你。',
   usuallyLast: '这座库上次更新用了 {min} 分钟。可以离开这个页面，运行结束后会通知你。',
   stepsDone: '{done} / {total} 个环节已完成',

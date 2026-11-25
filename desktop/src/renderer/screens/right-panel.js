@@ -99,6 +99,7 @@ function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
     data-queue-row=${o.libraryId ?? ''} data-position=${i + 1} data-here=${String(o.libraryId === here)} data-why=${o.why ?? ''}>
     <summary class="phase-heading">
       <span class="phase-index">${pad(i + 1)}</span>
+      ${running ? html`<span class="st-mo-breathe" data-mo="panel" aria-hidden="true"></span>` : null}
       <span class="phase-label">${running ? fmt(P.runningTitle, { name }) : name}<small>${state}${o.libraryId === here ? `${SEP}${P.here}` : ''}${dots}</small></span>
       <${TIcon} name="down" />
     </summary>

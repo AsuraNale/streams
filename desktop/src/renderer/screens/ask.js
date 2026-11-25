@@ -103,7 +103,7 @@ function Feedback({ question }) {
  * `demands` (getDemands) says whether 「加入待补充主题」 was pressed; `sourceOf(id)` a note's web source (查看原文).
  */
 export function Answer({ turn, index, highlight, onCite, onOpen, onOriginal, onDemand, onSettings, demands = [], sourceOf = () => null }) {
-  if (turn.status === 'asking') return html`<p class="limit-note" data-part="asking" role="status">${T.asking}</p>`
+  if (turn.status === 'asking') return html`<p class="limit-note" data-part="asking" role="status"><span class="st-mo-dots" data-mo="ask" aria-hidden="true"><i></i><i></i><i></i></span>${T.asking}</p>`
   if (turn.status === 'error') {
     if (turn.code === 'no_connection') {
       return html`<div class="progress-alert" data-part="no-connection" role="alert">
@@ -122,7 +122,7 @@ export function Answer({ turn, index, highlight, onCite, onOpen, onOriginal, onD
   const removedCites = sizeOf(r.removedCites)
   const removedSentences = sizeOf(r.removedSentences)
   const lit = highlight?.turn === index ? highlight.n : null
-  return html`<div class="st-ask-answer">
+  return html`<div class="st-ask-answer st-mo-paras">
     ${r.notInLibrary ? html`<p class="intro-copy" data-part="not-in-library"><b>${T.answer.notInLibrary}</b>${T.answer.notInLibraryText}</p>` : null}
     ${sentences.length ? html`<p class="intro-copy">${sentences.map((s, i) => html`<span key=${i} class="st-ask-sentence" data-sentence=${i}>${s.text}${(Array.isArray(s.cites) ? s.cites : []).map(n => html`<button type="button" key=${n} class=${`cite${lit === n ? ' st-cite-lit' : ''}`} data-cite=${n} aria-label=${fmt(T.answer.citeLabel, { n })} onClick=${() => onCite(n)}>${n}</button>`)} </span>`)}</p>` : null}
     ${removedCites > 0 ? html`<p class="limit-note" data-part="removed-cites" data-n=${removedCites}>${fmt(T.answer.removedCites, { n: removedCites })}</p>` : null}

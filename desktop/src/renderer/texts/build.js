@@ -27,6 +27,8 @@ export const BUILD = Object.freeze({
   editLead: '主 Agent 按你说的改这张卡，改动要查的会去查。改好的卡显示改前改后；你点「确认」之前，这座库的建库卡不变。',
   cost: '建库大约要几分钟，用的是「{name}」的额度',
   costApi: '建库大约要几分钟，按你填的 API key 计费',
+  // 1.1.1 B26: an API key connection with no search
+  noSearch: '这一次不能搜：没有搜索来源，主 Agent 只能读你给的和它知道的网页。要搜的话，在设置里填一个 DeepSeek 的搜索 key。',
   start: '开始',
   cancel: '取消',
   starting: '主 Agent 正在看…',

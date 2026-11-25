@@ -11,8 +11,9 @@
 // Why it started: texts/panel.js QUEUE.why (创建库后的首次运行 · 手动触发 · 定时 · 补跑). Words: texts/run.js RUN.
 // Test hooks: [data-part="run-steps"][data-why][data-phase], [data-step=<id>][data-done][data-now], [data-action="cancel-run"];
 // [data-part="last-run"][data-state=ready|none][data-round][data-added][data-complete].
-import { html, useState } from '../lib/html.js'
+import { html, useEffect, useRef, useState } from '../lib/html.js'
 import { call } from '../lib/bridge.js'
+import { useApp } from '../lib/app-context.js'
 import { fmt, whenText } from '../lib/format.js'
 import { doingOf } from '../lib/queue.js'
 import { TIcon } from '../lib/template-icons.js'
@@ -56,6 +57,9 @@ export function usuallyWords(last) {
 
 export function RunSteps({ running, last = null }) {
   const [stopping, setStopping] = useState(false)
+  // 1.1.1 B26: an API key connection with no search — this update reads pages only, and says so
+  const appState = useApp()?.appState
+  const noSearch = appState?.data?.activeConnection === 'api' && appState?.data?.activeCanSearch === false
   const live = running?.live ?? null
   const now = stepOf(running?.phase, live)
   const steps = UPDATE_STEPS
@@ -73,9 +77,10 @@ export function RunSteps({ running, last = null }) {
     ${steps.map((id, i) => {
       const nums = stepNumbers(id, live)
       return html`<div key=${id} class="step-line" data-step=${id} data-done=${String(i < now)} data-now=${String(i === now)} data-count=${nums}>
-        <${TIcon} name=${i < now ? 'check' : 'clock'} /><span>${T.steps[id]}${nums ? html`<small class="muted" data-part="step-count"> · ${nums}</small>` : null}</span>
+        ${i === now ? html`<span class="st-mo-breathe" data-mo="steps" aria-hidden="true"></span>` : html`<${TIcon} name=${i < now ? 'check' : 'clock'} />`}<span>${T.steps[id]}${nums ? html`<small key=${nums} class="muted" data-part="step-count"> · ${nums}</small>` : null}</span>
       </div>`
     })}
+    ${noSearch ? html`<p class="limit-note" data-part="run-no-search">${T.noSearch}</p>` : null}
     <p class="limit-note" data-part="run-usually">${usuallyWords(last)}</p>
   </section>`
 }
@@ -88,17 +93,44 @@ export function RunSteps({ running, last = null }) {
  * Test hooks: [data-part="update-note"][data-status][data-read][data-unreadable][data-added], [data-action="update-notes"],
  * [data-update-gap=<i>], [data-action="gap-to-card"].
  */
+const COUNT_UP_MS = 360
+/** n, counted up from 0 over COUNT_UP_MS when `id` changes after the first render (a new record); n at once otherwise. */
+function useCountUp(n, id) {
+  const first = useRef(id)
+  const [v, setV] = useState(n)
+  useEffect(() => {
+    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (id === first.current || still || n <= 0 || typeof requestAnimationFrame !== 'function') { setV(n); return undefined }
+    first.current = id
+    const t0 = Date.now()
+    let raf = 0
+    const step = () => {
+      const k = Math.min(1, (Date.now() - t0) / COUNT_UP_MS)
+      setV(Math.round(n * k))
+      if (k < 1) raf = requestAnimationFrame(step)
+    }
+    setV(0)
+    raf = requestAnimationFrame(step)
+    // a hidden window draws no frames: the number is right when the time is up whatever happened to the frames
+    const done = setTimeout(() => setV(n), COUNT_UP_MS + 50)
+    return () => { cancelAnimationFrame(raf); clearTimeout(done) }
+  }, [n, id])
+  return v
+}
+
 export function UpdateNote({ record, onToCard }) {
   const [open, setOpen] = useState(false)
+  const c = record?.counts ?? {}
+  // 1.1.1 P14 (M12): a run that ended while the page is open — its 「新增 n 条」 counts up from 0 (once; the first record seen does not)
+  const shown = useCountUp(Number.isInteger(c.inbox) ? c.inbox : 0, record?.id ?? null)
   if (!record || record.kind !== 'update') return null
-  const c = record.counts ?? {}
   const when = whenText(record.finishedAt ?? record.startedAt, WHEN) ?? ''
   const gaps = (Array.isArray(record.agent?.gaps) ? record.agent.gaps : []).map(g => (typeof g === 'string' ? g : typeof g?.text === 'string' ? g.text : '')).filter(g => g.trim() !== '')
   const read = Number.isInteger(c.read) ? c.read : 0
   const bad = Number.isInteger(c.unreadable) ? c.unreadable : 0
   const added = Number.isInteger(c.inbox) ? c.inbox : 0
   const line = record.status === 'nothing-new' ? fmt(N.nothingNew, { when })
-    : record.status === 'done' ? fmt(N.line, { when, read, n: added, bad: bad > 0 ? fmt(N.bad, { n: bad }) : '' })
+    : record.status === 'done' ? fmt(N.line, { when, read, n: shown, bad: bad > 0 ? fmt(N.bad, { n: bad }) : '' })
       : fmt(N.failed, { when })
   return html`<section class="panel-section st-update-note" data-part="update-note" data-status=${record.status ?? ''} data-read=${read} data-unreadable=${bad} data-added=${added}>
     <div class="section-label"><span>${line}</span>

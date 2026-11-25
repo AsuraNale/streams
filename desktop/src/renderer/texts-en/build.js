@@ -22,6 +22,7 @@ export const BUILD = Object.freeze({
   editLead: 'The main agent changes the card as you say and checks what the change needs. The new card shows before and after; the library’s card stays as it is until you press Confirm.',
   cost: 'Making a library takes a few minutes and uses the quota of “{name}”',
   costApi: 'Making a library takes a few minutes and is billed to the API key you entered',
+  noSearch: 'No search this time: there is no search source, so the main agent can only read the pages you give it and the ones it knows. To search, enter a DeepSeek search key in Settings.',
   start: 'Start',
   cancel: 'Cancel',
   starting: 'The main agent is looking…',

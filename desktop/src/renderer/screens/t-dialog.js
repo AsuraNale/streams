@@ -54,6 +54,7 @@ export function TDialog({ name, title, closeLabel, onClose, footer = null, class
 }
 
 /** A button of the dialog's footer (or anywhere): the template's .btn inside a [data-action] hook. */
-export function Btn({ name, kind = '', disabled = false, onClick, label, children }) {
-  return html`<span class="st-act" data-action=${name}><button type="button" class=${`btn${kind ? ` ${kind}` : ''}`} disabled=${disabled} aria-label=${label} onClick=${onClick}>${children}</button></span>`
+export function Btn({ name, kind = '', disabled = false, busy = false, onClick, label, children }) {
+  // 1.1.1 P14 (M10): `busy` — the work it started goes on: a small ring in it, and it cannot be pressed again
+  return html`<span class="st-act" data-action=${name}><button type="button" class=${`btn${kind ? ` ${kind}` : ''}`} disabled=${disabled || busy} aria-busy=${busy ? 'true' : undefined} aria-label=${label} onClick=${onClick}>${busy ? html`<span class="st-mo-spin" data-mo="busy" aria-hidden="true"></span>` : null}${children}</button></span>`
 }

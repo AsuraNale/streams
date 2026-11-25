@@ -282,7 +282,7 @@ function FolderPart({ library, onRemove }) {
   return html`<div data-part="this-library">
     <div class="form-footer st-src-folder">
       <${Btn} name="reveal-library" disabled=${!library} onClick=${reveal}><${TIcon} name="external" /> ${L.reveal}<//>
-      <${Btn} name="rebuild" disabled=${busy || !library} onClick=${rebuild}>${busy ? L.rebuilding : L.rebuild}<//>
+      <${Btn} name="rebuild" busy=${busy} disabled=${!library} onClick=${rebuild}>${busy ? L.rebuilding : L.rebuild}<//>
       <span class="st-src-folder-gap"></span>
       <${Btn} name="remove-library" kind="quiet" disabled=${!library?.libraryId} onClick=${onRemove}>${L.remove}<//>
     </div>

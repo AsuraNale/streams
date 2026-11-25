@@ -84,8 +84,9 @@ export function RunButton({ libraryId, onAnswer }) {
   const icon = state === 'running' || state === 'stopping' ? 'stop' : state === 'queued' ? 'clock' : 'arrow'
   const onClick = state === 'running' ? stop : state === 'idle' ? start : undefined
   const disabled = state === 'queued' || state === 'stopping' || busy === 'start' || !libraryId
+  // 1.1.1 P14 (M1): the head's run label breathes while this library's run goes on
   return html`<span class="st-run" data-part="run-button" data-run-state=${state} data-position=${place?.position ?? ''}>
-    <button type="button" class=${`btn${state === 'idle' ? ' primary' : ''}`} disabled=${disabled} onClick=${onClick}><${TIcon} name=${icon} /> ${words}</button>
+    ${state === 'running' ? html`<span class="st-mo-breathe" data-mo="head" aria-hidden="true"></span> ` : null}<button type="button" class=${`btn${state === 'idle' ? ' primary' : ''}`} disabled=${disabled} onClick=${onClick}><${TIcon} name=${icon} /> ${words}</button>
     ${error ? html`<span class="st-run__error" data-part="run-error" role="alert">${error}</span>` : null}
   </span>`
 }

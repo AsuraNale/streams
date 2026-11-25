@@ -102,6 +102,15 @@ describe('P6: an API key connection builds, updates and asks with Streams\' own 
     assert.ok((await bridge('setApiKey', 'custom', KEY)).ok)
     await until(() => document.querySelector('[data-part="start-why"]') === null)
     assert.equal(await s.page.evaluate(() => document.querySelector('[data-action="start"] button').disabled), false, 'now 开始 can be pressed')
+    // 1.1.1 B26: no search source (another vendor, no search key) — the page says this time it cannot search; with a search
+    // key filled in the sentence goes; removed again, it is back (the build below runs with no search, as before)
+    await until(() => document.querySelector('[data-part="no-search"]') !== null)
+    assert.ok((await s.page.evaluate(() => document.querySelector('[data-part="no-search"]').textContent)).includes(BUILD.noSearch))
+    await shot('build-no-search')
+    assert.ok((await bridge('setSearchKey', 'sk-search-test-0000')).ok)
+    await until(() => document.querySelector('[data-part="no-search"]') === null)
+    assert.ok((await bridge('removeSearchKey')).ok)
+    await until(() => document.querySelector('[data-part="no-search"]') !== null)
   })
 
   test('新建库 on the API: read_page run by Streams, the card confirmed, the library made', async () => {

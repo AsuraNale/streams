@@ -21,6 +21,7 @@ export const RUN = Object.freeze({
     agent: '{searches} searches, {reads} pages read',
     check: '{done} / {total}',
   }),
+  noSearch: 'No search this time: there is no search source, so the update agent reads only the originals fetched from the sources and the pages it opens. To search, enter a DeepSeek search key in Settings.',
   usuallyFirst: 'A first update usually takes 2 to 6 minutes. You can leave this page; you will be notified when it is done.',
   usuallyLast: 'This library\'s last update took {min} minutes. You can leave this page; you will be notified when it is done.',
   stepsDone: '{done} / {total} steps done',

@@ -11,7 +11,7 @@
 // [data-nav-count=shelf], .st-sidebar__group, [data-library-row=<id>][data-active][aria-current] with .st-sidebar__lib-name,
 // .st-lib-mark, [data-library-badge], [data-problem=<problem>], [data-library-line] and [data-library-queue=running|queued]
 // [data-position]; [data-action="add-library"]; .st-sidebar__footer-button (设置); [data-part="quota"] (SidebarQuota).
-import { html } from '../lib/html.js'
+import { html, useEffect, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { fmt } from '../lib/format.js'
 import { SidebarIcon, TIcon } from '../lib/template-icons.js'
@@ -69,14 +69,23 @@ export function libraryLine(row, place, phase) {
 export function SidebarLibraryItem({ row, isCurrent, place = null, phase = null, onClick }) {
   const n = count(row.inbox)
   const line = libraryLine(row, place, phase)
+  // 1.1.1 P14 (M3, M6): the count pops when it grew (a run put items in 待看) — keyed by the number, so each growth plays once
+  const before = useRef(n)
+  const [pops, setPops] = useState(0)
+  useEffect(() => {
+    if (n !== null && before.current !== null && n > before.current) setPops(k => k + 1)
+    before.current = n
+  }, [n])
+  const popKey = { current: pops }
+  const running = place?.state === 'running'
   return html`<a href="#" class=${`project-item${isCurrent ? ' active' : ''}`} data-library-row=${row.id} data-active=${String(row.active === true)} aria-current=${current(isCurrent)} onClick=${prevent(onClick)}>
-    <span class="project-name"><${LibraryMark} icon=${row.icon} color=${row.color} size="s" /><span class="st-sidebar__lib-name">${row.name}</span></span>
+    <span class="project-name"><span class="st-mo-mark" data-running=${String(running)}><${LibraryMark} icon=${row.icon} color=${row.color} size="s" />${running ? html`<span class="st-mo-ring" data-mo="sidebar" aria-hidden="true"></span>` : null}</span><span class="st-sidebar__lib-name">${row.name}</span></span>
     <span class="project-meta" data-library-line=${line.kind}>
-      <span class="dot"></span>
+      ${place?.state === 'queued' ? html`<span class="st-mo-queued" data-mo="queued" aria-hidden="true"></span>` : html`<span class="dot"></span>`}
       ${place ? html`<span data-library-queue=${place.state} data-position=${place.position ?? 1}>${line.text}</span>` : html`<span>${line.text}</span>`}
       <span class="spacer"></span>
       ${row.problem ? html`<span class="st-sidebar__dot" data-problem=${row.problem} role="img" aria-label=${SHELL.sidebar.problem} title=${SHELL.sidebar.problem}></span>` : null}
-      ${n !== null ? html`<span data-badge=${row.id} data-library-badge=${row.id} aria-label=${fmt(SHELL.sidebar.inboxBadge, { n })}>${n}</span>` : null}
+      ${n !== null ? html`<span key=${`b${popKey.current}`} class=${popKey.current ? 'st-mo-pop' : undefined} data-badge=${row.id} data-library-badge=${row.id} aria-label=${fmt(SHELL.sidebar.inboxBadge, { n })}>${n}</span>` : null}
     </span>
   </a>`
 }

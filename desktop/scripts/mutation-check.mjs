@@ -1482,6 +1482,40 @@ const MUTANTS = [
     edits: [['src/main/main.mjs', 'needsContact: url => (readSettings(layout.settingsFile).sourceContact ? null : siteOf(url, siteList())?.id ?? null),', 'needsContact: url => siteOf(url, siteList())?.id ?? null,']],
     test: ['test/ui-p9.test.mjs'],
   },
+  // 1.1.1 P14 动效 (A16–A19): the file's tests run one after another on one world, so each mutant runs the whole file
+  {
+    id: 'p14-act-after-animation',
+    what: 'a decision on a card waits for its leaving animation before the call goes (killed mid-animation, nothing is kept)',
+    edits: [['src/renderer/screens/inbox.js', '    call(method, item.url)\n', '    new Promise(resolve => setTimeout(resolve, LEAVE_MS + 300)).then(() => call(method, item.url))\n']],
+    test: ['test/ui-p14.test.mjs'],
+  },
+  {
+    id: 'p14-in-2s',
+    what: 'entering and leaving take 2 s',
+    edits: [['src/renderer/styles/motion.css', '--mo-in: 200ms;', '--mo-in: 2000ms;']],
+    test: ['test/ui-p14.test.mjs'],
+  },
+  {
+    // (taking out motion.css's own reduced-motion rule alone changes nothing — tried, not caught: each theme's template sheets
+    // carry the same rule, round6/base.css and round9/system.css in all four. A loop that escapes them is what breaks A18.)
+    id: 'p14-reduced-keeps-loops',
+    what: "减少动态效果 is not followed: the sidebar ring's loop is marked !important and goes on",
+    edits: [['src/renderer/styles/motion.css', 'animation: st-mo-ring var(--mo-ring) linear infinite; }', 'animation: st-mo-ring var(--mo-ring) linear infinite !important; }']],
+    test: ['test/ui-p14.test.mjs'],
+  },
+  {
+    id: 'p14-ring-always',
+    what: 'every library of the sidebar has the turning ring, running or not',
+    edits: [['src/renderer/kit/sidebar.js', '${running ? html`<span class="st-mo-ring"', '${true ? html`<span class="st-mo-ring"']],
+    test: ['test/ui-p14.test.mjs'],
+  },
+  // 1.1.1 B26: an API key connection with no search says this time it cannot search (新建库)
+  {
+    id: 'b26-no-sentence',
+    what: '新建库 does not say that this time there is no search',
+    edits: [['src/renderer/screens/build.js', "  const noSearch = active === 'api' && !noKey && appState?.data?.activeCanSearch === false\n", '  const noSearch = false\n']],
+    test: ['test/ui-p6.test.mjs'],
+  },
 ]
 
 function runTest(desktop, test) {
