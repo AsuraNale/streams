@@ -26,7 +26,7 @@ export function updateBudgetText(b = UPDATE_BUDGET, { search = true, hard = fals
 
 export function updateActionsText(definition) {
   const lines = actionsFor(definition, 'update_agent').filter((a) => !a.tool).map((a) => `- ${a.name}：${a.about}`);
-  return [...lines, '你交回的 items 就是 submit_items 这个动作：流息逐条查重、核出处、存原文、核验摘要，过了的放进待看。别的都不用做。'].join('\n');
+  return [...lines, '你交回的 items 就是 submit_items 这个动作：流息逐条查重、核出处、存原文、核验摘要，过了的放进待看。别的都不用做。submit_items 不是可以调用的工具：按「交回的格式」把 JSON 直接写在回答里。'].join('\n');
 }
 
 /** 1.1.1 P7 (B21): an instant as this computer's local date and time, 「2026-11-23 21:00」 (the update agent was given the UTC

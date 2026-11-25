@@ -397,6 +397,8 @@ app.whenReady().then(() => {
   const updateApi = (active, { search, onPage }) => createApiToolSession(active.connection, { getKey: connections.getKey }, {
     sessionDir: join(layout.appData, 'update-api-sessions'), readPage: apiPages(), search, onPage,
     budget: { reads: UPDATE_BUDGET.reads, searches: UPDATE_BUDGET.searches },
+    // 1.1.1 P13 (E6): the update agent's answer is the action submit_items; a model that calls it as a tool is read as answering
+    answerActions: ['submit_items'],
   })
   libraryUpdate = createLibraryUpdateService({ readPages, readLinks: readLinksNow, log, now: clock, ...(DEV_CONNECTION ? { session: devWebSession } : {}),
     ...(apiWired ? { apiSession: updateApi, apiSearch } : {}),

@@ -295,3 +295,30 @@ test('P13: the last step allowed asks for the answer even with budget left — n
   assert.equal(v.requests.length, 4);
   assert.equal(v.requests.at(-1).body.tool_choice?.type, 'none');
 });
+
+// 1.1.1 P13 (E6 on DeepSeek, 11-25): the update agent "called" submit_items — the action its SOP names — as a tool, with the
+// items as its input; the update stopped as for a tool off the list. Its input is the answer it hands in: read as that.
+for (const style of ['anthropic', 'openai']) {
+  test(`P13 (${style}): a "call" of submit_items is the answer — its input is the JSON handed in; nothing is run; the next turn goes on`, async () => {
+    const p = pages({ [P1]: { text: '正文甲。' } });
+    const W = style === 'anthropic' ? A : O;
+    const handed = { items: [{ url: P1, title: '甲' }], sources: [], gaps: [] };
+    const v = vendor((body, i) => (i === 0 ? W.tools(['read_page', { url: P1 }]) : i === 1 ? W.tools(['submit_items', handed]) : W.text('{"items":[]}')));
+    const s = session(v, p, { dir: `p13-answeras-${style}`, vendor: style === 'anthropic' ? 'anthropic' : 'deepseek', opts: { answerActions: ['submit_items'] } });
+    const r = await s.send({ prompt: '交条目', format: 'json' });
+    assert.equal(r.ok, true, JSON.stringify(r).slice(0, 300));
+    assert.deepEqual(r.json, handed)
+    assert.deepEqual(r.otherTools, [], 'not a tool off the list')
+    // the kept conversation carries the answer as text (no call left without its result): a second turn is accepted
+    const r2 = await s.send({ prompt: '再来', format: 'json' }, { sessionId: r.sessionId });
+    assert.equal(r2.ok, true, JSON.stringify(r2).slice(0, 300));
+    const second = v.requests.at(-1).body.messages;
+    const said = second.filter((m) => m.role === 'assistant').map((m) => (typeof m.content === 'string' ? m.content : (m.content ?? []).map((b) => b.text ?? '').join(''))).join(' ')
+    assert.ok(said.includes(JSON.stringify(handed)), 'the answer is in the conversation, as text');
+  });
+}
+test('P13: without answerActions a submit_items call is still a tool off the list (control)', async () => {
+  const v = vendor((body, i) => (i === 0 ? A.tools(['submit_items', { items: [] }]) : A.text('{"items":[]}')));
+  const r = await session(v, pages({}), { dir: 'p13-answeras-control' }).send({ prompt: '交', format: 'json' });
+  assert.deepEqual(r.otherTools, ['submit_items']);
+});

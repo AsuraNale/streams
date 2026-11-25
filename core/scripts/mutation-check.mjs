@@ -985,6 +985,12 @@ const MUTANTS = [
     edits: [["src/connect/api-tools.mjs", "const closing = turnedAway >= CLOSING_AFTER || step === maxSteps - 1;", "const closing = false;"]],
     test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=P13"],
   },
+  {
+    id: "v111-p13-submit-as-tool",
+    what: "a \"call\" of the update's own action submit_items is a tool off the list again (the update stops)",
+    edits: [["src/connect/api-tools.mjs", "const asAnswer = a.calls.find((c) => answerActions.includes(c.name) && c.input && typeof c.input === 'object' && !Array.isArray(c.input));", "const asAnswer = null;"]],
+    test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=submit_items is the answer"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

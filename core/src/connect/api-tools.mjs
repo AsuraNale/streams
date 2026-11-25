@@ -21,6 +21,8 @@
 //   onPage(url, page)  what the model read, handed over the moment it is read — the update keeps it as the item's original, so
 //                 what the model quoted and what is kept are the same text
 //   lookup        dns.promises.lookup (a test gives its own)
+//   answerActions 1.1.1 P13: names of the definition's actions an answer is (the update: submit_items) — a "call" of one is read
+//                 as the answer, its input the JSON handed in (DeepSeek did so on E6), not as a tool off the list
 // A page is read only when its address is public: http or https, a name or address that is not this machine's, not a
 // private network's, not link-local (checked again on what the name resolves to). A page's words are material: whatever it
 // says to the model is not an instruction (the build and update SOPs say so; the tool result says so too).
@@ -186,7 +188,7 @@ function answerNow(style, messages) {
 
 // ---- the connector ---------------------------------------------------------------------------------------------------------
 
-export function createApiToolSession(connection, deps = {}, { sessionDir, readPage, search = null, budget = { reads: 20, searches: 8 }, onPage = null, lookup = dnsLookup, maxSteps = API_TOOL_MAX_STEPS } = {}) {
+export function createApiToolSession(connection, deps = {}, { sessionDir, readPage, search = null, budget = { reads: 20, searches: 8 }, onPage = null, lookup = dnsLookup, maxSteps = API_TOOL_MAX_STEPS, answerActions = [] } = {}) {
   if (connection?.kind !== 'api') throw new StreamsError('bad-connection', 'an API tool session needs an API connection');
   if (typeof sessionDir !== 'string' || sessionDir === '') throw new StreamsError('bad-argument', 'an API tool session needs a folder for its conversations');
   if (typeof readPage !== 'function') throw new StreamsError('bad-argument', 'an API tool session needs Streams\' page reader');
@@ -289,7 +291,14 @@ export function createApiToolSession(connection, deps = {}, { sessionDir, readPa
       usage.outputTokens += a.usage.outputTokens;
       turn.messages.push(a.assistant);
       if (a.stop === 'refusal') return { ok: false, code: 'refused', detail: 'the model declined', text: safe(a.text), usage, model, ...out };
-      if (a.calls.length === 0) {
+      // 1.1.1 P13 (E6 on DeepSeek): the agent "calls" the action its answer is (the update's submit_items, named in its SOP) as if
+      // it were a tool — its input is the answer it hands in, taken as if written as the reply; nothing is run
+      const asAnswer = a.calls.find((c) => answerActions.includes(c.name) && c.input && typeof c.input === 'object' && !Array.isArray(c.input));
+      if (asAnswer) {
+        a.text = JSON.stringify(asAnswer.input);
+        turn.messages[turn.messages.length - 1] = v.style === 'anthropic' ? { role: 'assistant', content: [{ type: 'text', text: a.text }] } : { role: 'assistant', content: a.text };
+      }
+      if (a.calls.length === 0 || asAnswer) {
         saveSession(sessionDir, id, turn);
         const done = finishText({ text: a.text, usage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }, model, secrets });
         return { ...done, usage: { ...done.usage, calls: usage.calls }, sessionId: id, resumed, ...out };

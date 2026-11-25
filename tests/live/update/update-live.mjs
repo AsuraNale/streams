@@ -81,6 +81,7 @@ async function runOne(n, out) {
       sessionDir: join(work, 'sessions'), readPage: createPageReader().read, search: found?.search ?? null,
       budget: { reads: UPDATE_BUDGET.reads, searches: UPDATE_BUDGET.searches },
       onPage: (url, page) => saveOriginal(dir, { url, title: page.title ?? '', text: page.text, method: page.method, fetchedAt: new Date() }),
+      answerActions: ['submit_items'], // as the app (1.1.1 P13)
     });
   } else {
     connector = createSessionConnector(KIND === 'claude-code' ? { kind: KIND, model: MAIN_MODEL } : { kind: KIND }, { env }, { cwd: join(work, 'cwd'), web: true });
