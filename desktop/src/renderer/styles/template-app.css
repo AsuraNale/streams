@@ -100,6 +100,9 @@
 .st-inbox-head { gap: 12px; }
 .st-inbox-head > span:first-child { min-width: 0; }
 .st-inbox-head b { font-weight: 650; }
+/* 1.1.1 P8 (A12): 快到期 at the top of 待看 — the days left of one due within 7 days stand out in the accent */
+.st-due { margin-bottom: 4px; }
+.st-due .st-due__when[data-soon="true"] { color: var(--accent11); font-weight: 650; }
 .st-inbox-head__end { display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
 .st-inbox-head__end small { font-size: 10px; }
 .st-card { outline: none; }

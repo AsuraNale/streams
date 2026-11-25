@@ -29,6 +29,7 @@ import { readConfig, FALLBACK_TOPIC } from '../library/config.mjs';
 import { localIsoDate } from '../fetch/dates.mjs';
 import { languageOfConfig } from '../library/language.mjs';
 import { readInboxItem, removeInboxItem } from './inbox.mjs';
+import { parseDue } from './due.mjs';
 import { markLater, readLater } from './later.mjs';
 import { readOriginal, originalId, ORIGINALS_DIR } from '../read/original.mjs';
 import { existsSync, readFileSync } from 'node:fs';
@@ -106,6 +107,11 @@ function collectedDay(firstSeen, now) {
   return localIsoDate(Number.isNaN(t) ? now() : new Date(t));
 }
 
+function dueFor(item) {
+  if (typeof item?.due !== 'string' || item.due.trim() === '') return {};
+  return { due: parseDue(item.due) ?? item.due.trim() };
+}
+
 export function keep(libraryDir, url, { topics, now = () => new Date() } = {}) {
   const config = loadConfig(libraryDir);
   const language = languageOfConfig(config);
@@ -124,6 +130,8 @@ export function keep(libraryDir, url, { topics, now = () => new Date() } = {}) {
     status: 'kept',
     topics: topicsFor(config, item, state, topics),
     scores: scoresFor(state),
+    // 1.1.1 P8 (B23): the deadline the item carries goes into the note (「快到期」 reads it there: due.mjs)
+    ...dueFor(item),
   };
   const written = writeNoteFile(libraryDir, { id, header, body: bodyFor(item, language, originalLine(libraryDir, url, language)) }, { by: 'keep' });
   appendEvent(libraryDir, { ts: now().toISOString(), ev: 'kept', url, id });

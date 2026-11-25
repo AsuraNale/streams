@@ -33,7 +33,7 @@
 import { randomBytes } from 'node:crypto'
 import { BridgeError } from '../bridge-methods.mjs'
 import {
-  dismiss, homeNumbers, keep, later, listInbox, listRounds, readIndex, recentDismissReasons, NO_OUTPUT_ROUNDS, DISMISS_QUICK, releaseLater,
+  dismiss, dueSoon, homeNumbers, keep, later, listInbox, listRounds, readIndex, recentDismissReasons, NO_OUTPUT_ROUNDS, DISMISS_QUICK, releaseLater,
 } from '../core.mjs'
 import { publicProblems, publicResult } from '../public-data.mjs'
 
@@ -80,6 +80,9 @@ export function createPipelineService({ library, connections, emit, log, hidden 
     try { return listInbox(dir).filter(c => !c.later && !(held && held.dir === dir && held.url === c.url)).length } catch { return 0 }
   }
   const indexOf = dir => { try { return readIndex(dir) } catch (err) { log(`pipeline: index unreadable: ${String(err?.message ?? err)}`); return [] } }
+  const dueSoonOf = (dir, h) => {
+    try { return dueSoon(dir, { now, hidden: h ? [h.url] : [] }).map(({ url, title, due, days, where, id }) => ({ url, title, due, days, where, ...(id ? { id } : {}) })) } catch (err) { log(`pipeline: the due-soon list unreadable: ${String(err?.message ?? err)}`); return [] }
+  }
   const inboxUrls = dir => new Set(listInbox(dir, { now }).map(i => i.url))
 
   const roundState = () => ({
@@ -258,6 +261,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
         recentDismissReasons: recentDismissReasons(dir),
         // 1.1 W6a (B12): the last update of this library did not start because the connection's login ran out
         updateProblem: updateProblems.get(dir) ?? null,
+        // 1.1.1 P8 (A12): 快到期 — in 待看 and kept, within 30 days (the 放弃 still undoable left out)
+        dueSoon: dueSoonOf(dir, h),
       }
     },
     keepItem(url) {

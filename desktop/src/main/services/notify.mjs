@@ -3,7 +3,7 @@
  * while no window of the app is in front — a pipeline round finished with new items to look at (plan C5), later — the
  * system says so; a click brings the window to the front and the page to the screen named (event `open-screen`).
  * A window that is in front needs no notification: the page shows it. The words follow the language the app runs in
- * (`locale`, asked when the notice is made; docs/desktop.md��): main/texts/notify.js and main/texts-en/notify.js.
+ * (`locale`, asked when the notice is made; docs/desktop.md��): main/texts/notify.js and main/texts-en/notify.js.
  *
  * Electron is given, so that this runs in plain Node under test: `Notification` (the class), `windows()` (the app's
  * windows), `bringToFront()`. In a test run of the app (hidden windows: no one at the machine) no notification is
@@ -51,12 +51,13 @@ export function createNotifier({ Notification, windows, bringToFront, emit, log 
   return {
     /**
      * Say something to the user outside the window. `kind` names the sentence of the table (`newItems` today), `values`
-     * fill it, `screen` is where a click goes.
+     * fill it, `screen` is where a click goes. 1.1.1 P8: `always` — shown with the window in front too (快到期);
+     * `before` — run on a click before the screen opens (that library made the current one).
      */
-    notice({ kind, values = {}, screen }) {
+    notice({ kind, values = {}, screen, always = false, before = null }) {
       const T = table()
       if (!Object.hasOwn(T.kinds, kind)) throw new Error(`notify: no notice ${String(kind)}`)
-      if (windowInFront(windows)) return false
+      if (!always && windowInFront(windows)) return false
       const title = T.title
       const body = fmt(T.kinds[kind], values)
       if (logFile) {
@@ -70,7 +71,7 @@ export function createNotifier({ Notification, windows, bringToFront, emit, log 
       try {
         const n = new Notification({ title, body })
         open.add(n)
-        n.on('click', () => { open.delete(n); openScreen(screen) })
+        n.on('click', () => { open.delete(n); if (typeof before === 'function') { try { before() } catch (err) { log(`notification: ${String(err?.message ?? err)}`) } } openScreen(screen) })
         n.on('close', () => open.delete(n))
         n.on('failed', (_event, error) => { open.delete(n); log(`notification: failed: ${String(error)}`) })
         n.show()

@@ -50,6 +50,20 @@ export const INBOX = Object.freeze({
     close: 'Close',
   }),
 
+  // 1.1.1 P8 (A12)
+  due: Object.freeze({
+    title: 'Due soon',
+    count: '{n} item{n?|s}',
+    note: 'Items due within 30 days, in the Inbox and kept; you are notified 7 days and 1 day before.',
+    today: 'Due today',
+    tomorrow: 'Due tomorrow',
+    days: 'Due in {n} days',
+    date: '{mon} {d}',
+    inbox: 'In the Inbox',
+    kept: 'Kept',
+    line: '{when} ({date})',
+  }),
+
   later: Object.freeze({
     title: 'Later',
     count: '{n} item{n?|s} (back in the Inbox after the next run)',

@@ -180,6 +180,27 @@ function Reasons({ reasons }) {
   </div>`
 }
 
+// 1.1.1 P8 (A12): 快到期 — at the top of the page, the items whose deadline is today or within 30 days (getInbox's dueSoon:
+// core pipeline/due.mjs), in 待看 and kept, nearest first, each with its days left; not there when there is none.
+// Test hooks: [data-part="due"][data-count], [data-due=<url>][data-days][data-where=inbox|kept].
+function dueWhen(days) {
+  return days === 0 ? T.due.today : days === 1 ? T.due.tomorrow : fmt(T.due.days, { n: days })
+}
+function dueDate(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number)
+  const mon = new Date(y, m - 1, d).toLocaleDateString('en', { month: 'short' })
+  return fmt(T.due.date, { y, m, d, mon })
+}
+function DueSoon({ items, onOpen }) {
+  if (!items?.length) return null
+  return html`<div class="panel-section st-due" data-part="due" data-count=${items.length}>
+    <div class="section-label"><span><b>${T.due.title}</b>${SEP}${fmt(T.due.count, { n: items.length })}</span></div>
+    <p class="limit-note">${T.due.note}</p>
+    ${items.map(it => html`<button key=${it.url} type="button" class="file-row" data-due=${it.url} data-days=${it.days} data-where=${it.where} onClick=${() => onOpen(it.url)}>
+      <span class="file-icon"><${TIcon} name="clock" /></span><span class="file-text">${it.title}<small><span class="st-due__when" data-soon=${it.days <= 7 ? 'true' : 'false'}>${fmt(T.due.line, { when: dueWhen(it.days), date: dueDate(it.due) })}</span>${SEP}${it.where === 'kept' ? T.due.kept : T.due.inbox}</small></span><${TIcon} name="arrow" /></button>`)}
+  </div>`
+}
+
 export function InboxScreen() {
   const { appState, queue, navigate } = useApp()
   const libraryId = appState?.data?.library?.libraryId ?? null
@@ -268,6 +289,7 @@ export function InboxScreen() {
             ${items.length ? html`<small class="muted" data-part="keys">${T.keys}</small>` : null}
           </span>
         </div>
+        <${DueSoon} items=${d?.dueSoon ?? []} onOpen=${open} />
         ${inbox.status === 'error' && !d ? html`<div class="progress-alert" role="alert">${inbox.error?.code === 'no_library' ? ERRORS.noLibrary : T.loadFailed} <button type="button" class="btn quiet" onClick=${() => inbox.reload()}>${ERRORS.retry}</button></div>` : null}
         ${error ? html`<div class="progress-alert" role="alert">${error}</div>` : null}
         ${d?.updateProblem?.code === 'login-expired' ? html`<div class="progress-alert" data-part="update-banner" data-code="login-expired" role="alert">${T.banner.loginExpired}

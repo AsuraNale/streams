@@ -2,6 +2,7 @@
 // the home numbers, the schedule. src/index.mjs re-exports this. (1.1 W7b: v1.0's scoring pipeline — the round, the scoring
 // steps, the summary step, its levels and its scoring again, the estimates, the body cache — left core/src for core/legacy/.)
 export { writeInboxItem, readInboxItem, removeInboxItem, listInbox, inboxPath, INBOX_DIR, openingOf, OPENING_CHARS } from './inbox.mjs';
+export { parseDue, daysUntil, dueSoon, dueNotices, markDueNotices, DUE_WITHIN_DAYS, DUE_NOTICE_DAYS, DUE_NOTICES_FILE } from './due.mjs';
 export { keep, dismiss, later, recentDismissReasons, slugOf, roundOutcome, DISMISS_QUICK } from './decide.mjs';
 export { markLater, readLater, releaseLater, laterPath, LATER_FILE } from './later.mjs';
 export { homeNumbers, noOutputStreak, NO_OUTPUT_ROUNDS } from './numbers.mjs';

@@ -1450,6 +1450,19 @@ const MUTANTS = [
     edits: [['src/renderer/screens/build.js', "if (p?.phase === 'progress') call('getBuild').then(v => setLive(v?.live ?? null), () => {})", "if (p?.phase === 'progress') void 0"]],
     test: ['test/ui-p10.test.mjs', '--test-name-pattern=a build'],
   },
+  // 1.1.1 P8 「快到期」 (A12, B23): the file's tests open one world one after another, so each mutant runs the whole file
+  {
+    id: 'p8-no-due-block',
+    what: '待看 does not show 快到期',
+    edits: [['src/renderer/screens/inbox.js', '  if (!items?.length) return null\n', '  return null\n']],
+    test: ['test/ui-p8.test.mjs'],
+  },
+  {
+    id: 'p8-notice-not-recorded',
+    what: 'a due notification sent is not recorded: the app opened again the same day notifies again',
+    edits: [['src/main/services/due-notify.mjs', '      try { markDueNotices(e.path, owed, { now }) }', '      try { void markDueNotices }']],
+    test: ['test/ui-p8.test.mjs'],
+  },
 ]
 
 function runTest(desktop, test) {

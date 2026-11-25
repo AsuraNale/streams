@@ -57,6 +57,20 @@ export const INBOX = Object.freeze({
   }),
 
   // F27
+  // 1.1.1 P8 (A12): 快到期 — the items whose deadline is today or within 30 days, in 待看 and kept, at the top of the page
+  due: Object.freeze({
+    title: '快到期',
+    count: '{n} 条',
+    note: '到期日在 30 天内的条目，待看里的和收藏的都算；到期前 7 天和前 1 天各通知一次。',
+    today: '今天到期',
+    tomorrow: '明天到期',
+    days: '还有 {n} 天到期',
+    date: '{m} 月 {d} 日',
+    inbox: '在待看',
+    kept: '已收藏',
+    line: '{when}（{date}）',
+  }),
+
   later: Object.freeze({
     title: '稍后处理',
     count: '{n} 条（下次运行后重新列入待看）',

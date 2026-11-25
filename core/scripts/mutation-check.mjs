@@ -946,6 +946,25 @@ const MUTANTS = [
     edits: [["src/update/run.mjs", "onProgress: (p) => tell('agent', { searches: base.searches + (p.searches ?? 0), reads: base.reads + (p.reads ?? 0) }) });", "onProgress: () => {} });"]],
     test: ["test/v111-progress.test.mjs", "--test-name-pattern=the update tells"],
   },
+  // 1.1.1 P8 「快到期」 (A12, B23)
+  {
+    id: "v111-p8-keep-no-due",
+    what: "收藏 does not write the item's deadline into the note (the kept item drops out of 快到期)",
+    edits: [["src/pipeline/decide.mjs", "    ...dueFor(item),\n", ""]],
+    test: ["test/v111-due.test.mjs", "--test-name-pattern=in 待看 and kept"],
+  },
+  {
+    id: "v111-p8-past-listed",
+    what: "快到期 lists a deadline that has passed",
+    edits: [["src/pipeline/due.mjs", "if (days === null || days < 0 || days > within) return;", "if (days === null || days > within) return;"]],
+    test: ["test/v111-due.test.mjs", "--test-name-pattern=not yesterday"],
+  },
+  {
+    id: "v111-p8-notify-twice",
+    what: "a notice sent is not recorded: the app opened twice on one day notifies twice",
+    edits: [["src/pipeline/due.mjs", "    rec[String(n.notice)] = day;\n", ""]],
+    test: ["test/v111-due.test.mjs", "--test-name-pattern=the same day twice once"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

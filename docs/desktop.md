@@ -149,7 +149,7 @@ frame-ancestors 'none'
 | `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；走全应用的队列（v2 包 A，§4.4）。**v2 包 L**：队列忙（别的库在跑或在排）时**不再回 `bad_arguments`**，而是把当前库排到队尾：`{ started: false, queued: true, position, runningLibraryId }`（`position` 1 = 在跑的那个，2 = 第一个在排的…）；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排（§4.12）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | 库页头的「立即运行」（重设计 R1：直接调，不弹对话框，忙时排到队尾，§4.13）、本次运行未开始卡的「重试」、新建库的首轮 |
 | `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 库页头的「运行中 · 停止」（重设计 R1；原概览进度条旁）、右栏进度里「当前库 · 上次运行」的停止 |
 | `getRoundState()` | 无 | `{ running, roundId, libraryId, progress, last: runRound 的返回 \| null, lastProblems }`（`libraryId`：那一轮是哪个库的，v2 包 A；全应用同一时间只有一轮）；**重设计 R5a（O9）**：`last` 与 `lastProblems` 的问题只有 `code` / `connectionCode` / `node`，没有 `detail` | S2 |
-| `getInbox()` | 无 | **重设计 R2**：`{ items, later, rejected: { total, items }, manual, held, recentDismissReasons }`——`items` 是待拍板的卡（核心 listInbox 里不在「稍后处理」、不是挂起的那条）；`later` 是稍后处理的；`rejected` 是未通过筛选（核心 listRejected，最新在前、最多 50 条，`total` 是全部条数）；`manual` 是手动添加还没评分的（核心 listManualWaiting）；`held` 是挂起等小条关闭的放弃 `{ url, title }` 或 null；`recentDismissReasons: [{ts, reason, quick?, title, url}]`（没写理由的放弃不在里面）（§4.14） | S3 / 待看 |
+| `getInbox()` | 无 | **重设计 R2**：`{ items, later, rejected: { total, items }, manual, held, recentDismissReasons }`——`items` 是待拍板的卡（核心 listInbox 里不在「稍后处理」、不是挂起的那条）；`later` 是稍后处理的；`rejected` 是未通过筛选（核心 listRejected，最新在前、最多 50 条，`total` 是全部条数）；`manual` 是手动添加还没评分的（核心 listManualWaiting）；`held` 是挂起等小条关闭的放弃 `{ url, title }` 或 null；`recentDismissReasons: [{ts, reason, quick?, title, url}]`（没写理由的放弃不在里面）（§4.14）；**1.1.1 P8**（A12）：多 `dueSoon: [{ url, title, due, days, where, id? }]`（§4.25） | S3 / 待看 |
 | `keepItem(url)` | url 必须在 inbox 里 | `{ id, file }`（`file` = `notes/` 里的文件名）；发 `inbox-changed`、`library-changed`（索引重建了）；**重设计 R2**：先把挂起的另一条放弃写进账本 | S3「收藏」 |
 | `dismissItem(url)` | url 必须在 inbox 里 | **重设计 R2**：`{ url, held: true }`——这条立刻从列表消失，**不写账本**，挂在主进程里等小条关闭（已有挂起的另一条先写进去，一次只有一条）；发 `inbox-changed`（数不含挂起的这条）（§4.14） | 待看「放弃」 |
 | `settleDismiss(reason, quick)` | `reason`：null 或 ≤ 300 字；`quick`：null 或 `marketing` · `irrelevant` · `shallow` · `duplicate` | **重设计 R2**：小条关闭——挂起的放弃写进账本（核心 `dismiss`：有字才有 `reason` 字段，快选另记 `quick`）；`{ settled: true, url }`，没有挂起的 `{ settled: false }`；发 `inbox-changed` | 待看的小条 |
@@ -1111,6 +1111,33 @@ frame-ancestors 'none'
 - 改了的旧测试：`test/services-proposals.test.mjs` 的「stale」那条，手动改的部分换成卡自己的那个来源（原来手动移除别的来源就算过期，1.0.1 起不算），对照组换一个新来源名。
 
 **变异体**（`node scripts/mutation-check.mjs "v101-*"`，11 个）：`v101-f2-scroll-used-up`（第一次画就用掉滚到底）· `v101-f2-before-cards`（卡还没画就滚到底）· `v101-f4-one-press`（试抓没通的卡点一次就执行）· `v101-f4-no-warning`（不提醒）· `v101-f4-every-card`（试抓正常的卡也要点两次）· `v101-f4-compact-unguarded`（右栏紧凑卡不提醒）· `v101-f4-failed-passes`（「暂时失败」不算没通过）· `v101-f4-en-one-press`（英文界面点一次就执行）· `v101-f4-en-words`（英文提醒不是定下的句子）· `v101-f4-add-unticked`（加来源卡的试抓那一行又写「不添加」）· `v101-f35-desktop-not-handed`（主进程不把界面语言与连接交给这一轮）。窗口测试的每个变异体都带上第一条（出卡的那条），之后的检查都在固定等待之后读桥与页面，改坏的副本红在断言上，不是等待超时。
+
+### 4.25 §四补：1.1.1 P8——快到期（11-24）
+
+验收 A12、B23；方案场景三④、场景四①。
+
+- **到期日进笔记**：条目带着更新 Agent 读到的到期日（`due`）。收藏时写进笔记文件头 `due`：读得出日期的写 YYYY-MM-DD，读不出的照原文写。仍只经 `writeNoteFile(by: 'keep')`。
+- **待看顶部「快到期」**（`screens/inbox.js` 的 `DueSoon`）：
+  - `getInbox` 多 `dueSoon`（核心 `dueSoon`）：到期日在今天到 30 天内的条目，待看里的（`where: 'inbox'`）和收藏的（`where: 'kept'`，带笔记 id）都算，近的在前。
+  - 不列：过期的、放弃的、刚放弃还能撤销的那条。
+  - 每条写「今天到期 / 明天到期 / 还有 n 天到期」、到期日、在待看还是已收藏；7 天以内的天数用强调色；点一条打开阅读窗口。
+  - 没有快到期的条目时这一块不出现。
+  - 读的是盘上现有的东西，不靠更新 Agent 这一天交了什么。
+- **通知**（`services/due-notify.mjs`）：
+  - 什么时候看：应用启动时、运行期间每小时、一次运行结束后、电脑醒来后，看一遍登记表里的每座库。
+  - 到期前 7 天、前 1 天各一条 Windows 通知。一座库一次只发一条：只有一条到期的，写它的标题和还有几天；几条一起到期的，写条数和最近的一条。窗口在前面也发。
+  - 点通知：先把那座库设为当前库，再打开待看。
+  - 发过的记在每座库的 `_pipeline/due-notices.json`，按条目网址和到期日记（核心 `dueNotices` / `markDueNotices`）：同一天打开两次只通知一次；收藏以后不重发；到期日变了重新算。系统没弹出来的不记，下一次再发。
+  - 测试时写进 `logs/notifications.jsonl`。
+- **SOP**：
+  - 更新 SOP 第 4 条：提醒由流息按到期日做，不为提醒重交已有的条目；到期日变了（延期、提前）算新进展。
+  - 建库 SOP 第 2 条：节奏里有不能错过的日期时，节奏那一行写明提醒由流息按到期日做。
+- **测试**：
+  - core `test/v111-due.test.mjs`（7 条）。
+  - 真窗口 `test/ui-p8.test.mjs`（5 条）：同一个世界按应用时钟开五次（当天、当晚、第 2 天、第 8 天英文、第 32 天）。
+- **变异体**：
+  - core：`v111-p8-keep-no-due`、`v111-p8-past-listed`、`v111-p8-notify-twice`。
+  - desktop：`p8-no-due-block`、`p8-notice-not-recorded`。
 
 ## 五、界面写法
 

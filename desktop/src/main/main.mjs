@@ -39,6 +39,7 @@ import { endHelpers } from './quit.mjs'
 import { APP_USER_MODEL_ID, TOAST_ACTIVATOR_CLSID } from './app-id.mjs'
 import { iconPath } from './icon.mjs'
 import { createScheduleService } from './services/schedule.mjs'
+import { createDueReminder } from './services/due-notify.mjs'
 import { createRawErrors } from './raw-errors.mjs'
 // v2 package M: the plan quota / API balance of the current connection
 import { createQuotaService } from './services/quota.mjs'
@@ -69,6 +70,9 @@ const ICON = iconPath(DESKTOP_DIR)
 // development and tests only (a packaged app ignores both): keep the window hidden (test runs); open
 // another screen first (`npm start -- --screen settings`)
 const HIDDEN = !app.isPackaged && process.env.STREAMS_WINDOW === 'hidden'
+// 1.1.1 P8, development and tests only: a shown window (a test taking pictures) still writes its notifications to the log
+// instead of showing them on the desktop
+const DEV_NOTIFY_LOG = !app.isPackaged && process.env.STREAMS_DEV_NOTIFY_LOG === '1'
 const START_SCREEN = !app.isPackaged && /^[a-z][a-z0-9-]{0,40}$/.test(process.env.STREAMS_START_SCREEN ?? '') ? process.env.STREAMS_START_SCREEN : null
 // stand in for the system's preferred languages (comma-separated tags, locale.mjs): the tests pin Chinese with it,
 // `npm start -- --lang en` opens the app in English; a packaged app reads the real system languages
@@ -414,12 +418,14 @@ app.whenReady().then(() => {
   // Windows notifications (services/notify.mjs): made here, used by later wiring (the pipeline's rounds, plan C5)
   const notifier = createNotifier({
     Notification, windows: () => [...appWindows], bringToFront, emit, log,
-    logFile: HIDDEN ? join(layout.logsDir, 'notifications.jsonl') : null,
+    logFile: HIDDEN || DEV_NOTIFY_LOG ? join(layout.logsDir, 'notifications.jsonl') : null,
     locale: () => locale.current().resolved, clock,
   })
   // the timed rounds, the queue and the tray (docs/desktop.md §4.3–4.4): the timer, the catch-up, the close button into the tray
   scheduler = createScheduleService({ settingsFile: layout.settingsFile, library, pipeline, notifier, emit, log, now: clock })
   closeToTray = () => scheduler.enabled()
+  // 1.1.1 P8 (A12, B23): 快到期's notifications, 7 days and 1 day before a deadline, every library (services/due-notify.mjs)
+  const dueReminder = createDueReminder({ library, notifier, log, now: clock, held: () => pipeline.held() })
   // 1.1 W6b: building a library (and changing a library's card) as one conversation with the main agent; only the user's
   // 「确认」 makes or changes anything (W7b: the sidebar's 主 Agent opens this conversation — v2's main agent chat is gone)
   const build = createBuildService({
@@ -460,13 +466,15 @@ app.whenReady().then(() => {
     else if (topic === 'libraries-changed') scheduler.librariesChanged()
     // v2 package M: Codex and the API read their quota again after a run, after a turn of the build conversation, and for a
     // new current connection (another one, a vendor, a key)
-    else if (topic === 'round-progress' && payload?.done === true) void quota.afterTurn('a round ended')
+    else if (topic === 'round-progress' && payload?.done === true) { void quota.afterTurn('a round ended'); dueReminder.check('a round ended') }
     else if (topic === 'build-changed' && payload?.phase === 'done') void quota.afterTurn('a turn of the build conversation ended')
     else if (topic === 'connections-changed') void quota.connectionsChanged()
   })
   quota.start()
   app.on('will-quit', () => quota.stop())
-  powerMonitor.on('resume', () => { void scheduler.resumed() })
+  powerMonitor.on('resume', () => { void scheduler.resumed(); dueReminder.check('the computer woke') })
+  dueReminder.start()
+  app.on('will-quit', () => dueReminder.stop())
   app.on('will-quit', () => { scheduler.stop(); tray.destroy() })
   // the update (update-wiring.mjs): a check only when the user asks; the setup program replaces the install in place
   const update = wireUpdate({
