@@ -1,5 +1,5 @@
 // The questions of building a library (1.1 W4, acceptance A1; the maintainer 11-19: at most 5 questions, a choice question at most
-// 4 options plus 「其它」, at most 2 questions with no options). The main agent proposes a question; only one that passes
+// 4 options plus 「其他」, at most 2 questions with no options). The main agent proposes a question; only one that passes
 // these checks is handed to the interface. The checks are the code's; how to ask is the SOP's (sop/build.md).
 //
 // checkQuestion(q, asked, { firstInput }) -> { ok, problems: [code], question }
@@ -9,11 +9,11 @@
 //   codes  too-many-questions   a 6th question
 //          first-not-input      the 1st question is not a question with no options (it asks what the library is for)
 //          too-many-inputs      a 3rd question with no options
-//          too-many-options     more than 4 options (「其它」 not counted: the interface adds it)
+//          too-many-options     more than 4 options (「其他」 not counted: the interface adds it)
 //          too-few-options      a choice question with fewer than 2 options
 //          options-on-input     a question with no options that has some
 //          bad-kind · no-text · bad-option (an empty or repeated option)
-//   question (when ok) = { n, text, kind, options, other }   other: true for a choice question (the interface shows 「其它」)
+//   question (when ok) = { n, text, kind, options, other }   other: true for a choice question (the interface shows 「其他」)
 // answerText(question, answer, language) -> the line the agent is given for the user's answer
 //   answer: a string (a question with no options, or anything typed), or { picked: [option], other }
 export const QUESTION_LIMITS = Object.freeze({ questions: 5, options: 4, inputs: 2, minOptions: 2 });
@@ -52,7 +52,7 @@ export function checkQuestion(q, asked = [], { firstInput = true } = {}) {
 }
 
 const WORDS = {
-  'zh-CN': { picked: '我选了：', none: '我一个都没选', other: '其它：', sep: '、' },
+  'zh-CN': { picked: '我选了：', none: '我一个都没选', other: '其他：', sep: '、' },
   en: { picked: 'I picked: ', none: 'I picked none of them', other: 'Other: ', sep: ', ' },
 };
 

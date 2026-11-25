@@ -81,7 +81,7 @@ test('a question, an answer, a card: nothing is made until 确认; then the libr
   assert.deepEqual(v.turns.at(-1).question.options, ['零跑', '问界'])
   assert.equal(v.turns.at(-1).question.other, true)
   v = await s.b.replyBuild({ picked: ['零跑'], other: '宁德时代' })
-  assert.equal(v.turns.at(-2).text, '我选了：零跑；其它：宁德时代', 'the answer as the agent is given it')
+  assert.equal(v.turns.at(-2).text, '我选了：零跑；其他：宁德时代', 'the answer as the agent is given it')
   const last = v.turns.at(-1)
   assert.deepEqual([last.kind, last.canConfirm, last.before], ['card', true, null])
   assert.equal(existsSync(join(s.w.root, 'libs')), false, 'no folder before 确认')

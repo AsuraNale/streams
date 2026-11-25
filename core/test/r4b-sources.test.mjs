@@ -26,7 +26,7 @@ const refused = (code) => (err) => err?.code === code;
 
 test('R4b exports: saveLibraryName and changeLog are the core\'s', () => {
   for (const n of ['saveLibraryName', 'changeLog']) assert.equal(typeof core[n], 'function', n);
-  assert.deepEqual([...CHANGE_FIELDS], ['brief', 'sources', 'topics', 'schedule', 'name']);
+  assert.deepEqual([...CHANGE_FIELDS], ['brief', 'sources', 'topics', 'schedule', 'name', 'volume']);
 });
 
 test('R4b-1 库名称: streams.json name written, trimmed; every other key as it was; empty / too long refused, nothing written', () => {

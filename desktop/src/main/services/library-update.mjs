@@ -12,7 +12,7 @@
  */
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createLinkReader, createSessionConnector, readCard, runUpdate, saveOriginal } from '../core.mjs'
+import { createLinkReader, createSessionConnector, libraryUpdateBudget, readCard, runUpdate, saveOriginal } from '../core.mjs'
 
 // 1.1.1 P3 (C8): Codex updates too (its four cards' updates passed the same line as Claude Code's)
 export const UPDATE_KINDS = Object.freeze(['claude-code', 'codex', 'api'])
@@ -23,9 +23,10 @@ export const UPDATE_CWD = join(tmpdir(), 'streams-update-cwd')
  * @param {() => {read: Function}} o.readPages - a page reader (core createPageReader with the render service and the PDF reader)
  * @param {() => {read: Function}} [o.readLinks] - a link reader (core createLinkReader with the render service)
  * @param {(active: object) => object} [o.session] - the update agent's session for the active connection
- * @param {(active: object, o: {search: Function|null, onPage: Function}) => object} [o.apiSession] - 1.1.1 P6: an API connection's
+ * @param {(active: object, o: {search: Function|null, onPage: Function, budget: object}) => object} [o.apiSession] - 1.1.1 P6: an API connection's
  *   update agent with Streams' tools (main.mjs: core createApiToolSession, the update's budget as hard numbers); each page it
- *   reads is kept as its original at once (onPage), so what it quotes is what is kept
+ *   reads is kept as its original at once (onPage), so what it quotes is what is kept. 1.1.2 (第 4 件): `budget` — this
+ *   library's own (core libraryUpdateBudget: its 「每次更新的量」 and its card's sources), the same one runUpdate uses
  * @param {(active: object) => Promise<{search: Function}|null>} [o.apiSearch] - its search (core searchFor), or null
  * @param {(line: string) => void} o.log
  * @param {() => Date} [o.now]
@@ -50,7 +51,7 @@ export function createLibraryUpdateService({ readPages, readLinks = () => create
       if (active.kind === 'api' && apiSession) {
         const found = await apiSearch(active)
         search = Boolean(found)
-        connector = apiSession(active, { search: found?.search ?? null, onPage: (url, page) => saveOriginal(dir, { url, title: page.title ?? '', text: page.text, method: page.method, fetchedAt: now() }) })
+        connector = apiSession(active, { search: found?.search ?? null, budget: libraryUpdateBudget(dir).budget, onPage: (url, page) => saveOriginal(dir, { url, title: page.title ?? '', text: page.text, method: page.method, fetchedAt: now() }) })
       } else connector = session(active)
       const r = await runUpdate(dir, { connector, judge: judgeOf(active), readPage: readPages().read, readLinks: readLinks().read, now, round, signal, kind: active.kind, search, progress })
       log(`update: ${round ?? '-'} of ${dir}: ${r.status}${r.record ? ` · sources ${r.record.counts.read} · new ${r.record.counts.newLinks} · inbox ${r.record.counts.inbox} · calls ${r.record.calls ?? 0}` : ''}`)

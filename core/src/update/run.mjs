@@ -14,7 +14,11 @@
 // -> { started, status, problems?, record }
 //   status   'login-expired' (not started) · 'no-card' (not started) · 'nothing-new' · 'done' · 'summary-not-written' ·
 //            'connection' · 'stopped'
-//   record   the line written to _pipeline/rounds.jsonl (kind 'update'): counts, the sources left unread, calls
+//   record   the line written to _pipeline/rounds.jsonl (kind 'update'): counts, the sources left unread, calls; 1.1.2 (第 4
+//            件): volume and budget — the library's step and the limits this update had (the page's 「接近上限」 reads them)
+//   budget   omitted: the library's own (libraryUpdateBudget: its step in streams.json, the card's sources); given: that one
+// libraryUpdateBudget(libraryDir) -> { volume, budget }   what one update of this library may do (the desktop gives an API
+//   connection's hard limits from it)
 // One run = one session: the first call; once more when the answer was not readable; once more with the items whose
 // check failed. Each item's check has its own judge call. No score, no pass mark: what to hand in is the agent's call.
 import { randomBytes } from 'node:crypto';
@@ -33,8 +37,9 @@ import { checkSummary } from '../verify/summary.mjs';
 import { detectAiInstructions } from '../verify/ai-instructions.mjs';
 import { readState, writeState, sweepDaysOf } from './state.mjs';
 import { putInInbox, putMissingInInbox } from './inbox.mjs';
-import { cleanLink } from './links.mjs';
-import { UPDATE_BUDGET, UPDATE_OUTPUT, updateToolsText, updateBudgetText, updateActionsText, stateText, newText } from './format.mjs';
+import { cleanLink, articleLike } from './links.mjs';
+import { UPDATE_OUTPUT, updateToolsText, updateBudgetText, updateActionsText, stateText, newText } from './format.mjs';
+import { readLibraryVolume, updateBudgetFor } from '../library/volume.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 
 const DAY_MS = 86_400_000;
@@ -42,8 +47,16 @@ const DAY_MS = 86_400_000;
 export const FEEDBACK_TEXT_CHARS = 8000;
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
+export function libraryUpdateBudget(libraryDir) {
+  let volume;
+  try { volume = readLibraryVolume(libraryDir).volume; } catch { volume = undefined; }
+  const card = readCard(libraryDir);
+  const sources = Array.isArray(card?.sources) ? card.sources.length : 0;
+  return { volume: volume ?? 'standard', budget: updateBudgetFor(volume, { sources }) };
+}
+
 export async function runUpdate(libraryDir, {
-  connector, judge, readPage, readLinks, definition = loadDefinition(), budget = UPDATE_BUDGET, sopDir, now = () => new Date(), round,
+  connector, judge, readPage, readLinks, definition = loadDefinition(), budget: given = null, sopDir, now = () => new Date(), round,
   pendingDir = join(tmpdir(), 'streams-update-pending'), signal = null, kind = 'claude-code', search = true, progress = null,
 } = {}) {
   // 1.1.1 P10 (A8): progress(snapshot) at each step — { step: 'sources' | 'originals' | 'agent' | 'check', sources: { done,
@@ -63,6 +76,9 @@ export async function runUpdate(libraryDir, {
   const id = round ?? `u-${startedAt.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}-${randomBytes(3).toString('hex')}`;
   const card = readCard(libraryDir);
   if (!card) return { started: false, status: 'no-card', problems: [{ code: 'no-card' }] };
+  const mine = libraryUpdateBudget(libraryDir);
+  const budget = given ?? mine.budget;
+  const volume = given ? null : mine.volume;
 
   // B12: a connection that is not logged in does not start an update: nothing read, nothing written
   try {
@@ -80,6 +96,8 @@ export async function runUpdate(libraryDir, {
   const toRead = order.slice(0, budget.sources);
   const unfinished = order.slice(budget.sources);
   const fresh = []; // { url, source }
+  // 1.1.2 (U1): a source read for the first time — the links on its page that look like its articles, in the page's order
+  const firstLinks = new Map(); // source -> [url]
   tell('sources', { done: 0, total: toRead.length });
   for (const src of toRead) {
     if (stopped()) break;
@@ -96,7 +114,10 @@ export async function runUpdate(libraryDir, {
       // fetched once in an update, from the first source it is new on
       const seen = new Set((prev?.seen ?? []).map(cleanLink));
       if (prev && Array.isArray(prev.seen)) for (const l of r.links) if (!seen.has(cleanLink(l)) && !fresh.some((f) => f.url === l)) fresh.push({ url: l, source: src });
-      // the first time a source is read its links are only noted: they are what was there before the library existed
+      // the first time a source is read its links are noted: they are what was there before the library existed. 1.1.2 (U1;
+      // the user case: 14 sources, 0 new links, 2 items in the first update): those that look like its articles are this
+      // update's candidates too (below, after the new links of the other sources)
+      if (!(prev && Array.isArray(prev.seen))) firstLinks.set(src, r.links.filter((l) => articleLike(l, src)));
       entry.seen = [...(prev?.seen ?? []), ...r.links.filter((l) => !seen.has(l))];
     }
     state.sources[src] = entry;
@@ -107,7 +128,24 @@ export async function runUpdate(libraryDir, {
     const e = state.sources[f.source];
     e.seen = e.seen.filter((l) => l !== f.url);
   }
+  // 1.1.2 (U1): room left under this step's new links goes to the first-read sources' article links, one source after the
+  // other in turn (each page's own order); the card's samples and what the library has are not fetched again. Those not
+  // taken stay seen (they were there before the library).
+  const had = new Set([...replayLedger(libraryDir).states.values()].map((x) => cleanLink(x.url)));
+  for (const x of Array.isArray(card.samples) ? card.samples : []) if (isObj(x) && typeof x.url === 'string') had.add(cleanLink(x.url));
+  const lists = [...firstLinks.entries()].map(([source, ls]) => ({ source, ls: ls.filter((l) => !had.has(cleanLink(l))) }));
+  let firstTaken = 0;
+  for (let i = 0; take.length < budget.newLinks && lists.some((x) => i < x.ls.length); i++) {
+    for (const { source, ls } of lists) {
+      if (take.length >= budget.newLinks) break;
+      const url = ls[i];
+      if (url === undefined || take.some((t) => cleanLink(t.url) === cleanLink(url))) continue;
+      take.push({ url, source });
+      firstTaken += 1;
+    }
+  }
   counts.newLinks = take.length;
+  counts.firstLinks = firstTaken;
   state.unfinished = [...toRead.slice(counts.read), ...unfinished];
 
   // ---- the new pages' originals (W2): kept before the agent sees them, so nothing fetched is lost whatever it answers
@@ -146,7 +184,7 @@ export async function runUpdate(libraryDir, {
   const nameOf = (url) => (url ? (card.sources ?? []).find((x) => x.url === url)?.name ?? url : '');
   const finish = (status, extra = {}) => {
     writeState(libraryDir, state);
-    const record = { id, kind: 'update', startedAt, finishedAt: now().toISOString(), status, counts, unfinished: state.unfinished, sweep: sweepDue, ...extra };
+    const record = { id, kind: 'update', startedAt, finishedAt: now().toISOString(), status, counts, unfinished: state.unfinished, sweep: sweepDue, volume, budget: { ...budget }, ...extra };
     appendRoundRecord(libraryDir, record);
     return { started: true, status, record, ...(extra.problems ? { problems: extra.problems } : {}) };
   };
@@ -278,7 +316,7 @@ export async function runUpdate(libraryDir, {
     return out;
   }
 
-  const items = answer.items.slice(0, 30);
+  const items = answer.items.slice(0, Number.isInteger(budget.items) && budget.items > 0 ? budget.items : 30);
   counts.items = items.length;
   const done = await runner.request('update_agent', { action: 'submit_items', params: { items } });
   if (done.status !== 'done' || !taken) return finish('stopped', { calls, problems: [{ code: 'rejected', detail: (done.errors ?? []).join('; ') }] });

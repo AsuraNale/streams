@@ -11,6 +11,9 @@
 //   convert_library({ library, card }) (1.1 W7a): a library of the last version gets the card in its own folder; refused when
 //     it has one already. Nothing else of the library is touched.
 //   edit_card({ library, card, why }): dirOfLibrary(library) is its folder; the card before and after are recorded.
+// 1.1.2 (第 4、5 件): a card's `volume` is a proposal of the library's step (library/volume.mjs), not a part of the card: on
+//   确认 it goes into streams.json (create_library: the card's, else defaultVolume(); edit_card: only when the card names
+//   one) and the card is written without it. Before 确认 nothing of either is written (actions.mjs holds the request).
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { StreamsError } from '../errors.mjs';
@@ -18,6 +21,14 @@ import { createLibrary } from '../library/create.mjs';
 import { checkCard, renderCard } from './card.mjs';
 import { saveLibrarySchedule } from '../library/schedule.mjs';
 import { rhythmSchedule } from '../pipeline/schedule.mjs';
+import { DEFAULT_VOLUME, isVolume, readLibraryVolume, saveLibraryVolume } from '../library/volume.mjs';
+
+/** The card as it is kept (without the step it may propose) and the step it proposes, or null. */
+export function splitVolume(card) {
+  if (!card || typeof card !== 'object' || !Object.hasOwn(card, 'volume')) return { card, volume: null };
+  const { volume, ...rest } = card;
+  return { card: rest, volume: isVolume(volume) ? volume : null };
+}
 
 export const CARD_DIR = '_card';
 export const STATE_DIR = '_state';
@@ -58,7 +69,7 @@ function startState(libraryDir, now) {
   if (!existsSync(p)) writeAtomic(p, JSON.stringify({ createdAt: now().toISOString(), sources: {}, unfinished: [], used: {} }, null, 2) + '\n');
 }
 
-export function cardHandlers({ libraryDirFor, dirOfLibrary, language = 'zh-CN' } = {}) {
+export function cardHandlers({ libraryDirFor, dirOfLibrary, language = 'zh-CN', defaultVolume = () => DEFAULT_VOLUME } = {}) {
   return {
     async create_library(params, { now }) {
       const card = params.card;
@@ -67,7 +78,11 @@ export function cardHandlers({ libraryDirFor, dirOfLibrary, language = 'zh-CN' }
       if (typeof libraryDirFor !== 'function') throw new StreamsError('bad-argument', 'create_library needs libraryDirFor(card)');
       const dir = libraryDirFor(card);
       createLibrary(dir, { name: card.name, language });
-      writeCard(dir, card, { now, language });
+      const split = splitVolume(card);
+      writeCard(dir, split.card, { now, language });
+      let first;
+      try { first = defaultVolume(); } catch { first = DEFAULT_VOLUME; }
+      saveLibraryVolume(dir, split.volume ?? (isVolume(first) ? first : DEFAULT_VOLUME));
       startState(dir, now);
       // 1.1.1 P11a (A10): the library runs as often as its card says (a weekly card is not run every day); a card changed
       // later, or a library brought over (convert), keeps the schedule it has — the page offers 「按节奏设」 when they differ
@@ -82,7 +97,9 @@ export function cardHandlers({ libraryDirFor, dirOfLibrary, language = 'zh-CN' }
       if (typeof dirOfLibrary !== 'function') throw new StreamsError('bad-argument', 'convert_library needs dirOfLibrary(library)');
       const dir = dirOfLibrary(params.library);
       if (readCard(dir)) throw new StreamsError('has-card', 'this library has a card already');
-      writeCard(dir, params.card, { now, language });
+      const split = splitVolume(params.card);
+      writeCard(dir, split.card, { now, language });
+      if (split.volume) saveLibraryVolume(dir, split.volume);
       startState(dir, now);
       return { object: { type: 'library', id: dir }, before: null, after: { name: params.card.name } };
     },
@@ -92,8 +109,12 @@ export function cardHandlers({ libraryDirFor, dirOfLibrary, language = 'zh-CN' }
       if (typeof dirOfLibrary !== 'function') throw new StreamsError('bad-argument', 'edit_card needs dirOfLibrary(library)');
       const dir = dirOfLibrary(params.library);
       const before = readCard(dir);
-      writeCard(dir, params.card, { now, language });
-      return { object: { type: 'card', id: dir }, before, after: params.card };
+      const split = splitVolume(params.card);
+      let was = null;
+      try { was = readLibraryVolume(dir).volume; } catch { was = null; }
+      writeCard(dir, split.card, { now, language });
+      if (split.volume) saveLibraryVolume(dir, split.volume);
+      return { object: { type: 'card', id: dir }, before: before && was ? { ...before, volume: was } : before, after: split.volume ? { ...split.card, volume: split.volume } : split.card };
     },
   };
 }

@@ -103,15 +103,18 @@ const watched = (dir) => ({ state: hashOf(join(dir, '_state')), originals: hashO
 
 // ---------- new-links ----------
 
-test('new links: the first update only notes what the sources hold; 3 new links later -> 3 originals, all 3 given to the agent, the old ones not', async () => {
+test('new links: the first update takes the sources\' article links already there (1.1.2 U1; not the card\'s sample, not the page\'s 首页 / 关于); 3 new links later -> 3 originals, all 3 given to the agent, the old ones not', async () => {
   const dir = library('w5-new');
   site.list = ['/p/a1', '/p/a2']; site.feed = ['/n/b1'];
   const first = agent(() => ({ json: { items: [] } }));
   const r1 = await update(dir, first);
   assert.equal(r1.status, 'done');
   assert.equal(first.calls.length, 1, 'the first update: the agent reads the sources itself (never run before)');
-  assert.deepEqual(urlsInNew(first.calls[0].prompt), [], 'nothing fetched: the links already there are the library\'s past');
-  assert.equal(existsSync(join(dir, '_originals')), false);
+  // one source after the other in turn: the list's /p/a2 (its /p/a1 is the card's sample), the feed's /n/b1
+  assert.deepEqual(urlsInNew(first.calls[0].prompt), [`${base}/p/a2`, `${base}/n/b1`], 'the first update\'s candidates: the article links on the sources');
+  assert.equal(r1.record.counts.firstLinks, 2);
+  assert.equal(r1.record.counts.newLinks, 2);
+  for (const p of ['/', '/about', '/p/a1']) assert.equal(first.calls[0].prompt.includes(`网址：${base}${p}\n`), false, `${p} not fetched`);
   // three new links: two on the page, one in the feed
   for (const [p, t] of [['/p/a3', '新甲'], ['/p/a4', '新乙'], ['/n/b2', '新丙']]) page(p, `新的 ${p}`, t);
   site.list = ['/p/a1', '/p/a2', '/p/a3', '/p/a4']; site.feed = ['/n/b1', '/n/b2'];

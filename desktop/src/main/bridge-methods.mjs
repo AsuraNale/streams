@@ -196,6 +196,14 @@ export const BRIDGE_METHODS = Object.freeze({
   retryBuild: Object.freeze({ args: 0 }),
   confirmBuild: Object.freeze({ args: 0 }),
   dropBuild: Object.freeze({ args: 0 }),
+  // 1.1.2 (第 5 件): the conversations by library; one that ended (its file's name, services/build.mjs)
+  listConversations: Object.freeze({ args: 0 }),
+  getConversation: Object.freeze({ args: 1, check: ([id]) => typeof id === 'string' && /^ended-[\w-]{1,120}$/.test(id) }),
+  // 1.1.2 (第 4 件): a library's 「每次更新的量」, the default of a new library (services/volume.mjs)
+  getLibraryVolume: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
+  setLibraryVolume: Object.freeze({ args: 2, check: ([id, v]) => libraryId(id) && ['standard', 'more', 'most'].includes(v) }),
+  getDefaultVolume: Object.freeze({ args: 0 }),
+  setDefaultVolume: Object.freeze({ args: 1, check: ([v]) => ['standard', 'more', 'most'].includes(v) }),
   // the run-log folder, the graph, the verdicts (services/status.mjs)
   openLogsFolder: Object.freeze({ args: 0 }),
   getGraph: Object.freeze({ args: 1, check: ([filter]) => graphFilter(filter) }),

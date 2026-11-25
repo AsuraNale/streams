@@ -3,10 +3,12 @@
 // exactly this); how to pick is the SOP's and the card's.
 import { actionsFor } from '../actions/definition.mjs';
 import { API_TOOLS } from '../build/format.mjs';
+import { STANDARD_UPDATE } from '../library/volume.mjs';
 
-// one update: how many of the card's sources the code reads, how many new links it fetches, and the agent's own use of
-// the web (the 11-19 update test's numbers: 8 searches, 20 reads)
-export const UPDATE_BUDGET = Object.freeze({ sources: 30, newLinks: 20, searches: 8, reads: 20 });
+// one update: how many of the card's sources the code reads, how many new links it fetches, the agent's own use of the web
+// (the 11-19 update test's numbers: 8 searches, 20 reads) and how many items it may hand in — the standard step; 1.1.2 (第 4
+// 件): a library's own step scales them (library/volume.mjs updateBudgetFor)
+export const UPDATE_BUDGET = STANDARD_UPDATE;
 export const NEW_TEXT_CHARS = 4000;
 
 export const UPDATE_TOOLS = '- 只有搜索（WebSearch）和读网页（WebFetch）两个工具。不读写本地文件，不跑命令，不用别的工具。';
@@ -21,7 +23,11 @@ export function updateToolsText(kind, { search = true } = {}) {
 export function updateBudgetText(b = UPDATE_BUDGET, { search = true, hard = false } = {}) {
   const about = hard ? '' : '约 ';
   const stop = hard ? '（流息数着，到了就不再执行）' : '';
-  return search ? `这一次最多${about}${b.searches} 次搜索、${b.reads} 次读网页${stop}。` : `这一次最多${about}${b.reads} 次读网页${stop}。`;
+  const use = search ? `这一次最多${about}${b.searches} 次搜索、${b.reads} 次读网页${stop}。` : `这一次最多${about}${b.reads} 次读网页${stop}。`;
+  // 1.1.2 (U3): how many items is the user's step in Streams, not a number on the card
+  return Number.isInteger(b.items) && b.items > 0
+    ? `${use}合格的都交，最多交 ${b.items} 条；每次交几条由用户在流息里选的「每次更新的量」定，卡上「每次怎么挑」里要是写了每次几条，不当作上限，也不为了凑数降低标准。`
+    : use;
 }
 
 export function updateActionsText(definition) {

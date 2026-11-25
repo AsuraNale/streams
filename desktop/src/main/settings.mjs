@@ -32,6 +32,8 @@
  *   sourceContact       1.1.1 P9 (B24): 设置「来源授权」's contact e-mail, sent only to the sites of the list that comes with the
  *                       app (core fetch/site-auth.mjs SITE_AUTH), shared by every library; an e-mail address (core isContact)
  *                       or null (default: nothing filled in, nothing sent)
+ *   defaultVolume       1.1.2 (第 4 件): 设置「库与用量」's 「新建库的默认更新量」 — the step a new library gets when its card names
+ *                       none (core VOLUMES: standard · more · most; default standard); a library's own step is in its streams.json
  * Read whole and checked field by field (a field that is not what it should be is its default; inside `connections`
  * each field on its own); written whole, through a temporary file and a rename, so a crash never leaves half a file.
  * @module desktop/main/settings
@@ -40,7 +42,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { DEFAULT_LANGUAGE, LANGUAGE_SETTINGS } from './locale.mjs'
-import { DEFAULT_SCHEDULE, SETUP_BY, VENDOR_IDS, isContact, isScheduleTime } from './core.mjs'
+import { DEFAULT_SCHEDULE, DEFAULT_VOLUME, SETUP_BY, VENDOR_IDS, isContact, isScheduleTime, isVolume } from './core.mjs'
 import { isAppearance, isThemeId, migrateLook } from './theme.mjs'
 
 export const SETTINGS_SCHEMA = 'streams.settings/1'
@@ -79,7 +81,7 @@ export function isPanelPatch(raw) {
     && (raw.open === undefined || typeof raw.open === 'boolean') && (raw.tab === undefined || PANEL_TABS.includes(raw.tab))
 }
 
-const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false, libraryRoot: null, setupConnection: null, sourceContact: null })
+const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false, libraryRoot: null, setupConnection: null, sourceContact: null, defaultVolume: DEFAULT_VOLUME })
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/
 
 /**
@@ -180,6 +182,8 @@ export function readSettings(file) {
     panel: normalizePanel(own(data, 'panel')),
     // 1.1.1 P9 (B24): 来源授权's contact e-mail, or null
     sourceContact: isContact(own(data, 'sourceContact')) ? own(data, 'sourceContact').trim() : DEFAULTS.sourceContact,
+    // 1.1.2 (第 4 件): the step of a new library
+    defaultVolume: isVolume(own(data, 'defaultVolume')) ? own(data, 'defaultVolume') : DEFAULTS.defaultVolume,
   }
 }
 
@@ -250,6 +254,11 @@ export function writeSettings(file, patch) {
   if (Object.hasOwn(patch, 'sourceContact')) {
     if (patch.sourceContact !== null && !isContact(patch.sourceContact)) throw new TypeError('sourceContact must be an e-mail address, or null')
     next.sourceContact = patch.sourceContact === null ? null : patch.sourceContact.trim()
+  }
+  // 1.1.2 (第 4 件): 新建库的默认更新量
+  if (Object.hasOwn(patch, 'defaultVolume')) {
+    if (!isVolume(patch.defaultVolume)) throw new TypeError('defaultVolume must be standard, more or most')
+    next.defaultVolume = patch.defaultVolume
   }
   // v2 package L: the right panel — the fields given change, the other stays
   if (Object.hasOwn(patch, 'panel')) {

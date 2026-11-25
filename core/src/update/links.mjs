@@ -31,6 +31,33 @@ export function cleanLink(href) {
 const NOT_A_PAGE = /\.(png|jpe?g|gif|webp|svg|ico|css|js|mjs|json|woff2?|ttf|otf|eot|zip|gz|tar|7z|rar|mp3|mp4|webm|mov|avi)(\?|#|$)/i;
 const REFUSED = [401, 403, 407, 451];
 
+// 1.1.2 (U1): a link on a source's page that looks like one of its articles — the same site (www. and a sub-site of it count),
+// under the folder of the source's own address, a path with something in it (not the site's front page, not the source
+// itself), no part of it a page every site has (about, pricing, sign-in, tags, a list's next page …), and its last part a
+// name rather than a word (a hyphen, a digit, or 6 letters and more). A guess from the address alone; the update agent
+// still decides what an item is.
+const NAV = new Set(['about', 'about-us', 'contact', 'contact-us', 'pricing', 'plans', 'login', 'log-in', 'signin', 'sign-in', 'signup', 'sign-up', 'register', 'account', 'cart', 'checkout', 'privacy', 'privacy-policy', 'terms', 'legal', 'cookie', 'cookies', 'careers', 'jobs', 'help', 'support', 'faq', 'search', 'subscribe', 'newsletter', 'rss', 'feed', 'tag', 'tags', 'category', 'categories', 'topic', 'topics', 'author', 'authors', 'user', 'users', 'page', 'static', 'assets', 'cdn-cgi', 'wp-login.php', 'wp-admin']);
+const site = (h) => h.toLowerCase().replace(/^www\./, '');
+export function articleLike(href, sourceUrl) {
+  let u;
+  let s;
+  try { u = new URL(String(href)); s = new URL(String(sourceUrl)); } catch { return false; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  const a = site(u.hostname);
+  const b = site(s.hostname);
+  if (a !== b && !a.endsWith(`.${b}`) && !b.endsWith(`.${a}`)) return false;
+  const path = u.pathname.replace(/\/+$/, '');
+  if (path === '' || path === s.pathname.replace(/\/+$/, '')) return false;
+  const folder = s.pathname.endsWith('/') ? s.pathname : s.pathname.replace(/[^/]*$/, '');
+  if (!`${path}/`.startsWith(folder) && !path.startsWith(s.pathname.replace(/\/+$/, '') + '/')) return false;
+  const parts = path.split('/').filter(Boolean).map((p) => { try { return decodeURIComponent(p).toLowerCase(); } catch { return p.toLowerCase(); } });
+  if (parts.some((p) => NAV.has(p))) return false;
+  if ([...u.searchParams.keys()].some((k) => /^(page|p|sort|order|filter|lang)$/i.test(k))) return false;
+  const last = parts[parts.length - 1];
+  if (/\.(?!html?$|php$|aspx?$)[a-z0-9]{2,5}$/i.test(last)) return false;
+  return /[-_\d]/.test(last) || last.length >= 6 || (/[^\x00-\x7f]/.test(last) && last.length >= 2);
+}
+
 const decode = (s) => s.replace(/&amp;/g, '&').replace(/&#38;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
 
 export function linksOf(text, baseUrl) {

@@ -10,4 +10,7 @@ export { checkCard, cardUrls, urlKey, sameUrl, renderCard, cardChanges, CARD_PAR
 export { toolsText, budgetText, actionsText, OUTPUT_TEXT, BUILD_BUDGET } from './format.mjs';
 export { createBuild, buildPrompt, problemText, MAX_BUILD_TURNS } from './conversation.mjs';
 export { proposalCards } from './proposals.mjs';
-export { writeCard, readCard, cardHandlers, CARD_DIR, STATE_DIR, CARD_JSON, CARD_MD } from './store.mjs';
+export { writeCard, readCard, cardHandlers, splitVolume, CARD_DIR, STATE_DIR, CARD_JSON, CARD_MD } from './store.mjs';
+// 1.1.2 (第 4、5 件): what the main agent is told of the library it talks about; how near its last update was to the limit
+export { buildContext, volumeBlock, conversationsBlock, lastUpdateBlock, nearLimit, NOT_READ_FOR_LIMIT, CONTEXT_LIMITS } from './context.mjs';
+export { VOLUME_WORDS } from './card.mjs';

@@ -7,6 +7,8 @@ export { readConfig, topicNames, CONFIG_FILE, FALLBACK_TOPIC } from './library/c
 export { LANGUAGES, languageOfConfig } from './library/language.mjs'; // (not languageOf: that name was v2's main agent's, for another thing)
 export { recordSetupStep, readSetup, SETUP_STEPS, SETUP_BY } from './library/setup.mjs';
 export { readLibrarySchedule, saveLibrarySchedule, ensureLibrarySchedule } from './library/schedule.mjs';
+// 1.1.2 (第 4 件): how much one update of a library may do (streams.json update.volume)
+export { VOLUMES, DEFAULT_VOLUME, VOLUME_FACTOR, STANDARD_UPDATE, READS_OVER_SOURCES, isVolume, readLibraryVolume, saveLibraryVolume, updateBudgetFor } from './library/volume.mjs';
 export { extractWikiLinks, resolveLinks } from './library/links.mjs';
 export { rebuildIndex, readIndex, formatIndexLine, INDEX_FILE, INDEX_META_FILE, INDEX_KEYS } from './library/index.mjs';
 export { appendEvent, replayLedger, recordSeen, isSeen, LEDGER_FILE, LEDGER_EVENTS } from './library/ledger.mjs';
@@ -59,7 +61,7 @@ export {
 } from './read/index.mjs';
 // 1.1 W3 / W5: updating a library (update/index.mjs). Named one by one: a name here would hide another module's
 export {
-  putInInbox, putMissingInInbox, runUpdate, linksOf, createLinkReader, FEW_LINKS, cleanLink, localStamp, FIRST_LOOKBACK_DAYS, sourceRows, sourceHandlers,
+  putInInbox, putMissingInInbox, runUpdate, libraryUpdateBudget, linksOf, createLinkReader, FEW_LINKS, cleanLink, articleLike, localStamp, FIRST_LOOKBACK_DAYS, sourceRows, sourceHandlers,
   readState as readUpdateState, writeState as writeUpdateState, statePath as updateStatePath, sweepDaysOf, STATE_FILE,
   UPDATE_BUDGET, UPDATE_TOOLS, UPDATE_OUTPUT, updateBudgetText, updateActionsText, stateText as updateStateText, newText as updateNewText,
 } from './update/index.mjs';
@@ -69,5 +71,6 @@ export {
   checkCard, cardUrls, urlKey as cardUrlKey, sameUrl, renderCard, cardChanges, CARD_PARTS, DEFINITION_LINES, MAX_DECISIONS, CARD_WORDS,
   toolsText, budgetText, actionsText, OUTPUT_TEXT, BUILD_BUDGET,
   createBuild, buildPrompt as buildBuildPrompt, problemText, MAX_BUILD_TURNS,
-  proposalCards, writeCard, readCard, cardHandlers, CARD_DIR, STATE_DIR, CARD_JSON, CARD_MD,
+  proposalCards, writeCard, readCard, cardHandlers, splitVolume, CARD_DIR, STATE_DIR, CARD_JSON, CARD_MD,
+  buildContext, volumeBlock, conversationsBlock, lastUpdateBlock, nearLimit, NOT_READ_FOR_LIMIT, CONTEXT_LIMITS, VOLUME_WORDS,
 } from './build/index.mjs';

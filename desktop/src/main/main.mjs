@@ -58,6 +58,8 @@ import { createPageReader, createLinkReader, createApiToolSession, searchFor, us
 // 1.1 W5: a library with a card is updated by it (services/library-update.mjs; services/update.mjs is the app's own update)
 import { createLibraryUpdateService } from './services/library-update.mjs'
 import { createBuildService, devBuildReaders, devBuildSession } from './services/build.mjs'
+// 1.1.2 (第 4 件): a library's 「每次更新的量」 and the default of a new library
+import { createVolumeService } from './services/volume.mjs'
 import { defaultLibraryRoot as defaultRootOf } from './library-root.mjs'
 
 const DESKTOP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -394,9 +396,10 @@ app.whenReady().then(() => {
     sessionDir: join(layout.appData, 'build', 'api-sessions'), readPage: apiPages(), search,
     budget: { reads: BUILD_BUDGET.reads + BUILD_BUDGET.changeReads, searches: BUILD_BUDGET.searches + BUILD_BUDGET.changeSearches },
   })
-  const updateApi = (active, { search, onPage }) => createApiToolSession(active.connection, { getKey: connections.getKey }, {
+  // 1.1.2 (第 4 件): the library's own limits (services/library-update.mjs gives them: core libraryUpdateBudget)
+  const updateApi = (active, { search, onPage, budget = UPDATE_BUDGET }) => createApiToolSession(active.connection, { getKey: connections.getKey }, {
     sessionDir: join(layout.appData, 'update-api-sessions'), readPage: apiPages(), search, onPage,
-    budget: { reads: UPDATE_BUDGET.reads, searches: UPDATE_BUDGET.searches },
+    budget: { reads: budget.reads, searches: budget.searches },
     // 1.1.1 P13 (E6): the update agent's answer is the action submit_items; a model that calls it as a tool is read as answering
     answerActions: ['submit_items'],
   })
@@ -443,8 +446,11 @@ app.whenReady().then(() => {
   const dueReminder = createDueReminder({ library, notifier, log, now: clock, held: () => pipeline.held() })
   // 1.1 W6b: building a library (and changing a library's card) as one conversation with the main agent; only the user's
   // 「确认」 makes or changes anything (W7b: the sidebar's 主 Agent opens this conversation — v2's main agent chat is gone)
+  // 1.1.2 (第 4 件)
+  const volume = createVolumeService({ library, settings: () => readSettings(layout.settingsFile), writeSettings: patch => writeSettings(layout.settingsFile, patch), emit, log, now: clock })
   const build = createBuildService({
     appDataDir: layout.appData, library, connections, emit, log, now: clock, locale: currentLocale,
+    defaultVolume: () => readSettings(layout.settingsFile).defaultVolume,
     libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
     // a test or development run with the development connection never reaches the real command line: the script, or the
     // stand-in's one question
@@ -521,6 +527,7 @@ app.whenReady().then(() => {
       ...status.handlers,
       ...scheduler.handlers,
       ...build.handlers,
+      ...volume.handlers,
       // v2 package M
       ...quota.handlers,
     },

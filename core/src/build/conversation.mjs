@@ -51,7 +51,7 @@ const QUESTION_WORDS = {
   'too-many-questions': '已经问满 5 个问题，不能再问了：请去查证并交建库卡',
   'first-not-input': '第 1 题问用途，要用纯输入题（kind 写 input，不给选项）',
   'too-many-inputs': '纯输入题全程最多 2 个：这一题请改成选择题',
-  'too-many-options': '选择题最多 4 个选项（「其它」不算在内，界面会自己加）',
+  'too-many-options': '选择题最多 4 个选项（「其他」不算在内，界面会自己加）',
   'too-few-options': '选择题至少要有 2 个选项',
   'options-on-input': '纯输入题不给选项',
   'bad-kind': 'kind 只能写 input、single 或 multi',
@@ -86,7 +86,7 @@ export const LOOK_TEXT = Object.freeze({
   noSearch: '先读最多 5 页看一眼这个主题现在的情况（这一次没有搜索工具：读用户给的网址，或你知道的官方网页）',
 });
 
-export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, sopDir, opener, current = null, search = true }) {
+export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, sopDir, opener, current = null, search = true, extra = '' }) {
   const text = loadSop('build', sopDir ? { dir: sopDir } : {});
   const missing = BUILD_SOP_PLACES.filter((k) => !placeholdersOf(text).includes(k));
   if (missing.length) throw new StreamsError('sop-incomplete', `the build SOP has no place for ${missing.join(', ')}`);
@@ -94,12 +94,22 @@ export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, so
     TODAY: today, TOOLS: toolsText(kind, { search }), BUDGET: budgetText(budget, { search, hard: kind === 'api' }), ACTIONS: actionsText(definition), OUTPUT: OUTPUT_TEXT, LOOK: search ? LOOK_TEXT.search : LOOK_TEXT.noSearch,
   });
   const now = current ? `\n\n## 这座库现在的建库卡（用户要改它）\n\`\`\`json\n${JSON.stringify(current, null, 2)}\n\`\`\`` : '';
-  return `${sop}${now}\n\n## 用户的开场白\n用户：${opener}`;
+  const more = typeof extra === 'string' && extra.trim() ? `\n\n${extra.trim()}` : '';
+  return `${sop}${now}${more}\n\n## 用户的开场白\n用户：${opener}`;
 }
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null, convert = null, readPage = null, readLinks = null, search = true, progress = null } = {}) {
+// 1.1.2 (第 3 件): the choice as the user made it — only the question's own options, what was typed into 「其他」
+function answerOf(question, answer) {
+  if (!isObj(answer) || !question || !Array.isArray(question.options)) return null;
+  const known = new Set(question.options);
+  const picked = (Array.isArray(answer.picked) ? answer.picked : []).filter((p) => typeof p === 'string' && known.has(p));
+  const other = typeof answer.other === 'string' ? answer.other.trim() : '';
+  return { picked, other };
+}
+
+export function createBuild({ connector, definition, runner, kind = 'claude-code', language = 'zh-CN', today, budget = BUILD_BUDGET, sopDir, state, now = () => new Date(), maxTurns = MAX_BUILD_TURNS, edit = null, convert = null, readPage = null, readLinks = null, search = true, progress = null, extra = '' } = {}) {
   // 1.1.1 P10 (A8): progress({ step: 'agent', searches, reads }) while the agent works (this build's whole counts, as its
   // connection reports them), progress({ step: 'check', done, total }) while Streams reads the card's addresses itself
   const tell = (p) => { if (typeof progress === 'function') { try { progress(p); } catch { /* never stops the build */ } } };
@@ -107,7 +117,7 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
   if (!runner) throw new StreamsError('bad-argument', 'a build needs the action runner');
   if (edit !== null && (!isObj(edit) || typeof edit.library !== 'string' || !isObj(edit.card))) throw new StreamsError('bad-argument', 'a change of a card needs { library, card }');
   if (convert !== null && (!isObj(convert) || typeof convert.library !== 'string' || edit !== null)) throw new StreamsError('bad-argument', 'bringing a library over needs { library }, and no edit');
-  const s = state ?? { v: 1, language, kind, opener: null, sessionId: null, status: 'new', turns: [], asked: [], reads: [], searches: [], calls: 0, card: null, pendingId: null, libraryDir: null, edit: edit ? { library: edit.library, card: edit.card } : null, convert: convert ? { library: convert.library } : null };
+  const s = state ?? { v: 1, language, kind, opener: null, sessionId: null, status: 'new', turns: [], asked: [], reads: [], searches: [], calls: 0, card: null, pendingId: null, libraryDir: null, edit: edit ? { library: edit.library, card: edit.card } : null, convert: convert ? { library: convert.library } : null, extra: typeof extra === 'string' ? extra : '' };
   const editing = () => isObj(s.edit);
   const day = today ?? now().toISOString().slice(0, 10);
 
@@ -157,10 +167,10 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
     return problems.length ? { problem: 'card', say: a.say, card: r.card, problems } : { kind: 'card', say: a.say, card: r.card };
   }
 
-  async function turn(prompt, userText) {
+  async function turn(prompt, userText, answer = null) {
     if (s.status === 'built' || s.status === 'stopped' || s.status === 'dropped') throw new StreamsError('bad-state', `this build is ${s.status}`);
     if (s.turns.filter((t) => t.role === 'agent').length >= maxTurns) { s.status = 'stopped'; return { kind: 'stopped', notice: 'too-many-turns' }; }
-    if (userText !== undefined) s.turns.push({ role: 'user', text: userText, at: now().toISOString() });
+    if (userText !== undefined) s.turns.push({ role: 'user', text: userText, ...(answer ? { answer } : {}), at: now().toISOString() });
     let r = await call(prompt);
     if (!usable(r)) {
       if (userText !== undefined) s.turns.pop();
@@ -222,15 +232,16 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
       if (s.status !== 'new') throw new StreamsError('bad-state', 'this build has started already');
       if (typeof opener !== 'string' || opener.trim() === '') throw new StreamsError('bad-argument', 'what the user wants to follow is needed');
       s.opener = opener.trim();
-      const prompt = buildPrompt({ definition, kind: s.kind, today: day, budget, sopDir, opener: s.opener, current: s.edit?.card ?? null, search });
+      const prompt = buildPrompt({ definition, kind: s.kind, today: day, budget, sopDir, opener: s.opener, current: s.edit?.card ?? null, search, extra: s.extra ?? '' });
       return turn(prompt, s.opener);
     },
     async reply(answer) {
       if (s.status === 'new') throw new StreamsError('bad-state', 'the build has not started');
       const last = [...s.turns].reverse().find((t) => t.role === 'agent');
-      const text = answerText(last?.kind === 'question' ? last.question : null, answer, s.language);
+      const asked = last?.kind === 'question' ? last.question : null;
+      const text = answerText(asked, answer, s.language);
       if (!text) throw new StreamsError('bad-argument', 'an empty answer');
-      return turn(`用户：${text}`, text);
+      return turn(`用户：${text}`, text, answerOf(asked, answer));
     },
     async confirm() {
       if (!s.pendingId) throw new StreamsError('bad-state', 'no card waiting for 确认');

@@ -118,6 +118,13 @@ const METHODS = [
   'retryBuild',
   'confirmBuild',
   'dropBuild',
+  // 1.1.2: the conversations by library; a library's 「每次更新的量」
+  'listConversations',
+  'getConversation',
+  'getLibraryVolume',
+  'setLibraryVolume',
+  'getDefaultVolume',
+  'setDefaultVolume',
   'proposeCardSource',
   'settleCardSource',
   // interface B: the run-log folder, the graph, the verdicts

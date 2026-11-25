@@ -162,7 +162,7 @@ test('questions: a good one is shown with single / multi and 「其它」; one f
   const third = await b.reply({ picked: ['食品'], other: '也看出口' });
   assert.equal(third.kind, 'question', 'the retry gave a good one');
   assert.deepEqual(third.question.options, ['安省', '全国']);
-  assert.match(s.calls[2].prompt, /^用户：我选了：食品；其它：也看出口$/);
+  assert.match(s.calls[2].prompt, /^用户：我选了：食品；其他：也看出口$/);
   assert.equal(answerText(third.question, { picked: [], other: '' }), '我一个都没选');
   assert.equal(answerText(third.question, { picked: ['不在选项里'] }), '我一个都没选', 'only the question\'s own options');
 });

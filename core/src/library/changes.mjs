@@ -9,7 +9,8 @@
 //     before / after  the field's value before and after (fieldValue), as JSON
 //
 // fieldValue(libraryDir, field)              -> the field's value now: brief string|null · sources [source…] ·
-//                                               topics [{ name, keywords }] · schedule { enabled, time } · name string|null
+//                                               topics [{ name, keywords }] · schedule { enabled, time } · name string|null ·
+//                                               volume 'standard' | 'more' | 'most'
 // snapshot(libraryDir, fields)               -> { <field>: value }
 // recordChange(libraryDir, change, { now? })  -> the line written (bad-change: an unknown field or by, no proposalId for an
 //                                               agent-confirmed one)
@@ -29,9 +30,11 @@ import { StreamsError } from '../errors.mjs';
 import { isPlainObject } from './frontmatter.mjs';
 import { loadWhole, readSetup } from './setup.mjs';
 import { scheduleOf } from '../pipeline/schedule.mjs';
+import { DEFAULT_VOLUME, isVolume } from './volume.mjs';
 
 export const CHANGES_FILE = 'changes.jsonl';
-export const CHANGE_FIELDS = Object.freeze(['brief', 'sources', 'topics', 'schedule', 'name']);
+// 1.1.2 (第 4 件): volume — the library's 「每次更新的量」 (streams.json update.volume; library/volume.mjs)
+export const CHANGE_FIELDS = Object.freeze(['brief', 'sources', 'topics', 'schedule', 'name', 'volume']);
 export const CHANGE_BY = Object.freeze(['you', 'agent-confirmed']);
 
 export const changesPath = (libraryDir) => join(libraryDir, '_pipeline', CHANGES_FILE);
@@ -43,6 +46,7 @@ function valueOf(whole, field) {
     case 'topics': return (Array.isArray(whole.topics) ? whole.topics : []).filter(isPlainObject).map((t) => ({ name: t.name, keywords: Array.isArray(t.keywords) ? [...t.keywords] : [] }));
     case 'schedule': return scheduleOf(whole.schedule);
     case 'name': return typeof whole.name === 'string' && whole.name.trim() !== '' ? whole.name : null;
+    case 'volume': return isPlainObject(whole.update) && isVolume(whole.update.volume) ? whole.update.volume : DEFAULT_VOLUME;
     default: throw new StreamsError('bad-change', `no field ${JSON.stringify(field)} (one of ${CHANGE_FIELDS.join(' / ')})`);
   }
 }

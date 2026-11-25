@@ -127,7 +127,13 @@ const list = (v) => (Array.isArray(v) ? v : filled(v) ? [v] : []);
 // cardChanges(before, after, language) -> [{ key, label, before, after }] in the card's order; a line the same on both is
 // left out. key: name · summary · one of the seven lines · decide · one of the parts but definition. before / after are the
 // line's words (a list part: its entries one per line); '' where the card has none.
-const CHANGE_KEYS = Object.freeze(['name', 'summary', ...DEFINITION_LINES, 'decide', ...CARD_PARTS.filter((p) => p !== 'definition')]);
+const CHANGE_KEYS = Object.freeze(['name', 'summary', ...DEFINITION_LINES, 'decide', ...CARD_PARTS.filter((p) => p !== 'definition'), 'volume']);
+// 1.1.2 (第 4 件): the user's step, as the card and its changes name it
+export const VOLUME_WORDS = Object.freeze({
+  'zh-CN': { label: '每次更新的量', standard: '标准', more: '较多', most: '最多' },
+  en: { label: 'Amount per update', standard: 'Standard', more: 'More', most: 'Most' },
+});
+const VOLUME_KEYS = ['standard', 'more', 'most'];
 
 function entryText(part, e, w) {
   if (!isObj(e)) return typeof e === 'string' ? e : '';
@@ -141,18 +147,21 @@ function entryText(part, e, w) {
 function lineOf(card, key, w) {
   const c = isObj(card) ? card : {};
   if (key === 'name') return filled(c.name) ? c.name.trim() : '';
+  if (key === 'volume') return VOLUME_KEYS.includes(c.volume) ? c.volume : '';
   if (key === 'summary' || DEFINITION_LINES.includes(key)) return isObj(c.definition) && filled(c.definition[key]) ? c.definition[key].trim() : '';
   return list(c[key]).map((e) => entryText(key, e, w).trim()).filter(Boolean).join('\n');
 }
 
 export function cardChanges(before, after, language = 'zh-CN') {
   const w = CARD_WORDS[language] ?? CARD_WORDS['zh-CN'];
-  const label = { ...w, name: language === 'en' ? 'Name' : '库名', summary: language === 'en' ? 'In one paragraph' : '一段话' };
+  const vw = VOLUME_WORDS[language] ?? VOLUME_WORDS['zh-CN'];
+  const label = { ...w, name: language === 'en' ? 'Name' : '库名', summary: language === 'en' ? 'In one paragraph' : '一段话', volume: vw.label };
   const out = [];
   for (const key of CHANGE_KEYS) {
     const a = lineOf(before, key, w);
-    const b = lineOf(after, key, w);
-    if (a !== b) out.push({ key, label: label[key] ?? key, before: a, after: b });
+    // a card that does not name the step leaves it as it was (the step is the user's; only a proposal names it)
+    const b = key === 'volume' && lineOf(after, key, w) === '' ? a : lineOf(after, key, w);
+    if (a !== b) out.push({ key, label: label[key] ?? key, before: key === 'volume' ? vw[a] ?? a : a, after: key === 'volume' ? vw[b] ?? b : b });
   }
   return out;
 }

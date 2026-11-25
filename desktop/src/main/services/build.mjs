@@ -25,6 +25,23 @@
  *                                      queueRound — idle, it starts now; another library running, it waits its turn) →
  *                                      what the queue said; a card changed (edit): no update, null
  *   dropBuild()                      → null — 不建了 / 不改了
+ * 1.1.2 (第 5 件; 维护者 11-25 「建完库后还是可以回到那个聊天」, user case U5; 赞妮's mock 05): a conversation that ended (确认,
+ *   不建了, a new one started over it) stays as <appData>\build\ended-<time>-<why>.json, as before, and can be found again by
+ *   its library — a made library by the folder the conversation made (1.1.1's files have only that), a card changed or a
+ *   library brought over by its id:
+ *   listConversations()              → { going: { mode, library, asked } | null, libraries: [{ library: { id, name },
+ *                                      conversations: [{ id, mode, why, startedAt, endedAt, asked, cards }] }] } — every
+ *                                      library registered (one with none has an empty list), the one talked about most
+ *                                      lately first; a conversation of no library registered now is not listed
+ *   getConversation(id)              → { id, mode, why, library, startedAt, endedAt, turns } (turns as the view's) | bad_arguments
+ *   startBuild(opener, libraryId)    a change of that library's card is told, after its card, the library's step of
+ *                                      「每次更新的量」, its earlier conversations (oldest first, at most 3) and its last update
+ *                                      (core buildContext); a new library, the step of 设置 (defaultVolume). The card given to
+ *                                      the agent carries the step (volume), so a card that proposes another shows it among the
+ *                                      changes; it is written to streams.json on 确认 only (core cardHandlers)
+ *   The view of a change also has earlier: [{ id, mode, why, startedAt, endedAt, turns }] — the library's conversations
+ *   before this one, oldest first. A user's turn that answered a choice question carries answer: { picked, other } (the
+ *   core keeps it; 1.1.1's turns have none).
  * The view: { mode: 'create' | 'edit' | 'convert', library: { id, name } | null, status: 'talking' | 'stopped', opener, asked, busy,
  *   stopped: notice | null, trouble: { code } | null, turns: [{ role: 'you', text } | { role: 'agent', kind, say, question?,
  *   card?, before?, changes?, urls?, canConfirm?, problems?, notice? }] } (changes: [{ key, before, after }], core cardChanges) — the agent's turns as createBuild gave them, its notes to itself
@@ -41,11 +58,13 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { BridgeError } from '../bridge-methods.mjs'
 import {
   cardChanges, cardHandlers, cardUrls, createActionRunner, createBuild, createSessionConnector, libraryFolderName, loadDefinition, readCard,
+  buildContext, volumeBlock, readLibraryVolume, isVolume, DEFAULT_VOLUME, CONTEXT_LIMITS,
 } from '../core.mjs'
+import { lastUpdateOf } from './volume.mjs'
 
 // 1.1.1 P3 (C8): Codex too — its four customers' builds passed the same line as Claude Code's (24 / 26, every line)
 // 1.1.1 P6 (B17): an API key too — with Streams' own tools (apiSession: core createApiToolSession), and only with the model's key
@@ -105,7 +124,7 @@ export function devBuildSession(file, callsSoFar) {
  *   Streams' tools (main.mjs: core createApiToolSession with the page reader, the build's budget as hard numbers)
  * @param {(active: object) => Promise<{search: Function}|null>} [o.apiSearch] - 1.1.1 P6: its search (core searchFor), or null
  */
-export function createBuildService({ appDataDir, library, connections, emit, log, libraryRoot, locale = () => ({ resolved: 'zh-CN' }), now = () => new Date(), session = active => createSessionConnector(active.connection, {}, { cwd: BUILD_CWD, web: true }), afterBuilt = null, readers = () => ({}), apiSession = null, apiSearch = async () => null }) {
+export function createBuildService({ appDataDir, library, connections, emit, log, libraryRoot, locale = () => ({ resolved: 'zh-CN' }), now = () => new Date(), session = active => createSessionConnector(active.connection, {}, { cwd: BUILD_CWD, web: true }), afterBuilt = null, readers = () => ({}), apiSession = null, apiSearch = async () => null, defaultVolume = () => DEFAULT_VOLUME }) {
   const dir = join(appDataDir, 'build')
   const file = join(dir, 'build.json')
   const pendingDir = join(dir, 'pending')
@@ -156,7 +175,7 @@ export function createBuildService({ appDataDir, library, connections, emit, log
   }
   const runner = () => createActionRunner({
     definition,
-    handlers: cardHandlers({ libraryDirFor: card => folderFor(card.name), dirOfLibrary, language: locale().resolved }),
+    handlers: cardHandlers({ libraryDirFor: card => folderFor(card.name), dirOfLibrary, language: locale().resolved, defaultVolume }),
     pendingDir,
     logFile: (action, params, result) => join(result.object.id, '_actions.jsonl'),
     now,
@@ -190,12 +209,11 @@ export function createBuildService({ appDataDir, library, connections, emit, log
     return build
   }
 
-  const view = () => {
-    if (!saved) return null
-    const s = saved.core
+  const turnsOf = s => {
     const turns = []
-    for (const t of s.turns) {
-      if (t.role === 'user') turns.push({ role: 'you', text: t.text })
+    for (const t of Array.isArray(s?.turns) ? s.turns : []) {
+      // 1.1.2 (第 3 件): a choice answered carries the choice as made (已答小卡); 1.1.1's turns have none
+      if (t.role === 'user') turns.push({ role: 'you', text: t.text, ...(t.answer && typeof t.answer === 'object' ? { answer: { picked: Array.isArray(t.answer.picked) ? t.answer.picked.filter(x => typeof x === 'string') : [], other: typeof t.answer.other === 'string' ? t.answer.other : '' } } : {}) })
       else if (t.role === 'agent') {
         const a = { role: 'agent', kind: t.kind, say: t.say ?? '' }
         if (t.question) a.question = t.question
@@ -209,6 +227,75 @@ export function createBuildService({ appDataDir, library, connections, emit, log
         turns.push(a)
       }
     }
+    return turns
+  }
+
+  // ---- 1.1.2 (第 5 件): the conversations that ended, by library ----
+  const samePath = (a, b) => typeof a === 'string' && typeof b === 'string' && resolve(a).toLowerCase() === resolve(b).toLowerCase()
+  const ENDED = /^ended-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)-([a-z]+)\.json$/
+  const stampIso = st => st.replace(/^(\d{4}-\d{2}-\d{2}T\d{2})-(\d{2})-(\d{2})-(\d{3}Z)$/, '$1:$2:$3.$4')
+  /** Every ended conversation that can be read: { id, why, endedAt, saved }, oldest first. */
+  const ended = () => {
+    let names = []
+    try { names = readdirSync(dir) } catch { return [] }
+    const out = []
+    for (const n of names.sort()) {
+      const m = ENDED.exec(n)
+      if (!m) continue
+      let data = null
+      try { data = JSON.parse(readFileSync(join(dir, n), 'utf8')) } catch { data = null }
+      if (!data?.core || !Array.isArray(data.core.turns)) continue
+      out.push({ id: n.replace(/\.json$/, ''), why: m[2], endedAt: stampIso(m[1]), saved: data })
+    }
+    return out
+  }
+  /** The pending ids of the create_library a library's _actions.jsonl records (1.1.1's files name only that). */
+  const madeBy = path => {
+    try {
+      return readFileSync(join(path, '_actions.jsonl'), 'utf8').split('\n').map(l => { try { return JSON.parse(l) } catch { return null } })
+        .filter(x => x?.action === 'create_library' && typeof x.pendingId === 'string').map(x => x.pendingId)
+    } catch { return [] }
+  }
+  /** The library a conversation was about (registered now), or null. */
+  const libraryOfCore = (c, made = null) => {
+    const id = c?.edit?.library ?? c?.convert?.library ?? null
+    if (id) return library.find(id) ? id : null
+    const all = library.entries?.() ?? []
+    if (c?.libraryDir) return all.find(l => samePath(l.path, c.libraryDir))?.id ?? null
+    if (typeof c?.pendingId === 'string') {
+      const byPending = made ?? new Map(all.map(l => [l.id, madeBy(l.path)]))
+      return all.find(l => byPending.get(l.id)?.includes(c.pendingId))?.id ?? null
+    }
+    return null
+  }
+  /** Each ended conversation with the library it was about (one reading of the libraries' records). */
+  const endedWithLibrary = () => {
+    const made = new Map((library.entries?.() ?? []).map(l => [l.id, madeBy(l.path)]))
+    return ended().map(e => ({ ...e, libraryId: libraryOfCore(e.saved.core, made) }))
+  }
+  const modeOf = c => (c?.edit ? 'edit' : c?.convert ? 'convert' : 'create')
+  const summaryOf = e => {
+    const c = e.saved.core
+    return { id: e.id, mode: modeOf(c), why: e.why, startedAt: c.turns[0]?.at ?? null, endedAt: e.endedAt, asked: Array.isArray(c.asked) ? c.asked.length : 0, cards: c.turns.filter(t => t.role === 'agent' && t.kind === 'card').length }
+  }
+  /** A library's ended conversations, oldest first. */
+  const conversationsOf = libraryId => endedWithLibrary().filter(e => e.libraryId === libraryId)
+  const earlierOf = libraryId => conversationsOf(libraryId).map(e => ({ ...summaryOf(e), turns: turnsOf(e.saved.core) }))
+  /** What the main agent is told of a library it talks about (core buildContext). */
+  const contextOf = (libraryId, path) => {
+    let volume = DEFAULT_VOLUME
+    try { volume = readLibraryVolume(path).volume } catch { /* unreadable: the standard step */ }
+    const conversations = conversationsOf(libraryId).slice(-CONTEXT_LIMITS.conversations).map(e => {
+      const c = e.saved.core
+      return { startedAt: c.turns[0]?.at ?? null, endedAt: e.endedAt, mode: modeOf(c), why: e.why, turns: c.turns.map(t => ({ role: t.role, text: t.text, kind: t.kind, say: t.say, question: t.question })) }
+    })
+    return { volume, extra: buildContext({ volume, conversations, lastUpdate: lastUpdateOf(path) }) }
+  }
+
+  const view = () => {
+    if (!saved) return null
+    const s = saved.core
+    const turns = turnsOf(s)
     // the card that can be confirmed is the last one, while it still waits
     const last = [...turns].reverse().find(t => t.role === 'agent' && t.kind === 'card')
     if (last && !s.pendingId) last.canConfirm = false
@@ -223,6 +310,8 @@ export function createBuildService({ appDataDir, library, connections, emit, log
       stopped: saved.stopped ?? null,
       trouble: saved.trouble ?? null,
       turns,
+      // 1.1.2 (第 5 件): the library's conversations before this one
+      ...(s.edit || s.convert ? { earlier: earlierOf((s.edit ?? s.convert).library) } : {}),
     }
   }
 
@@ -260,6 +349,23 @@ export function createBuildService({ appDataDir, library, connections, emit, log
     getBuild() {
       return view()
     },
+    listConversations() {
+      const all = endedWithLibrary()
+      const rows = (library.entries?.() ?? []).map(l => {
+        const mine = all.filter(e => e.libraryId === l.id).map(summaryOf)
+        return { library: { id: l.id, name: l.name ?? null }, conversations: mine }
+      })
+      const latest = r => r.conversations.reduce((m, c) => (c.endedAt && c.endedAt > m ? c.endedAt : m), '')
+      rows.sort((a, b) => (latest(b) > latest(a) ? 1 : latest(b) < latest(a) ? -1 : 0))
+      const going = saved && !saved.stopped ? { mode: modeOf(saved.core), library: saved.core.edit || saved.core.convert ? { id: (saved.core.edit ?? saved.core.convert).library, name: library.find((saved.core.edit ?? saved.core.convert).library)?.name ?? null } : null, asked: saved.core.asked?.length ?? 0 } : null
+      return { going, libraries: rows }
+    },
+    getConversation(id) {
+      const e = endedWithLibrary().find(x => x.id === id)
+      if (!e) throw new BridgeError('bad_arguments', 'no such conversation')
+      const libraryId = e.libraryId
+      return { ...summaryOf(e), library: libraryId ? { id: libraryId, name: library.find(libraryId)?.name ?? null } : null, turns: turnsOf(e.saved.core) }
+    },
     async startBuild(opener, libraryId) {
       if (saved && !saved.stopped) throw new BridgeError('bad_arguments', 'a build is going')
       const text = String(opener).trim()
@@ -267,14 +373,23 @@ export function createBuildService({ appDataDir, library, connections, emit, log
       const active = activeOrRefuse()
       let edit = null
       let convert = null
+      let extra = ''
       if (libraryId !== undefined && libraryId !== null) {
-        const card = readCard(dirOfLibrary(libraryId))
-        if (card) edit = { library: libraryId, card }
+        const path = dirOfLibrary(libraryId)
+        const card = readCard(path)
+        const ctx = contextOf(libraryId, path)
+        extra = ctx.extra
+        // the step goes with the card the agent sees: a card that proposes another shows it among the changes (A2)
+        if (card) edit = { library: libraryId, card: { ...card, volume: ctx.volume } }
         else convert = { library: libraryId }
+      } else {
+        let v = DEFAULT_VOLUME
+        try { v = defaultVolume() } catch { v = DEFAULT_VOLUME }
+        extra = volumeBlock(isVolume(v) ? v : DEFAULT_VOLUME).replace('## 这座库的「每次更新的量」', '## 新库的「每次更新的量」')
       }
       if (saved) end('stopped')
       const found = active.kind === 'api' && apiSession ? await apiSearch(active) : undefined
-      build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0, found), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert, search: active.kind !== 'api' || Boolean(found), progress: onProgress, ...readers() })
+      build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0, found), definition, runner: runner(), kind: active.kind, language: locale().resolved, now, edit, convert, extra, search: active.kind !== 'api' || Boolean(found), progress: onProgress, ...readers() })
       saved = { v: 1, core: build.state(), stopped: null, trouble: null, retry: null }
       return turn('start', text)
     },
@@ -313,6 +428,9 @@ export function createBuildService({ appDataDir, library, connections, emit, log
       }
       const mode = saved.core.convert ? 'convert' : edit ? 'edit' : 'create'
       log(`build: ${mode === 'convert' ? 'library brought over' : mode === 'edit' ? 'card changed' : 'library made'}: ${path}`)
+      // 1.1.2 (第 5 件): kept as it ended — built, with the folder it made (the list finds its library by it)
+      saved.core = b.state()
+      write()
       end('built')
       // 1.1 W10: the first update of a library made or brought over goes into the queue at once; a changed card does not run
       // one. The library is there whatever the queue says: a failure is logged, the confirmation stands.
