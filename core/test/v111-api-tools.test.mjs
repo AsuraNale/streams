@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createApiToolSession, publicAddress, OUT_OF_BUDGET } from '../src/connect/api-tools.mjs';
+import { createApiToolSession, publicAddress, OUT_OF_BUDGET, ANSWER_NOW } from '../src/connect/api-tools.mjs';
 import { API_TOOLS, budgetText, BUILD_BUDGET } from '../src/build/format.mjs';
 import {
   createBuild, cardHandlers, createActionRunner, loadDefinition, createLibrary, writeCard, runUpdate, listInbox,
@@ -263,4 +263,35 @@ test('B26: with no search, what the build agent is told has no 「次搜索」 a
   assert.ok(without.includes('这一次没有搜索工具'), 'the first step says so');
   const withSearch = buildBuildPrompt({ definition: DEF, kind: 'api', today: '2026-11-24', opener: '帮我找补助', search: true });
   assert.ok(withSearch.includes('先用最多 3 次搜索'), 'what would fail it: with search the count is there');
+});
+
+// 1.1.1 P13 (E6 on DeepSeek, 11-25): the model used the whole read budget in its first turn and went on asking for pages,
+// turned away each time, until 60 steps — the build failed. Now after two steps turned away it is made to answer.
+for (const style of ['anthropic', 'openai']) {
+  test(`P13 (${style}): a model that goes on asking past its budget is made to answer — tool_choice none and 「现在交回答」, then its answer`, async () => {
+    const p = pages({ [P1]: { text: '正文甲。' }, [P2]: { text: '正文乙。' } });
+    const W = style === 'anthropic' ? A : O;
+    // it asks for a page every time, unless it may not use a tool
+    const v = vendor((body, i) => (body.tool_choice === 'none' || body.tool_choice?.type === 'none' ? W.text('{"done":true}') : W.tools(['read_page', { url: i % 2 ? P2 : P1 }])));
+    const s = session(v, p, { dir: `p13-closing-${style}`, vendor: style === 'anthropic' ? 'anthropic' : 'deepseek', opts: { budget: { reads: 2, searches: 0 }, maxSteps: 12 } });
+    const r = await s.send({ prompt: '一直读', format: 'json' });
+    assert.equal(r.ok, true, JSON.stringify(r).slice(0, 300));
+    assert.deepEqual(r.json, { done: true });
+    assert.equal(p.calls.length, 2, 'the reader was called within the budget only');
+    // two pages read, two steps turned away, then the request that allows no tool
+    assert.equal(v.requests.length, 5, `${v.requests.length} requests`);
+    const last = v.requests.at(-1).body;
+    assert.ok(last.tool_choice === 'none' || last.tool_choice?.type === 'none', JSON.stringify(last.tool_choice));
+    assert.ok(JSON.stringify(last.messages).includes(ANSWER_NOW), 'told to answer now');
+    assert.ok(v.requests.slice(0, 4).every((q) => q.body.tool_choice === undefined), 'tools allowed until then');
+  });
+}
+
+test('P13: the last step allowed asks for the answer even with budget left — no turn runs into the step limit', async () => {
+  const p = pages({ [P1]: { text: '正文甲。' } });
+  const v = vendor((body) => (body.tool_choice?.type === 'none' ? A.text('{"done":true}') : A.tools(['read_page', { url: P1 }])));
+  const r = await session(v, p, { dir: 'p13-closing-last', opts: { budget: { reads: 50, searches: 0 }, maxSteps: 4 } }).send({ prompt: '一直读', format: 'json' });
+  assert.equal(r.ok, true, JSON.stringify(r).slice(0, 300));
+  assert.equal(v.requests.length, 4);
+  assert.equal(v.requests.at(-1).body.tool_choice?.type, 'none');
 });

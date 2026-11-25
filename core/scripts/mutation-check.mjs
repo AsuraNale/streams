@@ -978,6 +978,13 @@ const MUTANTS = [
     edits: [["src/fetch/site-auth.mjs", "  if (typeof userAgent !== 'function') {", "  if (typeof userAgent === 'function') userAgent = userAgent(url);\n  {"]],
     test: ["test/v111-site-auth.test.mjs", "--test-name-pattern=乙 not of the list"],
   },
+  // 1.1.1 P13 (E6 on DeepSeek): a model past its budget is made to answer
+  {
+    id: "v111-p13-never-closing",
+    what: "an API session never stops the model asking for tools: a turn past its budget runs into the step limit and fails",
+    edits: [["src/connect/api-tools.mjs", "const closing = turnedAway >= CLOSING_AFTER || step === maxSteps - 1;", "const closing = false;"]],
+    test: ["test/v111-api-tools.test.mjs", "--test-name-pattern=P13"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

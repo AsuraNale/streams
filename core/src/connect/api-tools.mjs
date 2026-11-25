@@ -14,6 +14,10 @@
 //                  all — the model is not given one
 //   budget        { reads, searches }: hard numbers for the whole conversation. Past them the tool answers 「这一次的额度用完了」
 //                 and nothing is run (the reader and the search are not called).
+//                 1.1.1 P13 (E6, found on DeepSeek): a model that goes on asking for tools past its budget is made to answer —
+//                 after CLOSING_AFTER steps in a row whose every tool call was turned away for the budget, and on the last step
+//                 allowed (maxSteps), the request says no tool may be used (tool_choice none) and the turn's last message tells
+//                 it to hand in its answer now; before, such a turn ran into maxSteps and the whole build failed
 //   onPage(url, page)  what the model read, handed over the moment it is read — the update keeps it as the item's original, so
 //                 what the model quoted and what is kept are the same text
 //   lookup        dns.promises.lookup (a test gives its own)
@@ -44,6 +48,9 @@ export const API_TOOL_MAX_STEPS = 60;
 export const PAGE_TEXT_MAX = 12_000;
 export const OUT_OF_BUDGET = '这一次的额度用完了：不能再读网页了。';
 export const OUT_OF_SEARCHES = '这一次的额度用完了：不能再搜索了。';
+// 1.1.1 P13: steps in a row turned away for the budget before the model is made to answer; what it is told then
+export const CLOSING_AFTER = 2;
+export const ANSWER_NOW = '这一次的额度已经用完，不能再用工具了。请就你已经读到的，现在按要求的格式交回答。';
 const SESSION_ID = /^[0-9a-f-]{36}$/;
 
 const TOOL_SPECS = {
@@ -122,15 +129,17 @@ function saveSession(dir, id, s) {
 
 // ---- the two styles --------------------------------------------------------------------------------------------------------
 
-function requestOf(style, { baseUrl, model, system, messages, tools, key, maxTokens = DEFAULT_MAX_TOKENS }) {
+function requestOf(style, { baseUrl, model, system, messages, tools, key, maxTokens = DEFAULT_MAX_TOKENS, noTools = false }) {
   if (style === 'anthropic') {
     const body = { model, max_tokens: maxTokens, messages };
     if (system) body.system = system;
     if (tools.length) body.tools = tools.map((n) => ({ name: n, description: TOOL_SPECS[n].description, input_schema: TOOL_SPECS[n].schema }));
+    if (tools.length && noTools) body.tool_choice = { type: 'none' };
     return { url: `${baseUrl}/v1/messages`, headers: { 'x-api-key': key, 'anthropic-version': ANTHROPIC_VERSION, 'content-type': 'application/json' }, body };
   }
   const body = { model, messages: system ? [{ role: 'system', content: system }, ...messages] : messages };
   if (tools.length) body.tools = tools.map((n) => ({ type: 'function', function: { name: n, description: TOOL_SPECS[n].description, parameters: TOOL_SPECS[n].schema } }));
+  if (tools.length && noTools) body.tool_choice = 'none';
   return { url: `${baseUrl}/chat/completions`, headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body };
 }
 
@@ -162,6 +171,17 @@ function answerOf(style, json) {
 function resultsMessages(style, results) {
   if (style === 'anthropic') return [{ role: 'user', content: results.map((r) => ({ type: 'tool_result', tool_use_id: r.id, content: r.text, ...(r.error ? { is_error: true } : {}) })) }];
   return results.map((r) => ({ role: 'tool', tool_call_id: r.id, content: r.text }));
+}
+
+/** 1.1.1 P13: the words that make it answer now — after the tool results (Anthropic: a text block in the same user message, the
+ *  roles alternating; OpenAI-compatible: a user message after the tool messages). → the messages to add (none for Anthropic) */
+function answerNow(style, messages) {
+  if (style === 'anthropic') {
+    const last = messages[messages.length - 1];
+    if (last && last.role === 'user' && Array.isArray(last.content)) { last.content.push({ type: 'text', text: ANSWER_NOW }); return []; }
+    return [{ role: 'user', content: ANSWER_NOW }];
+  }
+  return [{ role: 'user', content: ANSWER_NOW }];
 }
 
 // ---- the connector ---------------------------------------------------------------------------------------------------------
@@ -237,8 +257,10 @@ export function createApiToolSession(connection, deps = {}, { sessionDir, readPa
     const turn = { messages: [...s.messages, { role: 'user', content: req.prompt }], used: { ...s.used } };
     const out = { reads: [], searches: [], otherTools: [] };
     const usage = { calls: 0, inputTokens: 0, outputTokens: 0 };
+    let turnedAway = 0;
     for (let step = 0; step < maxSteps; step += 1) {
-      const { url, headers, body } = requestOf(v.style, { baseUrl: v.baseUrl, model, system: req.system, messages: turn.messages, tools, key });
+      const closing = turnedAway >= CLOSING_AFTER || step === maxSteps - 1;
+      const { url, headers, body } = requestOf(v.style, { baseUrl: v.baseUrl, model, system: req.system, messages: turn.messages, tools, key, noTools: closing });
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), timeoutMs);
       let res;
@@ -279,6 +301,9 @@ export function createApiToolSession(connection, deps = {}, { sessionDir, readPa
         if (typeof onProgress === 'function') { try { onProgress({ searches: out.searches.length, reads: out.reads.length }); } catch { /* never stops the turn */ } }
       }
       turn.messages.push(...resultsMessages(v.style, results));
+      // every call of this step turned away for the budget: one more such step and it is made to answer
+      turnedAway = results.length && results.every((x) => x.text === OUT_OF_BUDGET || x.text === OUT_OF_SEARCHES) ? turnedAway + 1 : 0;
+      if (turnedAway >= CLOSING_AFTER || step + 1 === maxSteps - 1) turn.messages.push(...answerNow(v.style, turn.messages));
     }
     return { ...failure('unknown', `more than ${maxSteps} tool steps in one turn`, { model, calls: usage.calls }), ...out };
   }
