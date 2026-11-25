@@ -20,7 +20,7 @@
 // Test hooks: [data-part="inbox-head"] with [data-part="inbox-count"][data-count], [data-part="keys"];
 // article[data-card][data-url][data-current] with [data-action="open"] (the title), [data-part="card-line"], the marks
 // [data-waiting] [data-unverified] [data-ai-instruction][title] [data-title-only] [data-original-missing] [data-summary-missing],
-// [data-part=what|points|opening], [data-action=keep|dismiss|later|open-point|open-stored|open-web]; [data-part="dismiss-bar"]
+// [data-part="needs-contact"][data-site] with [data-action="to-source-auth"] (1.1.1 P9), [data-part=what|points|opening], [data-action=keep|dismiss|later|open-point|open-stored|open-web]; [data-part="dismiss-bar"]
 // [data-url] with [data-reason=<quick id>|other], [data-action=undo|close-bar|save-reason], [data-field="other-reason"];
 // [data-part="later"][data-open][data-count] with [data-later=<url>]; [data-part="empty"]; [data-part="last-run"];
 // [data-part="recent"] [data-kept=<id>]; [data-part="update-banner"][data-code]. 详情: [data-part="detail-inbox"] …
@@ -58,7 +58,7 @@ function Mark({ attrs, title, children }) {
   return html`<span class="status-chip st-mark" title=${title}><span class="dot"></span><span ...${attrs} title=${title}>${children}</span></span>`
 }
 
-function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpenPoint = () => {}, onOpenWeb = () => {}, onPick }) {
+function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpenPoint = () => {}, onOpenWeb = () => {}, onPick, onToSettings = () => {} }) {
   const waiting = typeof item.waitingDays === 'number' ? item.waitingDays : 0
   const unverified = Boolean(item.verification) && item.verification.passed === false
   // 1.1 W6a (A3; E4): the line is the source, the date and whether the original was kept — no score
@@ -86,6 +86,8 @@ function Card({ item, isCurrent, busy, onKeep, onDismiss, onLater, onOpen, onOpe
     </div>
     <div class="card-body">
       ${missing ? html`<p class="intro-copy" data-part="missing-note">${fmt(T.card.missingNote, { why: T.card.missingWhy[item.original.reason] ?? T.card.missingWhy['no-article'] })}</p>` : null}
+      ${missing && item.needsContact ? html`<p class="intro-copy" data-part="needs-contact" data-site=${item.needsContact}>${T.card.needsContact}
+        <span class="st-act" data-action="to-source-auth"><button type="button" class="btn quiet" onClick=${e => { e.stopPropagation(); onToSettings() }}>${T.card.needsContactGo}</button></span></p>` : null}
       ${item.summaryMissing ? html`<p class="intro-copy" data-part="summary-missing-note">${T.card.summaryMissingNote}</p>` : null}
       ${!missing && item.summary?.what ? html`<p class="intro-copy" data-part="what"><b>${T.card.what}</b>${item.summary.what}</p>` : null}
       ${points.length ? html`<dl class="decision-points" data-part="points">${points.map((p, i) => {
@@ -300,7 +302,7 @@ export function InboxScreen() {
         ${d && !items.length && !running ? html`<div class="empty-state" data-part="empty"><${TIcon} name="check" /><b>${T.empty.title}</b>${nextRun}</div>` : null}
         ${items.length ? html`<div class="st-stack">${items.map((item, i) => html`<${Card} key=${item.url} item=${item} isCurrent=${i === current} busy=${busy}
           onPick=${() => setCurrent(i)} onKeep=${() => { setCurrent(i); keep(item) }} onDismiss=${() => { setCurrent(i); dismiss(item) }} onLater=${() => { setCurrent(i); later(item) }} onOpen=${() => open(item.url)}
-          onOpenPoint=${p => openAt(item.url, p)} onOpenWeb=${() => openWeb(item.url)} />`)}</div>` : null}
+          onOpenPoint=${p => openAt(item.url, p)} onOpenWeb=${() => openWeb(item.url)} onToSettings=${() => navigate('settings')} />`)}</div>` : null}
         ${held ? html`<${DismissBar} key=${held.url} held=${held} busy=${busy} onReason=${settle} onUndo=${undo} onClose=${() => settle(null, null)} />` : null}
         ${d && !items.length && !running && h ? html`${h.lastRound?.kind === 'update' ? null : html`<${LastRun} record=${h.lastRound} />`}
           <div class="panel-section" data-part="recent">

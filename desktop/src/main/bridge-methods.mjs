@@ -123,6 +123,9 @@ export const BRIDGE_METHODS = Object.freeze({
   // 1.1.1 P5: the search key of an API connection (DeepSeek's search API), stored apart from the model's
   setSearchKey: Object.freeze({ args: 1, check: ([key]) => nonEmpty(key) }),
   removeSearchKey: Object.freeze({ args: 0 }),
+  // 1.1.1 P9 (B24): 来源授权 — the sites of the list and the contact e-mail (null clears it; anything else is checked in the handler)
+  getSourceAuth: Object.freeze({ args: 0 }),
+  setSourceContact: Object.freeze({ args: 1, check: ([contact]) => contact === null || (isString(contact) && contact.length <= 254) }),
   // the run and 待看 (services/pipeline.mjs): the numbers, one run, the inbox and its decisions
   getHome: Object.freeze({ args: 0 }),
   startRound: Object.freeze({ args: 0 }),

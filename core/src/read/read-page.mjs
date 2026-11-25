@@ -15,10 +15,13 @@
 //
 // createPageReader({ fetchImpl, render, pdfText, userAgent, timeoutMs, minGapMs, now, sleep }) -> { read(url) }
 //   render(url, { userAgent, timeoutMs }) -> { status, finalUrl, title, html }      (throws when the page cannot be opened)
+//   userAgent  a string, or (url) => string (1.1.1 P9, fetch/site-auth.mjs userAgentFor: a site of the list gets the user's
+//              contact; redirects are then followed one hop at a time, each with its own address's User-Agent)
 //   pdfText(bytes: Uint8Array) -> string                                            (throws when it is not a PDF it can read)
 // read(url) -> { url, finalUrl, ok, method: 'direct'|'render'|'pdf'|null, title, text, paragraphs, http, reason, tried, message }
 //   reason (when not ok): 'dead' | 'blocked' | 'login' | 'check' | 'failed' | 'no-article'
 import { USER_AGENT, DEFAULT_TIMEOUT_MS, checkUrl } from '../fetch/http.mjs';
+import { fetchAs } from '../fetch/site-auth.mjs';
 import { classifyError } from '../fetch/states.mjs';
 import { extractOriginal, ARTICLE_MIN } from './extract.mjs';
 import { errorPage, humanCheck, signInPage } from './detect.mjs';
@@ -49,11 +52,11 @@ export function createPageReader({
 
   async function direct(href) {
     try {
-      const res = await fetchImpl(href, { method: 'GET', headers: { 'user-agent': userAgent, accept: ACCEPT_PAGE }, redirect: 'follow', signal: AbortSignal.timeout(timeoutMs) });
+      const { res, finalUrl } = await fetchAs(fetchImpl, href, { userAgent, accept: ACCEPT_PAGE, timeoutMs });
       const type = res.headers.get('content-type') ?? '';
       const buf = new Uint8Array(await res.arrayBuffer());
       const bytes = buf.length > MAX_BYTES ? buf.subarray(0, MAX_BYTES) : buf;
-      return { ok: true, status: res.status, finalUrl: res.url || href, type, bytes };
+      return { ok: true, status: res.status, finalUrl, type, bytes };
     } catch (error) {
       return { ok: false, error };
     }
@@ -121,7 +124,7 @@ export function createPageReader({
     await polite(host);
     out.tried.push('render');
     let r;
-    try { r = await render(parsed.href, { userAgent, timeoutMs }); } catch (e) {
+    try { r = await render(parsed.href, { userAgent: typeof userAgent === 'function' ? userAgent(parsed.href) : userAgent, timeoutMs }); } catch (e) {
       return fail(refused ? 'blocked' : 'no-article', `${out.message}; rendering failed: ${e?.message ?? e}`);
     }
     if (r?.finalUrl) out.finalUrl = r.finalUrl;

@@ -965,6 +965,19 @@ const MUTANTS = [
     edits: [["src/pipeline/due.mjs", "    rec[String(n.notice)] = day;\n", ""]],
     test: ["test/v111-due.test.mjs", "--test-name-pattern=the same day twice once"],
   },
+  // 1.1.1 P9 来源授权 (B24)
+  {
+    id: "v111-p9-no-list-check",
+    what: "the contact goes to every site, not only to the sites of the list",
+    edits: [["src/fetch/site-auth.mjs", "return (url) => (c && siteOf(url, sites) ? `${base} ${c}` : base);", "return () => (c ? `${base} ${c}` : base);"]],
+    test: ["test/v111-site-auth.test.mjs", "--test-name-pattern=乙 not of the list"],
+  },
+  {
+    id: "v111-p9-redirect-keeps-contact",
+    what: "a redirect from a site of the list is followed with the first request's User-Agent (the contact passed on)",
+    edits: [["src/fetch/site-auth.mjs", "  if (typeof userAgent !== 'function') {", "  if (typeof userAgent === 'function') userAgent = userAgent(url);\n  {"]],
+    test: ["test/v111-site-auth.test.mjs", "--test-name-pattern=乙 not of the list"],
+  },
 ];
 
 function runTest(dir, [file, ...opts]) {

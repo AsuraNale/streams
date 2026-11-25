@@ -58,7 +58,7 @@ const HTTP_URL = /^https?:\/\/\S+$/i
  * @param {() => ({applies: (dir: string) => boolean, problemFor: Function, run: Function}|null)} [o.update] - 1.1 W5:
  *   services/library-update.mjs (a library with a card is updated by it)
  */
-export function createPipelineService({ library, connections, emit, log, hidden = false, shell, now = () => new Date(), schedule = () => null, onRoundDone = () => {}, roundGate = null, rawErrors = null, update = () => null }) {
+export function createPipelineService({ library, connections, emit, log, hidden = false, shell, now = () => new Date(), schedule = () => null, onRoundDone = () => {}, roundGate = null, rawErrors = null, update = () => null, needsContact = () => null }) {
   // the run in the background, if one runs; what the last one gave; the problems of the last one that did not start
   let running = null
   let last = null
@@ -255,7 +255,8 @@ export function createPipelineService({ library, connections, emit, log, hidden 
       const all = listInbox(dir, { now })
       const h = held && held.dir === dir ? held : null
       return {
-        items: all.filter(i => !i.later && i.url !== h?.url),
+        // 1.1.1 P9 (B24): a card whose original was not kept, of a site of 来源授权's list, with no contact filled in, says so
+        items: all.filter(i => !i.later && i.url !== h?.url).map(i => (i.original?.saved === false && needsContact(i.url) ? { ...i, needsContact: needsContact(i.url) } : i)),
         later: all.filter(i => i.later && i.url !== h?.url),
         held: h ? { url: h.url, title: h.title } : null,
         recentDismissReasons: recentDismissReasons(dir),

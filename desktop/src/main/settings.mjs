@@ -29,6 +29,9 @@
  *                       has no connection record (services/library.mjs)
  *   panel               v2 package L: the main window's right panel — { open: boolean, tab: progress · decide · detail · files };
  *                       default { open: true, tab: 'detail' }; each field checked on its own (setPanel, app-services.mjs)
+ *   sourceContact       1.1.1 P9 (B24): 设置「来源授权」's contact e-mail, sent only to the sites of the list that comes with the
+ *                       app (core fetch/site-auth.mjs SITE_AUTH), shared by every library; an e-mail address (core isContact)
+ *                       or null (default: nothing filled in, nothing sent)
  * Read whole and checked field by field (a field that is not what it should be is its default; inside `connections`
  * each field on its own); written whole, through a temporary file and a rename, so a crash never leaves half a file.
  * @module desktop/main/settings
@@ -37,7 +40,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { DEFAULT_LANGUAGE, LANGUAGE_SETTINGS } from './locale.mjs'
-import { DEFAULT_SCHEDULE, SETUP_BY, VENDOR_IDS, isScheduleTime } from './core.mjs'
+import { DEFAULT_SCHEDULE, SETUP_BY, VENDOR_IDS, isContact, isScheduleTime } from './core.mjs'
 import { isAppearance, isThemeId, migrateLook } from './theme.mjs'
 
 export const SETTINGS_SCHEMA = 'streams.settings/1'
@@ -76,7 +79,7 @@ export function isPanelPatch(raw) {
     && (raw.open === undefined || typeof raw.open === 'boolean') && (raw.tab === undefined || PANEL_TABS.includes(raw.tab))
 }
 
-const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false, libraryRoot: null, setupConnection: null })
+const DEFAULTS = Object.freeze({ language: DEFAULT_LANGUAGE, libraryPath: null, showDeveloperInfo: false, libraryRoot: null, setupConnection: null, sourceContact: null })
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/
 
 /**
@@ -175,6 +178,8 @@ export function readSettings(file) {
     setupConnection: setupConnectionOf(own(data, 'setupConnection')),
     // v2 package L: the right panel (open or folded, its tab), remembered for the next start
     panel: normalizePanel(own(data, 'panel')),
+    // 1.1.1 P9 (B24): 来源授权's contact e-mail, or null
+    sourceContact: isContact(own(data, 'sourceContact')) ? own(data, 'sourceContact').trim() : DEFAULTS.sourceContact,
   }
 }
 
@@ -240,6 +245,11 @@ export function writeSettings(file, patch) {
     const v = patch.setupConnection === null ? null : setupConnectionOf(patch.setupConnection)
     if (patch.setupConnection !== null && v === null) throw new TypeError('setupConnection must be { by, at, detail? }, or null')
     next.setupConnection = v
+  }
+  // 1.1.1 P9 (B24): the contact e-mail of 来源授权, or null to clear it
+  if (Object.hasOwn(patch, 'sourceContact')) {
+    if (patch.sourceContact !== null && !isContact(patch.sourceContact)) throw new TypeError('sourceContact must be an e-mail address, or null')
+    next.sourceContact = patch.sourceContact === null ? null : patch.sourceContact.trim()
   }
   // v2 package L: the right panel — the fields given change, the other stays
   if (Object.hasOwn(patch, 'panel')) {

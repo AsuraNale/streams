@@ -444,6 +444,10 @@
 .st-set-look .filter small { font-size: 10px; opacity: .75; }
 .st-set-look .field { margin: 12px 0 0; }
 .st-set-root.file-row, .st-set-about.file-row { align-items: center; }
+/* 1.1.1 P9 (B24): 来源授权 — the box wide enough for an address and its hint; the buttons beside it */
+.st-set-auth.file-row { align-items: center; }
+.st-set-auth .st-set-search__key { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.st-set-auth input[data-field="source-contact"] { width: 260px; max-width: 32vw; }
 .st-set-root .file-text, .st-set-about .file-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .st-set-root :is(.st-act), .st-set-about > .st-act { flex: none; }
 .st-set-usage { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 14px 0 0; }

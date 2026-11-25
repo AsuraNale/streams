@@ -145,6 +145,8 @@ frame-ancestors 'none'
 | `removeApiKey(vendor)` | | `{ vendor, keyHint: null }` | 同上 |
 | `setSearchKey(key)` | 非空字符串 | **1.1.1 P5**（维护者 11-24 晚定：先接 DeepSeek 的搜索接口）：模型不是 DeepSeek 时，API 连接的搜索用的 DeepSeek key，存进 safeStorage 的 `key-search-deepseek`，和模型的 key 分开；返回 `getConnections().search` 的样子 `{ from: 'model' | 'search-key' | null, modelIsDeepSeek, hasKey, keyHint }`（from：模型是 DeepSeek 且有 key 时用模型的 key；否则有搜索 key 时用它；都没有时没有搜索，建库与更新只读网页）；页面只拿得到末四位 | 设置「搜索」一行 |
 | `removeSearchKey()` | 无 | **1.1.1 P5**：删掉搜索 key；返回同上 | 同上 |
+| `getSourceAuth()` | 无 | **1.1.1 P9**（B24）：`{ sites: [{ id, hosts, name, why }], contact }`——随应用发的清单（核心 `SITE_AUTH`，第一批只有 sec.gov），网站名和它要什么按界面语言给；`contact` 是填了的联系邮箱或 null | 设置「来源授权」 |
+| `setSourceContact(contact)` | 邮箱或 null | **1.1.1 P9**：存联系邮箱（写进 `settings.json` 的 `sourceContact`，所有库共用）；null 或空白清除；不是邮箱 → `bad_arguments`、不写盘；日志只记「存了 / 清了」，不记邮箱；返回 `{ contact }` | 同上 |
 | `getHome()` | 无 | 见 §4.1「今日」 | S2 |
 | `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；走全应用的队列（v2 包 A，§4.4）。**v2 包 L**：队列忙（别的库在跑或在排）时**不再回 `bad_arguments`**，而是把当前库排到队尾：`{ started: false, queued: true, position, runningLibraryId }`（`position` 1 = 在跑的那个，2 = 第一个在排的…）；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排（§4.12）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | 库页头的「立即运行」（重设计 R1：直接调，不弹对话框，忙时排到队尾，§4.13）、本次运行未开始卡的「重试」、新建库的首轮 |
 | `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 库页头的「运行中 · 停止」（重设计 R1；原概览进度条旁）、右栏进度里「当前库 · 上次运行」的停止 |
@@ -1138,6 +1140,34 @@ frame-ancestors 'none'
 - **变异体**：
   - core：`v111-p8-keep-no-due`、`v111-p8-past-listed`、`v111-p8-notify-twice`。
   - desktop：`p8-no-due-block`、`p8-notice-not-recorded`。
+
+### 4.26 §四补：1.1.1 P9——来源授权（留联系方式，11-24）
+
+验收 B24；方案第五节第 4 件（维护者 11-24 晚：做，界面标明对应网站，第一批只有 sec.gov）。
+
+- **清单**（核心 `fetch/site-auth.mjs` 的 `SITE_AUTH`）：随应用发，第一批只有 `sec.gov`。每项写网站名、它要什么（中英两套）。按主机名判断：`sec.gov` 及其子域名算，长得像的不算。
+- **只发给清单里的网站**：
+  - 核心 `userAgentFor({ contact })` 按网址给 User-Agent：清单里的网站接上联系邮箱，别的只用流息自己的。
+  - 读网页（`read/read-page.mjs`）、读来源链接（`update/links.mjs`）都经 `fetchAs`：User-Agent 按网址给时，跳转一跳一跳地跟，每跳用自己网址的 User-Agent，清单里的网站跳到别处时联系方式不跟过去。
+  - 渲染那一步也按网址给。
+- **存法**：应用的 `settings.json` 的 `sourceContact`（邮箱或 null），所有库共用，不进库。不写日志，不进诊断信息。
+- **主进程**：更新、建库（含 API 连接）读网页和读来源链接时，每次造读取器都按当时的设置给 User-Agent（`main.mjs` 的 `agentFor`）。
+- **设置页**「库与用量」里的「来源授权」（`screens/settings.js` 的 `SourceAuthPart`）：
+  - 说明这类网站要什么、所有库共用、只发给下面这些网站；
+  - 列出网站和它要什么；
+  - 已填 / 尚未填写；
+  - 输入框，保存、清除；不是邮箱不保存并说明。
+- **待看卡片**：清单里的网站的条目，原文没存下来、又没填邮箱时，说明下面多一句「这家网站要留联系邮箱才让读，去设置里填。」和「去设置填写」按钮（`getInbox` 的条目带 `needsContact`）。填了以后不再出现。
+- **测试钩子**（打包后不认）：
+  - `STREAMS_DEV_SITE_AUTH`：换一份清单；
+  - 更新 Agent 替身脚本的 `reads`：它说自己打开过的页。
+- **测试**：
+  - core `test/v111-site-auth.test.mjs`（3 条，两台真服务器）。
+  - 真窗口 `test/ui-p9.test.mjs`（3 条，应用自己的读取器读本机两台服务器）。
+  - `test/settings.test.mjs` 多一条：只存邮箱、不进诊断。
+- **变异体**：
+  - core：`v111-p9-no-list-check`、`v111-p9-redirect-keeps-contact`。
+  - desktop：`p9-no-hint`、`p9-reader-no-contact`、`p9-hint-despite-contact`。
 
 ## 五、界面写法
 

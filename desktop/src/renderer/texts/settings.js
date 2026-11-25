@@ -69,6 +69,22 @@ export const SETTINGS = Object.freeze({
     note: '这个 key 只存在这台电脑上（加密），和模型的 key 分开，只发给 DeepSeek 的搜索接口。',
     failed: '没保存上，请再试一次。',
   }),
+  // 1.1.1 P9 (B24): 来源授权 — the contact e-mail, the sites it goes to
+  sourceAuth: Object.freeze({
+    label: '来源授权',
+    note: '有些网站要求自动访问的程序留联系邮箱，不留就不让读。填在这里，所有库共用；流息只在访问下面这些网站时带上它，不发给别的网站。',
+    sites: '会发给这些网站：',
+    site: '{name}：{why}',
+    filled: '已填：{contact}',
+    empty: '尚未填写：这些网站的条目会标「原文没存下来」。',
+    placeholder: '你的邮箱，例如 name@example.com',
+    save: '保存',
+    clear: '清除',
+    saved: '已保存，之后访问这些网站时会带上它。',
+    cleared: '已清除，之后不再发给任何网站。',
+    bad: '这不像一个邮箱地址，没有保存。',
+    failed: '没保存上，请再试一次。',
+  }),
   apiDialog: Object.freeze({
     title: '输入 API key',
     vendor: '厂商',

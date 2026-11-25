@@ -34,6 +34,8 @@ export const INBOX = Object.freeze({
     missing: 'Original not kept',
     missingNote: 'Streams could not read this page ({why}), so there is no summary. Open the title to see the web page, or discard it.',
     missingWhy: Object.freeze({ login: 'it needs a sign-in', check: 'the site asks for a human check', blocked: 'the site does not let programs read it', dead: 'the address is gone', failed: 'the site could not be reached', 'no-article': 'no article text in it' }),
+    needsContact: 'This site lets programs read it only when they leave a contact e-mail: fill one in Settings.',
+    needsContactGo: 'Fill it in Settings',
     summaryMissing: 'No summary written',
     summaryMissingNote: 'The original is kept, but no summary was written for it this time. You can open the kept original.',
     methods: Object.freeze({ direct: 'read directly', render: 'read after rendering', pdf: 'text of a PDF' }),

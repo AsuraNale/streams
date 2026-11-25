@@ -4,6 +4,7 @@
 // link added by hand left core/src with the scoring pipeline (core/legacy/fetch/).
 export { FETCH_STATES, LOG_STATES, PAUSED_STATE, HINTS, hintOf, classifyHttp, classifyError, parseRetryAfter } from './states.mjs';
 export { getText, checkUrl, USER_AGENT, DEFAULT_TIMEOUT_MS } from './http.mjs';
+export { SITE_AUTH, siteOf, isContact, userAgentFor, fetchAs, MAX_HOPS } from './site-auth.mjs';
 export { stripHtml, decodeEntities, truncateText, normalizeTitle, SUMMARY_MAX } from './html.mjs';
 export { toIsoDate, localIsoDate, isRealDate, ageCutoff } from './dates.mjs';
 export { appendFetchLog, readFetchLog, lastRoundStatus, fetchLogPath, FETCH_LOG_FILE } from './log.mjs';

@@ -300,6 +300,44 @@ function LibraryRootPart() {
   </div>`
 }
 
+/**
+ * 1.1.1 P9 (B24): 来源授权 — one contact e-mail for the sites of the list that comes with the app (getSourceAuth: the sites, their
+ * name and what they ask, and the contact filled in), shared by every library; 保存 = setSourceContact(text), 清除 =
+ * setSourceContact(null). Not an e-mail address: not saved, and it says so.
+ * Test hooks: [data-part="source-auth"][data-filled], [data-site=<id>], [data-field="source-contact"],
+ * [data-action="save-contact"|"clear-contact"], [data-contact-note=saved|cleared|bad|failed].
+ */
+function SourceAuthPart() {
+  const A = T.sourceAuth
+  const auth = useLoad(() => call('getSourceAuth'), [])
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null)
+  const d = auth.data
+  const act = async (value, ok) => {
+    setBusy(true)
+    setNote(null)
+    try { const r = await call('setSourceContact', value); auth.mutate(x => ({ ...x, contact: r.contact })); setText(''); setNote(ok) } catch (err) { setNote(err?.code === 'bad_arguments' ? 'bad' : 'failed') } finally { setBusy(false) }
+  }
+  const save = () => { if (text.trim()) void act(text.trim(), 'saved') }
+  return html`<div class="file-row st-set-auth" data-part="source-auth" data-filled=${d ? String(Boolean(d.contact)) : ''}>
+    <span class="file-icon"><${TIcon} name="key" fallback="file" /></span>
+    <span class="file-text"><b>${A.label}</b>
+      <small data-part="source-auth-state">${d ? (d.contact ? fmt(A.filled, { contact: d.contact }) : A.empty) : ''}</small>
+      <small class="muted">${A.note}</small>
+      <small class="muted">${A.sites}</small>
+      ${(d?.sites ?? []).map(site => html`<small key=${site.id} data-site=${site.id}>${fmt(A.site, { name: site.name, why: site.why })}</small>`)}
+      ${note ? html`<small role=${note === 'saved' || note === 'cleared' ? 'status' : 'alert'} data-contact-note=${note}>${A[note]}</small>` : null}
+    </span>
+    <span class="st-set-search__key">
+      <input type="email" autocomplete="email" data-field="source-contact" aria-label=${A.placeholder} placeholder=${A.placeholder} value=${text} disabled=${busy || !d}
+        onInput=${e => setText(e.currentTarget.value)} onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); save() } }} />
+      <${Btn} name="save-contact" kind="primary" disabled=${busy || !d || text.trim() === ''} onClick=${save}>${A.save}<//>
+      ${d?.contact ? html`<${Btn} name="clear-contact" disabled=${busy} onClick=${() => act(null, 'cleared')}>${A.clear}<//>` : null}
+    </span>
+  </div>`
+}
+
 /** 语言: 跟随系统（当前：中文） · 中文 · English — the template's filters, a radio each (v1.0's ids kept). */
 function LanguagePart({ language, onChange }) {
   const setting = language?.setting ?? 'auto'
@@ -470,7 +508,7 @@ export function SettingsScreen() {
             <${LanguagePart} language=${data?.language} onChange=${changeLanguage} />
           <//>
           <${Group} id="library" name=${T.groups.library}>
-            ${data ? html`<${LibraryRootPart} /><${UsagePart} />` : null}
+            ${data ? html`<${LibraryRootPart} /><${SourceAuthPart} /><${UsagePart} />` : null}
           <//>
           <${Group} id="about" name=${T.about}>
             <div class="file-row st-set-about" data-part="about">

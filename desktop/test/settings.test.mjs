@@ -16,7 +16,8 @@ after(() => { for (const dir of made) removeTree(dir, { waitMs: 3000 }) })
 const onDisk = file => JSON.parse(readFileSync(file, 'utf8'))
 // v2 package I: settings.json has one more field, setupConnection (首次打开's connection step while there is no library)
 // v2 package L: and the right panel's state, panel { open, tab } (default open, 详情) — the reason this list changed
-const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, appearance: DEFAULT_APPEARANCE, libraryRoot: null, setupConnection: null, panel: { open: true, tab: 'detail' } })
+// 1.1.1 P9 (B24): and 来源授权's contact e-mail, sourceContact (default null)
+const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, appearance: DEFAULT_APPEARANCE, libraryRoot: null, setupConnection: null, panel: { open: true, tab: 'detail' }, sourceContact: null })
 
 test('no file, a broken file, a file of another shape: the defaults', () => {
   const dir = folder()
@@ -170,6 +171,8 @@ test('v1.0\'s theme migrated when read: only theme and appearance change, every 
     setupConnection: { by: 'chose', at: '2026-11-03T10:00:00.000Z', detail: 'codex' },
     // v2 package L: the right panel's state is one more field, kept as written like the others (why this list changed)
     panel: { open: false, tab: 'files' },
+    // 1.1.1 P9 (B24): 来源授权's contact e-mail, one more field kept as written
+    sourceContact: 'reader@example.com',
   }
   // redesign R1: what they become is research (was precision); precision and monoline, ids of now, are kept
   const rows = [[undefined, 'research', 'system'], ['river', 'research', 'system'], ['paper', 'research', 'light'], ['night', 'research', 'dark'], ['sepia', 'research', 'system'], ['precision', 'precision', 'system'], ['monoline', 'monoline', 'system']]
@@ -244,4 +247,19 @@ test('panel: { open, tab } read field by field, written by patch, a bad one refu
     assert.throws(() => writeSettings(file, { panel: bad }), TypeError, JSON.stringify(bad))
     assert.equal(readFileSync(file, 'utf8'), before, 'nothing written for ' + JSON.stringify(bad))
   }
+})
+
+// 1.1.1 P9 (B24): 来源授权's contact e-mail — only an e-mail address is kept; it never goes into 「复制诊断信息」
+test('sourceContact: an e-mail address or null; not an address is refused; not in the diagnostics', async () => {
+  const { diagnosticsText } = await import('../src/main/diagnostics.mjs')
+  const dir = folder()
+  const file = join(dir, 'settings.json')
+  assert.equal(writeSettings(file, { sourceContact: ' reader@example.com ' }).sourceContact, 'reader@example.com')
+  assert.equal(readSettings(file).sourceContact, 'reader@example.com')
+  assert.throws(() => writeSettings(file, { sourceContact: 'not an address' }), TypeError)
+  assert.equal(readSettings(file).sourceContact, 'reader@example.com', 'unchanged after a refused write')
+  const text = diagnosticsText({ versions: { app: '1', electron: '44', chrome: '1', node: '24', os: 'win32' }, layout: { logsDir: join(dir, 'logs'), appData: dir, localData: join(dir, 'local') }, settings: readSettings(file), keysHeld: [] })
+  assert.match(text, /^Streams diagnostics/)
+  assert.equal(text.includes('reader@example.com'), false)
+  assert.equal(writeSettings(file, { sourceContact: null }).sourceContact, null)
 })

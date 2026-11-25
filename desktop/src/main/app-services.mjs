@@ -15,6 +15,7 @@ import { isPanelPatch, readSettings, writeSettings } from './settings.mjs'
 import { BridgeError } from './bridge-methods.mjs'
 import { DEFAULT_THEME, isAppearance, isThemeId } from './theme.mjs'
 import { licensesView, noticesFileOf } from './licenses.mjs'
+import { SITE_AUTH, isContact } from './core.mjs'
 
 /**
  * @param {object} o
@@ -39,7 +40,7 @@ import { licensesView, noticesFileOf } from './licenses.mjs'
 /** The maker's site (README and the about part: 「由 Starry Digital 开发」, 维护者 11-02). */
 export const MAKER_URL = 'https://starrydigital.ca'
 
-export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets, applyTheme = () => {}, scheme = () => 'light', licenses, rawErrors = null }) {
+export function createAppServices({ layout, emit, log, hidden = false, locale, version, library, connections, secrets, applyTheme = () => {}, scheme = () => 'light', licenses, rawErrors = null, siteList = () => SITE_AUTH }) {
   const settings = () => readSettings(layout.settingsFile)
 
   const appState = () => {
@@ -125,6 +126,23 @@ export function createAppServices({ layout, emit, log, hidden = false, locale, v
       const problem = await shell.openPath(file)
       if (problem) throw new BridgeError('open_failed', `openPath ${file}: ${problem}`)
       return null
+    },
+    /**
+     * 1.1.1 P9 (B24): 设置「来源授权」 — the sites of the list that comes with the app (their name and what they ask, in the
+     * app's language) and the contact e-mail filled in (null: none). The list is the core's (SITE_AUTH); a test run may lay
+     * another over it (siteList).
+     */
+    getSourceAuth() {
+      const lang = locale.current().resolved === 'en' ? 'en' : 'zh'
+      return { sites: siteList().map(s => ({ id: s.id, hosts: [...s.hosts], name: s.name[lang], why: s.why[lang] })), contact: settings().sourceContact }
+    },
+    /** null clears it; anything that is not an e-mail address → bad_arguments, nothing written. Never logged. */
+    setSourceContact(contact) {
+      if (contact !== null && !isContact(contact)) throw new BridgeError('bad_arguments', 'not an e-mail address')
+      const saved = writeSettings(layout.settingsFile, { sourceContact: contact === null || contact.trim() === '' ? null : contact }).sourceContact
+      log(`source authorization: the contact e-mail ${saved ? 'saved' : 'cleared'}`)
+      emit('settings-changed', null)
+      return { contact: saved }
     },
     setShowDeveloperInfo(on) {
       const r = { showDeveloperInfo: writeSettings(layout.settingsFile, { showDeveloperInfo: on }).showDeveloperInfo }

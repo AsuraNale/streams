@@ -59,6 +59,9 @@ const METHODS = [
   'removeApiKey',
   'setSearchKey',
   'removeSearchKey',
+  // 1.1.1 P9: 来源授权 (the contact e-mail sent to the sites of the list)
+  'getSourceAuth',
+  'setSourceContact',
   // the run and 待看
   'getHome',
   'startRound',

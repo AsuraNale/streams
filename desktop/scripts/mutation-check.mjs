@@ -1463,6 +1463,25 @@ const MUTANTS = [
     edits: [['src/main/services/due-notify.mjs', '      try { markDueNotices(e.path, owed, { now }) }', '      try { void markDueNotices }']],
     test: ['test/ui-p8.test.mjs'],
   },
+  // 1.1.1 P9 来源授权 (B24): the file's tests run one after another on one world, so each mutant runs the whole file
+  {
+    id: 'p9-no-hint',
+    what: '待看 does not say that a site of the list wants a contact e-mail',
+    edits: [['src/main/services/pipeline.mjs', ".map(i => (i.original?.saved === false && needsContact(i.url) ? { ...i, needsContact: needsContact(i.url) } : i))", '']],
+    test: ['test/ui-p9.test.mjs'],
+  },
+  {
+    id: 'p9-reader-no-contact',
+    what: "the update's page reader is made without the contact (the plain User-Agent)",
+    edits: [['src/main/main.mjs', 'createPageReader({ render: renderService.render, pdfText, userAgent: agentFor() })', 'createPageReader({ render: renderService.render, pdfText })']],
+    test: ['test/ui-p9.test.mjs'],
+  },
+  {
+    id: 'p9-hint-despite-contact',
+    what: 'the card still asks for a contact e-mail after one is filled in',
+    edits: [['src/main/main.mjs', 'needsContact: url => (readSettings(layout.settingsFile).sourceContact ? null : siteOf(url, siteList())?.id ?? null),', 'needsContact: url => siteOf(url, siteList())?.id ?? null,']],
+    test: ['test/ui-p9.test.mjs'],
+  },
 ]
 
 function runTest(desktop, test) {

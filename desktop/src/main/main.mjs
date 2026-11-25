@@ -54,7 +54,7 @@ import { startupProblem } from './startup-check.mjs'
 // 1.1 W2: reading a page three ways (core read/), the hidden render window and the PDF reader it is given
 import { createRenderService, isRenderSession } from './render.mjs'
 import { pdfText } from './pdf-text.mjs'
-import { createPageReader, createLinkReader, createApiToolSession, searchFor, BUILD_BUDGET, UPDATE_BUDGET } from './core.mjs'
+import { createPageReader, createLinkReader, createApiToolSession, searchFor, userAgentFor, siteOf, SITE_AUTH, BUILD_BUDGET, UPDATE_BUDGET } from './core.mjs'
 // 1.1 W5: a library with a card is updated by it (services/library-update.mjs; services/update.mjs is the app's own update)
 import { createLibraryUpdateService } from './services/library-update.mjs'
 import { createBuildService, devBuildReaders, devBuildSession } from './services/build.mjs'
@@ -125,6 +125,10 @@ const DEV_UPDATE_SCRIPT = !app.isPackaged && typeof process.env.STREAMS_DEV_UPDA
 const devUpdateScript = () => { try { return DEV_UPDATE_SCRIPT ? JSON.parse(readFileSync(DEV_UPDATE_SCRIPT, 'utf8')) : null } catch { return null } }
 const pause = ms => new Promise(resolve => setTimeout(resolve, Math.max(0, Number(ms) || 0)))
 // 1.1.1 P1: what Streams' own readers answer in a build of a test (services/build.mjs devBuildReaders); never the network there
+// 1.1.1 P9 (B24), development and tests only: the list of 来源授权's sites laid over the one that comes with the app (a JSON
+// file: [{ id, hosts, needs, name: { zh, en }, why: { zh, en } }]) — a site of this machine stands for sec.gov
+const DEV_SITE_AUTH = !app.isPackaged && typeof process.env.STREAMS_DEV_SITE_AUTH === 'string' && isAbsolute(process.env.STREAMS_DEV_SITE_AUTH) ? process.env.STREAMS_DEV_SITE_AUTH : null
+const siteList = () => { try { return DEV_SITE_AUTH ? JSON.parse(readFileSync(DEV_SITE_AUTH, 'utf8')) : SITE_AUTH } catch { return SITE_AUTH } }
 const DEV_READS = !app.isPackaged && typeof process.env.STREAMS_DEV_READS === 'string' && isAbsolute(process.env.STREAMS_DEV_READS) ? process.env.STREAMS_DEV_READS : null
 const DEV_DEFINITION = !app.isPackaged && typeof process.env.STREAMS_DEV_DEFINITION === 'string' && isAbsolute(process.env.STREAMS_DEV_DEFINITION) ? process.env.STREAMS_DEV_DEFINITION : null
 const STARTED_AT = Date.now()
@@ -338,6 +342,8 @@ app.whenReady().then(() => {
     // redesign R5a: raw errors out of the page
     rawErrors,
     update: () => libraryUpdate,
+    // 1.1.1 P9 (B24): the site of 来源授权's list an address is of, while no contact is filled in (else null)
+    needsContact: url => (readSettings(layout.settingsFile).sourceContact ? null : siteOf(url, siteList())?.id ?? null),
   })
   pipelineHeld = () => pipeline.held()
   // redesign R2 (N03): a held 放弃 is written when the app quits (whatever quits it: 退出, an update, the last window) …
@@ -354,7 +360,11 @@ app.whenReady().then(() => {
   const readerService = createReaderService({ library, reader, log })
   // 1.1 W2: the page reader (direct -> rendered in a hidden window -> a PDF's text), for the update of W5
   const renderService = createRenderService({ BrowserWindow, session, log })
-  const readPages = () => createPageReader({ render: renderService.render, pdfText })
+  // 1.1.1 P9 (B24): every reader's User-Agent by address — Streams' own, with the contact of 设置「来源授权」 only for a site of
+  // the list (core fetch/site-auth.mjs); read from the settings each time a reader is made (an update, a build's check)
+  const agentFor = () => userAgentFor({ contact: readSettings(layout.settingsFile).sourceContact, sites: siteList() })
+  const readLinksNow = () => createLinkReader({ render: renderService.render, userAgent: agentFor() })
+  const readPages = () => createPageReader({ render: renderService.render, pdfText, userAgent: agentFor() })
   // development and tests only (STREAMS_DEV_CONNECTION, not in a packaged app): the update agent is a stand-in that reads and
   // searches nothing and hands in no item; its sign-in is the dev connection's (login-expired: not logged in → B12's banner)
   const devWebSession = active => ({
@@ -366,7 +376,10 @@ app.whenReady().then(() => {
         for (const p of Array.isArray(script.progress) ? script.progress : []) { await pause(p.afterMs); onProgress?.({ searches: p.searches ?? 0, reads: p.reads ?? 0 }) }
         await pause(script.holdMs)
         const items = Array.isArray(script.items) ? script.items : []
-        return { ok: true, json: { items }, text: JSON.stringify({ items }), sessionId: 'dev-update', resumed: false, reads: [], searches: [], otherTools: [] }
+        // 1.1.1 P9: the pages the stand-in says it opened ({ url, ok }), so an item whose original Streams could not read is
+        // still one it handed in after opening it (core update/run.mjs: an item needs its original or an open)
+        const reads = Array.isArray(script.reads) ? script.reads : []
+        return { ok: true, json: { items }, text: JSON.stringify({ items }), sessionId: 'dev-update', resumed: false, reads, searches: [], otherTools: [] }
       }
       return { ok: true, json: { items: [] }, text: '{"items":[]}', sessionId: 'dev-update', resumed: false, reads: [], searches: [], otherTools: [] }
     },
@@ -385,7 +398,7 @@ app.whenReady().then(() => {
     sessionDir: join(layout.appData, 'update-api-sessions'), readPage: apiPages(), search, onPage,
     budget: { reads: UPDATE_BUDGET.reads, searches: UPDATE_BUDGET.searches },
   })
-  libraryUpdate = createLibraryUpdateService({ readPages, readLinks: () => createLinkReader({ render: renderService.render }), log, now: clock, ...(DEV_CONNECTION ? { session: devWebSession } : {}),
+  libraryUpdate = createLibraryUpdateService({ readPages, readLinks: readLinksNow, log, now: clock, ...(DEV_CONNECTION ? { session: devWebSession } : {}),
     ...(apiWired ? { apiSession: updateApi, apiSearch } : {}),
     // 1.1.1 P10, tests only: each judgment of the check waits (the script's judgeDelayMs)
     ...(DEV_UPDATE_SCRIPT ? { judgeOf: active => ({ ...active.connector, complete: async req => { await pause(devUpdateScript()?.judgeDelayMs); return active.connector.complete(req) } }) } : {}),
@@ -410,7 +423,7 @@ app.whenReady().then(() => {
   const ask = createAskService({ library, connections, log })
   const status = createStatusService({ library, log, hidden: HIDDEN, shell })
   const services = createAppServices({
-    layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets, applyTheme, scheme: () => currentLook().scheme,
+    layout, emit, log, hidden: HIDDEN, locale, version: VERSION, library, connections, secrets, applyTheme, scheme: () => currentLook().scheme, siteList,
     // 许可证与致谢 (licenses.mjs): the packaged app reads its own copies (resources/app, beside Streams.exe), a development run the repository's
     licenses: { packaged: app.isPackaged, desktopDir: DESKTOP_DIR, installDir: dirname(process.execPath) },
     rawErrors,
@@ -435,7 +448,7 @@ app.whenReady().then(() => {
     // stand-in's one question
     ...(DEV_BUILD || DEV_CONNECTION ? { session: (active, callsSoFar) => devBuildSession(DEV_BUILD, callsSoFar), readers: () => devBuildReaders(DEV_READS) } : {}),
     // 1.1.1 P1 (B19): the card's addresses read by Streams itself — the update's page reader and link reader
-    ...(DEV_BUILD || DEV_CONNECTION ? {} : { readers: () => ({ readPage: readPages().read, readLinks: createLinkReader({ render: renderService.render }).read }) }),
+    ...(DEV_BUILD || DEV_CONNECTION ? {} : { readers: () => ({ readPage: readPages().read, readLinks: readLinksNow().read }) }),
     ...(apiWired ? { apiSession: buildApi, apiSearch } : {}),
     // 1.1 W10 (the maintainer 11-23): a library made or brought over has its first update queued at once (the queue's why: first)
     afterBuilt: ({ libraryId }) => {

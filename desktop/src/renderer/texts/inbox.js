@@ -39,6 +39,9 @@ export const INBOX = Object.freeze({
     missing: '原文没存下来',
     missingNote: '流息未读到这个网页（{why}），因此没有摘要。可点标题查看原网页，或放弃。',
     missingWhy: Object.freeze({ login: '要登录才能看', check: '网站要人机验证', blocked: '网站不让程序读', dead: '地址已失效', failed: '网站暂时打不开', 'no-article': '读不出正文' }),
+    // 1.1.1 P9 (B24): a site of 来源授权's list, no contact filled in
+    needsContact: '这家网站要留联系邮箱才让读，去设置里填。',
+    needsContactGo: '去设置填写',
     summaryMissing: '摘要没写出来',
     summaryMissingNote: '原文已存，但本次未写出摘要。可打开存下的原文查看。',
     methods: Object.freeze({ direct: '直接取', render: '渲染后取', pdf: 'PDF 取字' }),

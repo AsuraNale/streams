@@ -11,6 +11,7 @@
 //   (401 / 403 / 407 / 451) — the same rules as reading a page (read/read-page.mjs): Streams' own identity, the same site at
 //   most once every minGapMs, a sign-in page or a human check stops at once and is never touched.
 import { USER_AGENT, DEFAULT_TIMEOUT_MS } from '../fetch/http.mjs';
+import { fetchAs } from '../fetch/site-auth.mjs';
 import { humanCheck, signInPage } from '../read/detect.mjs';
 import { MIN_GAP_MS } from '../read/read-page.mjs';
 
@@ -71,8 +72,9 @@ export function createLinkReader({ fetchImpl = globalThis.fetch, render = null, 
     await polite(host);
     let direct = null;
     try {
-      const res = await fetchImpl(url, { method: 'GET', headers: { 'user-agent': userAgent, accept: 'text/html, application/xhtml+xml, application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.5' }, redirect: 'follow', signal: AbortSignal.timeout(timeoutMs) });
-      direct = { status: res.status, finalUrl: res.url || url, text: await res.text() };
+      // 1.1.1 P9: userAgent may be (url) => string (fetch/site-auth.mjs): the contact only to a site of the list, hop by hop
+      const { res, finalUrl } = await fetchAs(fetchImpl, url, { userAgent, accept: 'text/html, application/xhtml+xml, application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.5', timeoutMs });
+      direct = { status: res.status, finalUrl, text: await res.text() };
     } catch {
       return { ok: false, url, finalUrl: url, http: null, links: [], method: 'direct', reason: 'failed' };
     }
@@ -87,7 +89,7 @@ export function createLinkReader({ fetchImpl = globalThis.fetch, render = null, 
     if (!render) return { ok: false, url, finalUrl: direct.finalUrl, http: direct.status, links: [], method: 'direct', reason: 'blocked' };
     try {
       await polite(host);
-      const r = await render(url, { userAgent, timeoutMs });
+      const r = await render(url, { userAgent: typeof userAgent === 'function' ? userAgent(url) : userAgent, timeoutMs });
       if (humanCheck(r.html)) return { ok: false, url, finalUrl: r.finalUrl ?? url, http: r.status ?? null, links: [], method: 'render', reason: 'check' };
       if (signInPage(r.html, r.finalUrl ?? url)) return { ok: false, url, finalUrl: r.finalUrl ?? url, http: r.status ?? null, links: [], method: 'render', reason: 'login' };
       const rl = linksOf(r.html, r.finalUrl ?? url);
