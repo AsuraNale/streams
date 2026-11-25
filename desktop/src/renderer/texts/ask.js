@@ -51,6 +51,12 @@ export const ASK = Object.freeze({
     failed: '未能记录，请填写主题。',
   }),
 
+  // 1.1.2 (U4): 库内暂无相关内容 → the library's conversation with the main agent (the question in its box, not sent)
+  toAgent: Object.freeze({
+    note: '问库只根据库内已有的内容回答。要补充新资料，请主 Agent 调整这座库的来源或更新量。',
+    button: '请主 Agent 补充资料',
+  }),
+
   feedback: Object.freeze({
     open: '反馈回答问题',
     label: '回答存在的问题（将被记录，用于改进问库）',

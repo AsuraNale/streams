@@ -102,7 +102,7 @@ function Feedback({ question }) {
  * One answer under its question (exported for the page-level test that draws a given answer: test/ui-ask.test.mjs).
  * `demands` (getDemands) says whether 「加入待补充主题」 was pressed; `sourceOf(id)` a note's web source (查看原文).
  */
-export function Answer({ turn, index, highlight, onCite, onOpen, onOriginal, onDemand, onSettings, demands = [], sourceOf = () => null }) {
+export function Answer({ turn, index, highlight, onCite, onOpen, onOriginal, onDemand, onSettings, onAgent = null, demands = [], sourceOf = () => null }) {
   if (turn.status === 'asking') return html`<p class="limit-note" data-part="asking" role="status"><span class="st-mo-dots" data-mo="ask" aria-hidden="true"><i></i><i></i><i></i></span>${T.asking}</p>`
   if (turn.status === 'error') {
     if (turn.code === 'no_connection') {
@@ -140,6 +140,8 @@ export function Answer({ turn, index, highlight, onCite, onOpen, onOriginal, onD
       ${r.notInLibrary || r.missing ? html`<${Demand} key=${`demand-${turn.id ?? index}`} question=${turn.question} missing=${r.missing ?? ''} demands=${demands} onAdded=${onDemand} /><span>·</span>` : null}
       <${Feedback} question=${turn.question} />
     </div>
+    ${r.notInLibrary && onAgent ? html`<div class="st-alert" role="note" data-part="to-agent"><p>${T.toAgent.note}</p>
+      <div class="row"><span class="st-act" data-action="to-agent"><button type="button" class="btn" onClick=${() => onAgent(turn.question)}>${T.toAgent.button}</button></span></div></div>` : null}
   </div>`
 }
 
@@ -222,7 +224,8 @@ export function AskScreen() {
   const reply = (t, i) => html`<div class="assistant-message">
       <${Speaker} name=${T.speaker} role=${T.speakerRole} />
       <${Answer} turn=${t} index=${i} highlight=${highlight} demands=${demands.data} sourceOf=${sourceOf} onCite=${n => setHighlight({ turn: i, n })}
-        onOpen=${open} onOriginal=${original} onDemand=${() => demands.reload()} onSettings=${() => navigate('settings')} />
+        onOpen=${open} onOriginal=${original} onDemand=${() => demands.reload()} onSettings=${() => navigate('settings')}
+        onAgent=${libId ? q => navigate('build', { edit: libId, opener: q }) : null} />
     </div>`
   const state = counts ? 'ready' : files.status
   return html`<${LibraryFrame} tab="ask" state=${state} labelledby="ask-title" detail=${detail}>

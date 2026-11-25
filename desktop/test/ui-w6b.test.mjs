@@ -157,7 +157,9 @@ describe('W6b: 新建库 and the build conversation', () => {
     await talkIdle()
     // answered: the question folds to one line (no options left to press)
     assert.deepEqual(await s.page.evaluate(() => { const q = document.querySelector('[data-part="question"][data-n="2"]'); return [q.dataset.state, Boolean(q.querySelector('[data-part="answered-line"]')), q.querySelectorAll('[data-option]').length] }), ['answered', true, 0])
-    assert.equal(await s.page.evaluate(() => [...document.querySelectorAll('[data-row="you"]')].at(-1).textContent), '我选了：特斯拉中国、宁德时代以外的电池厂；其它：电池那块要有宁德时代')
+    // 1.1.2 (第 3 件): the turn carries the choice as made (answer: { picked, other }) — your side shows the 已答小卡, not the sentence
+    assert.deepEqual(await s.page.evaluate(() => { const c = [...document.querySelectorAll('[data-row="you"]')].at(-1); return [c.dataset.part, c.querySelector('.st-answer__head')?.textContent, [...c.querySelectorAll('.st-answer__pick')].map(p => p.textContent)] }),
+      ['answer-card', '你的选择 · 问题 2', ['特斯拉中国', '宁德时代以外的电池厂', '其他：电池那块要有宁德时代']])
     assert.deepEqual((await shownQuestions()).at(-1), { n: 3, kind: 'input', options: [], other: false })
     await say('中国市场为主，大中型车企。')
     assert.equal((await shownQuestions()).length, 3, 'the 3rd question with no options was not shown')
@@ -404,7 +406,8 @@ describe('W6b in English (E5)', () => {
     await e.page.click('[data-option="Battery makers"]')
     await e.page.click('[data-action="answer"] button')
     await untilE(() => document.querySelector('article[data-part="build-card"]') !== null && document.querySelector('[data-part="thinking"]') === null)
-    assert.equal(await e.page.evaluate(() => [...document.querySelectorAll('[data-row="you"]')].at(-1).textContent), 'I picked: Battery makers')
+    assert.deepEqual(await e.page.evaluate(() => { const c = [...document.querySelectorAll('[data-row="you"]')].at(-1); return [c.dataset.part, c.querySelector('.st-answer__head')?.textContent, [...c.querySelectorAll('.st-answer__pick')].map(p => p.textContent)] }),
+      ['answer-card', 'Your answer · Question 2', ['Battery makers']])
     await e.page.click('[data-action="full"] button')
     await noChinese('card')
     if (SHOTS) await e.page.screenshot({ path: join(SHOTS, 'en-card.png') })

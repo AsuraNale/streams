@@ -59,6 +59,8 @@ export const SHELL = Object.freeze({
       stopping: '正在停止',
       queued: '排队中 · 第 {n} 位',
       next: '下次运行 {when}',
+      // 1.1.2 (U6): the chip's dot when the schedule is not the card's rhythm (its title says so)
+      offRhythm: '定时与建库卡上的节奏不一致，可在「来源与要求」中调整。',
       nextNone: '未开启定时运行',
       failed: '未能开始运行，请重试。',
       stopFailed: '未能停止运行，请重试。',

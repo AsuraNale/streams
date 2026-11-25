@@ -26,17 +26,25 @@
 // 1.1.1 P1 (B19): [data-part=card-unchecked] with [data-unchecked=<url>][data-why], [data-action=ask-fix] (the last card, not
 // confirmable: a message asking the agent to fix it, sent as the user's), [data-part=card-links-only][data-n];
 // [data-change=<key>]; [data-action=start|answer|send|retry|restart|go-settings|drop|full|confirm].
+// 1.1.2 (第 5 件; 赞妮's mock 05): the page has a column of conversations on its left (ConversationList: 新建库, the one in
+// progress, every library with its last conversation) — nav[data-part=conversations] with [data-action=conv-new],
+// [data-conv=going], [data-conv-library=<id>][data-n][aria-current]; a library opened from it (params.edit, or params.from for one
+// of the last version) shows its earlier conversations (section[data-part=earlier] with [data-earlier=<id>][data-open],
+// [data-action=earlier-toggle]) above the box, and above the conversation once it goes on ([data-part=handed-over]); a
+// library opened while another conversation is in progress: data-view=other with [data-part=other-going],
+// [data-action=to-going]. The card's 「每次更新的量」 line: [data-part=card-volume][data-volume].
 import { html, useEffect, useLayoutEffect, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
 import { useEvent } from '../lib/use-events.js'
-import { dayText, fmt } from '../lib/format.js'
+import { dayText, fmt, whenText } from '../lib/format.js'
+import { useLoad } from '../lib/use-load.js'
 import { confirmAndOpen } from '../lib/build.js'
 import { TIcon } from '../lib/template-icons.js'
 import { BrandMark } from '../lib/brand-mark.js'
 import { moMs, stillMotion } from '../lib/motion.js'
 import { AppFrame, AppSidebar, Main, TopBar } from '../kit/index.js'
-import { CONNECTIONS, DAY, PUNCT, SEP } from '../texts/common.js'
+import { CONNECTIONS, DAY, PUNCT, SEP, WHEN } from '../texts/common.js'
 import { BUILD as T } from '../texts/build.js'
 import { RightPanel } from './right-panel.js'
 import { Btn } from './t-dialog.js'
@@ -129,7 +137,7 @@ function Changes({ changes, edit }) {
 }
 
 /** The card the main agent handed in (the conversation's; `last`: the newest card, the one 确认 is for). */
-function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConfirm, onAskFix }) {
+function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConfirm, onAskFix, volume = null }) {
   const [full, setFull] = useState(false)
   const card = turn.card ?? {}
   const d = card.definition ?? {}
@@ -150,6 +158,8 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
     [T.lines.decide, decide.length ? decide.map((x, i) => `${i + 1}. ${entryWords('decide', x)}`).join(SEP) : T.decideNone],
     [T.lines.rest, fmt(T.rest, { sources: list(card.sources).length, unreadable: list(card.unreadable).length, samples: list(card.samples).length })],
   ]
+  // 1.1.2 (第 4 件): the step the library will update at — the card's proposal, else the one it has (a new library: 设置's)
+  const step = Object.hasOwn(T.volumes, card.volume ?? '') ? card.volume : Object.hasOwn(T.volumes, volume ?? '') ? volume : null
   return html`<article class="confirmation st-proposal st-build-card" data-part="build-card" data-can-confirm=${String(can)} data-last=${String(last)} aria-label=${fmt(cv?.cardTitle ?? (edit ? T.editCardTitle : T.cardTitle), { name: card.name ?? '' })}>
     <div class="confirm-top">
       <div class="confirm-title"><${TIcon} name="file" /><div><h2 data-part="title">${fmt(cv?.cardTitle ?? (edit ? T.editCardTitle : T.cardTitle), { name: card.name ?? '' })}</h2><small data-part="from">${cv?.from ?? (edit ? T.editFrom : T.cardFrom)}</small></div></div>
@@ -158,7 +168,7 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
     <div class="card-body">
       <dl class="decision-points" data-part="card-points">${rows.map(([label, body], i) => html`<div key=${i}>
         <dt><span class="point-index">${String(i + 1).padStart(2, '0')}</span>${label}</dt><dd>${body || T.empty}</dd>
-      </div>`)}</dl>
+      </div>`)}${step ? html`<div data-part="card-volume" data-volume=${step}><dt><span class="point-index">${String(rows.length + 1).padStart(2, '0')}</span>${T.volumeRow}</dt><dd>${fmt(T.volumeValue, { v: T.volumes[step] })}</dd></div>` : null}</dl>
       <${Changes} changes=${turn.changes} edit=${edit} />
       ${full ? html`<${CardFull} card=${card} />` : null}
       ${linksOnly.length ? html`<p class="limit-note" data-part="card-links-only" data-n=${linksOnly.length}>${fmt(T.linksOnly, { n: linksOnly.length, names: linksOnly.map(s => s.name ?? s.url).join(PUNCT.list) })}</p>` : null}
@@ -283,6 +293,108 @@ function Question({ q, open, answered, busy, onAnswer }) {
   ${sent && open ? html`<${AnswerCard} n=${q.n} picked=${sent.picked} other=${sent.other ?? ''} pending=${true} />` : null}`
 }
 
+// ---- 1.1.2 (第 5 件): the conversations by library, and a library's earlier ones ---------------------------------------------
+
+const whenOf = iso => (iso ? whenText(iso, WHEN) ?? '' : '')
+
+/** The column on the left of 主 Agent's page; `here`: { kind: 'new' | 'going' | 'library', id? } (marked aria-current). */
+function ConversationList({ here }) {
+  const { navigate } = useApp()
+  const L = T.list
+  const list = useLoad(() => call('listConversations'), [])
+  useEvent('build-changed', p => { if (p?.phase !== 'progress') list.reload() }, [])
+  useEvent('libraries-changed', () => list.reload(), [])
+  const d = list.data
+  const going = d?.going ?? null
+  const goingId = going?.library?.id ?? null
+  return html`<nav class="st-convs" aria-label=${L.label} data-part="conversations">
+    <span class="st-act" data-action="conv-new"><button type="button" class="btn st-convs__new" aria-current=${here.kind === 'new' ? 'page' : undefined} onClick=${() => navigate('build', {})}><${TIcon} name="plus" fallback="add" /> ${L.new}</button></span>
+    ${going ? html`<div class="st-convs__label">${L.going}</div>
+      <button type="button" class="st-convs__item" data-conv="going" data-going="true" aria-current=${here.kind === 'going' ? 'page' : undefined}
+        onClick=${() => navigate('build', goingId ? { edit: goingId } : {})}><b>${going.library?.name ?? L.goingNew}</b><small>${T.modes[going.mode] ?? ''} · ${fmt(L.goingAsked, { n: going.asked ?? 0 })}</small></button>` : null}
+    <div class="st-convs__label">${L.libraries}</div>
+    ${list.status === 'error' && !d ? html`<p class="st-convs__none" role="alert">${L.failed}</p>` : null}
+    ${(d?.libraries ?? []).map(r => {
+      const last = r.conversations.at(-1) ?? null
+      const to = r.hasCard === false ? { from: r.library.id } : { edit: r.library.id }
+      return html`<button type="button" key=${r.library.id} class="st-convs__item" data-conv-library=${r.library.id} data-n=${r.conversations.length}
+        aria-current=${here.kind === 'library' && here.id === r.library.id ? 'page' : undefined} onClick=${() => navigate('build', to)}>
+        <b>${r.library.name ?? ''}</b><small>${last ? fmt(L.lastAt, { what: T.modes[last.mode] ?? last.mode, when: whenOf(last.endedAt) }) : L.none}</small></button>`
+    })}
+  </nav>`
+}
+
+/** 主 Agent's page: the column of conversations, then the page itself (its top bar and body). */
+function AgentLayout({ here, children }) {
+  return html`<div class="st-agent-layout"><${ConversationList} here=${here} /><div class="st-agent-main st-agent-switch" key=${here.kind + (here.id ?? '')}>${children}</div></div>`
+}
+
+function earlierTurn(t, i) {
+  if (t.role === 'you') return html`<div key=${i} class="st-earlier__turn" data-row="you">${t.text}</div>`
+  return html`<div key=${i} class="st-earlier__turn" data-row="agent">
+    ${t.say ? html`<p>${t.say}</p>` : null}
+    ${t.kind === 'question' && t.question ? html`<p class="muted">${fmt(T.questionN, { n: t.question.n ?? '' })} ${t.question.text}</p>` : null}
+    ${t.kind === 'card' ? html`<p class="muted">${T.earlier.card}${t.card?.name ? ` · ${t.card.name}` : ''}</p>` : null}
+  </div>`
+}
+
+/** One earlier conversation: its line; opened, its turns (given, or read with getConversation). */
+function EarlierOne({ c }) {
+  const E = T.earlier
+  const [open, setOpen] = useState(false)
+  const [turns, setTurns] = useState(Array.isArray(c.turns) ? c.turns : null)
+  const [state, setState] = useState(null)
+  const toggle = async () => {
+    if (open) { setOpen(false); return }
+    setOpen(true)
+    if (turns) return
+    setState('loading')
+    try { setTurns((await call('getConversation', c.id))?.turns ?? []); setState(null) } catch { setState('failed') }
+  }
+  const line = fmt(E.line, { when: whenOf(c.startedAt ?? c.endedAt), what: T.modes[c.mode] ?? c.mode, asked: c.asked ?? 0, cards: c.cards ?? 0, end: T.ends[c.why] ?? c.why ?? '' })
+  return html`<div class="st-earlier__item" data-earlier=${c.id} data-open=${String(open)}>
+    <span class="st-act" data-action="earlier-toggle"><button type="button" class="st-earlier__line" aria-expanded=${String(open)} onClick=${toggle}><span>${line}</span><small>${open ? E.fold : E.expand}</small></button></span>
+    ${open ? html`<div class="st-earlier__turns">${state === 'loading' ? html`<p class="limit-note" role="status">${E.loading}</p>`
+      : state === 'failed' ? html`<p class="progress-alert" role="alert">${E.failed}</p>` : (turns ?? []).map(earlierTurn)}</div>` : null}
+  </div>`
+}
+
+function Earlier({ items }) {
+  if (!Array.isArray(items) || items.length === 0) return null
+  return html`<section class="st-earlier" data-part="earlier" aria-label=${T.earlier.heading}>
+    <div class="st-earlier__head">${T.earlier.heading}</div>
+    ${items.map(c => html`<${EarlierOne} key=${c.id} c=${c} />`)}
+  </section>`
+}
+
+/** A library's earlier conversations as the list has them (summaries; each opened with getConversation). */
+function useEarlierOf(libraryId) {
+  const list = useLoad(() => (libraryId ? call('listConversations') : null), [libraryId])
+  useEvent('build-changed', p => { if (p?.phase === 'ended') list.reload() }, [libraryId])
+  return { status: list.status, items: (list.data?.libraries ?? []).find(r => r.library.id === libraryId)?.conversations ?? [] }
+}
+
+/** A library opened while another conversation is in progress: its earlier conversations, and the way to the one going. */
+function OtherGoing({ libraryId, view }) {
+  const { navigate, libraries } = useApp()
+  const earlier = useEarlierOf(libraryId)
+  const name = (libraries?.data ?? []).find(l => l.id === libraryId)?.name ?? ''
+  const what = `${T.modes[view.mode] ?? ''}${view.library?.name ? ` · ${view.library.name}` : ''}`
+  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
+    <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': 'edit', 'data-view': 'other' }}>
+      <${AgentLayout} here=${{ kind: 'library', id: libraryId }}>
+        <${TopBar} title=${fmt(T.continueHeading, { name })} subtitle=${T.continueSubtitle} titleTag="h1" titleId="build-title" />
+        <div class="st-main__body thread-scroll"><section class="new-content">
+          <${Earlier} items=${earlier.items} />
+          ${earlier.status === 'ready' && earlier.items.length === 0 ? html`<p class="limit-note" data-part="earlier-none">${T.earlier.none}</p>` : null}
+          <div class="st-alert" role="note" data-part="other-going"><p>${fmt(T.otherGoing, { what })}</p>
+            <div class="row"><span class="st-act" data-action="to-going"><button type="button" class="btn" onClick=${() => navigate('build', view.library?.id ? { edit: view.library.id } : {})}>${T.toGoing}</button></span></div></div>
+        </section></div>
+      <//>
+    <//>
+  <//>`
+}
+
 // ---- the one-sentence page --------------------------------------------------------------------------------------------
 
 function StartPage({ params, onStarted }) {
@@ -336,15 +448,20 @@ function StartPage({ params, onStarted }) {
     void start(params.send)
   }, [can])
   const chip = html`<span class="status-chip" data-part="connection-chip"><span class="dot"></span> ${active ? fmt(T.chip, { name: names[active] ?? active }) : T.chipNone}</span>`
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="build" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
+  // 1.1.2 (第 5 件): a library's earlier conversations above the box
+  const earlier = useEarlierOf(target)
+  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=${target ? 'chat' : 'build'} />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
     <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': edit ? 'edit' : from ? 'convert' : 'create', 'data-view': 'start' }}>
-      <${TopBar} title=${cv?.title ?? (edit ? T.editTitle : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.editSubtitle : T.subtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
+      <${AgentLayout} here=${target ? { kind: 'library', id: target } : { kind: 'new' }}>
+      <${TopBar} title=${cv?.title ?? (edit ? fmt(T.continueHeading, { name: libraryName ?? '' }) : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.continueSubtitle : T.subtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
       <div class="st-main__body">
         <section class="new-content st-build-start" data-part="build-start">
+          ${target ? html`<${Earlier} items=${earlier.items} />` : null}
+          ${edit && earlier.status === 'ready' && earlier.items.length === 0 ? html`<p class="limit-note" data-part="earlier-none">${T.earlier.none}</p>` : null}
           <h2>${cv ? fmt(cv.heading, { name: libraryName }) : edit ? fmt(T.editHeading, { name: libraryName }) : T.heading}</h2>
           ${cv ? html`<p class="progress-alert" data-part="from-old">${cv.note}</p>` : null}
           <label class="field"><span class="st-sr">${cv?.label ?? (edit ? T.editLabel : T.label)}</span>
-            <textarea data-field="opener" rows="4" maxlength=${OPENER_MAX} placeholder=${edit ? T.editPlaceholder : T.placeholder} value=${text} disabled=${busy}
+            <textarea data-field="opener" rows="4" maxlength=${OPENER_MAX} placeholder=${edit ? T.continuePlaceholder : T.placeholder} value=${text} disabled=${busy}
               onInput=${e => setText(e.currentTarget.value)}
               onKeyDown=${e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); void start() } }}></textarea></label>
           ${cv || edit ? html`<p class="limit-note st-build-lead">${cv ? cv.subtitle : T.editLead}</p>`
@@ -364,6 +481,7 @@ function StartPage({ params, onStarted }) {
           </div>
         </section>
       </div>
+      <//>
     <//>
   <//>`
 }
@@ -384,6 +502,8 @@ function Talk({ view, onView }) {
     else if (p?.phase === 'done' || p?.phase === 'started') setLive(null)
   }, [])
   const listRef = useRef(null)
+  // 1.1.2 (第 4 件): a new library's step (设置's), for the card's line when the card names none
+  const defaultVolume = useLoad(() => (view.mode === 'create' ? call('getDefaultVolume') : null), [view.mode])
   const edit = view.mode === 'edit'
   const cv = view.mode === 'convert' ? T.convert : null
   const libraryName = view.library?.name ?? (libraries?.data ?? []).find(l => l.id === view.library?.id)?.name ?? null
@@ -435,10 +555,13 @@ function Talk({ view, onView }) {
   // 1.1 W7b: a conversation going is 主 Agent's page (the sidebar marks 主 Agent, route alias 'chat')
   return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
     <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': view.mode, 'data-view': 'talk' }}>
-      <${TopBar} title=${cv?.title ?? (edit ? T.editTitle : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.editSubtitle : T.talkSubtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
+      <${AgentLayout} here=${{ kind: 'going' }}>
+      <${TopBar} title=${cv?.title ?? (edit ? fmt(T.continueHeading, { name: libraryName ?? '' }) : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.continueSubtitle : T.talkSubtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
       <div class="st-chat">
         <div class="st-main__body thread-scroll" ref=${listRef}>
           <div class="thread" data-part="conversation">
+            ${Array.isArray(view.earlier) && view.earlier.length ? html`<${Earlier} items=${view.earlier} />
+              <p class="st-handed" data-part="handed-over">${T.earlier.handedOver}</p>` : null}
             <div class="date-line" data-part="date-line">${fmt(cv?.dateLine ?? (edit ? T.editDateLine : T.dateLine), { day: today })}</div>
             ${turns.map((t, i) => {
               // 1.1.2 (第 3 件): an answer to a choice question, when the turn carries it (answer: { picked, other }, the main
@@ -454,7 +577,7 @@ function Talk({ view, onView }) {
                 ${t.say ? html`<p class="intro-copy" data-part="reply">${t.say}</p>` : null}
                 ${t.notice === 'question-not-shown' ? html`<p class="limit-note st-faint" data-part="not-shown">${T.notShown}</p>` : null}
                 ${t.kind === 'question' && t.question ? html`<${Question} q=${t.question} open=${i === openQuestion} answered=${turns[i + 1]?.role === 'you'} busy=${working} onAnswer=${a => run('replyBuild', a)} />` : null}
-                ${t.kind === 'card' && t.card ? html`<${BuildCard} turn=${t} last=${i === lastCard && i === lastAgent} mode=${view.mode} libraryName=${libraryName}
+                ${t.kind === 'card' && t.card ? html`<${BuildCard} turn=${t} last=${i === lastCard && i === lastAgent} mode=${view.mode} libraryName=${libraryName} volume=${view.mode === 'create' ? defaultVolume.data?.volume ?? null : null}
                   busy=${working} acting=${acting} onDrop=${drop} onConfirm=${confirm} onAskFix=${m => run('replyBuild', m)} />` : null}
               </div>`
             })}
@@ -489,6 +612,7 @@ function Talk({ view, onView }) {
             : fmt(T.calls, { searches: BUDGET.searches, reads: BUDGET.reads })}</div>
         </div>`}
       </div>
+      <//>
     <//>
   <//>`
 }
@@ -504,7 +628,12 @@ export function BuildScreen({ params = {} }) {
       <${Main} screen="build" state="loading" labelledby="build-title"><${TopBar} title=${T.title} titleTag="h1" titleId="build-title" /><//>
     <//>`
   }
-  if (view) return html`<${Talk} view=${view} onView=${onView} />`
+  // 1.1.2 (第 5 件): a library opened from the list while another conversation is in progress (one at a time, as before)
+  const asked = typeof params.edit === 'string' ? params.edit : typeof params.from === 'string' ? params.from : null
+  const other = Boolean(view && asked && view.library?.id !== asked)
+  if (other && view.status !== 'stopped') return html`<${OtherGoing} libraryId=${asked} view=${view} />`
+  // a stopped one is not in progress: the library asked for starts afresh (startBuild ends the stopped one)
+  if (view && !other) return html`<${Talk} view=${view} onView=${onView} />`
   const p = restartWith ? { ...params, opener: restartWith.opener, send: undefined } : params
   return html`<${StartPage} key=${restartWith ? 'again' : 'first'} params=${p} onStarted=${v => { setRestartWith(null); build?.set?.(v) }} />`
 }

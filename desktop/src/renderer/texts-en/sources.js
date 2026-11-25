@@ -13,7 +13,8 @@ export const SOURCES = Object.freeze({
     full: 'View full card',
     fold: 'Show less',
     parts: Object.freeze({ collect: 'What goes in', skip: 'What stays out', unreadable: 'Sources that cannot be read, and why', pick: 'How each update picks', write: 'How each item is written', samples: 'Examples', decide: 'For you to decide' }),
-    change: 'Edit card with main agent',
+    change: 'Continue with main agent',
+    countLimit: 'The card\'s "How each update picks" says "{text}", which limits how many items reach the Inbox each time. The amount is set by "Amount per update"; to remove this limit, continue with the main agent.',
   }),
   cardSources: Object.freeze({
     heading: 'Sources · {n}',
@@ -84,6 +85,19 @@ export const SOURCES = Object.freeze({
     rhythmAsk: 'Please change the rhythm on the library card to match the schedule: {now}.',
   }),
 
+  volume: Object.freeze({
+    heading: 'Amount per update',
+    cost: 'A larger amount makes each update take longer and use more of your plan or API spending.',
+    names: Object.freeze({ standard: 'Standard', more: 'More', most: 'Most' }),
+    hints: Object.freeze({ standard: 'About {n} candidates', more: 'About 2×', most: 'About 3×' }),
+    near: 'The last update read {reads} of {limit} pages, close to the limit, and {n} sources were not read.',
+    nearAll: 'The last update read {reads} of {limit} pages, close to the limit.',
+    nearNext: 'Choose a larger amount to read more sources.',
+    saved: 'Saved. Applies from the next update.',
+    failed: 'Couldn\'t save. Try again.',
+    loadFailed: 'Couldn\'t read the amount per update.',
+  }),
+
   advancedLink: 'Advanced settings: change history · library folder',
 })
 
@@ -122,11 +136,12 @@ export const ADVANCED = Object.freeze({
       topicsRemoved: 'Topics: deleted “{names}”',
       topicsKeywords: 'Topics: keywords of “{names}” edited',
       topicsSet: 'Topics: {n}',
+      volume: 'Amount per update: {before} → {after}',
       other: '{field}: changed',
       join: ', ',
       sep: '; ',
     }),
-    fieldNames: Object.freeze({ name: 'Library name', brief: 'Brief', sources: 'Sources', topics: 'Topics', schedule: 'Schedule' }),
+    fieldNames: Object.freeze({ name: 'Library name', brief: 'Brief', sources: 'Sources', topics: 'Topics', schedule: 'Schedule', volume: 'Amount per update' }),
     setup: 'Library set up · {step}: {by}',
   }),
 

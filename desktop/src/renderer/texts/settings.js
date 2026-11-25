@@ -69,6 +69,14 @@ export const SETTINGS = Object.freeze({
     note: '此 key 仅加密保存在本机，与模型 key 分开存放，只发送给 DeepSeek 的搜索接口。',
     failed: '保存失败，请重试。',
   }),
+  // 1.1.2 (第 4 件): 新建库的默认更新量
+  defaultVolume: Object.freeze({
+    label: '新建库的默认更新量',
+    note: '只影响之后新建的库；已有的库在各自的「来源与要求」中调整。',
+    names: Object.freeze({ standard: '标准', more: '较多', most: '最多' }),
+    saved: '已保存。',
+    failed: '保存失败，请重试。',
+  }),
   // 1.1.1 P9 (B24): 来源授权 — the contact e-mail, the sites it goes to
   sourceAuth: Object.freeze({
     label: '来源授权',

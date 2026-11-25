@@ -46,6 +46,7 @@ export const SHELL = Object.freeze({
       stopping: 'Stopping',
       queued: 'Queued · position {n}',
       next: 'Next run {when}',
+      offRhythm: 'The schedule doesn\'t match the rhythm on the library card. Adjust it in Sources & Brief.',
       nextNone: 'No scheduled run',
       failed: 'Couldn\'t start the run. Try again.',
       stopFailed: 'Couldn\'t stop the run. Try again.',

@@ -42,6 +42,11 @@ export const ASK = Object.freeze({
     failed: 'Couldn\'t record this. Enter a topic.',
   }),
 
+  toAgent: Object.freeze({
+    note: 'Ask answers only from what is already in the library. To add new material, ask the main agent to adjust this library\'s sources or amount per update.',
+    button: 'Ask the main agent for more',
+  }),
+
   feedback: Object.freeze({
     open: 'Flag a problem with this answer',
     label: 'What\'s wrong with this answer (recorded to improve Ask)',

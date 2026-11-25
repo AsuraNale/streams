@@ -353,7 +353,9 @@ export function createBuildService({ appDataDir, library, connections, emit, log
       const all = endedWithLibrary()
       const rows = (library.entries?.() ?? []).map(l => {
         const mine = all.filter(e => e.libraryId === l.id).map(summaryOf)
-        return { library: { id: l.id, name: l.name ?? null }, conversations: mine }
+        let hasCard = false
+        try { hasCard = readCard(l.path) !== null } catch { hasCard = false }
+        return { library: { id: l.id, name: l.name ?? null }, hasCard, conversations: mine }
       })
       const latest = r => r.conversations.reduce((m, c) => (c.endedAt && c.endedAt > m ? c.endedAt : m), '')
       rows.sort((a, b) => (latest(b) > latest(a) ? 1 : latest(b) < latest(a) ? -1 : 0))

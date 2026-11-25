@@ -58,6 +58,13 @@ export const SETTINGS = Object.freeze({
     note: 'This key is stored encrypted on this computer only, separately from the model key, and is sent only to DeepSeek\'s search service.',
     failed: 'Couldn\'t save. Try again.',
   }),
+  defaultVolume: Object.freeze({
+    label: 'Default amount per update for new libraries',
+    note: 'Applies only to libraries created from now on. Adjust existing libraries in their Sources & Brief.',
+    names: Object.freeze({ standard: 'Standard', more: 'More', most: 'Most' }),
+    saved: 'Saved.',
+    failed: 'Couldn\'t save. Try again.',
+  }),
   sourceAuth: Object.freeze({
     label: 'Site access',
     note: 'Some sites require automated clients to provide a contact email. This address is shared by all libraries and sent only to the sites below.',

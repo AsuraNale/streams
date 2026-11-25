@@ -308,6 +308,30 @@ function LibraryRootPart() {
  * Test hooks: [data-part="source-auth"][data-filled], [data-site=<id>], [data-field="source-contact"],
  * [data-action="save-contact"|"clear-contact"], [data-contact-note=saved|cleared|bad|failed].
  */
+/**
+ * 1.1.2 (第 4 件): 新建库的默认更新量 — the step a new library gets (getDefaultVolume / setDefaultVolume); a library's own is on its
+ * 来源与要求. Test hooks: [data-part="default-volume"], select[data-field="default-volume"], [data-volume-note=saved|failed].
+ */
+function DefaultVolumePart() {
+  const V = T.defaultVolume
+  const cur = useLoad(() => call('getDefaultVolume'), [])
+  const [note, setNote] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const pick = async v => {
+    setBusy(true)
+    setNote(null)
+    try { const r = await call('setDefaultVolume', v); cur.mutate(() => r); setNote('saved') } catch { setNote('failed') } finally { setBusy(false) }
+  }
+  return html`<div class="file-row" data-part="default-volume">
+    <span class="file-icon"><${TIcon} name="settings" fallback="file" /></span>
+    <span class="file-text"><b id="set-default-volume">${V.label}</b><small class="muted">${V.note}</small>
+      ${note ? html`<small role=${note === 'saved' ? 'status' : 'alert'} data-volume-note=${note}>${V[note]}</small>` : null}</span>
+    <span class="field st-nl-small"><select data-field="default-volume" aria-labelledby="set-default-volume" value=${cur.data?.volume ?? 'standard'} disabled=${busy || !cur.data} onChange=${e => pick(e.currentTarget.value)}>
+      ${['standard', 'more', 'most'].map(v => html`<option key=${v} value=${v}>${V.names[v]}</option>`)}
+    </select></span>
+  </div>`
+}
+
 function SourceAuthPart() {
   const A = T.sourceAuth
   const auth = useLoad(() => call('getSourceAuth'), [])
@@ -518,7 +542,7 @@ export function SettingsScreen() {
             <${LanguagePart} language=${data?.language} onChange=${changeLanguage} />
           <//>
           <${Group} id="library" name=${T.groups.library}>
-            ${data ? html`<${LibraryRootPart} /><${SourceAuthPart} /><${UsagePart} />` : null}
+            ${data ? html`<${LibraryRootPart} /><${DefaultVolumePart} /><${SourceAuthPart} /><${UsagePart} />` : null}
           <//>
           <${Group} id="about" name=${T.about}>
             <div class="file-row st-set-about" data-part="about">

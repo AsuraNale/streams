@@ -188,6 +188,42 @@ function RunPart({ libraryId, onCard = null }) {
   </section>`
 }
 
+// ---- 每次更新的量 ------------------------------------------------------------------------------------------------------------
+
+// 1.1.2 (第 4 件; 赞妮's mock 04): three steps, what each costs, and — when the last update came near its limit or left sources
+// unread for it — one line under them with its numbers (getLibraryVolume().near); nothing at all when it did not. A step is
+// saved at once (setLibraryVolume: the user's change, recorded as theirs). Test hooks: section[data-part=volume] with
+// [data-volume=<step>][aria-checked], [data-part=volume-near][data-reads][data-limit][data-unread], [data-part=volume-note].
+function VolumePart({ libraryId }) {
+  const V = T.volume
+  const view = useLoad(() => (libraryId ? call('getLibraryVolume', libraryId) : null), [libraryId])
+  useEvent('library-changed', () => view.reload())
+  useEvent('round-progress', p => { if (p?.done) view.reload() })
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null)
+  const d = view.data
+  const pick = async v => {
+    if (!d || busy || v === d.volume) return
+    setBusy(true)
+    setNote(null)
+    try { const r = await call('setLibraryVolume', libraryId, v); view.mutate(() => r); setNote({ kind: 'saved', text: V.saved }) } catch { setNote({ kind: 'bad', text: V.failed }) } finally { setBusy(false) }
+  }
+  const near = d?.near ?? null
+  const standardN = d ? Math.round((d.budget?.newLinks ?? 20) / ({ standard: 1, more: 2, most: 3 }[d.volume] ?? 1)) : 20
+  return html`<section class="st-src-part" data-part="volume" aria-labelledby="src-volume-h">
+    <div class="section-label"><span id="src-volume-h">${V.heading}</span></div>
+    ${view.status === 'error' && !d ? html`<p class="progress-alert" role="alert">${V.loadFailed}</p>` : null}
+    <p class="limit-note" data-part="volume-cost">${V.cost}</p>
+    <div class="st-seg" role="radiogroup" aria-labelledby="src-volume-h">
+      ${(d?.volumes ?? ['standard', 'more', 'most']).map(v => html`<button type="button" key=${v} role="radio" class=${`st-seg__opt${d?.volume === v ? ' is-on' : ''}`} aria-checked=${String(d?.volume === v)} data-volume=${v} disabled=${!d || busy} onClick=${() => pick(v)}>
+        <b>${V.names[v]}</b><small>${fmt(V.hints[v], { n: standardN })}</small></button>`)}
+    </div>
+    ${near ? html`<p class="st-alert st-mo-banner" role="note" data-part="volume-near" data-reads=${near.reads} data-limit=${near.limit} data-unread=${near.notRead}>
+      ${near.notRead > 0 ? fmt(V.near, { reads: near.reads, limit: near.limit, n: near.notRead }) : fmt(V.nearAll, { reads: near.reads, limit: near.limit })}${d?.volume !== 'most' ? ` ${V.nearNext}` : ''}</p>` : null}
+    ${note ? html`<p class=${note.kind === 'saved' ? 'limit-note' : 'progress-alert'} role=${note.kind === 'saved' ? 'status' : 'alert'} data-part="volume-note" data-kind=${note.kind}>${note.text}</p>` : null}
+  </section>`
+}
+
 // ---- 高级设置 ------------------------------------------------------------------------------------------------------------
 
 /** One fold of 高级设置 (the template's phase-row, open at first). */
@@ -217,6 +253,8 @@ export function changeWords(row) {
     case 'name': return b ? fmt(F.name, { before: b, after: a ?? '' }) : fmt(F.nameNew, { after: a ?? '' })
     case 'brief': return a ? fmt(F.brief, { after: clip(a) }) : F.briefNone
     case 'schedule': return b ? fmt(F.schedule, { before: schedWords(b), after: schedWords(a) }) : fmt(F.scheduleNew, { after: schedWords(a) })
+    // 1.1.2 (第 4 件)
+    case 'volume': return fmt(F.volume, { before: T.volume.names[b] ?? String(b ?? ''), after: T.volume.names[a] ?? String(a ?? '') })
     case 'sources': {
       const before = byName(b)
       const after = byName(a)
@@ -346,6 +384,13 @@ const LINES = ['purpose', 'scope', 'exclude', 'trust', 'rhythm', 'language', 'ha
 const listOf = v => (Array.isArray(v) ? v : typeof v === 'string' && v.trim() !== '' ? [v] : [])
 
 /** The card's definition (a paragraph and its seven lines), and its other parts folded under 「建库卡全文」. */
+// 1.1.2 (U3): a line of 「每次怎么挑」 that sets how many items each update takes (「每次控制在 3 到 8 条」, 「每次最多 5 条」 …)
+const COUNT_LIMIT = /(每次|每轮|一次)[^，。；]{0,8}?(\d+\s*(到|至|-|—|~|～)\s*\d+|最多\s*\d+|不超过\s*\d+|至少\s*\d+)\s*条|\b(\d+\s*(to|-|–)\s*\d+|at most \d+|up to \d+|no more than \d+)\s+items?\b/i
+export function countLimitOf(card) {
+  const hit = listOf(card?.pick).find(x => COUNT_LIMIT.test(String(x)))
+  return hit ? (hit.match(COUNT_LIMIT)?.[0] ?? null) : null
+}
+
 function CardPart({ card, history, onChange }) {
   const C = T.card
   const [open, setOpen] = useState(false)
@@ -353,6 +398,7 @@ function CardPart({ card, history, onChange }) {
   return html`<section class="st-src-part" data-part="card" aria-labelledby="src-card-h">
     <div class="section-label"><span id="src-card-h">${C.heading}</span>${history ? html`<small class="muted" data-part="card-version">${history}</small>` : null}</div>
     <p class="intro-copy" data-part="card-summary">${d.summary ?? ''}</p>
+    ${countLimitOf(card) ? html`<p class="st-alert" role="note" data-part="card-count-limit">${fmt(T.card.countLimit, { text: countLimitOf(card) })}</p>` : null}
     <dl class="decision-points" data-part="card-lines">${LINES.map((k, i) => html`<div key=${k} data-line=${k}><dt><span class="point-index">${pad(i + 1)}</span>${C.lines[k]}</dt><dd>${d[k] ?? ''}</dd></div>`)}</dl>
     ${open ? html`<div class="st-src-card-full" data-part="card-full">
       ${Array.isArray(card.decide) && card.decide.length ? html`<div class="section-label"><span>${C.parts.decide}</span></div><ol>${card.decide.map((x, i) => html`<li key=${i}>${x.what}${x.default ? `${PUNCT.open}${x.default}${PUNCT.close}` : ''}</li>`)}</ol>` : null}
@@ -474,6 +520,7 @@ export function SourcesScreen({ params = {} }) {
             <${CardSuggestions} gaps=${home.data?.lastRound?.kind === 'update' ? gapsOf(home.data.lastRound) : []} onToCard=${t => navigate('build', { edit: libraryId, opener: t })} />
             <${CardSourcesPart} rows=${cv.rows ?? []} onAdded=${() => cardView.reload()} />` : null}
           <${RunPart} libraryId=${libraryId} onCard=${hasCard ? t => navigate('build', { edit: libraryId, opener: t }) : null} />
+          ${hasCard ? html`<${VolumePart} libraryId=${libraryId} />` : null}
           <button type="button" class="document-link" data-action="go-advanced" onClick=${() => navigate('sources', { view: 'advanced' })}>
             <${TIcon} name="settings" /><span>${T.advancedLink}</span><${TIcon} name="arrow" />
           </button>

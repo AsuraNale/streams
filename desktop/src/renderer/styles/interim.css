@@ -166,3 +166,52 @@
 .st-build-change p { margin: 4px 0 0; line-height: 1.7; white-space: pre-line; }
 .st-build-change del { color: var(--muted, inherit); }
 .st-build-change ins { text-decoration: none; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+/* 1.1.2 (第 4 件): 每次更新的量 — three steps side by side; the one chosen raised (no colour literal: the theme's own) */
+.st-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 8px 0 4px; padding: 4px; border-radius: 10px; background: var(--well, var(--surface2)); }
+.st-seg__opt { display: grid; gap: 2px; justify-items: start; padding: 8px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--mo-fast) var(--mo-ease), box-shadow var(--mo-fast) var(--mo-ease), transform var(--mo-fast) var(--mo-ease); }
+.st-seg__opt b { font-size: 13px; font-weight: 600; }
+.st-seg__opt small { font-size: 11.5px; color: var(--muted); }
+.st-seg__opt:hover:not(:disabled) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.st-seg__opt.is-on { background: var(--surface); box-shadow: 0 0 0 1.5px var(--accent) inset; }
+.st-seg__opt.is-on b { color: var(--accent); }
+.st-seg__opt:disabled { cursor: default; }
+.st-seg__opt:active:not(:disabled) { transform: translateY(1px); }
+
+/* 1.1.2 (第 5 件): 主 Agent's page — the conversations by library on the left, the conversation on the right */
+.st-agent-layout { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 0; flex: 1; }
+.st-agent-layout > .st-agent-main { min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.st-convs { border-right: 1px solid var(--line); padding: 12px 10px; overflow-y: auto; display: grid; align-content: start; gap: 2px; background: var(--well, var(--surface2)); }
+.st-convs__new { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px; }
+.st-convs__label { margin: 12px 8px 4px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.st-convs__item { display: grid; gap: 2px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--mo-fast) var(--mo-ease); }
+.st-convs__item:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.st-convs__item[aria-current="page"] { background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; }
+.st-convs__item b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-convs__item small { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-convs__item[data-going="true"] b::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+.st-convs__none { margin: 4px 10px; font-size: 12px; color: var(--muted); }
+.st-agent-switch { animation: st-mo-fade var(--mo-in) var(--mo-ease) both; }
+
+/* the earlier conversations of a library: one line each, opened in place */
+.st-earlier { display: grid; gap: 6px; margin: 0 0 14px; }
+.st-earlier__head { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.st-earlier__item { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.st-earlier__line { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; font-size: 12.5px; }
+.st-earlier__line span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-earlier__line small { color: var(--accent); }
+.st-earlier__turns { display: grid; gap: 8px; padding: 4px 12px 12px; border-top: 1px solid var(--line); animation: st-mo-fade var(--mo-in) var(--mo-ease) both; }
+.st-earlier__turn { font-size: 12.5px; line-height: 1.7; }
+.st-earlier__turn[data-row="you"] { justify-self: end; max-width: 80%; padding: 6px 10px; border-radius: 8px; background: var(--well, var(--surface2)); }
+.st-earlier__turn[data-row="agent"] { color: var(--ink); }
+.st-earlier__turn .muted { color: var(--muted); }
+.st-handed { margin: 4px 0 12px; font-size: 12px; color: var(--muted); text-align: center; }
+.st-handed::before, .st-handed::after { content: ''; display: inline-block; width: 40px; height: 1px; margin: 0 10px; background: var(--line); vertical-align: middle; }
+
+/* U6: the next-run chip's dot when the schedule is not the card's rhythm */
+.st-chip-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-agent-switch, .st-earlier__turns { animation: none; }
+  .st-seg__opt, .st-convs__item { transition: none; }
+}

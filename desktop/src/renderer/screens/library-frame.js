@@ -93,6 +93,11 @@ export function RunButton({ libraryId, onAnswer }) {
 
 export function LibraryHead({ row, name, libraryId, actions, home, onAnswer }) {
   const { queue } = useApp()
+  // 1.1.2 (U6): the schedule and the card's rhythm (getLibrarySchedule().rhythm.matches)
+  const sched = useLoad(() => (libraryId ? call('getLibrarySchedule', libraryId).catch(() => null) : null), [libraryId])
+  useEvent('settings-changed', () => sched.reload(), [libraryId])
+  useEvent('library-changed', () => sched.reload(), [libraryId])
+  const offRhythm = sched.data?.rhythm && sched.data.rhythm.matches === false
   const runningHere = queue?.data?.running && queue.data.running.libraryId === libraryId ? queue.data.running : null
   const what = row ? tracking(row, SEP) : null
   const meta = [
@@ -108,7 +113,7 @@ export function LibraryHead({ row, name, libraryId, actions, home, onAnswer }) {
       ${actions ?? null}
       ${runningHere
         ? html`<span class="status-chip" data-part="running-chip" data-phase=${runningHere.phase ?? ''} data-calls=${runningHere.calls ?? 0}><span class="dot"></span> ${runningChip(runningHere)}</span>`
-        : html`<span class="status-chip" data-part="next-run" data-next-run=${home?.nextRun ?? ''}>${home ? runChip(home) : ''}</span>`}
+        : html`<span class="status-chip" data-part="next-run" data-next-run=${home?.nextRun ?? ''} data-off-rhythm=${String(Boolean(offRhythm))} title=${offRhythm ? R.offRhythm : undefined}>${home ? runChip(home) : ''}${offRhythm ? html`<span class="st-chip-dot" data-part="next-run-dot" role="img" aria-label=${R.offRhythm}></span>` : null}</span>`}
       <${RunButton} libraryId=${libraryId} onAnswer=${onAnswer} />
     </div>
   </header>`

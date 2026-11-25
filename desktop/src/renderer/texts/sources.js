@@ -17,7 +17,9 @@ export const SOURCES = Object.freeze({
     full: '查看完整建库卡',
     fold: '收起',
     parts: Object.freeze({ collect: '收什么', skip: '不收什么', unreadable: '读不到的来源和原因', pick: '每次怎么挑', write: '每条怎么写', samples: '样例', decide: '要你定的事' }),
-    change: '与主 Agent 修改建库卡',
+    change: '与主 Agent 继续对话',
+    // 1.1.2 (U3): the card names how many items each update takes
+    countLimit: '建库卡「每次怎么挑」中写有「{text}」，会限制每次进入待看的条数。每次的条数由「每次更新的量」决定；如需去掉这条限制，请与主 Agent 继续对话。',
   }),
   cardSources: Object.freeze({
     heading: '来源 · {n} 个',
@@ -92,6 +94,20 @@ export const SOURCES = Object.freeze({
     rhythmAsk: '请把建库卡上的节奏改成与当前定时一致：{now}。',
   }),
 
+  // 1.1.2 (第 4 件): 每次更新的量
+  volume: Object.freeze({
+    heading: '每次更新的量',
+    cost: '量越大，单次更新耗时越长，消耗的套餐额度或 API 费用也越多。',
+    names: Object.freeze({ standard: '标准', more: '较多', most: '最多' }),
+    hints: Object.freeze({ standard: '约 {n} 条候选', more: '约 2 倍', most: '约 3 倍' }),
+    near: '上次更新读网页 {reads} / {limit} 次，已接近上限，有 {n} 个来源未读取。',
+    nearAll: '上次更新读网页 {reads} / {limit} 次，已接近上限。',
+    nearNext: '调高一档可读取更多来源。',
+    saved: '已保存，下次更新起生效。',
+    failed: '未能保存，请重试。',
+    loadFailed: '未能读取每次更新的量。',
+  }),
+
   advancedLink: '高级设置：变更记录 · 库文件夹',
 })
 
@@ -132,11 +148,12 @@ export const ADVANCED = Object.freeze({
       topicsRemoved: '主题：删除「{names}」',
       topicsKeywords: '主题：修改「{names}」的关键词',
       topicsSet: '主题：{n} 个',
+      volume: '每次更新的量：{before} → {after}',
       other: '{field}：已修改',
       join: '、',
       sep: '；',
     }),
-    fieldNames: Object.freeze({ name: '库名称', brief: '追踪要求', sources: '来源', topics: '主题', schedule: '定时' }),
+    fieldNames: Object.freeze({ name: '库名称', brief: '追踪要求', sources: '来源', topics: '主题', schedule: '定时', volume: '每次更新的量' }),
     setup: '创建库 · {step}：{by}',
   }),
 
