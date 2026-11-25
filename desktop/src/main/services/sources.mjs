@@ -63,7 +63,7 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
     getCardView() {
       const dir = library.require()
       const card = call('readCard', dir)
-      return card ? { card, rows: call('sourceRows', dir), old: false } : { card: null, rows: [], old: true, brief: call('readBrief', dir) }
+      return card ? { card, rows: call('sourceRows', dir), old: false, countLimit: typeof core.countLimitOf === 'function' ? core.countLimitOf(card) : null } : { card: null, rows: [], old: true, brief: call('readBrief', dir) }
     },
     /** 1.1 W6a: a web address or a search word typed on 来源与要求 → the add_source request, pending; nothing is written yet. */
     async proposeCardSource(text) {

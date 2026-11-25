@@ -195,6 +195,12 @@ frame-ancestors 'none'
 | `retryBuild()` | 无 | **1.1 W6b**：连接失败的那一轮再发一次 | — |
 | `confirmBuild()` | 无 | **1.1 W6b**：确认等着的建库卡：建库（库文件夹 = 库架所在的文件夹 \ 卡上的库名，名字占用了加 2、3…；建好登记成当前的库）或改卡（新版本存进历史）；返回 `{ done: true, libraryId, update }`；没确认之前什么都不建、不改。**1.1 W10**（维护者 11-23「要，建好就跑」）：建库和把上一版的库换过来，确认后这座库的第一次更新马上进队列（`services/schedule.mjs queueRound`，原因 `first`「创建库后的首次运行」：空闲就开始，别的库在跑就排在后面，不重复排），`update` = 队列的回话；只改卡不跑，`update: null`；进队列出错只记日志，库照样建好 | A2 · B3 |
 | `dropBuild()` | 无 | **1.1 W6b**：不建了 / 不改了：等着的卡撤回，对话结束（存在 `build\\ended-…`） | B3 |
+| `listConversations()` | 无 | **1.1.2**（第 5 件）：`{ going, libraries }`：进行中的那段（`{ mode, library, asked }` 或 null），每座登记的库 `{ library: { id, name }, hasCard, conversations: [{ id, mode, why, startedAt, endedAt, asked, cards }] }`；1.1.1 的存档按待确认编号对上库（见 §4.28） | 第 5 件 |
+| `getConversation(id)` | 存档名 `ended-…` | **1.1.2**：一段旧对话 `{ id, mode, why, library, startedAt, endedAt, asked, cards, turns }`；没有 → `bad_arguments` | 第 5 件 |
+| `getLibraryVolume(id)` | 库 id | **1.1.2**（第 4 件）：`{ volume, volumes, budget, near }`（`near`：上次更新接近上限时 `{ reads, limit, notRead, volume }`，否则 null） | 第 4 件 |
+| `setLibraryVolume(id, volume)` | 库 id、standard / more / most | **1.1.2**：写进库的 `streams.json`、记进改动记录（字段 `volume`，用户改的），发 `library-changed`；返回同 `getLibraryVolume` | 第 4 件 |
+| `getDefaultVolume()` | 无 | **1.1.2**：`{ volume }`（`settings.json` 的 `defaultVolume`） | 第 4 件 |
+| `setDefaultVolume(volume)` | standard / more / most | **1.1.2**：存设置，发 `settings-changed`，返回 `{ volume }` | 第 4 件 |
 | `openLogsFolder()` | 无 | `null`；`shell.openPath(<库>/_pipeline/logs)`（测试只记日志） | S11「打开运行记录文件夹」 |
 | `getGraph(filter)` | **重设计 R3**：`{ days: number \| null }` 或 null——只剩时间范围一个筛选；`status` / `topics` / `links` 一律 `bad_arguments` | 核心 `graph`（主进程固定 `status: 'all'`、`links: true`：每个文件都画，[[链接]] 一直画） | 图谱 |
 | `askLibrary(question)` | 1–500 字（去掉首尾空白后） | 核心 `ask` 的返回（连接失败的 `{ ok: false, code }` 原样作 `data`）；一次只许一个问题在跑（第二个 → `bad_arguments`）；没选连接 → `no_connection`（新错误码） | S10 |

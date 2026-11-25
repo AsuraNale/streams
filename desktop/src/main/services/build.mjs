@@ -387,7 +387,7 @@ export function createBuildService({ appDataDir, library, connections, emit, log
       } else {
         let v = DEFAULT_VOLUME
         try { v = defaultVolume() } catch { v = DEFAULT_VOLUME }
-        extra = volumeBlock(isVolume(v) ? v : DEFAULT_VOLUME).replace('## 这座库的「每次更新的量」', '## 新库的「每次更新的量」')
+        extra = volumeBlock(isVolume(v) ? v : DEFAULT_VOLUME, { fresh: true })
       }
       if (saved) end('stopped')
       const found = active.kind === 'api' && apiSession ? await apiSearch(active) : undefined

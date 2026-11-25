@@ -118,7 +118,7 @@ const METHODS = [
   'retryBuild',
   'confirmBuild',
   'dropBuild',
-  // 1.1.2: the conversations by library; a library's 「每次更新的量」
+  // 1.1.2: the conversations by library; the step of each library (每次更新的量)
   'listConversations',
   'getConversation',
   'getLibraryVolume',

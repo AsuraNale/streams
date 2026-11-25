@@ -17,7 +17,7 @@ const onDisk = file => JSON.parse(readFileSync(file, 'utf8'))
 // v2 package I: settings.json has one more field, setupConnection (首次打开's connection step while there is no library)
 // v2 package L: and the right panel's state, panel { open, tab } (default open, 详情) — the reason this list changed
 // 1.1.1 P9 (B24): and 来源授权's contact e-mail, sourceContact (default null)
-const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, appearance: DEFAULT_APPEARANCE, libraryRoot: null, setupConnection: null, panel: { open: true, tab: 'detail' }, sourceContact: null })
+const DEFAULTS = () => ({ language: 'auto', libraryPath: null, recentLibraries: [], connections: defaultConnections(), showDeveloperInfo: false, schedule: { enabled: true, time: '08:30' }, theme: DEFAULT_THEME, appearance: DEFAULT_APPEARANCE, libraryRoot: null, setupConnection: null, panel: { open: true, tab: 'detail' }, sourceContact: null, defaultVolume: 'standard' })
 
 test('no file, a broken file, a file of another shape: the defaults', () => {
   const dir = folder()
@@ -173,6 +173,8 @@ test('v1.0\'s theme migrated when read: only theme and appearance change, every 
     panel: { open: false, tab: 'files' },
     // 1.1.1 P9 (B24): 来源授权's contact e-mail, one more field kept as written
     sourceContact: 'reader@example.com',
+    // 1.1.2 (第 4 件): 新建库的默认更新量, one more field kept as written
+    defaultVolume: 'most',
   }
   // redesign R1: what they become is research (was precision); precision and monoline, ids of now, are kept
   const rows = [[undefined, 'research', 'system'], ['river', 'research', 'system'], ['paper', 'research', 'light'], ['night', 'research', 'dark'], ['sepia', 'research', 'system'], ['precision', 'precision', 'system'], ['monoline', 'monoline', 'system']]

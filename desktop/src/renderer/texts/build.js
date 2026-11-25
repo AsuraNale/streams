@@ -212,7 +212,7 @@ export const BUILD = Object.freeze({
     failed: '未能读取这段对话。',
     card: '建库卡',
     handedOver: '已将建库卡和之前对话的要点交给主 Agent，开始新的会话。',
-    none: '这座库还没有与主 Agent 的对话记录。',
+    none: '这座库暂无与主 Agent 的对话记录。',
   }),
   otherGoing: '另一段对话正在进行：{what}。完成或放弃后，才能在这里继续。',
   toGoing: '前往进行中的对话',

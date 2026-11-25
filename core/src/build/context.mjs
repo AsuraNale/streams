@@ -21,11 +21,12 @@ const day = (iso) => (typeof iso === 'string' && iso.length >= 16 ? iso.slice(0,
 // ones the 11-25 user case shows: 「这次没读（用量不够）」)
 export const NOT_READ_FOR_LIMIT = /(没读|未读|没有读|not read).*(用量|上限|额度|次数|budget|limit)|(用量|上限|额度|budget|limit).*(没读|未读|not read)/i;
 
-export function volumeBlock(volume) {
+export function volumeBlock(volume, { fresh = false } = {}) {
   if (!Object.hasOwn(VOLUME_FACTOR, volume ?? '')) return '';
   const w = VOLUME_WORDS['zh-CN'];
   const f = VOLUME_FACTOR[volume];
-  return `## 这座库的「每次更新的量」\n现在是「${w[volume]}」：每次更新最多取 ${STANDARD_UPDATE.newLinks * f} 个新链接、搜索约 ${STANDARD_UPDATE.searches * f} 次、读网页约 ${STANDARD_UPDATE.reads * f} 次（至少比卡上的来源数多 8 次）、交 ${STANDARD_UPDATE.items * f} 条以内。三档：标准、较多（约 2 倍）、最多（约 3 倍）；量越大，一次更新越久，花的套餐额度或 API 费用也越多。改档要用户确认：在卡上写 volume。`;
+  // fresh: a library being made (the step of 设置, the user's default)
+  return `## ${fresh ? '新库' : '这座库'}的「每次更新的量」\n现在是「${w[volume]}」：每次更新最多取 ${STANDARD_UPDATE.newLinks * f} 个新链接、搜索约 ${STANDARD_UPDATE.searches * f} 次、读网页约 ${STANDARD_UPDATE.reads * f} 次（至少比卡上的来源数多 8 次）、交 ${STANDARD_UPDATE.items * f} 条以内。三档：标准、较多（约 2 倍）、最多（约 3 倍）；量越大，一次更新越久，花的套餐额度或 API 费用也越多。改档要用户确认：在卡上写 volume。`;
 }
 
 export function conversationsBlock(conversations = []) {

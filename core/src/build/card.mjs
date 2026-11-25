@@ -166,6 +166,14 @@ export function cardChanges(before, after, language = 'zh-CN') {
   return out;
 }
 
+// 1.1.2 (U3): a line of 「每次怎么挑」 that sets how many items each update takes (「每次控制在 3 到 8 条」, 「每次最多 5 条」 …)
+const COUNT_LIMIT = /(每次|每轮|一次)[^，。；]{0,8}?(\d+\s*(到|至|-|—|~|～)\s*\d+|最多\s*\d+|不超过\s*\d+|至少\s*\d+)\s*条|\b(\d+\s*(to|-|–)\s*\d+|at most \d+|up to \d+|no more than \d+)\s+items?\b/i;
+/** The words of such a line, or null. */
+export function countLimitOf(card) {
+  const hit = list(isObj(card) ? card.pick : null).find((x) => typeof x === 'string' && COUNT_LIMIT.test(x));
+  return hit ? hit.match(COUNT_LIMIT)[0] : null;
+}
+
 export function renderCard(card, language = 'zh-CN') {
   const w = CARD_WORDS[language] ?? CARD_WORDS['zh-CN'];
   const out = [`# ${card.name ?? ''}`, ''];

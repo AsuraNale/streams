@@ -72,5 +72,5 @@ export {
   toolsText, budgetText, actionsText, OUTPUT_TEXT, BUILD_BUDGET,
   createBuild, buildPrompt as buildBuildPrompt, problemText, MAX_BUILD_TURNS,
   proposalCards, writeCard, readCard, cardHandlers, splitVolume, CARD_DIR, STATE_DIR, CARD_JSON, CARD_MD,
-  buildContext, volumeBlock, conversationsBlock, lastUpdateBlock, nearLimit, NOT_READ_FOR_LIMIT, CONTEXT_LIMITS, VOLUME_WORDS,
+  buildContext, volumeBlock, conversationsBlock, lastUpdateBlock, nearLimit, NOT_READ_FOR_LIMIT, CONTEXT_LIMITS, VOLUME_WORDS, countLimitOf,
 } from './build/index.mjs';

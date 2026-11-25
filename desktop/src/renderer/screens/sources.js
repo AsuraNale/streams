@@ -384,21 +384,15 @@ const LINES = ['purpose', 'scope', 'exclude', 'trust', 'rhythm', 'language', 'ha
 const listOf = v => (Array.isArray(v) ? v : typeof v === 'string' && v.trim() !== '' ? [v] : [])
 
 /** The card's definition (a paragraph and its seven lines), and its other parts folded under 「建库卡全文」. */
-// 1.1.2 (U3): a line of 「每次怎么挑」 that sets how many items each update takes (「每次控制在 3 到 8 条」, 「每次最多 5 条」 …)
-const COUNT_LIMIT = /(每次|每轮|一次)[^，。；]{0,8}?(\d+\s*(到|至|-|—|~|～)\s*\d+|最多\s*\d+|不超过\s*\d+|至少\s*\d+)\s*条|\b(\d+\s*(to|-|–)\s*\d+|at most \d+|up to \d+|no more than \d+)\s+items?\b/i
-export function countLimitOf(card) {
-  const hit = listOf(card?.pick).find(x => COUNT_LIMIT.test(String(x)))
-  return hit ? (hit.match(COUNT_LIMIT)?.[0] ?? null) : null
-}
-
-function CardPart({ card, history, onChange }) {
+// 1.1.2 (U3): countLimit — the words of the card's line that sets how many items each update takes (getCardView: core countLimitOf)
+function CardPart({ card, history, onChange, countLimit = null }) {
   const C = T.card
   const [open, setOpen] = useState(false)
   const d = card.definition ?? {}
   return html`<section class="st-src-part" data-part="card" aria-labelledby="src-card-h">
     <div class="section-label"><span id="src-card-h">${C.heading}</span>${history ? html`<small class="muted" data-part="card-version">${history}</small>` : null}</div>
     <p class="intro-copy" data-part="card-summary">${d.summary ?? ''}</p>
-    ${countLimitOf(card) ? html`<p class="st-alert" role="note" data-part="card-count-limit">${fmt(T.card.countLimit, { text: countLimitOf(card) })}</p>` : null}
+    ${countLimit ? html`<p class="st-alert" role="note" data-part="card-count-limit">${fmt(T.card.countLimit, { text: countLimit })}</p>` : null}
     <dl class="decision-points" data-part="card-lines">${LINES.map((k, i) => html`<div key=${k} data-line=${k}><dt><span class="point-index">${pad(i + 1)}</span>${C.lines[k]}</dt><dd>${d[k] ?? ''}</dd></div>`)}</dl>
     ${open ? html`<div class="st-src-card-full" data-part="card-full">
       ${Array.isArray(card.decide) && card.decide.length ? html`<div class="section-label"><span>${C.parts.decide}</span></div><ol>${card.decide.map((x, i) => html`<li key=${i}>${x.what}${x.default ? `${PUNCT.open}${x.default}${PUNCT.close}` : ''}</li>`)}</ol>` : null}
@@ -516,7 +510,7 @@ export function SourcesScreen({ params = {} }) {
             <${OldBriefPart} brief=${cv?.brief ?? null} />
             ${view.status === 'error' && !view.data ? html`<p class="progress-alert" role="alert">${T.loadFailed}</p>` : null}
             ${view.data ? html`<${OldSourcesPart} view=${view.data} />` : null}` : null}
-          ${hasCard ? html`<${CardPart} card=${cv.card} onChange=${() => navigate('build', { edit: libraryId })} />
+          ${hasCard ? html`<${CardPart} card=${cv.card} countLimit=${cv.countLimit ?? null} onChange=${() => navigate('build', { edit: libraryId })} />
             <${CardSuggestions} gaps=${home.data?.lastRound?.kind === 'update' ? gapsOf(home.data.lastRound) : []} onToCard=${t => navigate('build', { edit: libraryId, opener: t })} />
             <${CardSourcesPart} rows=${cv.rows ?? []} onAdded=${() => cardView.reload()} />` : null}
           <${RunPart} libraryId=${libraryId} onCard=${hasCard ? t => navigate('build', { edit: libraryId, opener: t }) : null} />
