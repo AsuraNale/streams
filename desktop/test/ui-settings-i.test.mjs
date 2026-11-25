@@ -50,7 +50,7 @@ test('R4b-4 four parts in the design\'s order with the four jumps on top; 主 Ag
   assert.deepEqual(groups, [
     ['connection', SETTINGS.groups.connection, ['connections']],
     ['look', SETTINGS.groups.look, ['theme', 'appearance', 'language']],
-    ['library', SETTINGS.groups.library, ['library-root', 'usage']],
+    ['library', SETTINGS.groups.library, ['library-root', 'source-auth', 'usage']],  // 1.1.1 P9: 来源授权 between them
     ['about', SETTINGS.about, ['about', 'advanced']],
   ])
   const jumps = await s.page.evaluate(() => [...document.querySelectorAll('[data-part="jumps"] [data-jump]')].map(j => [j.dataset.jump, j.textContent]))
