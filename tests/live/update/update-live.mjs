@@ -11,6 +11,7 @@
 //   node tests/live/update/update-live.mjs --out <folder> [--persona 1,2,3,5] [--connection claude-code|codex]
 //   1.1.1 P3 (acceptance C8): --connection codex runs the update agent on Codex (its default model); the judge stays Claude
 //   Code with no tools (Opus 5.5), the same as for Claude Code's runs
+//   1.1.1 P13 (acceptance C10): --no-search with --connection deepseek runs the update with no search tool at all
 //   1.1.1 P6 (acceptance C9): --connection deepseek runs it on the model API (DeepSeek's recommended model) with Streams' own
 //   tools (core connect/api-tools.mjs): read_page with Streams' reader — each page read kept as its original at once (onPage),
 //   search with DeepSeek's search API on the same key, the update's budget as hard numbers. The key: the environment variable
@@ -75,7 +76,8 @@ async function runOne(n, out) {
   if (KIND === 'deepseek') {
     const conn = { kind: 'api', api: { vendor: 'deepseek', keyRef: 'env' } };
     const getKey = async () => process.env.DEEPSEEK_API_KEY;
-    const found = await searchFor(conn, { getKey });
+    // 1.1.1 P13 (C10 on a real connection): --no-search — the update with no search at all (only the originals and read_page)
+    const found = process.argv.includes('--no-search') ? null : await searchFor(conn, { getKey });
     search = Boolean(found);
     connector = createApiToolSession(conn, { getKey, timeoutMs: 300_000 }, {
       sessionDir: join(work, 'sessions'), readPage: createPageReader().read, search: found?.search ?? null,

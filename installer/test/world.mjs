@@ -109,6 +109,12 @@ export const DETECT_TRAP_VERSION = '0.0.0-trap'
  *   STREAMS_DEV_UPDATE_HOLD_MS               9000: the stand-in update agent would wait (only with STREAMS_DEV_CONNECTION)
  *   STREAMS_DEV_ASK_SCRIPT                   not JSON; read only with STREAMS_DEV_CONNECTION=fake, at start: the app then does
  *                                            not start at all (JSON.parse throws in services/connections.mjs)
+ *   1.1.1 (the switches its packages added; P13 found them missing here — this suite had not run since 1.1.0):
+ *   STREAMS_DEV_READS                        not JSON (P1): Streams' own readers of a build replaced by a script
+ *   STREAMS_DEV_API=1                        (P6) the API connection kept real while the others are the stand-ins
+ *   STREAMS_DEV_NOTIFY_LOG=1                 (P8) notifications written to a log instead of shown
+ *   STREAMS_DEV_SITE_AUTH                    (P9) a site list with a trap site (trap.invalid): 设置「来源授权」 would name it
+ *   STREAMS_DEV_UPDATE_SCRIPT                not JSON (P10): the stand-in update agent's script
  */
 export function trapSwitches(traps, trapUrl) {
   for (const d of TRAP_FOLDERS) mkdirSync(join(traps, d), { recursive: true })
@@ -122,6 +128,10 @@ export function trapSwitches(traps, trapUrl) {
   writeFileSync(join(traps, 'ask-script.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_ASK_SCRIPT)\n')
   writeFileSync(join(traps, 'build.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_BUILD)\n')
   writeFileSync(join(traps, 'definition.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_DEFINITION)\n')
+  // 1.1.1: the readers' and the update agent's scripts (not JSON), the site list of 来源授权 (a trap site an app that took it shows)
+  writeFileSync(join(traps, 'reads.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_READS)\n')
+  writeFileSync(join(traps, 'update-script.json'), 'not JSON: a trap of the installer test (STREAMS_DEV_UPDATE_SCRIPT)\n')
+  writeFileSync(join(traps, 'site-auth.json'), `${JSON.stringify([{ id: 'trap', hosts: ['trap.invalid'], needs: 'contact', name: { zh: '陷阱站', en: 'trap site' }, why: { zh: '安装测试的陷阱', en: 'an installer test trap' } }])}\n`)
   // redesign R6c: the detection's stand-in says what this machine does not have — an app that took it would show both tools usable
   const found = { installed: true, loggedIn: true, version: DETECT_TRAP_VERSION }
   writeFileSync(join(traps, 'detect.json'), `${JSON.stringify({ 'claude-code': found, codex: found })}\n`)
@@ -147,6 +157,12 @@ export function trapSwitches(traps, trapUrl) {
     STREAMS_DEV_DEFINITION: join(traps, 'definition.json'),
     STREAMS_DEV_SOP_DIR: join(traps, 'sop-dir'),
     STREAMS_DEV_UPDATE_HOLD_MS: '9000',
+    // 1.1.1 (P1, P6, P8, P9, P10)
+    STREAMS_DEV_READS: join(traps, 'reads.json'),
+    STREAMS_DEV_API: '1',
+    STREAMS_DEV_NOTIFY_LOG: '1',
+    STREAMS_DEV_SITE_AUTH: join(traps, 'site-auth.json'),
+    STREAMS_DEV_UPDATE_SCRIPT: join(traps, 'update-script.json'),
   }
 }
 
