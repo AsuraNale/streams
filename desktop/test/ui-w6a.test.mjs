@@ -84,7 +84,7 @@ describe('W6a: 待看, the reading window, 来源与要求, 设置', () => {
     assert.ok(card.opening.startsWith('十月新能源乘用车零售量为一百一十万辆'), card.opening)
     assert.ok(card.meta.includes(INBOX.card.methods.direct), card.meta)
     assert.deepEqual(card.links.map(([p, para]) => [p, para]), [['0', '0'], ['1', '2'], ['2', '3']])
-    assert.equal(card.links[1][2], '原文第 3 段 · 看原话')
+    assert.equal(card.links[1][2], '原文第 3 段 · 查看原句') // 1.1.2 第 2 件: 看原话 → 查看原句
     const missing = await s.page.evaluate(sel => {
       const c = document.querySelector(sel)
       return { mark: c.querySelector('[data-original-missing]')?.dataset.originalMissing ?? null, note: c.querySelector('[data-part="missing-note"]')?.textContent ?? '', what: Boolean(c.querySelector('[data-part="what"]')), points: Boolean(c.querySelector('[data-part="points"]')) }

@@ -6,7 +6,7 @@ export const LIBRARY = Object.freeze({
   searchLabel: 'Search the library',
   searchPlaceholder: 'Search titles, topics, text…',
   searchCount: '{n} found',
-  searchNone: 'Nothing found. Try other words.',
+  searchNone: 'No results. Try different keywords.',
   searching: 'Searching…',
   views: Object.freeze({
     all: 'All',
@@ -18,8 +18,8 @@ export const LIBRARY = Object.freeze({
   filtersLabel: 'Topics and time',
   recent: 'Last 30 days',
   empty: Object.freeze({
-    all: 'Nothing in the library yet. Keep an item in the Inbox and it is written here as a note.',
-    kept: 'Nothing kept yet. Keep an item in the Inbox and it shows here.',
+    all: 'Your Library is empty. Items you keep in the Inbox appear here as notes.',
+    kept: 'Nothing kept yet. Items you keep in the Inbox appear here.',
     authored: 'Nothing in “My notes” yet.',
   }),
   filteredEmpty: 'Nothing under this filter.',
@@ -35,7 +35,7 @@ export const LIBRARY = Object.freeze({
     back: 'Back to the library',
     heading: '{n} file{n?|s} missing a header',
     none: 'Every file in the library folder has a header.',
-    note: 'These files are already in the library folder (notes made in Obsidian, for example) and Streams has not changed them. They are added once a header is written; the text itself is not changed.',
+    note: 'These files are already in the library folder (for example, notes created in Obsidian), and Streams hasn\'t changed them. They\'re added once a header is written; the body isn\'t changed.',
     missingTag: 'Missing a header',
     notYet: 'Not added yet',
     codes: Object.freeze({
@@ -48,7 +48,7 @@ export const LIBRARY = Object.freeze({
     }),
     missing: 'Missing {field}',
     badDate: '{field} is not a date',
-    other: 'Does not follow the file rules',
+    other: 'Doesn\'t follow the file format',
     applyAll: 'Write all',
     applyingAll: 'Writing…',
     allWritten: '{n} file{n?|s} written.',
@@ -65,14 +65,14 @@ export const LIBRARY = Object.freeze({
     badName: 'The file name “{name}” cannot be an item id: only letters, digits, Chinese characters, spaces and - _ ., starting with a letter, a digit or a Chinese character. Streams does not rename files: rename it yourself, then come back to this page.',
     notProposable: 'The header of this file has other problems ({problems}), so no header can be suggested. Fix the header in Obsidian or a text editor, then choose “Rebuild the index” under Sources & Brief → Advanced settings.',
     parseFailed: 'Line {line} cannot be read. Write it like the suggested lines: a key, a colon, a space, the value; topics in square brackets, separated by commas.',
-    failed: 'Not written: this header does not follow the file rules (it needs a title, a source, a date, a status and topics; dates look like 2026-10-20). The file was not changed.',
-    failedOther: 'Not written; the file was not changed. Try again.',
+    failed: 'Not written: this header doesn\'t follow the file format (it needs a title, source, date, status and topics; dates look like 2026-10-20). The file wasn\'t changed.',
+    failedOther: 'Couldn\'t write. The file wasn\'t changed. Try again.',
     subfolders: 'Files in sub folders are not read in this version: {dirs}.',
   }),
 
   reader: Object.freeze({
     label: 'Text',
-    none: 'Choose an item on the left.',
+    none: 'Select an item on the left.',
     loadFailed: 'This item could not be read.',
     status: Object.freeze({ kept: 'Kept', authored: 'My notes', archived: 'Archived' }),
     published: 'Published {date}',
@@ -88,7 +88,7 @@ export const LIBRARY = Object.freeze({
     obsidian: 'Open in Obsidian',
     folder: 'Show in File Explorer',
     browser: 'Open in browser',
-    failed: 'That did not work. Try again.',
+    failed: 'Something went wrong. Try again.',
   }),
 
   panel: Object.freeze({
@@ -100,7 +100,7 @@ export const LIBRARY = Object.freeze({
     sameSource: 'From the same source',
     sameSourceNone: 'Nothing else from this source.',
     authored: 'My notes',
-    none: 'Choose an item in the library: its verification record and its file show here.',
+    none: 'Select an item in the library to see its verification record and file.',
   }),
 })
 
@@ -120,12 +120,12 @@ export const EDIT = Object.freeze({
   linkPlaceholder: 'Words from its title',
   linkNone: 'Nothing found.',
   linkPick: 'Insert [[{title}]]',
-  record: 'Only the title, topics, body and links can be edited. Source, date and scores are records.',
+  record: 'Only the title, topics, body and links can be edited. Source, date and scores are record fields.',
   cancel: 'Cancel',
   save: 'Save',
   saving: 'Saving…',
-  failed: 'Not saved: the change would break the file rules. The file was not changed.',
-  failedOther: 'Not saved; the file was not changed. Try again.',
+  failed: 'Not saved: the change doesn\'t meet the file format. The file wasn\'t changed.',
+  failedOther: 'Couldn\'t save. The file wasn\'t changed. Try again.',
 })
 
 export const VERDICTS = Object.freeze({
@@ -148,7 +148,7 @@ export const VERDICTS = Object.freeze({
   passed: 'Passed',
   notPassed: 'Not passed',
   kinds: Object.freeze({ rule: 'rule', judge: 'model check · a call of its own' }),
-  saidNotDone: 'Claimed as done, not found when checked: recorded as “said done, not done”',
+  saidNotDone: 'Reported as done but not found on checking: recorded as “claimed but not done”',
   sentBack: 'The {k} item{k?|s} not passed in round {n} went back to the model, which changes only those and does not rewrite the rest.',
   result: 'Result: {passed} · {rounds} round{rounds?|s}',
   resultCalls: 'Result: {passed} · {rounds} round{rounds?|s} · {calls} model call{calls?|s}',
@@ -159,7 +159,7 @@ export const VERDICTS = Object.freeze({
   // v2 package H: the words for the AI found in the material (core verify: the mark on the verdict lines)
   ai: Object.freeze({
     title: 'Instructions aimed at AI were detected and ignored',
-    note: 'The material contained instructions aimed at AI. Streams did not follow them: no source and no library setting was changed.',
+    note: 'The material contained instructions aimed at AI. Streams didn\'t follow them; no source or library setting was changed.',
     rule: 'Found by the rules',
     judge: 'Found by the model check',
     none: 'The record does not keep the original sentence.',

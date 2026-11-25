@@ -30,8 +30,8 @@ export const NEXT_WHEN = Object.freeze({ today: 'today {hm}', tomorrow: 'tomorro
 
 export const ERRORS = Object.freeze({
   retry: 'Retry',
-  failed: 'That did not work. You can try again.',
-  noLibrary: 'No library is open yet.',
+  failed: 'Something went wrong. Try again.',
+  noLibrary: 'No library is open.',
 })
 
 export const FETCH_STATES = Object.freeze({
@@ -63,7 +63,7 @@ export const CONNECTIONS = Object.freeze({
   login: Object.freeze({
     go: 'Sign in',
     note: 'A terminal window opens and the tool signs in by itself; Streams never handles your account or password',
-    again: 'I have signed in, check again',
+    again: 'Signed in? Check again',
     failed: 'The sign-in window could not be opened.',
   }),
   probe: Object.freeze({
@@ -74,17 +74,17 @@ export const CONNECTIONS = Object.freeze({
   defaultModel: 'Default',
   sameAsMain: 'Same as the main model',
   codes: Object.freeze({
-    'not-installed': 'the tool was not found',
+    'not-installed': 'tool not found',
     'not-logged-in': 'not signed in',
-    'login-expired': 'the sign-in has expired',
-    'bad-key': 'the key is not valid',
-    'bad-model': 'the model name is not valid',
+    'login-expired': 'sign-in expired',
+    'bad-key': 'invalid key',
+    'bad-model': 'invalid model name',
     'rate-limited': 'too many requests',
-    network: 'the network is unreachable',
-    timeout: 'no answer in time',
-    'bad-format': 'the answer was not in the expected form',
-    refused: 'the request was declined',
-    unknown: 'an unexpected error',
+    network: 'network unavailable',
+    timeout: 'timed out',
+    'bad-format': 'unexpected response format',
+    refused: 'request declined',
+    unknown: 'unknown error',
   }),
 })
 
@@ -121,7 +121,7 @@ export const NOTE_STATUS = Object.freeze({
 })
 
 export const NO_CONNECTION = Object.freeze({
-  text: 'No connection has been chosen, and this action needs a model.',
+  text: 'No connection is selected. This action requires a model.',
   go: 'Go to Settings',
 })
 

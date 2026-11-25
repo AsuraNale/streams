@@ -113,7 +113,7 @@ describe('W7a: a library made by 1.0.1, opened by 1.1', () => {
     await shot('convert-start')
     await s.page.click('[data-action="start"] button')
     await until(() => document.querySelector('article[data-part="build-card"] [data-action="confirm"]') !== null && document.querySelector('[data-part="thinking"]') === null)
-    assert.ok((await s.page.evaluate(() => document.querySelector('[data-action="confirm"]').textContent)).includes('确认，换过来'))
+    assert.ok((await s.page.evaluate(() => document.querySelector('[data-action="confirm"]').textContent)).includes('确认并转换')) // 1.1.2 第 2 件: 确认，换过来 → 确认并转换
     assert.deepEqual(tree(lib), before, 'not confirmed: the library byte for byte')
     await shot('convert-card')
     await s.page.click('article[data-part="build-card"] [data-action="drop"] button')

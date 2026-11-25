@@ -18,11 +18,11 @@ export const INBOX = Object.freeze({
     keep: '收藏',
     dismiss: '放弃',
     later: '稍后处理',
-    waiting: '等了 {n} 天',
+    waiting: '已等待 {n} 天',
     unverified: '未通过核验',
     // 11-18 (proposal D2): a news aggregator's item (Google News): its body cannot be read, it was judged on its title
     titleOnly: '只有标题',
-    titleOnlyHint: '这个来源只给标题，读不到正文：概述只依据标题。请打开原文核对。',
+    titleOnlyHint: '该来源仅提供标题，概述据标题生成。请打开原文核实。',
     // v2 package H: the material had 「写给 AI 的话」; hovering shows what was found
     aiInstruction: '检测到面向 AI 的指令，已忽略',
     aiInstructionHint: '命中的原句：{phrases}',
@@ -31,20 +31,20 @@ export const INBOX = Object.freeze({
     // 1.1 W6a (A3, A4): the item's original — kept (its opening under the summary, each point's place in it) or not
     saved: '原文已存',
     published: '发布 {date}',
-    pointLink: '原文第 {n} 段 · 看原话',
+    pointLink: '原文第 {n} 段 · 查看原句',
     opening: '原文开头',
-    openingMeta: '{method} · {when} 存下',
-    openStored: '打开存下的原文',
+    openingMeta: '{method} · {when} 保存',
+    openStored: '打开保存的原文',
     openWeb: '原网页',
-    missing: '原文没存下来',
-    missingNote: '流息未读到这个网页（{why}），因此没有摘要。可点标题查看原网页，或放弃。',
-    missingWhy: Object.freeze({ login: '要登录才能看', check: '网站要人机验证', blocked: '网站不让程序读', dead: '地址已失效', failed: '网站暂时打不开', 'no-article': '读不出正文' }),
+    missing: '原文未保存',
+    missingNote: '无法读取此网页（{why}），未生成摘要。点击标题可打开原网页。',
+    missingWhy: Object.freeze({ login: '需要登录', check: '网站要求人机验证', blocked: '网站拒绝自动访问', dead: '地址已失效', failed: '网站暂时无法访问', 'no-article': '无法提取正文' }),
     // 1.1.1 P9 (B24): a site of 来源授权's list, no contact filled in
-    needsContact: '这家网站要留联系邮箱才让读，去设置里填。',
-    needsContactGo: '去设置填写',
-    summaryMissing: '摘要没写出来',
-    summaryMissingNote: '原文已存，但本次未写出摘要。可打开存下的原文查看。',
-    methods: Object.freeze({ direct: '直接取', render: '渲染后取', pdf: 'PDF 取字' }),
+    needsContact: '该网站要求提供联系邮箱。请在设置中填写。',
+    needsContactGo: '前往设置填写',
+    summaryMissing: '未生成摘要',
+    summaryMissingNote: '原文已保存，但本次未生成摘要。可打开保存的原文查看。',
+    methods: Object.freeze({ direct: '直接获取', render: '渲染后获取', pdf: 'PDF 提取' }),
   }),
 
   // N03: 放弃 takes effect at once; the bar under the list (a reason is optional; 撤销 brings it back)
@@ -53,7 +53,7 @@ export const INBOX = Object.freeze({
     label: '放弃原因',
     quick: Object.freeze({ marketing: '营销内容', irrelevant: '不相关', shallow: '内容过浅', duplicate: '重复' }),
     other: '其他原因…',
-    otherPlaceholder: '写一句原因',
+    otherPlaceholder: '输入原因',
     otherSave: '保存原因',
     undo: '撤销',
     close: '关闭',
@@ -64,7 +64,7 @@ export const INBOX = Object.freeze({
   due: Object.freeze({
     title: '快到期',
     count: '{n} 条',
-    note: '到期日在 30 天内的条目，待看里的和收藏的都算；到期前 7 天和前 1 天各通知一次。',
+    note: '到期日在 30 天内的条目（含待看和已收藏）；到期前 7 天和前 1 天各提醒一次。',
     today: '今天到期',
     tomorrow: '明天到期',
     days: '还有 {n} 天到期',
@@ -76,7 +76,7 @@ export const INBOX = Object.freeze({
 
   later: Object.freeze({
     title: '稍后处理',
-    count: '{n} 条（下次运行后重新列入待看）',
+    count: '{n} 条（下次运行后重新进入待看）',
     line: '{source} · {date}',
   }),
 
@@ -89,14 +89,14 @@ export const INBOX = Object.freeze({
     nextNone: '未开启定时运行。',
     recent: '最近收藏',
     recentNone: '暂无收藏。',
-    recentLine: '{source} · {when}收藏',
+    recentLine: '{source} · {when} 收藏',
   }),
 
   // P07: a run of this library in progress
   // 1.1 W6a (B12): the last update did not start, the connection's login ran out
   banner: Object.freeze({
-    loginExpired: '连接的登录已过期，这座库本次未更新；已取回的原文均已保留。请在设置中重新登录后再运行。',
-    toSettings: '去设置',
+    loginExpired: '连接的登录已过期，此库本次未更新；已取回的原文均已保留。请在设置中重新登录后再运行。',
+    toSettings: '前往设置',
   }),
   running: Object.freeze({
     title: '本次运行尚未完成',
@@ -106,10 +106,10 @@ export const INBOX = Object.freeze({
 
 // 1.1.1 P11b (A13): 待看's top — what the last update did, and what the update agent left for the card (its 「卡上哪里不够用」)
 export const UPDATE_NOTE = Object.freeze({
-  line: '上次更新 {when}：读了 {read} 个来源{bad}，新增 {n} 条',
-  bad: '（{n} 个读不到）',
-  nothingNew: '上次更新 {when}：来源上没有新链接，没有调用更新 Agent',
-  failed: '上次更新 {when} 没有做完',
+  line: '上次更新 {when}：读取 {read} 个来源{bad}，新增 {n} 条',
+  bad: '（{n} 个无法读取）',
+  nothingNew: '上次更新 {when}：来源没有新链接，未调用更新 Agent',
+  failed: '上次更新（{when}）未完成',
   notes: '改卡建议',
   notesN: '{n} 条',
   more: '查看全部 {n} 条',

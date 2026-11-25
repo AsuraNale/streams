@@ -208,7 +208,7 @@ describe('W6b: 新建库 and the build conversation', () => {
     cs = await cards()
     assert.deepEqual([cs.at(-1).can, cs.at(-1).confirm], ['false', false])
     // 1.1.1 P1 (B19): the addresses neither opened nor read by Streams, one by one (here no reader answers: all three)
-    assert.ok(cs.at(-1).problems.includes('个网址流息核不到') && cs.at(-1).problems.includes(U), cs.at(-1).problems)
+    assert.ok(cs.at(-1).problems.includes('个网址流息无法核验') && cs.at(-1).problems.includes(U), cs.at(-1).problems)
     await say('去掉没读过的')
     cs = await cards()
     assert.deepEqual([cs.at(-1).can, cs.at(-1).confirm, cs.at(-1).last], ['true', true, 'true'])

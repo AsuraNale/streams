@@ -25,15 +25,15 @@ export const RUN = Object.freeze({
   }),
   live: Object.freeze({
     sources: '{done} / {total} 个',
-    originals: '{done} / {total} 篇，存下 {kept} 篇',
+    originals: '{done} / {total} 篇，已保存 {kept} 篇',
     agent: '已搜索 {searches} 次、已读 {reads} 页',
     check: '{done} / {total} 条',
   }),
   // the first update's range: the 12 updates with tools of 11-24 took 115 to 319 seconds (plan 场景一②)
   // 1.1.1 B26: an API key connection with no search
-  noSearch: '这一次不能搜：没有搜索来源，更新 Agent 只读来源上取回的原文和它打开的网页。要搜的话，在设置里填一个 DeepSeek 的搜索 key。',
-  usuallyFirst: '第一次更新通常要 2 到 6 分钟。可以离开这个页面，运行结束后会通知你。',
-  usuallyLast: '这座库上次更新用了 {min} 分钟。可以离开这个页面，运行结束后会通知你。',
+  noSearch: '本次无法搜索：未配置搜索服务。更新 Agent 仅读取来源内容和已打开的网页。如需搜索，请在设置中添加 DeepSeek 搜索 key。',
+  usuallyFirst: '首次更新通常需要 2–6 分钟。离开此页面不影响运行，结束后会通知你。',
+  usuallyLast: '此库上次更新用时 {min} 分钟。离开此页面不影响运行，结束后会通知你。',
   stepsDone: '{done} / {total} 个环节已完成',
   stepNow: '当前步骤：{step}',
   stop: '停止',
