@@ -59,7 +59,7 @@ const until = (fn, arg) => s.page.waitForFunction(fn, arg, POLL)
 const shot = async name => { if (SHOTS) { await s.page.evaluate(() => document.fonts.ready); await s.page.waitForTimeout(400); await s.page.screenshot({ path: join(SHOTS, `${name}.png`) }) } }
 const talkIdle = () => until(() => document.querySelector('main[data-screen="build"][data-view="talk"]') !== null && document.querySelector('[data-part="thinking"]') === null)
 /** What the conversation shows of the questions: n, kind, the options. */
-const shownQuestions = () => s.page.evaluate(() => [...document.querySelectorAll('[data-part="question"]')].map(e => ({ n: Number(e.dataset.n), kind: e.dataset.kind, options: [...e.querySelectorAll('[data-option]')].map(b => b.dataset.option), other: Boolean(e.querySelector('[data-field="other"]')) })))
+const shownQuestions = () => s.page.evaluate(() => [...document.querySelectorAll('[data-part="question"]')].map(e => ({ n: Number(e.dataset.n), kind: e.dataset.kind, options: [...e.querySelectorAll('[data-option]')].map(b => b.dataset.option), other: Boolean(e.querySelector('[data-other]')) })))
 const cards = () => s.page.evaluate(() => [...document.querySelectorAll('article[data-part="build-card"]')].map(e => ({ can: e.dataset.canConfirm, last: e.dataset.last, confirm: Boolean(e.querySelector('[data-action="confirm"]')), problems: e.querySelector('[data-part="card-problems"]')?.textContent ?? '', changes: [...e.querySelectorAll('[data-change]')].map(c => c.dataset.change), changeText: e.querySelector('[data-part="card-changes"]')?.textContent ?? '' })))
 async function say(text) {
   await s.page.fill('textarea[data-field="message"]', text)
@@ -148,10 +148,15 @@ describe('W6b: 新建库 and the build conversation', () => {
     await looks('question')
     await s.page.click('[data-part="question"][data-n="2"] [data-option="特斯拉中国"]')
     await s.page.click('[data-part="question"][data-n="2"] [data-option="宁德时代以外的电池厂"]')
+    // 1.1.2 (第 3 件): 「其他」 is the last row; its box opens when it is picked
+    assert.equal(await s.page.evaluate(() => document.querySelector('[data-part="question"][data-n="2"] [data-field="other"]')), null)
+    await s.page.click('[data-part="question"][data-n="2"] [data-other]')
     await s.page.fill('[data-part="question"][data-n="2"] [data-field="other"]', '电池那块要有宁德时代')
-    assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="question"][data-n="2"] [aria-pressed="true"]')].map(b => b.dataset.option)), ['特斯拉中国', '宁德时代以外的电池厂'])
+    assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="question"][data-n="2"] [data-option][aria-checked="true"]')].map(b => b.dataset.option)), ['特斯拉中国', '宁德时代以外的电池厂'])
     await s.page.click('[data-part="question"][data-n="2"] [data-action="answer"] button')
     await talkIdle()
+    // answered: the question folds to one line (no options left to press)
+    assert.deepEqual(await s.page.evaluate(() => { const q = document.querySelector('[data-part="question"][data-n="2"]'); return [q.dataset.state, Boolean(q.querySelector('[data-part="answered-line"]')), q.querySelectorAll('[data-option]').length] }), ['answered', true, 0])
     assert.equal(await s.page.evaluate(() => [...document.querySelectorAll('[data-row="you"]')].at(-1).textContent), '我选了：特斯拉中国、宁德时代以外的电池厂；其它：电池那块要有宁德时代')
     assert.deepEqual((await shownQuestions()).at(-1), { n: 3, kind: 'input', options: [], other: false })
     await say('中国市场为主，大中型车企。')
@@ -166,9 +171,14 @@ describe('W6b: 新建库 and the build conversation', () => {
     // single: a second press moves the choice
     await s.page.click('[data-part="question"][data-n="5"] [data-option="每天"]')
     await s.page.click('[data-part="question"][data-n="5"] [data-option="每周"]')
-    assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="question"][data-n="5"] [aria-pressed="true"]')].map(b => b.dataset.option)), ['每周'])
-    await s.page.click('[data-part="question"][data-n="5"] [data-action="answer"] button')
+    assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="question"][data-n="5"] [data-option][aria-checked="true"]')].map(b => b.dataset.option)), ['每周'])
+    // 1.1.2 (第 3 件): the keys — a number picks its row, Enter answers
+    await s.page.focus('[data-part="question"][data-n="5"] [data-part="options"]')
+    await s.page.keyboard.press('1')
+    assert.deepEqual(await s.page.evaluate(() => [...document.querySelectorAll('[data-part="question"][data-n="5"] [data-option][aria-checked="true"]')].map(b => b.dataset.option)), ['每天'])
+    await s.page.keyboard.press('Enter')
     await talkIdle()
+    assert.match(await s.page.evaluate(() => [...document.querySelectorAll('[data-row="you"]')].at(-1).textContent), /每天/, 'Enter answered with the row the number key picked')
     qs = await shownQuestions()
     assert.deepEqual(qs.map(x => x.n), [1, 2, 3, 4, 5], 'no 6th question')
     assert.ok(qs.every(x => x.options.length <= 4))

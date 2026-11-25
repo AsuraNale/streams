@@ -47,6 +47,9 @@
 @keyframes st-mo-banner { from { opacity: 0; transform: translateY(-8px); } }
 @keyframes st-mo-shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 @keyframes st-mo-glow { 50% { transform: scale(1.04); } }
+/* 1.1.2 (第 3 件): an answer sent — the picked rows drawn round once, the others leave (styles/interim.css .st-mo-sending) */
+@keyframes st-mo-confirm { 0%, 100% { opacity: 0; } 45% { opacity: 1; transform: scale(1.012); } }
+@keyframes st-mo-leave-option { to { opacity: 0; transform: translateX(-8px); } }
 
 /* small feedback (M10): hover and press within 120 ms, whatever the theme's own buttons say */
 button, a, .btn, .filter, .tab, .file-row, .project-item, .navitem { transition-duration: var(--mo-fast) !important; transition-timing-function: var(--mo-ease) !important; }
