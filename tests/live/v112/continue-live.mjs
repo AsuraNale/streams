@@ -7,7 +7,7 @@
 // given, is copied into the world's app data (so the library's earlier conversation is there, as on the user's machine).
 // The app in development (desktop/), the window shown, a frame every 5 s. A scripted user (no model): a choice question gets
 // its first option, any other turn gets 「按你的建议改，请交卡」. Spends quota (a real connection).
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -32,9 +32,11 @@ mkdirSync(join(OUT, 'shots'), { recursive: true });
 const root = join(tmpdir(), `streams-v112-live-${process.pid}-${randomBytes(3).toString('hex')}`);
 const world = { appData: join(root, 'app-data'), localData: join(root, 'local-data'), libraries: join(root, 'libraries') };
 for (const d of Object.values(world)) mkdirSync(d, { recursive: true });
+// node's cpSync ends the process without a word on this machine for a folder with Chinese in its path (exit 127): copied file by file
+function copyTree(from, to) { mkdirSync(to, { recursive: true }); for (const e of readdirSync(from, { withFileTypes: true })) { const a = join(from, e.name); const b = join(to, e.name); if (e.isDirectory()) copyTree(a, b); else if (e.isFile()) copyFileSync(a, b); } }
 const lib = join(world.libraries, basename(SRC));
-cpSync(SRC, lib, { recursive: true });
-if (ENDED) { mkdirSync(join(world.appData, 'build'), { recursive: true }); cpSync(ENDED, join(world.appData, 'build', basename(ENDED))); }
+copyTree(SRC, lib);
+if (ENDED) { mkdirSync(join(world.appData, 'build'), { recursive: true }); copyFileSync(ENDED, join(world.appData, 'build', basename(ENDED))); }
 writeFileSync(join(world.appData, 'settings.json'), `${JSON.stringify({ schema: 'streams.settings/1', schedule: { enabled: false, time: '08:30' }, panel: { open: true, tab: 'progress' }, theme: 'research', appearance: 'light', connections: { active: 'claude-code', 'claude-code': { model: null, verifyModel: null }, codex: { model: null, verifyModel: null }, api: { vendor: null, baseUrl: null, model: null, verifyModel: null } } })}\n`);
 
 const record = { startedAt: new Date().toISOString(), steps: [], turns: [], before: null, after: null, update: null, problems: [] };
