@@ -910,8 +910,13 @@ const MUTANTS = [
   },
   {
     id: 'r6d-cmp-inbox-title',
-    what: 'a 待看 card\'s title is in the body face of a link again',
-    edits: [['src/renderer/styles/template-app.css', '.r9.r9 .confirm-title h2 .st-card__title { font-family: inherit; }\n', '']],
+    // 1.1.2: 待看卡 v2 (赞妮) says it again for its own card (.r11.r11.r11 .st-card …): with one left the title keeps its
+    // heading's face, so both go
+    what: 'a 待看 card\'s title is in the body face of a link again (both rules that give it its heading\'s face gone)',
+    edits: [
+      ['src/renderer/styles/template-app.css', '.r9.r9 .confirm-title h2 .st-card__title { font-family: inherit; }\n', ''],
+      ['src/renderer/styles/template-app.css', '.r11.r11.r11 .st-card .confirm-title h2 .st-card__title { font-family: inherit; }\n', ''],
+    ],
     test: ['test/ui-r6d-compare.test.mjs', '--test-name-pattern=R6d 对照 · 待看'],
   },
   {
