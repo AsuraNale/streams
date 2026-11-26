@@ -9,6 +9,7 @@ export const PANEL = Object.freeze({
   decideBadge: '{n} to confirm',
 
   progress: Object.freeze({
+    menu: Object.freeze({ more: 'More', label: 'More actions for this library', open: 'Open library', runNow: 'Run now', schedule: 'Change schedule', stop: 'Stop run', failed: 'Something went wrong. Try again.' }),
     eyebrow: 'Run progress / All libraries',
     summary: '{running} running · {waiting} queued',
     idle: 'Nothing is running',
@@ -43,6 +44,10 @@ export const PANEL = Object.freeze({
     title: '{n} item{n?|s}',
     none: 'Nothing to confirm.',
     loadFailed: 'Couldn\'t load items to confirm.',
+    lead: 'Library cards to confirm: {n}. Nothing is created or changed until you confirm.',
+    here: 'This library',
+    hereConv: 'This conversation',
+    at: 'Submitted {when}',
   }),
 
   detail: Object.freeze({

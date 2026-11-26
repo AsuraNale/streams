@@ -147,6 +147,9 @@ describe('W7b: what the screens show once v1.0\'s pipeline and v2\'s main agent 
     assert.equal(await s.page.evaluate(() => document.querySelector('[data-panel-badge="decide"]')), null, 'nothing to confirm: no number')
     const r = await s.page.evaluate(() => window.streams.startBuild('帮我建一个跟踪 agent 记忆方案的库'))
     assert.ok(r.ok, JSON.stringify(r))
+    // 1.1.3: the conversation is a row of 未建成; opened from there
+    await until(() => document.querySelector('nav[data-part="conversations"] [data-conv^="new:"]') !== null)
+    await s.page.click('nav[data-part="conversations"] [data-conv^="new:"] .st-conv__main')
     await until(() => document.querySelector('main[data-screen="build"][data-view="talk"]') !== null)
     assert.deepEqual(await marks(), { view: 'talk', agent: 'page', add: false }, 'a conversation: 主 Agent marked')
     await until(() => document.querySelector('[data-panel-badge="decide"]')?.textContent === '1')

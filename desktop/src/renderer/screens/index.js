@@ -43,7 +43,7 @@ export const ALIASES = Object.freeze({
   today: Object.freeze(['inbox', Object.freeze({})]),
   status: Object.freeze(['inbox', Object.freeze({})]),
   // 1.1 W7b: the sidebar's 主 Agent is the build conversation (v2's main agent chat is gone)
-  chat: Object.freeze(['build', Object.freeze({})]),
+  chat: Object.freeze(['build', Object.freeze({ latest: true })]),
 })
 
 /** The screen the app opens on: the current library's 待看 (redesign R1: a library always opens on 待看). */

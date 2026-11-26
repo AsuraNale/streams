@@ -149,6 +149,7 @@ frame-ancestors 'none'
 | `setSourceContact(contact)` | 邮箱或 null | **1.1.1 P9**：存联系邮箱（写进 `settings.json` 的 `sourceContact`，所有库共用）；null 或空白清除；不是邮箱 → `bad_arguments`、不写盘；日志只记「存了 / 清了」，不记邮箱；返回 `{ contact }` | 同上 |
 | `getHome()` | 无 | 见 §4.1「今日」 | S2 |
 | `startRound()` | 无 | 当前库的一轮。`{ started: true, roundId } \| { started: false, problems }`（自检失败：S13；没选连接也算自检失败，`connectionCode: 'not-installed'`）；走全应用的队列（v2 包 A，§4.4）。**v2 包 L**：队列忙（别的库在跑或在排）时**不再回 `bad_arguments`**，而是把当前库排到队尾：`{ started: false, queued: true, position, runningLibraryId }`（`position` 1 = 在跑的那个，2 = 第一个在排的…）；这个库已在跑 → `{ started: false, already: 'running' }`，已在排 → `{ started: false, already: 'queued', position }`，不重复排（§4.12）。进度经 `round-progress` 事件；跑完发 `inbox-changed` 与最后一条 `round-progress { done: true, result }`。`roundId` 是主进程给这一轮的 id（`d-…`），核心自己的 round id 在 `result.round.id` | 库页头的「立即运行」（重设计 R1：直接调，不弹对话框，忙时排到队尾，§4.13）、本次运行未开始卡的「重试」、新建库的首轮 |
+| `runLibrary(libraryId)` | 库 id | **1.1.3**（右栏「进度」和左栏库行、库架卡片菜单里的「立即运行」）：任何一座登记的库进运行队列（`services/schedule.mjs`，原因「手动触发」）：空闲马上开始；`{ queued: true, position }`，已在跑或已在排 → `{ queued: false, reason: 'running' \| 'queued' }`；没登记 → `bad_arguments` | 1.1.3 |
 | `cancelRound()` | 无 | `{ cancelled }`；当前条目后停（核心 `signal`） | 库页头的「运行中 · 停止」（重设计 R1；原概览进度条旁）、右栏进度里「当前库 · 上次运行」的停止 |
 | `getRoundState()` | 无 | `{ running, roundId, libraryId, progress, last: runRound 的返回 \| null, lastProblems }`（`libraryId`：那一轮是哪个库的，v2 包 A；全应用同一时间只有一轮）；**重设计 R5a（O9）**：`last` 与 `lastProblems` 的问题只有 `code` / `connectionCode` / `node`，没有 `detail` | S2 |
 | `getInbox()` | 无 | **重设计 R2**：`{ items, later, rejected: { total, items }, manual, held, recentDismissReasons }`——`items` 是待拍板的卡（核心 listInbox 里不在「稍后处理」、不是挂起的那条）；`later` 是稍后处理的；`rejected` 是未通过筛选（核心 listRejected，最新在前、最多 50 条，`total` 是全部条数）；`manual` 是手动添加还没评分的（核心 listManualWaiting）；`held` 是挂起等小条关闭的放弃 `{ url, title }` 或 null；`recentDismissReasons: [{ts, reason, quick?, title, url}]`（没写理由的放弃不在里面）（§4.14）；**1.1.1 P8**（A12）：多 `dueSoon: [{ url, title, due, days, where, id? }]`（§4.25） | S3 / 待看 |
@@ -185,18 +186,21 @@ frame-ancestors 'none'
 | `openReader(url, how, point?)` | **1.1 W6a**：`point`（可选，0 起）是摘要的第几个要点；`url` 是 http(s)，且是当前库记录里的条目（`replayLedger` 的 states 里，抓到的、待看的都算）或索引里某条的 `source`，否则 `bad_arguments`；`how` ∈ `reader` · `browser` | `reader`：在隔离的阅读窗口里打开（§4.9），等抽正文结束后回 `{ mode: 'reading' \| 'original', fallback }`；**1.1 W6a**：待看里存了原文的条目打开存下的原文（不上网取），带 `point` 时标出那个要点对应的那一句并滚到它，回 `{ mode: 'stored', marked }`；**1.1 W13**（维护者 11-23「发之前先补」）：不在待看里、但库里存了这个网址的原文（`_originals/<originalId(url)>.md`：资料库里收藏的笔记、问库引用的条目）→ 也打开存下的那份（没有要点标记），没存才去取网页；`browser`：`null`，系统浏览器打开（测试只记日志）。不写盘 | A4 · P5「打开原文」「更多」→「在浏览器里打开」（v2 包 H） |
 | `applyHeader(file, header)` | `file` 是核心 `listPending` 里的文件名（否则 `bad_arguments`）；`header` 是对象（页面上改过的文件头，与拟好的合并、用户给的键优先）或 `null`（用拟好的） | 核心 `applyProposedHeader` 的返回 `{ id, file, entry }`；`not-proposable` / `bad-file-name` / `already-conforming` / `bad-id` / `invalid-note` → `bad_arguments`；发 `library-changed` | S8「写入这一个」 |
 | `applyAllHeaders()` | 无 | `{ written: [file…], skipped: [{ file, code }] }`：对每个文件名能当 id、拟得出文件头的待规范文件按拟的写入；文件名不能当 id 的 `code: 'bad-file-name'`，拟不出的 `'not-proposable'`，核心拒绝的是核心的错误码；写了至少一个才发 `library-changed` | S8「全部按拟的写入」 |
-| `getSources()` | 无 | 核心 `sourcesView`；**重设计 R5a（O9）**：每个来源行去掉 `message` 与 `http`（状态 `status`、处理建议 `hint`、连续次数照旧），原文进诊断信息 | S5 |
-| `getCardView()` | 无 | **1.1 W6a**：有建库卡的库 → `{ card, rows, old: false }`（rows 来自核心 `sourceRows`：每个来源的状态和「原文」一列：read · pdf · link · search · unknown）；没有建库卡的库（上一版建的）→ `{ card: null, rows: [], old: true, brief }` | A5 · A6 |
+| `getSources(libraryId?)` | 库 id（**1.1.3**：不给是当前库；主 Agent 页从对话列转换旧版本的库时给那座库的） | 核心 `sourcesView`；**重设计 R5a（O9）**：每个来源行去掉 `message` 与 `http`（状态 `status`、处理建议 `hint`、连续次数照旧），原文进诊断信息 | S5 |
+| `getCardView(libraryId?)` | 库 id（**1.1.3**：不给是当前库；主 Agent 页从对话列转换旧版本的库时给那座库的） | **1.1 W6a**：有建库卡的库 → `{ card, rows, old: false }`（rows 来自核心 `sourceRows`：每个来源的状态和「原文」一列：read · pdf · link · search · unknown）；没有建库卡的库（上一版建的）→ `{ card: null, rows: [], old: true, brief }` | A5 · A6 |
 | `proposeCardSource(text)` | 网址（http/https）或检索词 | **1.1 W6a**：定义里的 `add_source`（user），挂起不执行，返回 `{ id, source }`；库里零改动 | A5 · B3 |
 | `settleCardSource(id, confirm)` | 挂起的编号、`true` 确认 / `false` 不加 | **1.1 W6a**：确认才把来源写进建库卡（新版本存进历史）；卡上已有同一来源 → `bad_arguments` | A5 · B3 |
-| `getBuild()` | 无 | **1.1 W6b**：建库对话（services/build.mjs）（**1.1.1 P1**（B19）：交上来的卡上每个网址流息用自己的读取器读一遍——「读不到的来源」以外的网址，主 Agent 打开成功过或流息读到了才算；结果记在卡的 `sources` / `samples` / `unreadable` 每条的 `checked: { ok, original, reason }`，来源与要求的「原文」一列在第一次更新读到页面之前就用它；核不到的网址在 `problems` 里是 `{ code: 'not-read', url, reason }`，页面逐个列出原因、给「请它改好再交」（发一句请它改的话，算用户的话）；卡上流息读不到原文的来源在确认前列一句「只有链接」。开发与测试钩子 `STREAMS_DEV_READS=<json>`：建库和这次运行里的更新，读取器都从这张表回答，不上网）→ `{ mode: 'create' \| 'edit', library, status: 'talking' \| 'stopped', opener, asked, busy, stopped, trouble, turns }` 或 `null`（没有在谈的）。`turns`：你的话 `{ role: 'you', text }`、主 Agent 的一轮 `{ role: 'agent', kind: 'question' \| 'card' \| 'say' \| 'stopped', say, question?, card?, before?, canConfirm?, problems?, notice? }`（核心 createBuild 给的样子；它自己的备注不给） | A1 · A2 |
+| `getBuild(conv?)` | 对话的编号（`lib:<库 id>` 或 `new:<文件名>`）；不给是最后活动的、有开着的事的那段 | **1.1 W6b**：建库对话（services/build.mjs）（**1.1.1 P1**（B19）：交上来的卡上每个网址流息用自己的读取器读一遍——「读不到的来源」以外的网址，主 Agent 打开成功过或流息读到了才算；结果记在卡的 `sources` / `samples` / `unreadable` 每条的 `checked: { ok, original, reason }`；核不到的网址在 `problems` 里是 `{ code: 'not-read', url, reason }`。开发与测试钩子 `STREAMS_DEV_READS=<json>`：建库和这次运行里的更新，读取器都从这张表回答，不上网）。**1.1.3**（多段对话；赞妮方案，维护者 11-26 定稿）：每座登记的库一段（`lib:`），没建成库的对话各一段（`new:`），一段最多一件开着的事（建库、修改建库卡、转换），存在 `<appData>\build\` 下自己的文件里：1.1.2 的 `build.json` 原样读（修改或转换的归那座库，新建库的是一段未建成的对话），新开的叫 `open-<时间>-<随机>.json`；结束时照旧改名为 `ended-<时间>-<结局>.json`。→ `{ conv, kind: 'library' \| 'unbuilt', title, library, hasCard, open, mode: 'create' \| 'edit' \| 'convert', status: 'none' \| 'talking' \| 'stopped', state, n, opener, asked, busy, waiting, live, stopped, trouble, sending, turns, stale, earlier?, lastEnd?, back, note, lastAt }` 或 `null`（不给编号又没有开着的）。`state`：working · waiting · unsent · ended · question · card · card-blocked · replied · idle · none；`trouble.code` 为 `interrupted` = 话已存盘、应用在处理中途退出（「上一条消息未发送」）；`stale` = 修改的底稿已不是这座库现在的建库卡；`back` / `note`（stopped · left）= 停止处理或取消排队后放回输入框的话。`turns`：你的话 `{ role: 'you', text, answer?, at }`、主 Agent 的一轮 `{ role: 'agent', kind, say, question?, card?, before?, changes?, urls?, canConfirm?, problems?, notice?, at }` | A1 · A2 |
 | `startBuild(opener, libraryId?)` | 想追踪什么（一两句话）；带库 id 是改那座库的建库卡 | **1.1 W6b**：只有 Claude Code 能建库（**1.1.1 P3**：Codex 也能，它的 4 位模拟客户建库与 4 张卡的更新过了和 Claude Code 同一条线（C8）；更新同样放开，核心按连接种类给工具说明。**1.1.1 P6**（B17、C9）：API key 也能，建库与更新用流息自己的工具（核心 `createApiToolSession`：读网页用流息的读取器、搜索用 P5 的搜索服务、额度是硬数；建库的对话存在 `<appData>\build\api-sessions`，更新的在 `<appData>\update-api-sessions`；更新读到的页当场存成原文）；没存模型 key → `bad_arguments` 'build-needs-key'，页面在开始前就写「要先填模型的 key」（`getAppState().activeHasKey`）。开发与测试钩子 `STREAMS_DEV_API=1`：命令行两种照旧是替身，API 连接用真的（厂商地址指向测试自己的替身服务器））（别的连接 → `bad_arguments` 'build-not-supported'，没选 → `no_connection`）；已有在谈的 → `bad_arguments`；返回主 Agent 第一轮以后的 `getBuild()` | A1 |
-| `replyBuild(answer)` | 一句话，或 `{ picked: [选项]（≤ 4）, other? }` | **1.1 W6b**：回答主 Agent，返回下一轮以后的 `getBuild()` | A1 |
-| `retryBuild()` | 无 | **1.1 W6b**：连接失败的那一轮再发一次 | — |
-| `confirmBuild()` | 无 | **1.1 W6b**：确认等着的建库卡：建库（库文件夹 = 库架所在的文件夹 \ 卡上的库名，名字占用了加 2、3…；建好登记成当前的库）或改卡（新版本存进历史）；返回 `{ done: true, libraryId, update }`；没确认之前什么都不建、不改。**1.1 W10**（维护者 11-23「要，建好就跑」）：建库和把上一版的库换过来，确认后这座库的第一次更新马上进队列（`services/schedule.mjs queueRound`，原因 `first`「创建库后的首次运行」：空闲就开始，别的库在跑就排在后面，不重复排），`update` = 队列的回话；只改卡不跑，`update: null`；进队列出错只记日志，库照样建好 | A2 · B3 |
-| `dropBuild()` | 无 | **1.1 W6b**：不建了 / 不改了：等着的卡撤回，对话结束（存在 `build\\ended-…`） | B3 |
-| `listConversations()` | 无 | **1.1.2**（第 5 件）：`{ going, libraries }`：进行中的那段（`{ mode, library, asked }` 或 null），每座登记的库 `{ library: { id, name }, hasCard, conversations: [{ id, mode, why, startedAt, endedAt, asked, cards }] }`；1.1.1 的存档按待确认编号对上库（见 §4.28） | 第 5 件 |
+| `replyBuild(answer, conv?)` | 一句话，或 `{ picked: [选项]（≤ 4）, other? }`；对话的编号 | **1.1 W6b**：回答主 Agent，返回下一轮以后的 `getBuild()`。**1.1.3**（多段对话；赞妮方案，维护者 11-26 定稿）：话先存盘再交给主 Agent；主 Agent 同一时间只处理一段（`MAX_AT_ONCE` = 1），别的对话这时发的话等待（`state: waiting`、`waiting` = 第几位，只记在内存里），前一段处理完自动开始，返回的是它自己处理完的样子；同一段正在处理或等待 → `busy` | A1 |
+| `retryBuild(conv?)` | 对话的编号 | **1.1 W6b**：连接失败的那一轮再发一次。**1.1.3**：也包括应用在处理中途退出、没发出去的那句话 | — |
+| `confirmBuild(conv?)` | 对话的编号 | **1.1 W6b**：确认等着的建库卡：建库（库文件夹 = 库架所在的文件夹 \ 卡上的库名，名字占用了加 2、3…；建好登记成当前的库）或改卡（新版本存进历史）；返回 `{ done: true, libraryId, update, conv }`；没确认之前什么都不建、不改。**1.1 W10**：建库和把上一版的库换过来，确认后这座库的第一次更新马上进队列（`update` = 队列的回话）；只改卡不跑，`update: null`。**1.1.3**（多段对话；赞妮方案，维护者 11-26 定稿）：修改建库卡时，这座库现在的建库卡（连同每次更新的量）和这次修改开始时交给主 Agent 的底稿不一样 → `bad_arguments` 'card-changed'，什么都不写；建成的新库，这段对话归到它名下（`conv: lib:<新库 id>`） | A2 · B3 |
+| `dropBuild(conv?)` | 对话的编号 | **1.1 W6b**：放弃建库 / 放弃修改 / 放弃转换：等着的卡撤回，这件事结束（存在 `build\ended-…-dropped.json`）。**1.1.3**（多段对话；赞妮方案，维护者 11-26 定稿）：只撤回这段对话自己的卡（1.1.2 会撤回全部等着的卡）；正在处理或等待时先停止再放弃；未建成的对话从列表里去掉，库的对话还在、没有开着的事 | B3 |
+| `listConversations()` | 无 | **1.1.3**（多段对话；赞妮方案，维护者 11-26 定稿）：`{ unbuilt, libraries, latest, cards, attention, organised }`：未建成的对话（新的在上）和每座登记的库（左栏的顺序）各一行 `{ id, kind, title, library, hasCard, mode, open, state, n, position, lastAt, last: { mode, why, endedAt } \| null, attention }`；`latest` = 最后活动的那段的编号；`cards` = 每张等确认的建库卡 `{ conv, mode, library, name, urls, sources, at, stale, busy }`（按提交时间，早的在前）；`attention` = 有对话该你处理（待回答、建库卡待确认或暂不能确认、上一条消息未发送）；`organised` = 升级后的一次性说明还没看过（1.1.2 留下过对话、没点过「知道了」）。1.1.1 的存档按待确认编号对上库（见 §4.28）；已结束的存档按文件名在内存里缓存，每个只读一次 | 第 5 件 · 1.1.3 |
 | `getConversation(id)` | 存档名 `ended-…` | **1.1.2**：一段旧对话 `{ id, mode, why, library, startedAt, endedAt, asked, cards, turns }`；没有 → `bad_arguments` | 第 5 件 |
+| `stopBuild(conv)` | 对话的编号 | **1.1.3**（停止处理，维护者 11-26「做，开工」）：正在处理的这一次停下（Claude Code、Codex 结束整棵进程树，Windows 上 `taskkill /T`；API key 中断请求；流息核验卡上网址的阶段在两个网址之间停下），这件事退回到发这句话之前（已答的题、等着的卡都不动），话放回（`back`，`note: 'stopped'`），这一次已用的搜索和网页读取照算；下一句开新会话，把流息自己存的这件事的来回交给它（核心 `replayPrompt`）。还在等待的：取消排队（`note: 'left'`）。停的是一件事的第一句：这件事等于没开（未建成的对话 → `{ conv, gone: true, back, note }`，不保留）。没有在处理或等待的 → `bad_arguments` | 1.1.3 |
+| `restartBuild(conv)` | 未建成对话的编号 | **1.1.3**：已结束的未建成对话用原来的第一句重新开始，还是同一段（结束的那件存成 `ended-…-stopped.json`） | 1.1.3 |
+| `dismissConversationsNote()` | 无 | **1.1.3**：升级后的一次性说明「知道了」（写 `<appData>\build\organised.json`）；全新安装从不显示 | 1.1.3 |
 | `getLibraryVolume(id)` | 库 id | **1.1.2**（第 4 件）：`{ volume, volumes, budget, near }`（`near`：上次更新接近上限时 `{ reads, limit, notRead, volume }`，否则 null） | 第 4 件 |
 | `setLibraryVolume(id, volume)` | 库 id、standard / more / most | **1.1.2**：写进库的 `streams.json`、记进改动记录（字段 `volume`，用户改的），发 `library-changed`；返回同 `getLibraryVolume` | 第 4 件 |
 | `getDefaultVolume()` | 无 | **1.1.2**：`{ volume }`（`settings.json` 的 `defaultVolume`） | 第 4 件 |
@@ -320,7 +324,7 @@ frame-ancestors 'none'
 | `connections-changed` | `null` | 连接的设置变了（选定、模型槽、key 存了或删了） | 设置、S1 |
 | `round-progress` | `{ roundId, libraryId, phase, counts, calls, cap, done, result?, problems? }` | 一轮的每个阶段开始、每条打完分、跑完或停下（哪个库的一轮都发，带它的 `libraryId`） | 概览（v1.0 今日；只认当前库的）、S12 |
 | `inbox-changed` | `{ libraryId, count }` | 某个库的待看变了（一轮写入、收藏、放弃） | 侧栏角标（只认当前库的 `count`）、待看、今日 |
-| `build-changed` | `{ phase }`（`started` · `done` · `ended`） | **1.1 W6b**：建库对话的一轮开始或结束，或对话结束（建好、不建了） | 新建库、右栏待确认（重读 `getBuild`） |
+| `build-changed` | `{ conv, phase }`（`waiting` · `started` · `progress` · `done` · `ended` · `stopped`） | **1.1 W6b**：建库对话的一轮开始或结束，或对话结束（建好、不建了）。**1.1.3**：带上是哪一段对话（`conv`） | 新建库、右栏待确认（重读 `getBuild`） |
 | `quota-changed` | `{ kind }`（哪种连接的；当前连接换了时是新的当前连接） | **v2 包 M**：某种连接的套餐余量 / API 余额读到了、随一次调用来了、读不到了，或当前连接换了（§4.11） | 左栏左下角（重读 `getQuota`） |
 | `queue-changed` | `{ running, waiting }`（库的 id；没有在跑的时 `running` 为 null） | **v2 包 L**：有库排进队列、队列里的一轮开始或结束（§4.12） | 应用（`lib/queue.js useQueue` 重读 `getQueue`：右栏「进度」、左栏第二行、库架、概览） |
 <!-- events:end -->
@@ -1248,6 +1252,77 @@ frame-ancestors 'none'
   - 卡上「每次怎么挑」里写了条数上限时，「来源与要求」出提示（U3）。
 - **已答小卡**：用户那一轮带 `answer: { picked, other }`（core 存下）时，界面画已答小卡；1.1.1 的对话没有这一项，照旧显示原句。
 - 测试：`test/services-v112.test.mjs`、`test/ui-v112.test.mjs`；`ui-w6b` 改成断言已答小卡。
+
+### 4.29 §四补：1.1.3——主 Agent 的多段对话与右键菜单（11-26）
+
+维护者 11-26 的首要任务：「我prefer能够建立多个session，每个库对应一个session」，还要给右栏和对话加右键菜单。设计是赞妮的方案 `对话与右键菜单-方案.md` 和样稿，维护者 定稿「按改后的建议」。第 5 项第二步（停止以后这件事还开着）同日定为「做，开工」。
+
+**对话（`services/build.mjs`）**
+- **每座登记的库一段对话**，编号 `lib:<库 id>`；没建成库的对话，编号 `new:<文件名>`，可以有多段。确认建库后，这段对话归到新库名下：存档按它建出的文件夹对上库，和 1.1.2 一样。
+- **一段对话最多一件开着的事**：建库、修改建库卡或转换。每件事存在 `build\` 下自己的文件里：
+  - 1.1.2 的 `build.json` 原样读、原样续写；新开的叫 `open-<时间>-<随机>.json`。
+  - 结束时照旧改名为 `ended-<时间>-<结局>.json`，成为这座库的历史记录。
+  - 库的那件事自己结束了（次数用完等），马上收成存档。新建库的留在「未建成」里，状态「已结束」，可以「重新开始」（还是同一段）或「放弃建库」。
+- 启动时 1.1.2 留下的 `build.json` 按方案 10.1 读：
+  - 修改或转换 → 那座库开着的事；
+  - 新建库 → 一段未建成的对话；
+  - 库的那件已结束 → 收成存档。
+  - 没有单独的迁移步骤，不改写格式。
+- **主 Agent 同一时间处理一段**（`MAX_AT_ONCE` = 1）：
+  - 别的对话这时发的话进入等待，按发送顺序，只记在内存里，前一段处理完自动开始。
+  - 切换、打字、放弃不受任何一段影响。
+- **话先存盘**：发出的话先写进文件（`retry` 和 `trouble: { code: 'interrupted' }`），再交给主 Agent。应用中途退出，下次显示「上一条消息未发送」和「重试」。
+- **停止处理（`stopBuild`）**：核心退回到发这句话之前（核心 `createBuild`，见 core-api 5.22），那句话放回输入框（`back`、`note`）。
+  - 停的是一件事的第一句：这件事等于没开，库的对话不留文件，未建成的那段不保留。
+  - 还在等待的叫「取消排队」，效果相同，不需要停止信号。
+- **放弃（`dropBuild`）**：
+  - 只撤回这段对话自己的卡（1.1.2 的兜底会撤回全部）。
+  - 正在处理或等待时先停止再放弃。
+- **改卡的卡过期**：这座库现在的建库卡（连同每次更新的量）和这次修改开始时给主 Agent 的底稿不一样时，这张卡不能确认：
+  - 页面上 `stale`、`card-blocked`；
+  - 主进程确认时拒绝（`card-changed`），不写入。
+- 存档按文件名在内存里缓存，每个只读一次；`_actions.jsonl` 按修改时间和大小缓存。
+- 新的桥方法和参数见上面的桥表：
+  - `stopBuild`、`restartBuild`、`dismissConversationsNote`、`runLibrary`；
+  - `getSources` / `getCardView` 的库 id；
+  - 各个对话方法的 `conv`；
+  - 错误码 `busy`。
+- 开发与测试替身 `devBuildSession` 按对话取脚本：
+  - 脚本可以是 `byLibrary[库 id]`，或 `byOpener` 里开场白开头对上的那一组，都没有就用 `replies`；
+  - 一条回复的 `holdMs` 让这一轮拖这么久，停止会立刻结束它。
+
+**页面**
+- `screens/conversations.js`：主 Agent 页左边那一列。
+  - 从上到下：「新建库」、「未建成」（新的在上）、「我的库」（左栏的顺序）。
+  - 每行一个标题、一行状态（方案 3.6），状态前面有记号：转环、空心点、强调色点、琥珀点。
+  - 鼠标移上去或键盘聚焦时，行尾出现「更多」；它和右键打开同一份菜单（菜单一、二）。
+  - 升级后，列顶部显示一次说明和「知道了」。
+- `screens/build.js`：
+  - 「新建库」页总是能进。已有库时多一行固定提示；有未建成的对话时再多一行和「查看」。发出以后，那段对话一开始处理就切过去。
+  - 对话页的页头：状态、放弃按钮（这件事开着就有）、「更多」。
+  - 正文：先是历史记录，然后是开着的这件事。
+  - 输入框一直在：
+    - 处理中只是不能发送；
+    - 库的对话没有开着的事时，发出就开一件新的修改；
+    - 没有建库卡的库，输入框里预填转换的开场白。
+  - 停止处理、取消排队，以及话放回以后的那一行字。
+  - 被停的是选择题的回答时，题目重新打开，已选的项保留。
+  - 「另一段对话正在进行」那一页和库的「开始」起始页都删掉了。
+- `lib/build.js`：
+  - `useConversations`：列表、右栏的卡和左栏的点都从这里取；
+  - `useFresh`：「有新内容」只在页面里记；
+  - `useDrafts`：没发出去的字按对话保留，带来的话接在后面另起一行。
+- `screens/right-panel.js`：
+  - 「待确认」列出所有卡：当前库或当前对话的排最前并标出来，其余等得最久的在上；每张卡有「{when} 提交」。
+  - 卡上的「更多」和右键是菜单三。
+  - 「进度」的行有「更多」和右键，是菜单四（立即运行用 `runLibrary`）。
+- `kit/library-menu.js`：菜单五，库架卡片的「更多」、库架卡片右键、左栏库行右键共用。
+  - 「移除该库」时，如果这座库的对话里有开着的事，确认框多一句；确认后先放弃这件事，再移除。
+- 左栏「主 Agent」：有对话该你处理时带一个强调色点（`[data-attention=chat]`）。
+- 测试：
+  - `desktop/test/services-v113.test.mjs`，13 条：四类迁移、维护者 的两条路、等待、取消排队、停止、只撤回自己的卡、改卡过期、话先存盘、一次性说明、编号核对。
+  - `desktop/test/ui-v113.test.mjs`，9 条，真窗口。
+- 变异体：`v113-*` 九个；另外 17 个旧变异体换了锚点。
 
 ## 五、界面写法
 

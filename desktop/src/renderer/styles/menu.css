@@ -56,6 +56,9 @@
 .st-menu__item:focus-visible { background: var(--st-active-fill); }
 .st-menu__item:focus-visible { outline: 2px solid var(--st-accent); outline-offset: -2px; }
 .st-menu__item--danger { color: var(--st-wait); }
+/* 1.1.3 (plan 9.1): an item that cannot be used now stays in its place, greyed */
+.st-menu__item:disabled { opacity: .42; cursor: default; }
+.st-menu__item:disabled:hover { background: transparent; }
 
 /* ---- the dialog ------------------------------------------------------------------------------------------------------- */
 .st-dialog__scrim {

@@ -11,6 +11,8 @@ export const SHELL = Object.freeze({
     // the amber dot after a library's name
     problem: '该库存在异常',
     inboxBadge: '{n} 条待看',
+    // 1.1.3 (plan 4.3): 主 Agent's dot
+    attention: '有对话待处理',
     // redesign R1 (F10): the line under a library's name — its place in the queue (texts/panel.js QUEUE), else its problem,
     // else its 待看, else this
     inboxLine: '{n} 条待看',
@@ -96,7 +98,8 @@ export const SHELL = Object.freeze({
     emptyManual: '手动创建',
     loadFailed: '未能读取库列表。',
     // 1.1.1 P11a (A11): each card's 「更多」
-    more: Object.freeze({ button: '更多', label: '此库的更多操作', reveal: '在资源管理器中显示', scheduleOff: '关闭定时', scheduleOn: '开启定时', remove: '移除该库', failed: '操作未完成，请重试。' }),
+    // 1.1.3 (plan 9.6): 与主 Agent 对话 · 立即运行 added; the sidebar's library rows have the same menu
+    more: Object.freeze({ button: '更多', label: '此库的更多操作', talk: '与主 Agent 对话', runNow: '立即运行', reveal: '在资源管理器中显示', scheduleOff: '关闭定时', scheduleOn: '开启定时', remove: '移除该库', failed: '操作未完成，请重试。' }),
   }),
 
   // 1.1.1 P11b (A15): libraries already in the place new ones go, found after the app's data was removed (lib/found-libraries.js)

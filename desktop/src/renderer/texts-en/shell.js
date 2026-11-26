@@ -6,6 +6,7 @@ export const SHELL = Object.freeze({
     newLibrary: 'New library',
     problem: 'This library has a problem',
     inboxBadge: '{n} item{n?|s} in the Inbox',
+    attention: 'A conversation needs you',
     inboxLine: '{n} to review',
     idle: 'Nothing to review',
     problems: Object.freeze({
@@ -79,7 +80,7 @@ export const SHELL = Object.freeze({
     emptyChat: 'Drafted by the main agent',
     emptyManual: 'Set up manually',
     loadFailed: 'Couldn\'t load the libraries.',
-    more: Object.freeze({ button: 'More', label: 'More actions for this library', reveal: 'Show in File Explorer', scheduleOff: 'Turn off schedule', scheduleOn: 'Turn on schedule', remove: 'Remove this library', failed: 'Something went wrong. Try again.' }),
+    more: Object.freeze({ button: 'More', label: 'More actions for this library', talk: 'Talk to the main agent', runNow: 'Run now', reveal: 'Show in File Explorer', scheduleOff: 'Turn off schedule', scheduleOn: 'Turn on schedule', remove: 'Remove this library', failed: 'Something went wrong. Try again.' }),
   }),
 
   found: Object.freeze({

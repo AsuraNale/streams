@@ -112,7 +112,7 @@ test('a card that is not whole, or carries an address not read, has no 确认; c
 test('不建了: nothing made, the conversation gone; a new one can start', async () => {
   const s = await setup({ replies: [card(CARD(), [A, B])] })
   await s.b.startBuild('x')
-  assert.equal(s.b.dropBuild(), null)
+  assert.equal(await s.b.dropBuild(), null)
   assert.equal(s.b.getBuild(), null)
   assert.equal(existsSync(join(s.w.root, 'libs')), false)
   assert.equal(readdirSync(join(s.w.root, 'app', 'build', 'pending')).filter(n => n.endsWith('.json')).length, 0, 'the waiting card taken back')
@@ -121,11 +121,15 @@ test('不建了: nothing made, the conversation gone; a new one can start', asyn
   assert.notEqual(s.b.getBuild(), null)
 })
 
-test('one conversation at a time; it is kept across a restart and goes on from where it was', async () => {
+test('1.1.3: a second conversation of a new library starts beside the first (1.1.2 refused it); each is kept across a restart and goes on from where it was', async () => {
   const s = await setup({ replies: [question('拿来做什么？'), card(CARD(), [A, B])] })
-  await s.b.startBuild('x')
-  await assert.rejects(() => s.b.startBuild('另一个'), e => e.code === 'bad_arguments')
+  const first = await s.b.startBuild('x')
+  const second = await s.b.startBuild('另一个')
+  assert.notEqual(first.conv, second.conv)
+  assert.equal(s.b.listConversations().unbuilt.length, 2)
   const again = s.make().handlers
+  assert.equal(again.listConversations().unbuilt.length, 2, 'both read back')
+  await again.dropBuild(second.conv)
   const v = again.getBuild()
   assert.deepEqual([v.turns.length, v.turns[1].question.text], [2, '拿来做什么？'])
   const v2 = await again.replyBuild('研究')
@@ -158,7 +162,7 @@ test('changing a library\'s card: before / after; the card file is the same unti
   const last = v.turns.at(-1)
   assert.deepEqual([last.canConfirm, last.before.collect, last.card.collect], [true, ['月度销量'], ['月度销量', '价格战']])
   assert.equal(hash(file), before, 'not confirmed: the same file')
-  s.b.dropBuild()
+  await s.b.dropBuild()
   assert.equal(hash(file), before, 'dropped: the same file')
   s.setReplies([card(changed)])
   await s.b.startBuild('加上价格战', libraryId)
@@ -187,7 +191,7 @@ test('不建了 after the connection changed to one that cannot build: the waiti
   assert.equal(pending(), 1)
   s.setKind('api')
   const again = s.make().handlers
-  assert.equal(again.dropBuild(), null)
+  assert.equal(await again.dropBuild(), null)
   assert.equal(pending(), 0, 'taken back without the connection')
   assert.equal(again.getBuild(), null)
 })

@@ -57,6 +57,9 @@ const noteChanges = c => isObject(c) && Object.keys(c).length > 0 && onlyKeys(c,
 const question = v => typeof v === 'string' && v.trim().length >= 1 && v.trim().length <= 500
 // v2 package A: a library's registry id (whether it is one is the library service's to say: an unknown one is bad_arguments)
 const libraryId = nonEmptyShort(40)
+// 1.1.3: a conversation of the main agent (services/build.mjs): a library's, or a new library's (its file's stem)
+const convId = c => typeof c === 'string' && /^(lib:[^\s]{1,40}|new:(build|open-[0-9A-Za-z-]{1,80}))$/.test(c)
+const optConv = c => c === undefined || c === null || convId(c)
 const schedule = s => isObject(s) && onlyKeys(s, ['enabled', 'time']) && typeof s.enabled === 'boolean' && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)
 // 1.1.1 P11a (A10): a library's schedule says how often too — every / days / day (the core's isSchedule judges the values)
 const librarySchedule = s => isObject(s) && onlyKeys(s, ['enabled', 'time', 'every', 'days', 'day']) && typeof s.enabled === 'boolean' && typeof s.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)
@@ -129,6 +132,8 @@ export const BRIDGE_METHODS = Object.freeze({
   // the run and 待看 (services/pipeline.mjs): the numbers, one run, the inbox and its decisions
   getHome: Object.freeze({ args: 0 }),
   startRound: Object.freeze({ args: 0 }),
+  // 1.1.3 (菜单四、五的「立即运行」): any registered library's round into the queue (idle: it starts now)
+  runLibrary: Object.freeze({ args: 1, check: ([id]) => libraryId(id) }),
   cancelRound: Object.freeze({ args: 0 }),
   getRoundState: Object.freeze({ args: 0 }),
   getInbox: Object.freeze({ args: 0 }),
@@ -184,18 +189,25 @@ export const BRIDGE_METHODS = Object.freeze({
   applyAllHeaders: Object.freeze({ args: 0 }),
   // a library's sources with their last fetch (services/sources.mjs; read only: 1.1 W7b — a library made by the last version
   // lists them, a library with a card has getCardView)
-  getSources: Object.freeze({ args: 0 }),
+  getSources: Object.freeze({ args: 1, optional: 1, check: ([id]) => id === undefined || id === null || libraryId(id) }),
   // 1.1 W6a: a library's card and its sources' rows; a source typed by the user, held until 确认
-  getCardView: Object.freeze({ args: 0 }),
+  getCardView: Object.freeze({ args: 1, optional: 1, check: ([id]) => id === undefined || id === null || libraryId(id) }),
   proposeCardSource: Object.freeze({ args: 1, check: ([t]) => typeof t === 'string' && t.trim() !== '' && t.length <= 2000 }),
   settleCardSource: Object.freeze({ args: 2, check: ([id, yes]) => typeof id === 'string' && id.length <= 80 && typeof yes === 'boolean' }),
   // 1.1 W6b: the build conversation (services/build.mjs); a library id to change that library's card
-  getBuild: Object.freeze({ args: 0 }),
+  // 1.1.3: many conversations — the last argument names one (conv: lib:<library id> or new:<stem>); left out, the one with
+  // something open active last (1.1.2's calls)
+  getBuild: Object.freeze({ args: 1, optional: 1, check: ([c]) => optConv(c) }),
   startBuild: Object.freeze({ args: 2, optional: 1, check: ([t, id]) => typeof t === 'string' && t.trim() !== '' && t.length <= 2000 && (id === undefined || id === null || libraryId(id)) }),
-  replyBuild: Object.freeze({ args: 1, check: ([a]) => buildAnswer(a) }),
-  retryBuild: Object.freeze({ args: 0 }),
-  confirmBuild: Object.freeze({ args: 0 }),
-  dropBuild: Object.freeze({ args: 0 }),
+  replyBuild: Object.freeze({ args: 2, optional: 1, check: ([a, c]) => buildAnswer(a) && optConv(c) }),
+  retryBuild: Object.freeze({ args: 1, optional: 1, check: ([c]) => optConv(c) }),
+  confirmBuild: Object.freeze({ args: 1, optional: 1, check: ([c]) => optConv(c) }),
+  dropBuild: Object.freeze({ args: 1, optional: 1, check: ([c]) => optConv(c) }),
+  // 1.1.3: 停止处理 / 取消排队; a new library's conversation that ended, started again with its first words; 知道了 of the
+  // one-time note after the upgrade
+  stopBuild: Object.freeze({ args: 1, check: ([c]) => convId(c) }),
+  restartBuild: Object.freeze({ args: 1, check: ([c]) => convId(c) }),
+  dismissConversationsNote: Object.freeze({ args: 0 }),
   // 1.1.2 (第 5 件): the conversations by library; one that ended (its file's name, services/build.mjs)
   listConversations: Object.freeze({ args: 0 }),
   getConversation: Object.freeze({ args: 1, check: ([id]) => typeof id === 'string' && /^ended-[\w-]{1,120}$/.test(id) }),
@@ -223,6 +235,7 @@ export const ERROR_CODES = Object.freeze([
   'no_library', // no library folder opened yet
   'open_failed', // the system could not open the folder or the address
   'no_connection', // a method that calls a model (askLibrary) with no connection chosen
+  'busy', // 1.1.3: that conversation's main agent is working (or it waits its turn): its words are not taken now
   'internal', // anything else; the details go to the app's log, not to the page
 ])
 

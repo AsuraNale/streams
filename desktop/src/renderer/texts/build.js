@@ -40,7 +40,10 @@ export const BUILD = Object.freeze({
   // 1.1.1 P6 (B17): an API key connection with no model key
   needKey: '使用「{api}」建库前，需要先填写模型 key：在设置中「{api}」一行点击「配置」。',
   goSettings: '前往设置',
-  going: '已有一个未完成的建库对话。请继续该对话，或放弃后重新开始。',
+  // 1.1.3 (plan 第五节): the 新建库 page's lines — for a change of a library you have, and the conversations not built yet
+  newHint: '要修改已有的库，请在左侧选择该库的对话。',
+  unbuiltHint: '有 {n} 段未建成的对话。',
+  view: '查看',
 
   // the right panel's 详情 beside the page: how a library is made and kept
   how: Object.freeze({
@@ -52,6 +55,8 @@ export const BUILD = Object.freeze({
     note: '只有收藏的内容会写入库文件夹中的笔记。修改建库卡同样需要你确认。',
     usageLabel: '连接',
     usage: '建库和更新可使用「{name}」「{codex}」或「{api}」；使用「{api}」时，网页读取和搜索由流息执行。',
+    // 1.1.3 (plan 7.3)
+    queue: '主 Agent 同一时间处理一段对话，其余按发送顺序等待。',
   }),
 
   // 1.1 W7a: bringing a library of the last version over (来源与要求's 「重新查一遍来源」)
@@ -172,6 +177,8 @@ export const BUILD = Object.freeze({
     'login-expired': '连接的登录已过期，回答未能发送。请在设置中重新登录后重试。',
     'not-logged-in': '连接尚未登录，回答未能发送。请在设置中登录后重试。',
     failed: '回答未能发送：连接出现问题。请重试。',
+    // 1.1.3: the words were kept, the app quit before the main agent answered
+    interrupted: '上一条消息未发送。',
   }),
   retry: '重试',
   stopped: Object.freeze({
@@ -181,7 +188,41 @@ export const BUILD = Object.freeze({
     'session-lost': '与主 Agent 的会话已中断，本次建库已停止。请重新开始。',
     'bad-format': '主 Agent 连续两次返回无法识别的内容，本次建库已停止。请重新开始。',
   }),
+  // 1.1.3 (plan 第十三节): a library's conversation goes on after its thing ended — the same reasons, another closing sentence
+  stoppedLibrary: Object.freeze({
+    'over-budget': '本次建库的搜索或网页读取次数已用完，对话已结束。再次说明要修改的内容，即可开始新的一次修改。',
+    'too-many-turns': '本次建库的对话轮数超出上限，对话已结束。再次说明要修改的内容，即可开始新的一次修改。',
+    'other-tool': '主 Agent 调用了未获许可的工具，本次建库已停止。再次说明要修改的内容，即可开始新的一次修改。',
+    'session-lost': '与主 Agent 的会话已中断，本次建库已停止。再次说明要修改的内容，即可开始新的一次修改。',
+    'bad-format': '主 Agent 连续两次返回无法识别的内容，本次建库已停止。再次说明要修改的内容，即可开始新的一次修改。',
+  }),
   restart: '重新开始',
+  // 1.1.3: 停止处理 and 等待 (plan 6.4, 7.3)
+  stop: '停止处理',
+  stoppedNote: '已停止处理。上一条消息未发送，已放回输入框。',
+  waitingLine: '等待主 Agent：正在处理其他对话，轮到后自动开始。',
+  leave: '取消排队',
+  leftNote: '已取消排队。上一条消息已放回输入框。',
+  // 改卡的卡过期 (plan 第八节), in notWhole
+  stale: '这座库的建库卡在这次修改开始之后已有改动',
+  // the confirmations of 放弃 (plan 6.3; screens/t-dialog.js)
+  dropDialog: Object.freeze({
+    create: Object.freeze({ title: '放弃建库？', text: '这段对话将从列表中移除，不会创建任何内容。', confirm: '放弃建库' }),
+    edit: Object.freeze({ title: '放弃修改？', text: '修改后的建库卡将作废，「{name}」的建库卡保持不变。历史记录会保留。', confirm: '放弃修改' }),
+    convert: Object.freeze({ title: '放弃转换？', text: '转换用的建库卡将作废，「{name}」保持原样。历史记录会保留。', confirm: '放弃转换' }),
+    cancel: '取消',
+    close: '关闭',
+  }),
+  // the menus of a conversation and of a card (plan 9.2–9.4; kit/menu.js)
+  menu: Object.freeze({
+    more: '更多',
+    label: '此对话的更多操作',
+    cardLabel: '此建库卡的更多操作',
+    viewCard: '查看建库卡',
+    openLibrary: '打开此库',
+    stop: '停止处理',
+    leave: '取消排队',
+  }),
 
   // the right panel's 待确认
   panelEyebrow: '主 Agent · 新建库',
@@ -190,35 +231,45 @@ export const BUILD = Object.freeze({
   panelLead: '建库卡待你确认；确认之前不会创建任何内容。',
 
   // 1.1.2 (第 5 件): the conversations by library (the left column of 主 Agent), the earlier ones of a library
+  // 1.1.3 (plan 4.1, 3.6): two groups — 未建成, 我的库 — each row its title and what it is at
   list: Object.freeze({
     label: '对话',
     new: '新建库',
-    going: '进行中',
-    goingNew: '新建库',
-    goingAsked: '已问 {n} 个问题',
-    libraries: '按库',
+    unbuilt: '未建成',
+    libraries: '我的库',
     none: '暂无对话',
-    lastAt: '{what} · {when}',
+    lastAt: '{what} · {end} · {when}',
     failed: '未能读取对话列表。',
+    states: Object.freeze({
+      working: '主 Agent 处理中',
+      waiting: '等待主 Agent · 第 {n} 位',
+      question: '第 {n} 题 · 待回答',
+      card: '建库卡待确认',
+      'card-blocked': '建库卡暂不能确认',
+      replied: '主 Agent 已回复 · {when}',
+      unsent: '上一条消息未发送',
+      ended: '已结束',
+    }),
+    // the one-time note after the upgrade (plan 10.1)
+    organised: '对话已按库整理：每座库一段。尚未建成库的对话列在「未建成」。',
+    gotIt: '知道了',
   }),
   modes: Object.freeze({ create: '建库', edit: '修改建库卡', convert: '转换旧版本的库' }),
-  ends: Object.freeze({ built: '已确认', dropped: '未确认', stopped: '已结束' }),
+  ends: Object.freeze({ built: '已确认', dropped: '已放弃', stopped: '已结束' }),
   earlier: Object.freeze({
-    heading: '之前的对话',
+    heading: '历史记录',
     line: '{when} · {what} · {asked} 个问题 · {cards} 张建库卡 · {end}',
     expand: '展开',
     fold: '收起',
     loading: '正在读取…',
     failed: '未能读取这段对话。',
     card: '建库卡',
-    handedOver: '已将建库卡和之前对话的要点交给主 Agent，开始新的会话。',
+    handedOver: '已将建库卡和历史记录的要点交给主 Agent。',
     none: '这座库暂无与主 Agent 的对话记录。',
   }),
-  otherGoing: '另一段对话正在进行：{what}。完成或放弃后，才能在这里继续。',
-  toGoing: '前往进行中的对话',
   continueHeading: '{name}',
   continueSubtitle: '与主 Agent 的对话 · 改动需你确认后生效',
-  continuePlaceholder: '例如：内容不够多，请多找一些。',
+  continuePlaceholder: '告诉主 Agent 要修改的内容，例如：内容不够多，请多找一些。',
   // 1.1.2 (第 4 件): the card's step
   volumeRow: '每次更新的量',
   volumeValue: '{v} · 建库后可在「来源与要求」中调整',

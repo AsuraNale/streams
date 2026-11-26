@@ -210,10 +210,11 @@ describe('P14: motion', () => {
     await s.page.click('[data-action="start"] button')
     await until(() => document.querySelector('[data-mo="build"]') !== null)
     const l = await loops()
-    assert.ok(l.length >= 1 && l.every(a => a.mo === 'build' && a.name === 'st-mo-dots'), JSON.stringify(l))
+    // 1.1.3: the conversation's row in 主 Agent's column turns too while the agent works (plan 3.6: 转环)
+    assert.ok(l.some(a => a.mo === 'build' && a.name === 'st-mo-dots') && l.every(a => (a.mo === 'build' && a.name === 'st-mo-dots') || (a.mo === 'conv' && a.name === 'st-mo-ring')), JSON.stringify(l))
     seen.push(...await anims())
     await shot('build-waiting')
-    await until(() => document.querySelector('[data-part="question"]') !== null && document.querySelector('[data-mo="build"]') === null)
+    await until(() => document.querySelector('[data-part="question"]') !== null && document.querySelector('[data-mo="build"]') === null && document.querySelector('[data-mo="conv"]') === null)
     await sleep(400)
     assert.deepEqual(await loops(), [])
     // the card comes in as one block; 「确认」 shown once

@@ -74,7 +74,7 @@ test('第 5 件: a library made is listed with its conversation; getConversation
   const dir = s.library.find(r.libraryId).path
   assert.deepEqual(readLibraryVolume(dir), { volume: 'more', stored: true })
   const list = s.b.listConversations()
-  assert.equal(list.going, null)
+  assert.equal(list.unbuilt.length, 0, 'confirmed: the conversation is the library\'s now')
   const row = list.libraries.find(x => x.library.id === r.libraryId)
   assert.equal(row.conversations.length, 1)
   assert.deepEqual([row.conversations[0].mode, row.conversations[0].why, row.conversations[0].asked, row.conversations[0].cards], ['create', 'built', 2, 1])

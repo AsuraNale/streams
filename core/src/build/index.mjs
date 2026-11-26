@@ -8,7 +8,7 @@
 export { checkQuestion, answerText, QUESTION_LIMITS, QUESTION_KINDS } from './questions.mjs';
 export { checkCard, cardUrls, urlKey, sameUrl, renderCard, cardChanges, CARD_PARTS, DEFINITION_LINES, MAX_DECISIONS, CARD_WORDS } from './card.mjs';
 export { toolsText, budgetText, actionsText, OUTPUT_TEXT, BUILD_BUDGET } from './format.mjs';
-export { createBuild, buildPrompt, problemText, MAX_BUILD_TURNS } from './conversation.mjs';
+export { createBuild, buildPrompt, problemText, replayPrompt, MAX_BUILD_TURNS } from './conversation.mjs';
 export { proposalCards } from './proposals.mjs';
 export { writeCard, readCard, cardHandlers, splitVolume, CARD_DIR, STATE_DIR, CARD_JSON, CARD_MD } from './store.mjs';
 // 1.1.2 (第 4、5 件): what the main agent is told of the library it talks about; how near its last update was to the limit

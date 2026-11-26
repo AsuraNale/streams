@@ -2,7 +2,7 @@
 // only by what the model says it opened. Codex once wrote 「重新尝试打开，仍 404」 for addresses it never opened, and its
 // card could never be confirmed (11-24, customer 3); and a source the model could read may be one Streams cannot.
 //
-// checkCardUrls(card, { reads, readPage, readLinks, known }) -> { card, problems, known }
+// checkCardUrls(card, { reads, readPage, readLinks, known, onCheck, stopped }) -> { card, problems, known, stopped? }
 //   reads      the model's opens of this build: [{ url, ok }] (ok: false — an open that came back as an error — is not a read)
 //   readPage   read(url) of read/read-page.mjs (direct, rendered, a PDF's text); readLinks: read(url) of update/links.mjs.
 //              Without readPage only the model's opens count (no reader at hand).
@@ -39,7 +39,9 @@ const isSourceUrl = (card, url) => (card.sources ?? []).some((s) => isObj(s) && 
   || (card.unreadable ?? []).some((s) => isObj(s) && isWeb(s.url) && sameUrl(s.url, url));
 
 // onCheck(done, total) (1.1.1 P10, A8): after each address Streams reads itself (those it read before in this build are not counted)
-export async function checkCardUrls(card, { reads = [], readPage = null, readLinks = null, known = {}, onCheck = null } = {}) {
+// stopped() (1.1.3, 停止处理): asked before each address; true, no more is read and the result says stopped: true (the page
+// being read when it was asked is read to its end — the reader's own time limit)
+export async function checkCardUrls(card, { reads = [], readPage = null, readLinks = null, known = {}, onCheck = null, stopped = null } = {}) {
   const out = { ...known };
   const opened = new Set(reads.filter((r) => r && r.ok !== false).map((r) => urlKey(r.url)).filter(Boolean));
   const unreadable = new Set((card.unreadable ?? []).filter((e) => isObj(e) && isWeb(e.url)).map((e) => urlKey(e.url)));
@@ -65,6 +67,7 @@ export async function checkCardUrls(card, { reads = [], readPage = null, readLin
   for (const url of order) {
     const k = urlKey(url);
     if (!k || out[k]) continue;
+    if (typeof stopped === 'function' && stopped()) return { card, problems: [], known: out, stopped: true };
     const rec = await readOne(url);
     if (rec) out[k] = rec;
     if (typeof readPage === 'function') told(++done);
@@ -80,6 +83,7 @@ export async function checkCardUrls(card, { reads = [], readPage = null, readLin
     const sample = (card.samples ?? []).map((x) => (isObj(x) && isWeb(x.url) ? out[urlKey(x.url)] : null)).find((r, i) => r && r.ok && r.original && hostOf(card.samples[i].url) === host);
     if (sample) { out[k] = { ok: true, original: sample.original, reason: null }; continue; }
     const link = (rec.links ?? []).find((u) => hostOf(u) === host && urlKey(u) !== k);
+    if (link && typeof stopped === 'function' && stopped()) return { card, problems: [], known: out, stopped: true };
     const page = link ? pageRecord(await readPage(link).catch(() => null)) : null;
     out[k] = { ok: true, original: page?.ok && page.original ? page.original : 'link', reason: null };
   }

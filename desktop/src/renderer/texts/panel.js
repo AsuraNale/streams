@@ -14,6 +14,8 @@ export const PANEL = Object.freeze({
   // 进度: every library — the round that runs, the queue in order, each library's next timed slot (redesign R1: the template's
   // panel-summary, phase-row, mini-chart and activity-row; the words of 05-措辞规范)
   progress: Object.freeze({
+    // 1.1.3 (plan 9.5): a row's menu — 打开此库 · 立即运行 · 修改定时 · 停止运行
+    menu: Object.freeze({ more: '更多', label: '此库的更多操作', open: '打开此库', runNow: '立即运行', schedule: '修改定时', stop: '停止运行', failed: '操作未完成，请重试。' }),
     eyebrow: '运行进度 / 全部库',
     summary: '{running} 个运行中 · {waiting} 个排队中',
     idle: '当前无运行任务',
@@ -50,6 +52,11 @@ export const PANEL = Object.freeze({
     title: '{n} 项',
     none: '暂无待确认事项。',
     loadFailed: '未能读取待确认事项。',
+    // 1.1.3 (plan 第八节): many cards
+    lead: '待确认的建库卡：{n} 张。确认之前不会创建或修改任何内容。',
+    here: '当前库',
+    hereConv: '当前对话',
+    at: '{when} 提交',
   }),
 
   // 详情: follows the main area

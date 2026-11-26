@@ -34,6 +34,14 @@
 //                                                       checks twice (the user never sees it)
 //   { kind: 'failed', code, detail? }                   the connection failed; the state is as before, the turn can be tried again
 //   { kind: 'stopped', notice }                         'over-budget' · 'too-many-turns' · 'other-tool' · 'session-lost' · 'bad-format'
+//   { kind: 'aborted', text, answer }                   1.1.3 (停止处理): the turn was stopped (start / reply's signal aborted) —
+//                                                       the state is as before the user's words (the questions answered, the
+//                                                       card waiting are as they were; a first sentence: the build as new), but
+//                                                       the searches, reads and calls spent count. text / answer: the words the
+//                                                       user sent, for the box. The agent's session is not gone on with: the
+//                                                       next reply opens a new one and hands it Streams' own record of this
+//                                                       build (replayPrompt: the SOP, the opener, every question and answer,
+//                                                       the latest card in full) with the new words
 // An answer that does not pass (not JSON, a question or a card that fails its checks) is sent back once with what is
 // wrong; the second answer is taken as it is.
 import { loadSop, renderSop, placeholdersOf } from '../sop/sop.mjs';
@@ -100,6 +108,36 @@ export function buildPrompt({ definition, kind, today, budget = BUILD_BUDGET, so
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
+const FENCE = '\u0060\u0060\u0060';
+
+/**
+ * 1.1.3 (停止处理): what a new session is told of a build stopped part way — the first prompt as it was (SOP, the card it
+ * changes, what Streams adds, the opener), then the turns since in Streams' own record (the agent's questions and words,
+ * the user's answers; only the latest card in full, an earlier one named), then the user's new words.
+ */
+export function replayPrompt(first, turns, text) {
+  const lastCard = turns.map((t, i) => [t, i]).filter(([t]) => t.role === 'agent' && t.kind === 'card' && isObj(t.card)).at(-1)?.[1] ?? -1;
+  const lines = [];
+  turns.forEach((t, i) => {
+    if (i === 0 && t.role === 'user') return; // the opener, already in the first prompt
+    if (t.role === 'user') { lines.push(`用户：${t.text}`); return; }
+    if (t.role !== 'agent') return; // Streams' notes to the agent are not replayed
+    const say = typeof t.say === 'string' && t.say ? t.say : '';
+    if (t.kind === 'question' && t.question) {
+      const opts = Array.isArray(t.question.options) && t.question.options.length ? `（选项：${t.question.options.join(' / ')}）` : '';
+      lines.push(`你（第 ${t.question.n ?? '?'} 题）：${say ? `${say} ` : ''}${t.question.text}${opts}`);
+    } else if (t.kind === 'card' && isObj(t.card)) {
+      lines.push(i === lastCard ? `你交了建库卡：${say}\n${FENCE}json\n${JSON.stringify(t.card, null, 2)}\n${FENCE}` : `你交过一张建库卡（已被后面的那张替换）。${say}`);
+    } else if (say) lines.push(`你：${say}`);
+  });
+  const so = lines.length ? `\n\n## 这次到现在的来回（流息存的记录，按先后；上一次处理被用户停止了，从这里接着）\n${lines.join('\n')}` : '\n\n（上一次处理被用户停止了，从这里接着。）';
+  return `${first}${so}\n\n## 用户接着说\n用户：${text}`;
+}
+function restore(s, snap) {
+  for (const k of Object.keys(s)) if (!Object.hasOwn(snap, k)) delete s[k];
+  Object.assign(s, snap);
+}
+
 // 1.1.2 (第 3 件): the choice as the user made it — only the question's own options, what was typed into 「其他」
 function answerOf(question, answer) {
   if (!isObj(answer) || !question || !Array.isArray(question.options)) return null;
@@ -129,10 +167,10 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
   // the addresses the card may carry: this build's reads, and (changing a card) those already on it
   const readsSoFar = () => (editing() ? [...s.reads, ...cardUrls(s.edit.card).map((url) => ({ url, ok: true }))] : s.reads);
 
-  async function call(prompt) {
+  async function call(prompt, signal = null) {
     const base = { searches: s.searches.length, reads: s.reads.length };
     tell({ step: 'agent', ...base });
-    const r = await connector.send({ prompt, format: 'json', model: 'main' }, { sessionId: s.sessionId ?? undefined, onProgress: (p) => tell({ step: 'agent', searches: base.searches + (p.searches ?? 0), reads: base.reads + (p.reads ?? 0) }) });
+    const r = await connector.send({ prompt, format: 'json', model: 'main' }, { sessionId: s.sessionId ?? undefined, signal: signal ?? undefined, onProgress: (p) => tell({ step: 'agent', searches: base.searches + (p.searches ?? 0), reads: base.reads + (p.reads ?? 0) }) });
     s.calls += 1;
     if (r.sessionId) s.sessionId = r.sessionId;
     const turn = s.turns.length;
@@ -158,34 +196,52 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
   }
 
   // 1.1.1 P1 (B19): a card's addresses — the model's opens that worked, or Streams' own reads (once per address per build)
-  async function withUrls(a) {
+  async function withUrls(a, signal = null) {
     if (!(a.kind === 'card' || a.problem === 'card') || !isObj(a.card)) return a;
     const known = { ...(editing() ? knownOfCard(s.edit.card) : {}), ...(s.checked ?? {}) };
-    const r = await checkCardUrls(a.card, { reads: readsSoFar(), readPage, readLinks, known, onCheck: (done, total) => tell({ step: 'check', done, total }) });
+    const r = await checkCardUrls(a.card, { reads: readsSoFar(), readPage, readLinks, known, onCheck: (done, total) => tell({ step: 'check', done, total }), stopped: () => signal?.aborted === true });
     s.checked = r.known;
     const problems = [...(a.problems ?? []), ...r.problems];
     return problems.length ? { problem: 'card', say: a.say, card: r.card, problems } : { kind: 'card', say: a.say, card: r.card };
   }
 
-  async function turn(prompt, userText, answer = null) {
+  async function turn(prompt, userText, answer = null, signal = null) {
     if (s.status === 'built' || s.status === 'stopped' || s.status === 'dropped') throw new StreamsError('bad-state', `this build is ${s.status}`);
     if (s.turns.filter((t) => t.role === 'agent').length >= maxTurns) { s.status = 'stopped'; return { kind: 'stopped', notice: 'too-many-turns' }; }
+    // 1.1.3 (停止处理): the state before this turn; a stop puts it back, keeping what was spent (searches, reads, calls) and
+    // what Streams read itself, and the next turn opens a new session with Streams' record (fresh)
+    const snap = JSON.parse(JSON.stringify(s));
+    const stopped = (r = null) => signal?.aborted === true || r?.code === 'stopped';
+    const abort = () => {
+      const spent = { reads: s.reads, searches: s.searches, calls: s.calls, checked: s.checked };
+      restore(s, snap);
+      for (const [k, v] of Object.entries(spent)) if (v !== undefined) s[k] = v;
+      s.sessionId = null;
+      if (s.status === 'new') s.opener = null; else s.fresh = true;
+      return { kind: 'aborted', text: userText, answer };
+    };
+    if (stopped()) return abort();
     if (userText !== undefined) s.turns.push({ role: 'user', text: userText, ...(answer ? { answer } : {}), at: now().toISOString() });
-    let r = await call(prompt);
+    let r = await call(prompt, signal);
+    if (stopped(r)) return abort();
     if (!usable(r)) {
       if (userText !== undefined) s.turns.pop();
       if (r.sessionLost) { s.status = 'stopped'; return { kind: 'stopped', notice: 'session-lost' }; }
       return { kind: 'failed', code: r.code, detail: r.detail };
     }
+    s.fresh = false;
     if ((r.otherTools ?? []).length) { s.status = 'stopped'; return { kind: 'stopped', notice: 'other-tool' }; }
-    let a = await withUrls(interpret(r));
+    let a = await withUrls(interpret(r), signal);
+    if (stopped()) return abort();
     if (a.problem) {
       const back = `（流息）你上一轮交的内容没有给用户看，原因：${a.problems.map(problemText).join('；')}。请按要求重交这一轮，只交一个 JSON。`;
       s.turns.push({ role: 'note', text: back, at: now().toISOString() });
-      r = await call(back);
+      r = await call(back, signal);
+      if (stopped(r)) return abort();
       if (!usable(r)) return { kind: 'failed', code: r.code, detail: r.detail };
       if ((r.otherTools ?? []).length) { s.status = 'stopped'; return { kind: 'stopped', notice: 'other-tool' }; }
-      a = await withUrls(interpret(r));
+      a = await withUrls(interpret(r), signal);
+      if (stopped()) return abort();
     }
     if (over()) s.overBudget = true;
     let out;
@@ -213,6 +269,10 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
     return out;
   }
 
+  function firstPrompt() {
+    return buildPrompt({ definition, kind: s.kind, today: day, budget, sopDir, opener: s.opener, current: s.edit?.card ?? null, search, extra: s.extra ?? '' });
+  }
+
   async function offerCard(card, say) {
     const before = s.card ?? s.edit?.card ?? null;
     s.card = card;
@@ -228,20 +288,22 @@ export function createBuild({ connector, definition, runner, kind = 'claude-code
   }
 
   return {
-    async start(opener) {
+    // 1.1.3: { signal } — an AbortSignal; aborted, the turn stops ({ kind: 'aborted' }, see above)
+    async start(opener, { signal = null } = {}) {
       if (s.status !== 'new') throw new StreamsError('bad-state', 'this build has started already');
       if (typeof opener !== 'string' || opener.trim() === '') throw new StreamsError('bad-argument', 'what the user wants to follow is needed');
       s.opener = opener.trim();
-      const prompt = buildPrompt({ definition, kind: s.kind, today: day, budget, sopDir, opener: s.opener, current: s.edit?.card ?? null, search, extra: s.extra ?? '' });
-      return turn(prompt, s.opener);
+      return turn(firstPrompt(), s.opener, null, signal);
     },
-    async reply(answer) {
+    async reply(answer, { signal = null } = {}) {
       if (s.status === 'new') throw new StreamsError('bad-state', 'the build has not started');
       const last = [...s.turns].reverse().find((t) => t.role === 'agent');
       const asked = last?.kind === 'question' ? last.question : null;
       const text = answerText(asked, answer, s.language);
       if (!text) throw new StreamsError('bad-argument', 'an empty answer');
-      return turn(`用户：${text}`, text, answerOf(asked, answer));
+      // after a stop: a new session, told Streams' own record of the build
+      const prompt = s.fresh ? replayPrompt(firstPrompt(), s.turns, text) : `用户：${text}`;
+      return turn(prompt, text, answerOf(asked, answer), signal);
     },
     async confirm() {
       if (!s.pendingId) throw new StreamsError('bad-state', 'no card waiting for 确认');

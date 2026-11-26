@@ -26,13 +26,24 @@
 // 1.1.1 P1 (B19): [data-part=card-unchecked] with [data-unchecked=<url>][data-why], [data-action=ask-fix] (the last card, not
 // confirmable: a message asking the agent to fix it, sent as the user's), [data-part=card-links-only][data-n];
 // [data-change=<key>]; [data-action=start|answer|send|retry|restart|go-settings|drop|full|confirm].
-// 1.1.2 (第 5 件; 赞妮's mock 05): the page has a column of conversations on its left (ConversationList: 新建库, the one in
-// progress, every library with its last conversation) — nav[data-part=conversations] with [data-action=conv-new],
-// [data-conv=going], [data-conv-library=<id>][data-n][aria-current]; a library opened from it (params.edit, or params.from for one
-// of the last version) shows its earlier conversations (section[data-part=earlier] with [data-earlier=<id>][data-open],
-// [data-action=earlier-toggle]) above the box, and above the conversation once it goes on ([data-part=handed-over]); a
-// library opened while another conversation is in progress: data-view=other with [data-part=other-going],
-// [data-action=to-going]. The card's 「每次更新的量」 line: [data-part=card-volume][data-volume].
+// 1.1.2 (第 5 件; 赞妮's mock 05): the page has a column of conversations on its left; a library's earlier things show above
+// (section[data-part=earlier] with [data-earlier=<id>][data-open], [data-action=earlier-toggle]; [data-part=handed-over]).
+// The card's 「每次更新的量」 line: [data-part=card-volume][data-volume].
+// 1.1.3 (维护者 11-26; 赞妮's plan 对话与右键菜单-方案.md): many conversations, one per library and the new libraries' apart — the
+// column is screens/conversations.js. The route 'build' with:
+//   {} / { send, opener, back }   the 新建库 page (always: plan 第五节), with 「要修改已有的库…」 when there are libraries and
+//                                 「有 n 段未建成的对话。」 + 查看 when there are some (data-view=start; [data-part=new-hint],
+//                                 [data-part=unbuilt-hint], [data-action=view-unbuilt]); the words sent open a conversation not
+//                                 built yet, shown as soon as it starts
+//   { conv }                      that conversation (data-view=talk, data-conv, data-kind=library|unbuilt, data-state); { card }
+//                                 scrolls to its last card (the right panel's 查看完整建库卡)
+//   { edit } / { from } + opener  a library's conversation (1.1.2's ways in), the words brought after what is in its box
+//   { latest }                    the sidebar's 主 Agent: the conversation active last, else 新建库
+// The page: its title, its state chip, the head's 放弃 while a thing is open ([data-action=drop-open]: 放弃建库 / 放弃修改 /
+// 放弃转换, confirmed as plan 6.3 says), 「更多」 ([data-action=conv-more]: 菜单一 / 菜单二); 历史记录 above; the box always there
+// (a library's conversation with nothing open: the words open a change, or bringing it over with its opener in the box); while
+// the agent works only sending waits ([data-action=stop-turn] 停止处理), while it waits its turn [data-part=waiting-row] with
+// [data-action=leave-queue] 取消排队; the words a stop gave back are in the box with [data-part=gave-back][data-note].
 import { html, useEffect, useLayoutEffect, useRef, useState } from '../lib/html.js'
 import { useApp } from '../lib/app-context.js'
 import { call } from '../lib/bridge.js'
@@ -43,11 +54,12 @@ import { confirmAndOpen } from '../lib/build.js'
 import { TIcon } from '../lib/template-icons.js'
 import { BrandMark } from '../lib/brand-mark.js'
 import { moMs, stillMotion } from '../lib/motion.js'
-import { AppFrame, AppSidebar, Main, TopBar } from '../kit/index.js'
+import { AppFrame, AppSidebar, Main, Menu, TopBar } from '../kit/index.js'
 import { CONNECTIONS, DAY, PUNCT, SEP, WHEN } from '../texts/common.js'
 import { BUILD as T } from '../texts/build.js'
 import { RightPanel } from './right-panel.js'
 import { Btn } from './t-dialog.js'
+import { ConversationList, convMenuItems, dropWords, useConvActions } from './conversations.js'
 
 const OPENER_MAX = 2000
 const MESSAGE_MAX = 4000
@@ -60,7 +72,7 @@ function Speaker() {
   return html`<div class="speaker"><span class="avatar"><${BrandMark} /></span>${T.speaker.name} <small>${T.speaker.role}</small></div>`
 }
 
-/** 「流息怎样工作」 of the right panel's 详情 beside the page. */
+/** 「流息怎样工作」 of the right panel's 详情 beside the page (1.1.3: one conversation at a time, plan 7.3). */
 function How() {
   const H = T.how
   const n = CONNECTIONS.names
@@ -71,6 +83,7 @@ function How() {
     <div class="section-label">${H.stepsLabel}</div>
     <ol>${H.steps.map((s, i) => html`<li key=${i}>${s}</li>`)}</ol>
     <div class="progress-alert">${H.note}</div>
+    <p data-part="how-queue">${H.queue}</p>
     <div class="section-label">${H.usageLabel}</div>
     <p>${fmt(H.usage, { name: n['claude-code'], codex: n.codex, api: n.api })}</p>
   </div>`
@@ -137,7 +150,7 @@ function Changes({ changes, edit }) {
 }
 
 /** The card the main agent handed in (the conversation's; `last`: the newest card, the one 确认 is for). */
-function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConfirm, onAskFix, volume = null }) {
+function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConfirm, onAskFix, volume = null, stale = false }) {
   const [full, setFull] = useState(false)
   const card = turn.card ?? {}
   const d = card.definition ?? {}
@@ -147,7 +160,9 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
   const can = last && turn.canConfirm === true
   const problems = problemWords(turn.problems)
   const unchecked = (Array.isArray(turn.problems) ? turn.problems : []).filter(p => p?.code === 'not-read' && typeof p.url === 'string')
-  const what = [problems.join(PUNCT.semi), unchecked.length ? fmt(T.notReadN, { n: unchecked.length }) : ''].filter(Boolean).join(PUNCT.semi)
+  // 1.1.3: the library's card changed after this change started — the last card cannot be confirmed (plan 第八节)
+  const old = last && stale
+  const what = [old ? T.stale : '', problems.join(PUNCT.semi), unchecked.length ? fmt(T.notReadN, { n: unchecked.length }) : ''].filter(Boolean).join(PUNCT.semi)
   const askText = fmt(unchecked.length ? T.askFixUrls : T.askFixText, { what: [...problems, ...unchecked.map(p => fmt(T.unchecked, { url: p.url, why: readWord(p.reason) }))].join(PUNCT.semi) })
   const linksOnly = list(card.sources).filter(s => s && typeof s === 'object' && s.checked && s.checked.original === 'link')
   const rows = [
@@ -172,10 +187,10 @@ function BuildCard({ turn, last, mode, libraryName, busy, acting, onDrop, onConf
       <${Changes} changes=${turn.changes} edit=${edit} />
       ${full ? html`<${CardFull} card=${card} />` : null}
       ${linksOnly.length ? html`<p class="limit-note" data-part="card-links-only" data-n=${linksOnly.length}>${fmt(T.linksOnly, { n: linksOnly.length, names: linksOnly.map(s => s.name ?? s.url).join(PUNCT.list) })}</p>` : null}
-      ${what ? html`<div class="progress-alert st-build-problems" role="status" data-part="card-problems">
+      ${what ? html`<div class="progress-alert st-build-problems" role="status" data-part="card-problems" data-stale=${String(old)}>
         <p>${fmt(T.notWhole, { what })}</p>
         ${unchecked.length ? html`<p class="limit-note">${T.uncheckedLead}</p><ul data-part="card-unchecked">${unchecked.map(p => html`<li key=${p.url} data-unchecked=${p.url} data-why=${p.reason ?? ''}>${fmt(T.unchecked, { url: p.url, why: readWord(p.reason) })}</li>`)}</ul>` : null}
-        ${last && turn.canConfirm !== true && onAskFix ? html`<span class="st-act" data-action="ask-fix"><button type="button" class="btn" disabled=${busy || acting} onClick=${() => onAskFix(askText)}>${T.askFix}</button></span>` : null}
+        ${last && turn.canConfirm !== true && onAskFix && (problems.length || unchecked.length) ? html`<span class="st-act" data-action="ask-fix"><button type="button" class="btn" disabled=${busy || acting} onClick=${() => onAskFix(askText)}>${T.askFix}</button></span>` : null}
       </div>` : null}
     </div>
     <div class="confirm-footer">
@@ -215,14 +230,15 @@ export function AnswerCard({ n, picked = [], other = '', pending = false }) {
   </div>`
 }
 
-function Question({ q, open, answered, busy, onAnswer }) {
+function Question({ q, open, answered, busy, onAnswer, reopen = null }) {
   const choice = q.kind === 'single' || q.kind === 'multi'
   const multi = q.kind === 'multi'
   const options = choice ? q.options : []
   const rows = options.length + (q.other ? 1 : 0)
   const otherAt = q.other ? options.length : -1
-  const [picked, setPicked] = useState([])
-  const [other, setOther] = useState('')
+  // 1.1.3 (停止处理): reopen — the answer a stop gave back; its picks are picked again
+  const [picked, setPicked] = useState(() => (reopen ? [...(reopen.picked ?? []).map(p => options.indexOf(p)).filter(i => i >= 0), ...(reopen.other && q.other ? [otherAt] : [])] : []))
+  const [other, setOther] = useState(() => (reopen?.other ? String(reopen.other) : ''))
   const [focus, setFocus] = useState(0)
   const [focused, setFocused] = useState(false)
   // sending: the rows chosen when 提交回答 was pressed (the animation plays on them); sent: the answer as it went
@@ -293,40 +309,13 @@ function Question({ q, open, answered, busy, onAnswer }) {
   ${sent && open ? html`<${AnswerCard} n=${q.n} picked=${sent.picked} other=${sent.other ?? ''} pending=${true} />` : null}`
 }
 
-// ---- 1.1.2 (第 5 件): the conversations by library, and a library's earlier ones ---------------------------------------------
+// ---- 1.1.2 (第 5 件): a library's earlier things — 1.1.3: 「历史记录」, above the conversation ---------------------------------
 
 const whenOf = iso => (iso ? whenText(iso, WHEN) ?? '' : '')
 
-/** The column on the left of 主 Agent's page; `here`: { kind: 'new' | 'going' | 'library', id? } (marked aria-current). */
-function ConversationList({ here }) {
-  const { navigate } = useApp()
-  const L = T.list
-  const list = useLoad(() => call('listConversations'), [])
-  useEvent('build-changed', p => { if (p?.phase !== 'progress') list.reload() }, [])
-  useEvent('libraries-changed', () => list.reload(), [])
-  const d = list.data
-  const going = d?.going ?? null
-  const goingId = going?.library?.id ?? null
-  return html`<nav class="st-convs" aria-label=${L.label} data-part="conversations">
-    <span class="st-act" data-action="conv-new"><button type="button" class="btn st-convs__new" aria-current=${here.kind === 'new' ? 'page' : undefined} onClick=${() => navigate('build', {})}><${TIcon} name="plus" fallback="add" /> ${L.new}</button></span>
-    ${going ? html`<div class="st-convs__label">${L.going}</div>
-      <button type="button" class="st-convs__item" data-conv="going" data-going="true" aria-current=${here.kind === 'going' ? 'page' : undefined}
-        onClick=${() => navigate('build', goingId ? { edit: goingId } : {})}><b>${going.library?.name ?? L.goingNew}</b><small>${T.modes[going.mode] ?? ''} · ${fmt(L.goingAsked, { n: going.asked ?? 0 })}</small></button>` : null}
-    <div class="st-convs__label">${L.libraries}</div>
-    ${list.status === 'error' && !d ? html`<p class="st-convs__none" role="alert">${L.failed}</p>` : null}
-    ${(d?.libraries ?? []).map(r => {
-      const last = r.conversations.at(-1) ?? null
-      const to = r.hasCard === false ? { from: r.library.id } : { edit: r.library.id }
-      return html`<button type="button" key=${r.library.id} class="st-convs__item" data-conv-library=${r.library.id} data-n=${r.conversations.length}
-        aria-current=${here.kind === 'library' && here.id === r.library.id ? 'page' : undefined} onClick=${() => navigate('build', to)}>
-        <b>${r.library.name ?? ''}</b><small>${last ? fmt(L.lastAt, { what: T.modes[last.mode] ?? last.mode, when: whenOf(last.endedAt) }) : L.none}</small></button>`
-    })}
-  </nav>`
-}
-
-/** 主 Agent's page: the column of conversations, then the page itself (its top bar and body). */
+/** 主 Agent's page: the column of conversations (screens/conversations.js), then the page itself (its top bar and body). */
 function AgentLayout({ here, children }) {
-  return html`<div class="st-agent-layout"><${ConversationList} here=${here} /><div class="st-agent-main st-agent-switch" key=${here.kind + (here.id ?? '')}>${children}</div></div>`
+  return html`<div class="st-agent-layout"><${ConversationList} here=${here} /><div class="st-agent-main st-agent-switch" key=${here}>${children}</div></div>`
 }
 
 function earlierTurn(t, i) {
@@ -338,7 +327,7 @@ function earlierTurn(t, i) {
   </div>`
 }
 
-/** One earlier conversation: its line; opened, its turns (given, or read with getConversation). */
+/** One earlier thing: its line; opened, its turns (given, or read with getConversation). */
 function EarlierOne({ c }) {
   const E = T.earlier
   const [open, setOpen] = useState(false)
@@ -367,117 +356,104 @@ function Earlier({ items }) {
   </section>`
 }
 
-/** A library's earlier conversations as the list has them (summaries; each opened with getConversation). */
-function useEarlierOf(libraryId) {
-  const list = useLoad(() => (libraryId ? call('listConversations') : null), [libraryId])
-  useEvent('build-changed', p => { if (p?.phase === 'ended') list.reload() }, [libraryId])
-  return { status: list.status, items: (list.data?.libraries ?? []).find(r => r.library.id === libraryId)?.conversations ?? [] }
-}
+// ---- the 新建库 page --------------------------------------------------------------------------------------------------------
 
-/** A library opened while another conversation is in progress: its earlier conversations, and the way to the one going. */
-function OtherGoing({ libraryId, view }) {
-  const { navigate, libraries } = useApp()
-  const earlier = useEarlierOf(libraryId)
-  const name = (libraries?.data ?? []).find(l => l.id === libraryId)?.name ?? ''
-  const what = `${T.modes[view.mode] ?? ''}${view.library?.name ? ` · ${view.library.name}` : ''}`
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
-    <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': 'edit', 'data-view': 'other' }}>
-      <${AgentLayout} here=${{ kind: 'library', id: libraryId }}>
-        <${TopBar} title=${fmt(T.continueHeading, { name })} subtitle=${T.continueSubtitle} titleTag="h1" titleId="build-title" />
-        <div class="st-main__body thread-scroll"><section class="new-content">
-          <${Earlier} items=${earlier.items} />
-          ${earlier.status === 'ready' && earlier.items.length === 0 ? html`<p class="limit-note" data-part="earlier-none">${T.earlier.none}</p>` : null}
-          <div class="st-alert" role="note" data-part="other-going"><p>${fmt(T.otherGoing, { what })}</p>
-            <div class="row"><span class="st-act" data-action="to-going"><button type="button" class="btn" onClick=${() => navigate('build', view.library?.id ? { edit: view.library.id } : {})}>${T.toGoing}</button></span></div></div>
-        </section></div>
-      <//>
-    <//>
-  <//>`
-}
-
-// ---- the one-sentence page --------------------------------------------------------------------------------------------
-
-function StartPage({ params, onStarted }) {
-  const { navigate, appState, libraries } = useApp()
-  const edit = typeof params.edit === 'string' ? params.edit : null
-  // 1.1 W7a: params.from — a library of the last version, brought over (its card goes into its own folder)
-  const from = !edit && typeof params.from === 'string' ? params.from : null
-  const cv = from ? T.convert : null
-  const target = edit ?? from
-  const libraryName = target ? (libraries?.data ?? []).find(l => l.id === target)?.name ?? '' : null
-  const [text, setText] = useState(typeof params.opener === 'string' ? params.opener : typeof params.send === 'string' ? params.send : '')
-  // bringing one over: the opening words carry its old requirements and sources (getSources: the current library is that one)
-  useEffect(() => {
-    if (!from || typeof params.opener === 'string') return
-    let live = true
-    call('getSources').then(v => {
-      if (!live) return
-      const names = (v?.sources ?? []).map(s => [s.name, s.url ?? s.query].filter(Boolean).join(SEP)).join(PUNCT.list)
-      setText(t => t || fmt(cv.opener, { name: libraryName ?? '', brief: params.brief || cv.none, sources: names || cv.none }))
-    }, () => {})
-    return () => { live = false }
-  }, [from])
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
+/** What the connection allows: Claude Code, Codex, or an API key with the model's key (1.1.1 P3, P6, B26). */
+function useConnection() {
+  const { appState } = useApp()
   const active = appState?.data?.activeConnection ?? null
-  // 1.1.1 P3, P6: Claude Code, Codex, or an API key with the model's key stored
   const noKey = active === 'api' && appState?.data?.activeHasKey === false
   const can = active === 'claude-code' || active === 'codex' || (active === 'api' && !noKey)
-  // 1.1.1 B26: an API key connection with no search this time — it says so (building goes on, reading pages only)
   const noSearch = active === 'api' && !noKey && appState?.data?.activeCanSearch === false
+  return { active, noKey, can, noSearch }
+}
+
+function ConnectionWhy({ c }) {
+  const { navigate } = useApp()
   const names = CONNECTIONS.names
-  // 1.1.1 P11a (A14): the cost line names the connection in use, and only one that can build (no other connection's quota)
+  return html`${c.can ? null : html`<div class="progress-alert" role="alert" data-part="start-why">
+      <span>${c.noKey ? fmt(T.needKey, { api: names.api }) : fmt(T.needClaude, { name: names['claude-code'], codex: names.codex, api: names.api, current: c.active ? names[c.active] ?? c.active : T.chipNone })}</span>
+      <span class="st-act" data-action="go-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></div>`}
+    ${c.noSearch ? html`<p class="limit-note" data-part="no-search">${T.noSearch}
+      <span class="st-act" data-action="search-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></p>` : null}`
+}
+
+/** 「这个库要追踪什么？」 (plan 第五节: always this page; a line for a change of a library you have, and the ones not built yet). */
+function NewPage({ params }) {
+  const app = useApp()
+  const { navigate, libraries, conversations, drafts } = app
+  const c = useConnection()
+  const [text, setText] = useState(() => {
+    const kept = drafts?.get?.('new') ?? ''
+    const brought = typeof params.opener === 'string' ? params.opener : typeof params.send === 'string' ? params.send : ''
+    return [kept, brought].filter(Boolean).join('\n')
+  })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const keep = t => { setText(t); drafts?.set?.('new', t) }
+  const names = CONNECTIONS.names
+  // the conversations not built yet before 开始: the new one is the one that is not among them
+  const before = useRef(null)
+  const live = useRef(true)
+  useEffect(() => () => { live.current = false }, [])
+  useEvent('build-changed', p => {
+    if (!before.current || !live.current || typeof p?.conv !== 'string' || !p.conv.startsWith('new:') || before.current.has(p.conv)) return
+    if (p.phase === 'started' || p.phase === 'waiting') { before.current = null; drafts?.set?.('new', ''); app.openConversation(p.conv) }
+  }, [])
   const start = async (words = text) => {
     const t = String(words ?? '').trim()
-    if (!t || busy || !can) return
+    if (!t || busy || !c.can) return
     setBusy(true)
     setError(null)
+    before.current = new Set((conversations?.data?.unbuilt ?? []).map(r => r.id))
     try {
-      onStarted(await call('startBuild', t, target ?? undefined))
-    } catch (err) {
-      if (err?.code === 'bad_arguments' && /going/.test(String(err?.message ?? ''))) setError('going')
-      else setError('failed')
+      const v = await call('startBuild', t)
+      conversations?.reload?.()
+      if (!live.current) return
+      if (v?.gone) { setBusy(false); keep(typeof v.back === 'string' ? v.back : t); return }
+      drafts?.set?.('new', '')
+      if (v?.conv) app.openConversation(v.conv)
+    } catch {
+      if (!live.current) return
+      before.current = null
+      setError('failed')
       setBusy(false)
     }
   }
   // 首次打开's sentence: started once, as if 开始 was pressed
   const handed = useRef(false)
   useEffect(() => {
-    if (handed.current || typeof params.send !== 'string' || !params.send.trim() || !can) return
+    if (handed.current || typeof params.send !== 'string' || !params.send.trim() || !c.can) return
     handed.current = true
     void start(params.send)
-  }, [can])
-  const chip = html`<span class="status-chip" data-part="connection-chip"><span class="dot"></span> ${active ? fmt(T.chip, { name: names[active] ?? active }) : T.chipNone}</span>`
-  // 1.1.2 (第 5 件): a library's earlier conversations above the box
-  const earlier = useEarlierOf(target)
-  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=${target ? 'chat' : 'build'} />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
-    <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': edit ? 'edit' : from ? 'convert' : 'create', 'data-view': 'start' }}>
-      <${AgentLayout} here=${target ? { kind: 'library', id: target } : { kind: 'new' }}>
-      <${TopBar} title=${cv?.title ?? (edit ? fmt(T.continueHeading, { name: libraryName ?? '' }) : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.continueSubtitle : T.subtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
+  }, [c.can])
+  const chip = html`<span class="status-chip" data-part="connection-chip"><span class="dot"></span> ${c.active ? fmt(T.chip, { name: names[c.active] ?? c.active }) : T.chipNone}</span>`
+  const haveLibraries = (libraries?.data ?? []).length > 0
+  const unbuilt = conversations?.data?.unbuilt ?? []
+  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="build" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
+    <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': 'create', 'data-view': 'start' }}>
+      <${AgentLayout} here="new">
+      <${TopBar} title=${T.title} subtitle=${T.subtitle} titleTag="h1" titleId="build-title" actions=${chip} />
       <div class="st-main__body">
         <section class="new-content st-build-start" data-part="build-start">
-          ${target ? html`<${Earlier} items=${earlier.items} />` : null}
-          ${edit && earlier.status === 'ready' && earlier.items.length === 0 ? html`<p class="limit-note" data-part="earlier-none">${T.earlier.none}</p>` : null}
-          <h2>${cv ? fmt(cv.heading, { name: libraryName }) : edit ? fmt(T.editHeading, { name: libraryName }) : T.heading}</h2>
-          ${cv ? html`<p class="progress-alert" data-part="from-old">${cv.note}</p>` : null}
-          <label class="field"><span class="st-sr">${cv?.label ?? (edit ? T.editLabel : T.label)}</span>
-            <textarea data-field="opener" rows="4" maxlength=${OPENER_MAX} placeholder=${edit ? T.continuePlaceholder : T.placeholder} value=${text} disabled=${busy}
-              onInput=${e => setText(e.currentTarget.value)}
+          <h2>${T.heading}</h2>
+          ${haveLibraries || unbuilt.length ? html`<div class="st-build-hints" data-part="new-hints">
+            ${haveLibraries ? html`<p class="limit-note" data-part="new-hint">${T.newHint}</p>` : null}
+            ${unbuilt.length ? html`<p class="limit-note" data-part="unbuilt-hint">${fmt(T.unbuiltHint, { n: unbuilt.length })}
+              <span class="st-act" data-action="view-unbuilt"><button type="button" class="btn quiet" onClick=${() => app.openConversation(unbuilt[0].id)}>${T.view}</button></span></p>` : null}
+          </div>` : null}
+          <label class="field"><span class="st-sr">${T.label}</span>
+            <textarea data-field="opener" rows="4" maxlength=${OPENER_MAX} placeholder=${T.placeholder} value=${text} disabled=${busy}
+              onInput=${e => keep(e.currentTarget.value)}
               onKeyDown=${e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); void start() } }}></textarea></label>
-          ${cv || edit ? html`<p class="limit-note st-build-lead">${cv ? cv.subtitle : T.editLead}</p>`
-            : html`<ul class="st-build-points" data-part="build-points">${T.leadPoints.map(([b, s]) => html`<li key=${b}><b>${b}</b><span>${s}</span></li>`)}</ul>`}
-          ${can ? null : html`<div class="progress-alert" role="alert" data-part="start-why">
-            <span>${noKey ? fmt(T.needKey, { api: names.api }) : fmt(T.needClaude, { name: names['claude-code'], codex: names.codex, api: names.api, current: active ? names[active] ?? active : T.chipNone })}</span>
-            <span class="st-act" data-action="go-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></div>`}
-          ${noSearch ? html`<p class="limit-note" data-part="no-search">${T.noSearch}
-            <span class="st-act" data-action="search-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span></p>` : null}
-          ${error === 'going' ? html`<p class="progress-alert" role="alert" data-part="going">${T.going}</p>` : null}
+          <ul class="st-build-points" data-part="build-points">${T.leadPoints.map(([b, s]) => html`<li key=${b}><b>${b}</b><span>${s}</span></li>`)}</ul>
+          <${ConnectionWhy} c=${c} />
           ${error === 'failed' ? html`<p class="progress-alert" role="alert" data-part="start-failed">${T.failedCall}</p>` : null}
           <div class="form-footer">
-            <span class="muted st-build-cost" data-part="build-cost">${busy ? T.starting : can ? fmt(active === 'api' ? T.costApi : T.cost, { name: names[active] ?? active }) : ''}</span>
+            <span class="muted st-build-cost" data-part="build-cost">${busy ? T.starting : c.can ? fmt(c.active === 'api' ? T.costApi : T.cost, { name: names[c.active] ?? c.active }) : ''}</span>
             ${typeof params.back === 'string' && params.back !== 'build' ? html`<${Btn} name="cancel-build" kind="quiet" disabled=${busy} onClick=${() => navigate(params.back)}>${T.cancel}<//>` : null}
             <small class="st-build-key" aria-hidden="true">${T.startKey}</small>
-            <span class="st-act" data-action="start"><button type="button" class="btn primary" disabled=${busy || !can || !text.trim()} onClick=${() => start()}>${T.start}</button></span>
+            <span class="st-act" data-action="start"><button type="button" class="btn primary" disabled=${busy || !c.can || !text.trim()} onClick=${() => start()}>${T.start}</button></span>
           </div>
         </section>
       </div>
@@ -486,154 +462,266 @@ function StartPage({ params, onStarted }) {
   <//>`
 }
 
-// ---- the conversation -------------------------------------------------------------------------------------------------
+// ---- a conversation ---------------------------------------------------------------------------------------------------------
 
-function Talk({ view, onView }) {
+/** A conversation as getBuild gives it, read again on each `build-changed` of it (its progress: only `live`). */
+function useView(conv) {
+  const [state, setState] = useState({ status: 'loading', data: null })
+  const load = async () => {
+    try { setState({ status: 'ready', data: await call('getBuild', conv) }) } catch (err) { setState({ status: 'error', data: null, code: err?.code ?? 'internal' }) }
+  }
+  useEffect(() => { setState({ status: 'loading', data: null }); void load() }, [conv])
+  useEvent('build-changed', p => {
+    if (p?.conv !== conv) return
+    if (p.phase === 'progress') call('getBuild', conv).then(v => setState(s => (s.data ? { ...s, data: { ...s.data, live: v?.live ?? null } } : s)), () => {})
+    else void load()
+  }, [conv])
+  useEvent('libraries-changed', () => { void load() }, [conv])
+  useEvent('library-changed', () => { void load() }, [conv])
+  return { ...state, reload: load, set: v => setState({ status: 'ready', data: v }) }
+}
+
+/** The convert opener of a library of the last version (its old requirements and sources; plan 4.2). */
+function useConvertOpener(view, enabled) {
+  const [text, setText] = useState(null)
+  const id = view?.library?.id ?? null
+  useEffect(() => {
+    if (!enabled || !id) { setText(null); return undefined }
+    let live = true
+    Promise.all([call('getCardView', id).catch(() => null), call('getSources', id).catch(() => null)]).then(([cv, s]) => {
+      if (!live) return
+      const names = (s?.sources ?? []).map(x => [x.name, x.url ?? x.query].filter(Boolean).join(SEP)).join(PUNCT.list)
+      setText(fmt(T.convert.opener, { name: view.library?.name ?? '', brief: cv?.brief || T.convert.none, sources: names || T.convert.none }))
+    })
+    return () => { live = false }
+  }, [enabled, id])
+  return text
+}
+
+function ConversationPage({ conv, params }) {
   const app = useApp()
-  const { navigate, libraries } = app
-  const [text, setText] = useState('')
+  const { navigate, drafts, fresh } = app
+  const v = useView(conv)
+  const view = v.data
+  const c = useConnection()
+  const acts = useConvActions()
+  const [text, setText] = useState(() => drafts?.get?.(conv) ?? '')
   const [busy, setBusy] = useState(false)
   const [acting, setActing] = useState(false)
   const [note, setNote] = useState(null)
-  // 1.1.1 P10 (A8): the turn's progress while it runs (build-changed 'progress' → getBuild().live)
-  const [live, setLive] = useState(null)
-  useEvent('build-changed', p => {
-    if (p?.phase === 'progress') call('getBuild').then(v => setLive(v?.live ?? null), () => {})
-    else if (p?.phase === 'done' || p?.phase === 'started') setLive(null)
-  }, [])
+  const [menu, setMenu] = useState(null)
   const listRef = useRef(null)
+  const moreRef = useRef(null)
+  const keep = t => { setText(t); drafts?.set?.(conv, t) }
+  // 有新内容: this one is seen while it is shown
+  useEffect(() => { fresh?.open?.(conv); return () => fresh?.open?.(null) }, [conv])
+  // a conversation that is not there (a new library's, discarded or never kept): 主 Agent's latest one
+  useEffect(() => { if (v.status === 'error' && v.code === 'bad_arguments') navigate('build', { latest: true }) }, [v.status])
+  // the words a stop gave back, once (plan 6.4)
+  const gaveBack = useRef(null)
+  useEffect(() => {
+    const b = view?.back
+    if (typeof b !== 'string' || !b || gaveBack.current === `${view.lastAt}|${b}`) return
+    gaveBack.current = `${view.lastAt}|${b}`
+    keep(text.trim() ? `${b}\n${text}` : b)
+  }, [view?.back, view?.lastAt])
+  // a library of the last version with nothing open: the convert opener in the box (plan 4.2)
+  const convertIdle = Boolean(view && view.kind === 'library' && !view.open && view.hasCard === false)
+  const opener = useConvertOpener(view, convertIdle && !text.trim())
+  useEffect(() => { if (opener && !text.trim()) keep(opener) }, [opener])
   // 1.1.2 (第 4 件): a new library's step (设置's), for the card's line when the card names none
-  const defaultVolume = useLoad(() => (view.mode === 'create' ? call('getDefaultVolume') : null), [view.mode])
-  const edit = view.mode === 'edit'
-  const cv = view.mode === 'convert' ? T.convert : null
-  const libraryName = view.library?.name ?? (libraries?.data ?? []).find(l => l.id === view.library?.id)?.name ?? null
-  const working = busy || view.busy
-  const turns = view.turns ?? []
+  const defaultVolume = useLoad(() => (view?.mode === 'create' ? call('getDefaultVolume') : null), [view?.mode])
+  const turns = view?.turns ?? []
+  const working = busy || Boolean(view?.busy)
+  const waitingTurn = view?.waiting !== null && view?.waiting !== undefined
+  useLayoutEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    const card = params.card ? el.querySelector('article[data-part="build-card"][data-last="true"]') : null
+    if (card) card.scrollIntoView({ block: 'start' })
+    else el.scrollTop = el.scrollHeight
+  }, [turns.length, working, waitingTurn, view?.trouble, view?.stopped, conv])
+
+  if (!view) {
+    return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
+      <${Main} screen="build" state=${v.status === 'error' ? 'error' : 'loading'} labelledby="build-title" attrs=${{ 'data-view': 'talk', 'data-conv': conv }}>
+        <${AgentLayout} here=${conv}><${TopBar} title=${T.title} titleTag="h1" titleId="build-title" /><//>
+      <//>
+    <//>`
+  }
+
+  const mode = view.mode
+  const edit = mode === 'edit'
+  const cv = mode === 'convert' ? T.convert : null
+  const libraryName = view.library?.name ?? null
   const lastAgent = turns.map((t, i) => [t, i]).filter(([t]) => t.role === 'agent').at(-1)?.[1] ?? -1
   const lastCard = turns.map((t, i) => [t, i]).filter(([t]) => t.role === 'agent' && t.kind === 'card').at(-1)?.[1] ?? -1
   const openQuestion = lastAgent >= 0 && turns[lastAgent].kind === 'question' && lastAgent === turns.length - 1 ? lastAgent : -1
   const waiting = lastCard >= 0 && lastCard === lastAgent && turns[lastCard].canConfirm === true
-
-  useLayoutEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight }, [turns.length, working, view.trouble, view.stopped])
+  const ended = view.kind === 'unbuilt' && view.status === 'stopped'
 
   const run = async (method, ...args) => {
-    if (working) return false
+    if (working || waitingTurn) return false
     setBusy(true)
     setNote(null)
-    try { onView(await call(method, ...args)); return true } catch (err) { setNote(err?.code === 'busy' ? T.thinking : T.failedCall); return false } finally { setBusy(false) }
+    try {
+      const out = await call(method, ...args)
+      app.conversations?.reload?.()
+      if (out?.gone) { if (typeof out.back === 'string') drafts?.add?.('new', out.back); navigate('build', {}); return true }
+      if (out?.conv === conv) v.set(out)
+      return true
+    } catch (err) { setNote(err?.code === 'busy' ? T.thinking : T.failedCall); return false } finally { setBusy(false) }
   }
   const send = () => {
     const t = text.trim()
-    if (!t || [...t].length > MESSAGE_MAX) return
-    setText('')
-    void run('replyBuild', t)
+    if (!t || [...t].length > MESSAGE_MAX || working || waitingTurn) return
+    keep('')
+    // nothing open in a library's conversation: the words open a new thing (a change, or bringing it over; plan 3.5)
+    if (view.kind === 'library' && !view.open) void run('startBuild', t, view.library.id)
+    else void run('replyBuild', t, conv)
   }
-  const drop = async () => {
-    if (working || acting) return
-    setActing(true)
-    try { await call('dropBuild'); onView(null) } catch { setNote(T.failedCall) } finally { setActing(false) }
+  const stop = async () => {
+    try { const out = await call('stopBuild', conv); app.conversations?.reload?.(); if (out?.gone) { if (typeof out.back === 'string') drafts?.add?.('new', out.back); navigate('build', {}) } else if (out?.conv === conv) v.set(out) } catch { setNote(T.failedCall) }
   }
   const confirm = async () => {
     if (working || acting) return
     setActing(true)
-    try { await confirmAndOpen(app) } catch { setNote(T.failedCall); setActing(false) }
+    try { await confirmAndOpen(app, conv) } catch { setNote(T.failedCall); setActing(false) }
   }
-  const restart = async () => {
-    try { await call('dropBuild') } catch { /* a stopped build: nothing waits */ }
-    onView(null, { opener: view.opener })
+  // the card's own 放弃 (plan 6.3: no confirmation — the whole card is in front of you)
+  const dropHere = async () => {
+    if (acting) return
+    setActing(true)
+    try { await call('dropBuild', conv); app.conversations?.reload?.(); if (view.kind === 'unbuilt') navigate('build', { latest: true }); else await v.reload() } catch { setNote(T.failedCall) } finally { setActing(false) }
   }
+  const restart = () => run('restartBuild', conv)
 
   const asked = view.asked ?? 0
-  const chipText = waiting ? (cv?.waiting ?? (edit ? T.editWaiting : T.cardWaiting)) : fmt(T.progress, { n: Math.max(asked, 1) })
-  const chip = html`<span class="status-chip" data-part="progress-chip" data-asked=${asked} data-waiting=${String(waiting)}><span class="dot"></span> ${chipText}</span>`
+  const S = T.list.states
+  const chipText = !view.open ? null : view.state === 'card' || waiting ? (cv?.waiting ?? (edit ? T.editWaiting : T.cardWaiting))
+    : view.state === 'card-blocked' ? S['card-blocked'] : view.state === 'working' ? S.working : view.state === 'waiting' ? fmt(S.waiting, { n: view.waiting ?? 1 })
+    : view.state === 'unsent' ? S.unsent : view.state === 'ended' ? S.ended : fmt(T.progress, { n: Math.max(asked, 1) })
+  const menuItems = convMenuItems({ ...view, id: conv }, app)
+  const openMenu = () => { const r = moreRef.current?.getBoundingClientRect(); setMenu({ x: r ? r.right - 190 : 0, y: r ? r.bottom + 4 : 0 }) }
+  const head = html`<span class="st-conv-head" data-part="conv-head">
+    ${chipText ? html`<span class="status-chip" data-part="progress-chip" data-state=${view.state} data-asked=${asked} data-waiting=${String(waiting)}><span class="dot"></span> ${chipText}</span>` : null}
+    ${view.open ? html`<span class="st-act" data-action="drop-open"><button type="button" class="btn quiet" disabled=${acting} onClick=${() => acts.ask({ ...view, id: conv })}>${dropWords(mode)}</button></span>` : null}
+    <span class="st-act" data-action="conv-more"><button type="button" class="icon-btn" ref=${moreRef} aria-label=${T.menu.more} aria-haspopup="menu" onClick=${openMenu}><${TIcon} name="down" /></button></span>
+  </span>`
   const trouble = view.trouble?.code ?? null
   const troubleWords = trouble && Object.hasOwn(T.trouble, trouble) ? T.trouble[trouble] : T.trouble.failed
   const signIn = trouble === 'login-expired' || trouble === 'not-logged-in'
-  const placeholder = waiting ? T.placeholderCard : openQuestion >= 0 ? T.placeholderAnswer : T.placeholderSay
+  const idleLibrary = view.kind === 'library' && !view.open
+  const placeholder = idleLibrary ? T.continuePlaceholder : waiting ? T.placeholderCard : openQuestion >= 0 ? T.placeholderAnswer : T.placeholderSay
   const today = dayText(new Date().toISOString(), DAY)
+  const title = view.kind === 'library' ? (libraryName ?? '') : (view.title || T.title)
+  const subtitle = cv?.subtitle ?? (view.kind === 'library' ? T.editSubtitle : T.talkSubtitle)
+  const lastStop = idleLibrary && view.lastEnd?.why === 'stopped' && view.lastEnd.notice ? view.lastEnd.notice : null
+  const sending = view.sending
+  const reopen = view.back && typeof view.back === 'object' ? view.back : null
+  const busyNow = working || waitingTurn
 
-  // 1.1 W7b: a conversation going is 主 Agent's page (the sidebar marks 主 Agent, route alias 'chat')
   return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
-    <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': view.mode, 'data-view': 'talk' }}>
-      <${AgentLayout} here=${{ kind: 'going' }}>
-      <${TopBar} title=${cv?.title ?? (edit ? fmt(T.continueHeading, { name: libraryName ?? '' }) : T.title)} subtitle=${cv?.subtitle ?? (edit ? T.continueSubtitle : T.talkSubtitle)} titleTag="h1" titleId="build-title" actions=${chip} />
+    <${Main} screen="build" state="ready" labelledby="build-title" attrs=${{ 'data-mode': mode, 'data-view': 'talk', 'data-conv': conv, 'data-kind': view.kind, 'data-conv-state': view.state }}>
+      <${AgentLayout} here=${conv}>
+      <${TopBar} title=${title} subtitle=${subtitle} titleTag="h1" titleId="build-title" actions=${head} />
       <div class="st-chat">
         <div class="st-main__body thread-scroll" ref=${listRef}>
           <div class="thread" data-part="conversation">
-            ${Array.isArray(view.earlier) && view.earlier.length ? html`<${Earlier} items=${view.earlier} />
-              <p class="st-handed" data-part="handed-over">${T.earlier.handedOver}</p>` : null}
-            <div class="date-line" data-part="date-line">${fmt(cv?.dateLine ?? (edit ? T.editDateLine : T.dateLine), { day: today })}</div>
+            ${idleLibrary && cv ? html`<p class="progress-alert" data-part="from-old">${cv.note}</p>` : null}
+            <${Earlier} items=${view.earlier} />
+            ${view.kind === 'library' && view.open && (view.earlier?.length ?? 0) > 0 ? html`<p class="st-handed" data-part="handed-over">${T.earlier.handedOver}</p>` : null}
+            ${idleLibrary && !(view.earlier?.length) ? html`<p class="limit-note" data-part="earlier-none">${T.earlier.none}</p>` : null}
+            ${view.open && turns.length ? html`<div class="date-line" data-part="date-line">${fmt(cv?.dateLine ?? (edit ? T.editDateLine : T.dateLine), { day: today })}</div>` : null}
             ${turns.map((t, i) => {
-              // 1.1.2 (第 3 件): an answer to a choice question, when the turn carries it (answer: { picked, other }, the main
-              // process), is the card of what you chose; an older turn without it is its sentence, as before
               if (t.role === 'you') {
-                const asked = turns[i - 1]?.role === 'agent' && turns[i - 1]?.kind === 'question' ? turns[i - 1].question : null
-                const a = t.answer && typeof t.answer === 'object' && asked ? t.answer : null
-                return a ? html`<${AnswerCard} key=${i} n=${asked.n} picked=${Array.isArray(a.picked) ? a.picked.filter(x => typeof x === 'string') : []} other=${typeof a.other === 'string' ? a.other : ''} />`
+                const q = turns[i - 1]?.role === 'agent' && turns[i - 1]?.kind === 'question' ? turns[i - 1].question : null
+                const a = t.answer && typeof t.answer === 'object' && q ? t.answer : null
+                return a ? html`<${AnswerCard} key=${i} n=${q.n} picked=${Array.isArray(a.picked) ? a.picked.filter(x => typeof x === 'string') : []} other=${typeof a.other === 'string' ? a.other : ''} />`
                   : html`<div key=${i} class="user-message" data-row="you">${t.text}</div>`
               }
               return html`<div key=${i} class="assistant-message" data-row="agent" data-kind=${t.kind}>
                 <${Speaker} />
                 ${t.say ? html`<p class="intro-copy" data-part="reply">${t.say}</p>` : null}
                 ${t.notice === 'question-not-shown' ? html`<p class="limit-note st-faint" data-part="not-shown">${T.notShown}</p>` : null}
-                ${t.kind === 'question' && t.question ? html`<${Question} q=${t.question} open=${i === openQuestion} answered=${turns[i + 1]?.role === 'you'} busy=${working} onAnswer=${a => run('replyBuild', a)} />` : null}
-                ${t.kind === 'card' && t.card ? html`<${BuildCard} turn=${t} last=${i === lastCard && i === lastAgent} mode=${view.mode} libraryName=${libraryName} volume=${view.mode === 'create' ? defaultVolume.data?.volume ?? null : null}
-                  busy=${working} acting=${acting} onDrop=${drop} onConfirm=${confirm} onAskFix=${m => run('replyBuild', m)} />` : null}
+                ${t.kind === 'question' && t.question ? html`<${Question} key=${i === openQuestion ? `q${i}:${view.lastAt ?? ''}` : `q${i}`} q=${t.question} open=${i === openQuestion} answered=${turns[i + 1]?.role === 'you'} busy=${busyNow}
+                  reopen=${i === openQuestion ? reopen : null} onAnswer=${a => run('replyBuild', a, conv)} />` : null}
+                ${t.kind === 'card' && t.card ? html`<${BuildCard} turn=${t} last=${i === lastCard && i === lastAgent} mode=${mode} libraryName=${libraryName} volume=${mode === 'create' ? defaultVolume.data?.volume ?? null : null}
+                  stale=${view.stale === true} busy=${busyNow} acting=${acting} onDrop=${dropHere} onConfirm=${confirm} onAskFix=${m => run('replyBuild', m, conv)} />` : null}
               </div>`
             })}
-            ${working ? html`<div class="assistant-message" data-part="thinking-row"><${Speaker} /><p class="limit-note" data-part="thinking" role="status"><span class="st-mo-dots" data-mo="build" aria-hidden="true"><i></i><i></i><i></i></span>${T.thinking}</p>
-              ${live?.agent ? html`<p class="limit-note" data-part="thinking-live" data-step=${live.step}>${fmt(T.liveAgent, live.agent)}</p>` : null}
-              ${live?.check ? html`<p class="limit-note" data-part="thinking-check">${fmt(T.liveCheck, live.check)}</p>` : null}
+            ${sending ? (typeof sending === 'string' ? html`<div class="user-message" data-row="you" data-part="sending">${sending}</div>` : null) : null}
+            ${view.busy ? html`<div class="assistant-message" data-part="thinking-row"><${Speaker} /><p class="limit-note" data-part="thinking" role="status"><span class="st-mo-dots" data-mo="build" aria-hidden="true"><i></i><i></i><i></i></span>${T.thinking}
+                <span class="st-act" data-action="stop-turn"><button type="button" class="btn quiet st-think__btn" onClick=${stop}>${T.stop}</button></span></p>
+              ${view.live?.agent ? html`<p class="limit-note" data-part="thinking-live" data-step=${view.live.step}>${fmt(T.liveAgent, view.live.agent)}</p>` : null}
+              ${view.live?.check ? html`<p class="limit-note" data-part="thinking-check">${fmt(T.liveCheck, view.live.check)}</p>` : null}
               <p class="limit-note st-faint" data-part="thinking-usually">${T.usuallyTurn}</p></div>` : null}
-            ${trouble && !working ? html`<div class="progress-alert st-notice" role="alert" data-part="trouble" data-code=${trouble}>
+            ${waitingTurn ? html`<div class="assistant-message" data-part="waiting-row"><${Speaker} /><p class="limit-note" data-part="waiting" role="status"><span class="st-conv__dot st-conv__dot--hollow" aria-hidden="true"></span>${T.waitingLine}
+                <span class="st-act" data-action="leave-queue"><button type="button" class="btn quiet st-think__btn" onClick=${stop}>${T.leave}</button></span></p></div>` : null}
+            ${view.note ? html`<p class="limit-note st-notice-line" role="status" data-part="gave-back" data-note=${view.note}>${view.note === 'left' ? T.leftNote : T.stoppedNote}</p>` : null}
+            ${trouble && !busyNow ? html`<div class="progress-alert st-notice" role="alert" data-part="trouble" data-code=${trouble}>
               <span>${troubleWords}</span>
-              <span class="st-act" data-action="retry"><button type="button" class="btn quiet" onClick=${() => run('retryBuild')}>${T.retry}</button></span>
+              <span class="st-act" data-action="retry"><button type="button" class="btn quiet" onClick=${() => run('retryBuild', conv)}>${T.retry}</button></span>
               ${signIn ? html`<span class="st-act" data-action="go-settings"><button type="button" class="btn quiet" onClick=${() => navigate('settings')}>${T.goSettings}</button></span>` : null}
             </div>` : null}
-            ${view.stopped ? html`<div class="progress-alert st-notice" role="alert" data-part="stopped" data-code=${view.stopped}>
+            ${ended ? html`<div class="progress-alert st-notice" role="alert" data-part="stopped" data-code=${view.stopped}>
               <span>${T.stopped[view.stopped] ?? T.stopped['bad-format']}</span>
-              <span class="st-act" data-action="restart"><button type="button" class="btn quiet" onClick=${restart}>${T.restart}</button></span>
+              <span class="st-act" data-action="restart"><button type="button" class="btn quiet" disabled=${busyNow} onClick=${restart}>${T.restart}</button></span>
             </div>` : null}
+            ${lastStop ? html`<div class="progress-alert st-notice" role="note" data-part="stopped" data-code=${lastStop}><span>${T.stoppedLibrary[lastStop] ?? T.stoppedLibrary['bad-format']}</span></div>` : null}
           </div>
         </div>
-        ${view.stopped ? null : html`<div class="composer-wrap" data-part="compose" data-busy=${String(working)}>
+        ${ended ? null : html`<div class="composer-wrap" data-part="compose" data-busy=${String(busyNow)}>
           ${note ? html`<p class="progress-alert" data-part="chat-note" role="alert">${note}</p>` : null}
+          ${idleLibrary ? html`<${ConnectionWhy} c=${c} />` : null}
           <form class="composer" onSubmit=${e => { e.preventDefault(); send() }}>
             <textarea data-field="message" rows="2" aria-label=${T.inputLabel} placeholder=${placeholder} maxlength=${MESSAGE_MAX}
-              value=${text} disabled=${working} onInput=${e => setText(e.currentTarget.value)}
+              value=${text} onInput=${e => keep(e.currentTarget.value)}
               onKeyDown=${e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send() } }}></textarea>
             <div class="composer-tools">
               <span class="chip"><${TIcon} name="spark" /> ${T.speaker.name}</span><small>${T.speaker.newline}</small><span class="spacer"></span>
-              <span class="st-act" data-action="send"><button type="submit" class="send-btn" aria-label=${T.send} title=${T.send} disabled=${working || !text.trim()}><${TIcon} name="send" /></button></span>
+              <span class="st-act" data-action="send"><button type="submit" class="send-btn" aria-label=${T.send} title=${T.send} disabled=${busyNow || !text.trim() || (idleLibrary && !c.can)}><${TIcon} name="send" /></button></span>
             </div>
           </form>
-          <div class="compose-help" data-part="input-hint">${edit || waiting
+          <div class="compose-help" data-part="input-hint">${view.kind === 'library' || waiting
             ? fmt(T.editCalls, { searches: BUDGET.changeSearches, reads: BUDGET.changeReads })
             : fmt(T.calls, { searches: BUDGET.searches, reads: BUDGET.reads })}</div>
         </div>`}
       </div>
       <//>
     <//>
+    ${menu ? html`<${Menu} label=${T.menu.label} x=${menu.x} y=${menu.y} items=${menuItems}
+      onSelect=${id => { setMenu(null); moreRef.current?.focus(); void acts.run(id, { ...view, id: conv }) }}
+      onClose=${({ restoreFocus }) => { setMenu(null); if (restoreFocus) moreRef.current?.focus() }} />` : null}
+    ${acts.dialog}
   <//>`
 }
 
 export function BuildScreen({ params = {} }) {
   const app = useApp()
-  const build = app.build
-  const [restartWith, setRestartWith] = useState(null)
-  const view = build?.data ?? null
-  const onView = (v, again = null) => { build?.set?.(v); if (again) setRestartWith(again) }
-  if (build?.status === 'loading' && !view) {
-    return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="build" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
+  const list = app.conversations
+  // 1.1.2's ways in (a library's 来源与要求, 问库, 改卡建议 …): params.edit / params.from — that library's conversation, the
+  // words brought (params.opener) after what is in its box (plan 第五节)
+  const fromLibrary = typeof params.edit === 'string' ? params.edit : typeof params.from === 'string' ? params.from : null
+  const brought = useRef(null)
+  if (fromLibrary && typeof params.opener === 'string' && params.opener && brought.current !== params) {
+    brought.current = params
+    app.drafts?.add?.(`lib:${fromLibrary}`, params.opener)
+  }
+  const conv = typeof params.conv === 'string' ? params.conv : fromLibrary ? `lib:${fromLibrary}` : null
+  // the sidebar's 主 Agent: the conversation active last; none at all: 新建库 — put in the route once (the page never jumps
+  // when another conversation moves later)
+  const ready = Boolean(list?.data) || list?.status === 'error'
+  useEffect(() => {
+    if (conv || !params.latest || !ready) return
+    const latest = list?.data?.latest ?? null
+    app.navigate('build', latest ? { conv: latest } : {})
+  }, [conv, params.latest, ready])
+  if (!conv && params.latest) {
+    return html`<${AppFrame} sidebar=${html`<${AppSidebar} current="chat" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>
       <${Main} screen="build" state="loading" labelledby="build-title"><${TopBar} title=${T.title} titleTag="h1" titleId="build-title" /><//>
     <//>`
   }
-  // 1.1.2 (第 5 件): a library opened from the list while another conversation is in progress (one at a time, as before)
-  const asked = typeof params.edit === 'string' ? params.edit : typeof params.from === 'string' ? params.from : null
-  const other = Boolean(view && asked && view.library?.id !== asked)
-  if (other && view.status !== 'stopped') return html`<${OtherGoing} libraryId=${asked} view=${view} />`
-  // a stopped one is not in progress: the library asked for starts afresh (startBuild ends the stopped one)
-  if (view && !other) return html`<${Talk} view=${view} onView=${onView} />`
-  const p = restartWith ? { ...params, opener: restartWith.opener, send: undefined } : params
-  return html`<${StartPage} key=${restartWith ? 'again' : 'first'} params=${p} onStarted=${v => { setRestartWith(null); build?.set?.(v) }} />`
+  if (!conv) return html`<${NewPage} params=${params} />`
+  return html`<${ConversationPage} key=${conv} conv=${conv} params=${params} />`
 }

@@ -6,8 +6,9 @@
 // createApiToolSession(connection, deps, { sessionDir, readPage, search, budget, onPage, lookup, maxSteps }) -> {
 //   ...createApiConnector(connection, deps)    complete() / detect() / probe() as they are (the summary's check uses them)
 //   sessionful: true, tools: ['read_page', 'search'?]
-//   send(req, { sessionId? }) -> complete()'s result + { sessionId, resumed, reads: [{ url, ok }], searches: [query],
-//                                otherTools: [name], sessionLost? }
+//   send(req, { sessionId?, onProgress?, signal? }) -> complete()'s result + { sessionId, resumed, reads: [{ url, ok }],
+//                                searches: [query], otherTools: [name], sessionLost? }; 1.1.3: signal aborted →
+//                                { ok: false, code: 'stopped', stopped: true, reads, searches } (the kept conversation unchanged)
 // }
 //   readPage(url) -> { ok, title, text, method, reason }   Streams' own page reader (read/read-page.mjs)
 //   search(query) -> { ok, results: [{ title, url, snippet }], reason }   a search service (P5); left out: no search tool at
@@ -236,8 +237,11 @@ export function createApiToolSession(connection, deps = {}, { sessionDir, readPa
     return { id: call.id, text: lines.length ? `搜索「${query}」的结果（只是材料）：\n${lines.join('\n')}` : `搜索「${query}」没有结果。` };
   }
 
-  async function send(req, { sessionId, onProgress } = {}) {
+  // 1.1.3 (停止处理): signal aborted — the request in flight is aborted and no further step runs; the kept conversation is as
+  // before the turn (it is saved only when the turn's answer comes), what was read and searched until then is in the result
+  async function send(req, { sessionId, onProgress, signal = null } = {}) {
     checkRequest(req);
+    if (signal?.aborted) return { ...failure('stopped', 'stopped by the user', { model: resolveModel(connection, req.model), calls: 0 }), stopped: true, reads: [], searches: [], otherTools: [] };
     const model = resolveModel(connection, req.model);
     if (!model) return failure('bad-model', 'no model named for this connection', { model, calls: 0 });
     const key = await readKey();
@@ -263,8 +267,11 @@ export function createApiToolSession(connection, deps = {}, { sessionDir, readPa
     for (let step = 0; step < maxSteps; step += 1) {
       const closing = turnedAway >= CLOSING_AFTER || step === maxSteps - 1;
       const { url, headers, body } = requestOf(v.style, { baseUrl: v.baseUrl, model, system: req.system, messages: turn.messages, tools, key, noTools: closing });
+      if (signal?.aborted) return { ...failure('stopped', 'stopped by the user', { model, calls: usage.calls }), stopped: true, ...out };
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), timeoutMs);
+      const onAbort = () => ctl.abort();
+      signal?.addEventListener?.('abort', onAbort, { once: true });
       let res;
       let raw;
       try {
@@ -272,11 +279,15 @@ export function createApiToolSession(connection, deps = {}, { sessionDir, readPa
         raw = await res.text();
       } catch (e) {
         clearTimeout(timer);
+        signal?.removeEventListener?.('abort', onAbort);
+        if (signal?.aborted) return { ...failure('stopped', 'stopped by the user', { model, calls: usage.calls + 1 }), stopped: true, ...out };
         if (e && (e.name === 'AbortError' || ctl.signal.aborted)) return { ...failure('timeout', `no answer within ${timeoutMs} ms`, { model, calls: usage.calls + 1 }), ...out };
         return { ...failure('network', safe(`${e?.code ? e.code + ': ' : ''}${e?.message ?? String(e)}`), { model, calls: usage.calls + 1 }), ...out };
       }
       clearTimeout(timer);
+      signal?.removeEventListener?.('abort', onAbort);
       usage.calls += 1;
+      if (signal?.aborted) return { ...failure('stopped', 'stopped by the user', { model, calls: usage.calls }), stopped: true, ...out };
       raw = safe(raw);
       let json = null;
       try { json = JSON.parse(raw); } catch { json = null; }
@@ -305,6 +316,7 @@ export function createApiToolSession(connection, deps = {}, { sessionDir, readPa
       }
       const results = [];
       for (const call of a.calls) {
+        if (signal?.aborted) return { ...failure('stopped', 'stopped by the user', { model, calls: usage.calls }), stopped: true, ...out };
         results.push(await runTool(call, turn, out));
         // 1.1.1 P10 (A8): each tool run, the counts so far
         if (typeof onProgress === 'function') { try { onProgress({ searches: out.searches.length, reads: out.reads.length }); } catch { /* never stops the turn */ } }

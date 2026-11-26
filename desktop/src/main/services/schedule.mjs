@@ -390,6 +390,11 @@ export function createScheduleService({ settingsFile, library, pipeline, notifie
         if (!e) throw new BridgeError('no_library')
         return setFor(e, s)
       },
+      /** 1.1.3 (菜单四、五的「立即运行」): that library's round into the queue — idle, it starts now (enqueue: running or
+       *  waiting already, it says so: { queued: false, reason }). */
+      runLibrary(id) {
+        return enqueue(library.entryOf(id), 'the menu', 'manual')
+      },
       getLibrarySchedule(id) {
         const e = library.entryOf(id)
         if (!library.usable(e.path)) throw new BridgeError('open_failed', `${e.path} is not a readable library`)

@@ -184,13 +184,47 @@
 .st-convs { border-right: 1px solid var(--line); padding: 12px 10px; overflow-y: auto; display: grid; align-content: start; gap: 2px; background: var(--well, var(--surface2)); }
 .st-convs__new { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px; }
 .st-convs__label { margin: 12px 8px 4px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
-.st-convs__item { display: grid; gap: 2px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--mo-fast) var(--mo-ease); }
-.st-convs__item:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); }
-.st-convs__item[aria-current="page"] { background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; }
-.st-convs__item b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.st-convs__item small { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.st-convs__item[data-going="true"] b::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+.st-convs__group { display: grid; gap: 2px; }
+/* 1.1.3 (赞妮's mock 02): a row — its title, its line with the mark at its head; 「更多」 at its end on hover or focus */
+.st-conv { position: relative; border-radius: 7px; transition: background-color var(--mo-fast) var(--mo-ease); }
+.st-conv:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.st-conv.is-current { background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; }
+.st-conv__main { display: grid; gap: 2px; width: 100%; padding: 8px 30px 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; min-width: 0; }
+.st-conv__main b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-conv__main small { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.st-conv__main small > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.st-conv__more { position: absolute; right: 3px; top: 6px; opacity: 0; transition: opacity var(--mo-fast) var(--mo-ease); }
+.st-conv__more .icon-btn { width: 24px; height: 24px; min-height: 24px; padding: 0; }
+.st-conv:hover .st-conv__more, .st-conv:focus-within .st-conv__more { opacity: 1; }
+/* the marks (plan 3.6): not the sidebar's — no dot on an idle row; accent: yours to answer or confirm, or new; amber: cannot go on */
+.st-conv__dot { display: inline-block; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.st-conv__dot--hollow { width: 7px; height: 7px; background: transparent; border: 1.5px solid var(--accent); }
+.st-conv__dot--amber { background: var(--st-wait, var(--accent)); }
+.st-convs__note { display: grid; gap: 6px; justify-items: start; margin: 0 0 8px; padding: 9px 10px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; font-size: 12px; line-height: 1.6; color: var(--ink); }
+.st-convs__note p { margin: 0; }
 .st-convs__none { margin: 4px 10px; font-size: 12px; color: var(--muted); }
+/* the page's head: the state chip, 放弃, 「更多」 */
+.st-conv-head { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.st-think__btn { margin-left: 8px; min-height: 26px; padding: 3px 10px; }
+.st-notice-line { margin: 0; }
+.st-build-hints { display: grid; gap: 4px; margin: -4px 0 10px; }
+.st-build-hints .limit-note { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* the right panel: a card's tag and 「更多」, 进度's rows with their 「更多」 (outside the row that folds) */
+.st-rp-decide__top { display: flex; align-items: center; gap: 8px; }
+.st-rp-decide__here { font-size: 11px; font-weight: 600; color: var(--accent); }
+.st-rp-decide__more { margin-left: auto; }
+.st-rp-decide__more .icon-btn, .st-rp-rowmore .icon-btn { width: 24px; height: 24px; min-height: 24px; padding: 0; }
+.st-rp-decide__at { margin: 2px 0 0; font-size: 11.5px; }
+.st-rp-rowwrap { position: relative; }
+.st-rp-rowwrap > .st-rp-rowmore { position: absolute; right: 30px; top: 8px; z-index: 1; opacity: 0; transition: opacity var(--mo-fast) var(--mo-ease); }
+.st-rp-rowwrap:hover > .st-rp-rowmore, .st-rp-rowwrap:focus-within > .st-rp-rowmore { opacity: 1; }
+.st-rp-next { display: flex; align-items: center; gap: 8px; }
+.st-rp-next__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.st-rp-next .st-rp-rowmore { opacity: 0; transition: opacity var(--mo-fast) var(--mo-ease); }
+.st-rp-next:hover .st-rp-rowmore, .st-rp-next:focus-within .st-rp-rowmore { opacity: 1; }
+/* the sidebar's 主 Agent: a conversation waits for you */
+.st-sidebar__attention { width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: var(--accent); flex: none; }
+.st-library-menu-failed { margin: 6px 12px; }
 .st-agent-switch { animation: st-mo-fade var(--mo-in) var(--mo-ease) both; }
 
 /* the earlier conversations of a library: one line each, opened in place */
@@ -213,5 +247,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .st-agent-switch, .st-earlier__turns { animation: none; }
-  .st-seg__opt, .st-convs__item { transition: none; }
+  .st-seg__opt, .st-conv, .st-conv__more, .st-rp-rowmore { transition: none; }
 }

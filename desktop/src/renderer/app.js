@@ -22,7 +22,7 @@ import { call } from './lib/bridge.js'
 import { useEvent } from './lib/use-events.js'
 import { useLoad } from './lib/use-load.js'
 import { useLibraries } from './lib/libraries.js'
-import { useBuild } from './lib/build.js'
+import { useConversations, useDrafts, useFresh } from './lib/build.js'
 // v2 package L: the one queue of the rounds (the right panel, the sidebar, 库架, the library's head)
 import { useQueue } from './lib/queue.js'
 import { ALIASES, FIRST_SCREEN, LIBRARY_FIRST_SCREEN, SCREENS } from './screens/index.js'
@@ -94,8 +94,11 @@ function App() {
   // v2 package L: the queue
   const queue = useQueue(shell)
   // 1.1 W6b: the build conversation (新建库, 主 Agent and the right panel's 待确认: its card is what waits for you to confirm);
-  // read in 首次打开 too, where it starts
-  const build = useBuild(true)
+  // read in 首次打开 too, where it starts. 1.1.3: the conversations, one per library and the new libraries' apart (lib/build.js);
+  // 「有新内容」 and what was typed and not sent, by conversation, in the page only
+  const conversations = useConversations(true)
+  const fresh = useFresh()
+  const drafts = useDrafts()
   const libraryId = appState.data?.library?.libraryId ?? null
   // the route of a library's page is that library's to remember
   useEffect(() => {
@@ -143,9 +146,15 @@ function App() {
   const value = {
     route, navigate, has, appState, libraries, openLibrary, memory: memory.current,
     // v2 package L: the right panel's lists, the queue; setPanel folds / unfolds the panel or picks a tab (settings.json)
-    queue, setPanel, build,
-    // 1.1 W6b: 新建库 is the build conversation ('build'); 「取消」 comes back to the screen it was opened from
-    newLibrary: () => setRoute(r => (r.screen === 'build' ? r : { screen: 'build', params: { back: r.screen } })),
+    queue, setPanel, conversations, fresh, drafts,
+    // 1.1 W6b: 新建库 is the build conversation ('build'); 「取消」 comes back to the screen it was opened from. 1.1.3 (plan 第五节):
+    // always the 新建库 page, whatever conversation is on 主 Agent's page now
+    newLibrary: () => setRoute(r => ({ screen: 'build', params: { back: r.screen === 'build' ? (r.params?.back ?? null) : r.screen } })),
+    // 1.1.3: a conversation of the main agent (screens/build.js); opener: words brought into its box, after what is there
+    openConversation: (conv, { opener = null, card = false } = {}) => {
+      if (typeof opener === 'string' && opener) drafts.add(conv, opener)
+      setRoute({ screen: 'build', params: { conv, ...(card ? { card: true } : {}) } })
+    },
     // 1.1 W13: 「打开已有的库」 (lib/open-existing.js) — the folder dialog; a library → registered once, current, its 待看;
     // 'cancelled' · 'not-library' (nothing registered, nothing written) · 'opened'; an error of addLibrary goes up
     openExisting: async () => {

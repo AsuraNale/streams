@@ -23,6 +23,8 @@ import { LIBRARY_ROUTES } from './library-sections.js'
 import { useQuota } from '../lib/quota.js'
 // v2 package L: a library's place in the queue (its line under the name)
 import { queueStateOf, queueWords } from '../lib/queue.js'
+// 1.1.3 (菜单五)
+import { useLibraryMenu } from './library-menu.js'
 
 /** The two entries under 「新建库」, in order, with the template's icons; the route id is the key (screens/index.js: 'chat' is the
  * build conversation's alias). */
@@ -44,10 +46,12 @@ export function Sidebar({ label, children }) {
 }
 
 /** An entry of the sidebar (the template's navitem). `n`: a small number at its end (库架: how many libraries). */
-export function SidebarNav({ id, icon, isCurrent, n = null, onClick, children }) {
+// 1.1.3 (plan 4.3): dot — a conversation of the main agent waits for you (主 Agent only)
+export function SidebarNav({ id, icon, isCurrent, n = null, dot = false, onClick, children }) {
   const icn = icon === 'allProjects' ? html`<${SidebarIcon} role="allProjects" fallback="home" />` : html`<${TIcon} name=${icon} />`
   return html`<a href="#" class=${`navitem${isCurrent ? ' active' : ''}`} data-nav=${id} aria-current=${current(isCurrent)} onClick=${prevent(onClick)}>
     ${icn}<span class="st-sidebar__nav-text">${children}</span>
+    ${dot ? html`<span class="st-sidebar__attention" data-attention=${id} aria-label=${SHELL.sidebar.attention} title=${SHELL.sidebar.attention}></span>` : null}
     ${n !== null ? html`<span class="spacer"></span><small data-nav-count=${id}>${n}</small>` : null}
   </a>`
 }
@@ -67,7 +71,7 @@ export function libraryLine(row, place, phase) {
  * under it — the turning ring while it runs (st-mo-ring, data-mo=sidebar), the hollow dot while it waits, the dot otherwise. `row`: lib/libraries.js; `isCurrent`: you are on its page; `place`: its place in the
  * queue (lib/queue.js queueStateOf); `phase`: the step its round is at (running only).
  */
-export function SidebarLibraryItem({ row, isCurrent, place = null, phase = null, onClick }) {
+export function SidebarLibraryItem({ row, isCurrent, place = null, phase = null, onClick, onMenu = null }) {
   const n = count(row.inbox)
   const line = libraryLine(row, place, phase)
   // 1.1.1 P14 (M3, M6): the count pops when it grew (a run put items in 待看) — keyed by the number, so each growth plays once
@@ -79,7 +83,9 @@ export function SidebarLibraryItem({ row, isCurrent, place = null, phase = null,
   }, [n])
   const popKey = { current: pops }
   const running = place?.state === 'running'
-  return html`<a href="#" class=${`project-item${isCurrent ? ' active' : ''}`} data-library-row=${row.id} data-active=${String(row.active === true)} aria-current=${current(isCurrent)} onClick=${prevent(onClick)}>
+  return html`<a href="#" class=${`project-item${isCurrent ? ' active' : ''}`} data-library-row=${row.id} data-active=${String(row.active === true)} aria-current=${current(isCurrent)} onClick=${prevent(onClick)}
+    onContextMenu=${onMenu ? e => { e.preventDefault(); onMenu(row, e.clientX, e.clientY, e.currentTarget) } : undefined}
+    onKeyDown=${onMenu ? e => { if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); onMenu(row, r.left + 24, r.bottom, e.currentTarget) } } : undefined}>
     <span class="project-name"><span class="st-sidebar__lib-name">${row.name}</span></span>
     <span class="project-meta" data-library-line=${line.kind}>
       ${running ? html`<span class="st-mo-ring" data-mo="sidebar" aria-hidden="true"></span>` : place?.state === 'queued' ? html`<span class="st-mo-queued" data-mo="queued" aria-hidden="true"></span>` : html`<span class="dot"></span>`}
@@ -141,7 +147,9 @@ export function SidebarQuota({ view }) {
 
 /** The usual sidebar. `current`: the screen id you are on (default: the route's). */
 export function AppSidebar({ current: where }) {
-  const { route, navigate, libraries, openLibrary, newLibrary, queue } = useApp()
+  const { route, navigate, libraries, openLibrary, newLibrary, queue, conversations } = useApp()
+  // 1.1.3 (菜单五): a library's right click
+  const menu = useLibraryMenu()
   const here = where ?? route?.screen ?? null
   const onLibrary = LIBRARY_ROUTES.includes(here)
   const rows = Array.isArray(libraries?.data) ? libraries.data : []
@@ -152,16 +160,17 @@ export function AppSidebar({ current: where }) {
     <nav class="side-nav" aria-label=${SIDEBAR.label}>
       <${SidebarAdd} name="add-library" isCurrent=${here === 'build'} onClick=${() => newLibrary?.()}>${SHELL.sidebar.newLibrary}<//>
       ${NAV_ENTRIES.map(([id, icon]) => html`<${SidebarNav} key=${id} id=${id} icon=${icon} isCurrent=${here === id}
-        n=${id === 'shelf' && libraries?.data ? rows.length : null} onClick=${() => navigate(id)}>${SIDEBAR.entries[id]}<//>`)}
+        n=${id === 'shelf' && libraries?.data ? rows.length : null} dot=${id === 'chat' && conversations?.data?.attention === true} onClick=${() => navigate(id)}>${SIDEBAR.entries[id]}<//>`)}
     </nav>
     <${SidebarGroup}>${SHELL.sidebar.mine}<//>
     <nav class="project-list st-sidebar__libs" aria-label=${SHELL.sidebar.mine}>
       ${rows.map(r => {
         const place = queueStateOf(q, r.id)
         return html`<${SidebarLibraryItem} key=${r.id} row=${r} isCurrent=${onLibrary && r.active} place=${place}
-          phase=${place?.state === 'running' ? q?.running?.phase ?? null : null} onClick=${() => openLibrary?.(r.id)} />`
+          phase=${place?.state === 'running' ? q?.running?.phase ?? null : null} onClick=${() => openLibrary?.(r.id)} onMenu=${menu.open} />`
       })}
     </nav>
+    ${menu.host}
     <div class="side-footer">
       <${SidebarQuota} view=${quota} />
       <${SidebarFooterButton} isCurrent=${here === 'settings'} onClick=${() => navigate('settings')}>${SIDEBAR.settings}<//>

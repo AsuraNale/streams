@@ -6,7 +6,9 @@
 //   ...createConnector(connection, deps)       v1.0's complete() / detect() / probe() as they are (the summary call uses it)
 //   sessionful: boolean                        claude-code / codex: true (the CLI keeps the conversation); api: false
 //   cwd                                        the main agent's own working folder (claude-code / codex)
-//   send(req, { sessionId? }) -> the complete() result + { sessionId, resumed, sessionLost? }
+//   send(req, { sessionId?, onProgress?, signal? }) -> the complete() result + { sessionId, resumed, sessionLost? }
+//                                              1.1.3: signal aborted — the CLI's process tree is ended (process.mjs killTree):
+//                                              { ok: false, code: 'stopped', stopped: true, reads, searches } (never sessionLost)
 // }
 //
 // 「不能动手」 (CLAUDE.md, architecture 第一节) holds for every call here:
@@ -118,6 +120,11 @@ export function emptyFolder(dir) {
   return names;
 }
 
+/** 1.1.3 (停止处理): a call the user stopped — code 'stopped', stopped: true (the caller goes back to before the turn). */
+export function stoppedResult(model, usage = { calls: 0 }) {
+  return { ...failure('stopped', 'stopped by the user', { model, calls: usage.calls ?? 0 }), stopped: true };
+}
+
 function lostOrNot(result, resumed) {
   if (!resumed || result.ok) return result;
   return CONNECTION_CODES.includes(result.code) ? result : { ...result, sessionLost: true };
@@ -132,7 +139,7 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
   if (typeof cwd !== 'string' || !isAbsolute(cwd)) throw new StreamsError('bad-argument', 'a session connection needs an absolute working folder');
   const timeoutMs = deps.timeoutMs ?? (web ? WEB_TIMEOUT_MS : AGENT_TIMEOUT_MS);
   const log = typeof deps.log === 'function' ? deps.log : () => {};
-  const run = (cmd, args, input, onStdout = null) => runProcess({ file: cmd.file, args: [...cmd.prefixArgs, ...args], cwd, input, timeoutMs, env: deps.env, spawnImpl: deps.spawnImpl, platform: deps.platform, onStdout });
+  const run = (cmd, args, input, onStdout = null, signal = null) => runProcess({ file: cmd.file, args: [...cmd.prefixArgs, ...args], cwd, input, timeoutMs, env: deps.env, spawnImpl: deps.spawnImpl, platform: deps.platform, onStdout, signal });
   // 1.1.1 P10 (A8): with onProgress, the run's searches and reads are counted from its output as it comes (whole lines only),
   // and onProgress({ searches, reads }) is called each time a count changes
   const progressReader = (webOf, onProgress) => {
@@ -166,7 +173,7 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
   };
 
   if (kind === 'claude-code') {
-    async function send(req, { sessionId, onProgress } = {}) {
+    async function send(req, { sessionId, onProgress, signal = null } = {}) {
       checkRequest(req);
       checkId(sessionId);
       const model = resolveModel(connection, req.model);
@@ -175,7 +182,9 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
       const resumed = Boolean(sessionId);
       const id = sessionId || randomUUID();
       before();
-      const r = await run(cmd, claudeSessionArgv({ model, system: req.system, web, ...(resumed ? { resume: id } : { sessionId: id }) }), req.prompt, progressReader(claudeWebOf, onProgress));
+      const r = await run(cmd, claudeSessionArgv({ model, system: req.system, web, ...(resumed ? { resume: id } : { sessionId: id }) }), req.prompt, progressReader(claudeWebOf, onProgress), signal);
+      // 1.1.3 (停止处理): stopped by the user — never a lost session; what it read and searched until then still counts
+      if (r.aborted) return after({ ...stoppedResult(model, { calls: 1 }), ...(web ? claudeWebOf(r.stdout) : {}), sessionId: id, resumed });
       const sf = spawnFailure(r);
       if (sf) return after({ ...sf, model, sessionId: id, resumed });
       const parsed = parseClaudeOutput(r, { now: deps.now });
@@ -195,7 +204,7 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
 
   if (kind === 'codex') {
     let chosen = null;
-    async function send(req, { sessionId, onProgress } = {}) {
+    async function send(req, { sessionId, onProgress, signal = null } = {}) {
       checkRequest(req);
       checkId(sessionId);
       const model = resolveModel(connection, req.model);
@@ -209,11 +218,12 @@ export function createSessionConnector(connection, deps = {}, { cwd, web = false
         const args = resumed ? codexResumeArgv({ model, sessionId, lastMessageFile, web }) : codexSessionArgv({ model, cwd, lastMessageFile, web });
         // the first call carries the system text before the prompt (v1.0's way); a resumed session has it already
         const input = !resumed && req.system ? `${req.system}\n\n${req.prompt}` : req.prompt;
-        const res = await run(chosen.cmd, args, input, progressReader(codexWebOf, onProgress));
+        const res = await run(chosen.cmd, args, input, progressReader(codexWebOf, onProgress), signal);
         let last;
         if (existsSync(lastMessageFile)) { try { last = readFileSync(lastMessageFile, 'utf8'); } catch { last = undefined; } }
         return { ...res, lastMessage: last };
       });
+      if (r.aborted) return after({ ...stoppedResult(model, { calls: 1 }), ...(web ? codexWebOf(r.stdout) : {}), sessionId: threadIdOf(r.stdout) ?? sessionId ?? null, resumed });
       const sf = spawnFailure(r);
       if (sf) return after({ ...sf, model, sessionId: sessionId ?? null, resumed });
       const ev = parseCodexEvents(r.stdout);

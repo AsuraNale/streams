@@ -179,5 +179,7 @@ export const ADVANCED = Object.freeze({
     cancel: '取消',
     close: '关闭',
     failed: '未能移除，请重试。',
+    // 1.1.3 (plan 9.6): the library's conversation has something open
+    openChange: '与主 Agent 进行中的修改将被放弃。',
   }),
 })

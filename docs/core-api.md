@@ -620,6 +620,7 @@ R5a 以前记的卡没有 `basis`：只查来源是否移除 / 暂停与 ④。�
 
 - `cwd`（绝对路径）：每次调用前 `emptyFolder`（不在就建；里面有东西就删掉，记日志——这个文件夹是应用自己的），调用后再看，有东西就记在 `leftover` 并清掉。
 - resume 失败、错误码**不是**连接本身的（`CONNECTION_CODES`：not-installed · not-logged-in · login-expired · bad-key · rate-limited · network · timeout · refused · bad-format · bad-model）→ `sessionLost: true`。11-05 本机实测：Claude Code「No conversation found with session ID: …」（exit 1）、Codex「thread/resume failed: no rollout found for thread id …」（exit 1），都归到这里。
+- **1.1.3**：`send(req, { sessionId, onProgress, signal })` 的 `signal` 中止时结束整棵进程树（`taskkill /T`），回 `code: 'stopped'`，不算 `sessionLost`（5.22）。
 - 超时 `AGENT_TIMEOUT_MS` = 240 s（`deps.timeoutMs` 可改）。
 - 用量：Claude Code 会话模式下 `total_cost_usd` 是单次还是会话累计未核实；用量合计以调用次数为准，`costUsd` 可能多算（`usage.jsonl` 记的是 CLI 报的数，代码先不改）。
 - 函数：`claudeSessionArgv({ model, system, sessionId \| resume })` · `codexSessionArgv({ model, cwd, lastMessageFile })` · `codexResumeArgv({ model, sessionId, lastMessageFile })` · `threadIdOf(stdout)` · `emptyFolder(dir)`。
@@ -825,6 +826,44 @@ R5a 以前记的卡没有 `basis`：只查来源是否移除 / 暂停与 ④。�
   - 卡上「每次怎么挑」不写条数上下限（U3）。
   - 多选题没勾的选项就是用户没选，不由主 Agent 定（U9；改了 11-19 选的「没勾等于交给主 Agent 定」）。
   - 改卡时先看之前的对话和最近一次更新。
+
+## 5.22 1.1.3：停止处理（2026-11-26）
+
+维护者 11-26 定稿赞妮的方案（对话与右键菜单-方案.md），第 5 项第二步「停止以后这件事还开着」同日「做，开工」。核心这一侧是停止信号和停止以后怎样接着走。
+
+- `connect/process.mjs`：
+  - `runProcess({ …, signal })`：`signal` 是 `AbortSignal`。中止时结束整棵进程树，结果带 `aborted: true` 和到那时为止的输出。
+  - `killTree(child, { platform, spawnImpl })`：Windows 上先 `taskkill /pid <pid> /T /F`，再 `kill()`。`cmd.exe` 外壳后面的子进程和 CLI 自己起的进程，`kill()` 够不到。超时也改用它。
+- `connect/session.mjs`：`send(req, { sessionId, onProgress, signal })`。
+  - 中止 → `{ ok: false, code: 'stopped', stopped: true, reads, searches }`（`stoppedResult`），续接的会话也**不算** `sessionLost`。
+  - 到那时为止的搜索和网页读取，从已有的输出里解析出来。
+- `connect/api-tools.mjs`：`send(…, { signal })`。
+  - 中止正在发的请求，之后不再走下一步，结果码 `stopped`。
+  - 保存下来的对话不变：只有拿到回答才写盘。
+- `connect/types.mjs`：`ERROR_CODES` 多一个 `stopped`。
+- `build/check-urls.mjs`：`checkCardUrls(card, { …, stopped })`。每读一个网址前问一次 `stopped()`，为真就返回 `{ stopped: true }`；正在读的那一页读完为止（读取器自己的超时）。
+- `build/conversation.mjs`：
+  - `start(opener, { signal })`、`reply(answer, { signal })`。
+  - 每一轮开始时给状态留一份快照，停止后返回 `{ kind: 'aborted', text, answer }`：
+    - 状态退回快照，用户刚说的那句、核心给主 Agent 的退回重交备注一并去掉；已答的题、等确认的卡不动。
+    - 已用的搜索、网页读取、调用次数和流息自己读过的网址照算（`reads` · `searches` · `calls` · `checked`）。
+    - 停的是第一句：状态回到新建（`status: 'new'`、`opener: null`）。
+    - 否则 `sessionId: null`、`fresh: true`，下一句开新会话。
+  - `replayPrompt(first, turns, text)`：`fresh` 时下一句的提示，由三部分组成：
+    - 第一次的提示，含 SOP、要改的卡、`extra` 和开场白；
+    - 之后的来回，用流息自己的记录：主 Agent 的题和话、用户的回答，只有最近一张卡给全文，前面的卡只提一句，流息给主 Agent 的备注不放；
+    - 用户新说的那句。
+  - 下一次调用成功后 `fresh` 回到 `false`，之后照常续用这个新会话。
+  - 三种连接都这样处理。命令行连接边跑边记会话，被停的那句已经进了模型一侧的记录，续用旧会话会让模型看到一句已撤回的话。
+- 测试：`test/v113-stop.test.mjs`，共 10 条：
+  - 进程树、三种连接各一条；
+  - 核验网址那一步一条；
+  - 第一句停止一条；
+  - 中途停止后接着说一条；
+  - 核验阶段停止一条；
+  - 退回重交那次调用停止一条；
+  - `replayPrompt` 一条。
+- 变异体：`core/scripts/mutation-check.mjs` 里 `v113-*` 九个。
 
 ## 六、桌面桥（desktop 主进程 → 页面）
 

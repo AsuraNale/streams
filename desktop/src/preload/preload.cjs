@@ -65,6 +65,7 @@ const METHODS = [
   // the run and 待看
   'getHome',
   'startRound',
+  'runLibrary',
   'cancelRound',
   'getRoundState',
   'getInbox',
@@ -118,6 +119,10 @@ const METHODS = [
   'retryBuild',
   'confirmBuild',
   'dropBuild',
+  // 1.1.3: 停止处理 / 取消排队, 重新开始, the one-time note
+  'stopBuild',
+  'restartBuild',
+  'dismissConversationsNote',
   // 1.1.2: the conversations by library; the step of each library (每次更新的量)
   'listConversations',
   'getConversation',

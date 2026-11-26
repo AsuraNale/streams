@@ -60,8 +60,9 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
      * 1.1 W6a: what 来源与要求 shows of the library — its card and its sources' rows (core sourceRows) when it has a card; when
      * it has none (built by the last version: A6), its brief, so the page can say how to go on.
      */
-    getCardView() {
-      const dir = library.require()
+    // 1.1.3: id — another registered library's (主 Agent's page brings a library of the last version over from its column)
+    getCardView(id) {
+      const dir = id === undefined || id === null ? library.require() : library.entryOf(id).path
       const card = call('readCard', dir)
       return card ? { card, rows: call('sourceRows', dir), old: false, countLimit: typeof core.countLimitOf === 'function' ? core.countLimitOf(card) : null } : { card: null, rows: [], old: true, brief: call('readBrief', dir) }
     },
@@ -85,9 +86,10 @@ export function createSourcesService({ library, emit, log, core = realCore, now 
       if (r.status !== 'done') throw new BridgeError(r.errors?.some(e => /already/.test(e)) ? 'bad_arguments' : 'internal', (r.errors ?? []).join('; '))
       return changed('a source added to the card', { added: r.result.after })
     },
-    getSources() {
+    // 1.1.3: id — another registered library's (see getCardView)
+    getSources(id) {
       // redesign R5a (O9): each row's last fetch as a state and a hint — the fetcher's message and the HTTP code to the diagnostics
-      const v = call('sourcesView', library.require())
+      const v = call('sourcesView', id === undefined || id === null ? library.require() : library.entryOf(id).path)
       return { ...v, sources: (v.sources ?? []).map(s => publicSourceRow(s, { raw: rawErrors, where: 'source row' })) }
     },
     /**

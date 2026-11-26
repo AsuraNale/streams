@@ -545,7 +545,7 @@ const MUTANTS = [
   {
     id: 'r5b-count-fixed',
     what: '待确认\'s number on the tab is written in, not the list\'s length (1.1: the build\'s waiting card)',
-    edits: [['src/renderer/screens/right-panel.js', '  const n = waitingCard(build?.data) ? 1 : 0\n  const icons', '  const n = 4\n  const icons']],
+    edits: [["src/renderer/screens/right-panel.js","  const n = Array.isArray(conversations?.data?.cards) ? conversations.data.cards.length : 0\n  const icons","  const n = 4\n  const icons"]],
     test: ['test/ui-panel.test.mjs', '--test-name-pattern=待确认: only the build'],
   },
   {
@@ -588,7 +588,7 @@ const MUTANTS = [
   {
     id: 'r5b-lead-when-empty',
     what: '待确认 says 「以下事项均需确认后才会执行。」 with nothing below it',
-    edits: [['src/renderer/screens/right-panel.js', '      ${n ? html`<p data-part="decide-lead">${BUILD.panelLead}</p>` : null}', '      <p>${BUILD.panelLead}</p>']],
+    edits: [["src/renderer/screens/right-panel.js","      ${n ? html`<p data-part=\"decide-lead\">${fmt(L.lead, { n })}</p>` : null}","      <p>${fmt(L.lead, { n })}</p>"]],
     test: ['test/ui-r5b.test.mjs', '--test-name-pattern=precheck fix 9'],
   },
   // redesign R6b (docs/checks/2026-11-13-r6b/contract.md 「测」): R6b-1 the five states and the four 处理建议, R6b-2 05's last pass and
@@ -1057,7 +1057,7 @@ const MUTANTS = [
   {
     id: 'w7a-convert-refused',
     what: 'a library without a card cannot be brought over (refused as before W7a)',
-    edits: [['src/main/services/build.mjs', '        else convert = { library: libraryId }\n', "        else throw new BridgeError('bad_arguments', 'that library has no card')\n"]],
+    edits: [["src/main/services/build.mjs",": { convert: { library: libraryId }, extra: ctx.extra })",": (() => { throw new BridgeError('bad_arguments', 'that library has no card') })())"]],
     test: ['test/services-build.test.mjs', '--test-name-pattern=^bringing a library'],
   },
   {
@@ -1070,7 +1070,7 @@ const MUTANTS = [
     id: 'w7a-convert-writes-early',
     what: 'the card of a library brought over is written before 确认',
     // (1.1.1 P6: the build is made with its connection's connector; the early write is a file in the library brought over)
-    edits: [['src/main/services/build.mjs', "      build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0, found)", "      if (convert) writeFileSync(join(dirOfLibrary(libraryId), 'early-card.md'), 'early')\n      build = createBuild({ connector: connectorFor(active, () => saved?.core?.calls ?? 0, found)"]],
+    edits: [["src/main/services/build.mjs","    c.build = createBuild({ connector: connectorFor(c, active, found)","    if (convert) writeFileSync(join(dirOfLibrary(convert.library), 'early-card.md'), 'early')\n    c.build = createBuild({ connector: connectorFor(c, active, found)"]],
     test: ['test/services-build.test.mjs', '--test-name-pattern=^bringing a library'],
   },
   {
@@ -1098,14 +1098,14 @@ const MUTANTS = [
   {
     id: 'w6b-drop-leaves-card',
     what: '不建了 leaves the card waiting',
-    edits: [['src/main/services/build.mjs', '      try { const r = runner(); for (const p of r.pending()) r.reject(p.id) } catch', '      try { void runner } catch']],
+    edits: [["src/main/services/build.mjs","        if (id) { try { runner().reject(id) }","        if (false) { try { runner().reject(id) }"]],
     test: ['test/services-build.test.mjs', '--test-name-pattern=^不建了 after the connection'],
   },
   {
     id: 'w6b-not-kept',
     what: 'the conversation is not written after a turn (gone after a restart)',
-    edits: [['src/main/services/build.mjs', '      if (saved) write()\n', '']],
-    test: ['test/services-build.test.mjs', '--test-name-pattern=^one conversation at a time'],
+    edits: [["src/main/services/build.mjs","        if (c.saved) writeOf(c)\n        nextTurn()","        nextTurn()"]],
+    test: ["test/services-build.test.mjs","--test-name-pattern=^1.1.3: a second conversation"],
   },
   {
     id: 'w6b-edit-no-before',
@@ -1134,7 +1134,7 @@ const MUTANTS = [
   {
     id: 'w6b-ui-old-form',
     what: '新建库 still opens v1.0\'s form',
-    edits: [['src/renderer/app.js', "newLibrary: () => setRoute(r => (r.screen === 'build' ? r : { screen: 'build', params: { back: r.screen } })),", "newLibrary: () => setRoute(r => (r.screen === 'new-library' ? r : { screen: 'new-library', params: { back: r.screen } })),"]],
+    edits: [["src/renderer/app.js","newLibrary: () => setRoute(r => ({ screen: 'build', params: { back: r.screen === 'build' ? (r.params?.back ?? null) : r.screen } })),","newLibrary: () => setRoute(r => ({ screen: 'new-library', params: { back: r.screen } })),"]],
     test: ['test/ui-w6b.test.mjs', '--test-name-pattern=^W6b: 新建库'],
   },
   // 1.1 W7b: v1.0's scoring pipeline, v2's main agent chat, its proposal cards and 系统检测 left the product; what is left must
@@ -1195,20 +1195,20 @@ const MUTANTS = [
   {
     id: 'w7b-sidebar-old-chat',
     what: 'the sidebar\'s 主 Agent leads to a route of its own again (v2\'s chat, now no screen): the build conversation does not open',
-    edits: [['src/renderer/screens/index.js', "  chat: Object.freeze(['build', Object.freeze({})]),\n", '']],
+    edits: [["src/renderer/screens/index.js","  chat: Object.freeze(['build', Object.freeze({ latest: true })]),\n",""]],
     test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 主 Agent opens'],
   },
   {
     id: 'w7b-sidebar-talk-not-marked',
     what: 'a build conversation going marks 新建库 in the sidebar, not 主 Agent',
     // 1.1.2: OtherGoing marks 主 Agent too — the anchor is Talk's (its main's data-view talk follows)
-    edits: [['src/renderer/screens/build.js', "  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=\"chat\" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>\n    <${Main} screen=\"build\" state=\"ready\" labelledby=\"build-title\" attrs=${{ 'data-mode': view.mode, 'data-view': 'talk' }}>", "  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=\"build\" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>\n    <${Main} screen=\"build\" state=\"ready\" labelledby=\"build-title\" attrs=${{ 'data-mode': view.mode, 'data-view': 'talk' }}>"]],
+    edits: [["src/renderer/screens/build.js","  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=\"chat\" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>\n    <${Main} screen=\"build\" state=\"ready\" labelledby=\"build-title\" attrs=${{ 'data-mode': mode, 'data-view': 'talk'","  return html`<${AppFrame} sidebar=${html`<${AppSidebar} current=\"build\" />`} panel=${html`<${RightPanel} detail=${html`<${How} />`} />`}>\n    <${Main} screen=\"build\" state=\"ready\" labelledby=\"build-title\" attrs=${{ 'data-mode': mode, 'data-view': 'talk'"]],
     test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 主 Agent opens'],
   },
   {
     id: 'w7b-decide-not-build',
     what: '待确认 shows something that is not the build\'s card (its count is never 0: a card while none waits)',
-    edits: [['src/renderer/screens/right-panel.js', '  const waiting = waitingCard(build?.data)\n  const n = waiting ? 1 : 0\n', '  const waiting = waitingCard(build?.data)\n  const n = 1\n']],
+    edits: [["src/renderer/screens/right-panel.js","  const cards = cardsInOrder(conversations?.data?.cards, where)\n  const n = cards.length\n","  const cards = cardsInOrder(conversations?.data?.cards, where)\n  const n = 1\n"]],
     test: ['test/ui-w7b.test.mjs', '--test-name-pattern=W7b · 主 Agent opens'],
   },
   {
@@ -1333,7 +1333,7 @@ const MUTANTS = [
   {
     id: 'p11a-cost-names-claude',
     what: "新建库's cost line names Claude Code's quota whatever the connection (待办 A4)",
-    edits: [['src/renderer/screens/build.js', "can ? fmt(active === 'api' ? T.costApi : T.cost, { name: names[active] ?? active }) : ''", "fmt(T.cost, { name: names['claude-code'] })"]],
+    edits: [["src/renderer/screens/build.js","c.can ? fmt(c.active === 'api' ? T.costApi : T.cost, { name: names[c.active] ?? c.active }) : ''","fmt(T.cost, { name: names['claude-code'] })"]],
     test: ['test/ui-p11a.test.mjs'],
   },
   {
@@ -1377,7 +1377,7 @@ const MUTANTS = [
   {
     id: 'p1-no-ask-fix',
     what: 'no 「请它改好再交」 on a card that cannot be confirmed',
-    edits: [['src/renderer/screens/build.js', "${last && turn.canConfirm !== true && onAskFix ? html", "${false ? html"]],
+    edits: [["src/renderer/screens/build.js","${last && turn.canConfirm !== true && onAskFix && (problems.length || unchecked.length) ? html","${false ? html"]],
     test: ['test/ui-p1.test.mjs'],
   },
   // 1.1.1 P12 (C3)
@@ -1435,7 +1435,7 @@ const MUTANTS = [
   {
     id: 'p6-api-no-tools',
     what: "an API key builds without Streams' own tools (the stand-in session, not the tool session)",
-    edits: [['src/main/services/build.mjs', "const connectorFor = (active, callsSoFar, found) => (active.kind === 'api' && apiSession", "const connectorFor = (active, callsSoFar, found) => (false && apiSession"]],
+    edits: [["src/main/services/build.mjs","  const connectorFor = (c, active, found) => (active.kind === 'api' && apiSession","  const connectorFor = (c, active, found) => (false && apiSession"]],
     test: ['test/ui-p6.test.mjs'],
   },
   {
@@ -1454,7 +1454,7 @@ const MUTANTS = [
   {
     id: 'p10-build-no-live',
     what: "the build page does not show the agent's counts while it works",
-    edits: [['src/renderer/screens/build.js', "if (p?.phase === 'progress') call('getBuild').then(v => setLive(v?.live ?? null), () => {})", "if (p?.phase === 'progress') void 0"]],
+    edits: [["src/renderer/screens/build.js","    if (p.phase === 'progress') call('getBuild', conv).then(v => setState(s => (s.data ? { ...s, data: { ...s.data, live: v?.live ?? null } } : s)), () => {})","    if (p.phase === 'progress') void 0"]],
     test: ['test/ui-p10.test.mjs', '--test-name-pattern=a build'],
   },
   // 1.1.1 P8 「快到期」 (A12, B23): the file's tests open one world one after another, so each mutant runs the whole file
@@ -1527,13 +1527,13 @@ const MUTANTS = [
   {
     id: "v112-list-no-pending",
     what: "a 1.1.1 conversation (no folder, only its pending id) is not found by its library",
-    edits: [["src/main/services/build.mjs", "      return all.find(l => byPending.get(l.id)?.includes(c.pendingId))?.id ?? null", "      return null"]],
+    edits: [["src/main/services/build.mjs","      return all.find(l => byPending.get(l.id)?.includes(core.pendingId))?.id ?? null","      return null"]],
     test: ["test/services-v112.test.mjs", "--test-name-pattern=1.1.1 files find their library"],
   },
   {
     id: "v112-not-told-library",
     what: "a change of a card is not told the library's step, conversations and last update",
-    edits: [["src/main/services/build.mjs", "        extra = ctx.extra\n", ""]],
+    edits: [["src/main/services/build.mjs","}, extra: ctx.extra } : { convert: { library: libraryId }, extra: ctx.extra })","} } : { convert: { library: libraryId } })"]],
     test: ["test/services-v112.test.mjs", "--test-name-pattern=from a library, the agent is told"],
   },
   {
@@ -1551,8 +1551,64 @@ const MUTANTS = [
   {
     id: "v112-earlier-hidden",
     what: "a conversation going on hides the library's earlier ones",
-    edits: [["src/renderer/screens/build.js", "            ${Array.isArray(view.earlier) && view.earlier.length ? html`<${Earlier} items=${view.earlier} />", "            ${false ? html`<${Earlier} items=${view.earlier} />"]],
+    edits: [["src/renderer/screens/build.js","            <${Earlier} items=${view.earlier} />","            ${null}"]],
     test: ["test/ui-v112.test.mjs", "--test-name-pattern=^1.1.2"],
+  },
+  // 1.1.3 (维护者 11-26; 赞妮's plan 对话与右键菜单-方案.md): the conversations kept apart, one turn at a time, 停止处理 and 取消排队,
+  // 放弃 of one conversation only, 改卡的卡过期, the words on disk first, 1.1.2's files as they are, the menus
+  {
+    id: 'v113-drop-takes-all',
+    what: "放弃 of one conversation takes back every card waiting (1.1.2's fallback)",
+    edits: [['src/main/services/build.mjs', "      if (c.saved?.core && c.saved.core.status !== 'built') c.saved.core.status = 'dropped'", "      { const r = runner(); for (const p of r.pending()) r.reject(p.id) }\n      if (c.saved?.core && c.saved.core.status !== 'built') c.saved.core.status = 'dropped'"]],
+    test: ['test/services-v113.test.mjs', "--test-name-pattern=takes back only that conversation"],
+  },
+  {
+    id: 'v113-no-waiting',
+    what: 'the main agent takes every conversation at once (nothing waits its turn)',
+    edits: [['src/main/services/build.mjs', '      if (running >= MAX_AT_ONCE) {', '      if (false) {']],
+    test: ['test/services-v113.test.mjs', '--test-name-pattern=^one turn at a time'],
+  },
+  {
+    id: 'v113-left-queue-silent',
+    what: '取消排队 does not say the words came back',
+    edits: [['src/main/services/build.mjs', "    c.note = 'left'", '    c.note = null']],
+    test: ['test/services-v113.test.mjs', '--test-name-pattern=^取消排队'],
+  },
+  {
+    id: 'v113-stale-confirmed',
+    what: "a change is confirmed although its library's card changed after it started",
+    edits: [['src/main/services/build.mjs', '      if (staleOf(c)) { log(', '      if (false) { log(']],
+    test: ['test/services-v113.test.mjs', '--test-name-pattern=改卡的卡过期'],
+  },
+  {
+    id: 'v113-words-not-first',
+    what: 'the words are not on disk before the agent is asked (an app that quits loses them)',
+    edits: [['src/main/services/build.mjs', "    c.saved.trouble = { code: 'interrupted' }\n", '']],
+    test: ['test/services-v113.test.mjs', '--test-name-pattern=the words are written before'],
+  },
+  {
+    id: 'v113-ended-change-kept-open',
+    what: "1.1.2's ended change of a library stays open instead of being its history",
+    edits: [['src/main/services/build.mjs', '        if (saved.stopped) { archive(c, \'stopped\');', '        if (false) { archive(c, \'stopped\');']],
+    test: ['test/services-v113.test.mjs', "--test-name-pattern=had ended"],
+  },
+  {
+    id: 'v113-legacy-new-not-listed',
+    what: "1.1.2's build.json of a new library is not read as a conversation (the maintainer's stays out of sight)",
+    edits: [['src/main/services/build.mjs', "const STEM = /^(build|open-[0-9A-Za-z-]{1,80})$/", "const STEM = /^(open-[0-9A-Za-z-]{1,80})$/"]],
+    test: ['test/services-v113.test.mjs', "--test-name-pattern=the maintainer's conversation"],
+  },
+  {
+    id: 'v113-menu-stop-always',
+    what: '停止处理 in a conversation\'s menu is never greyed',
+    edits: [['src/renderer/screens/conversations.js', 'disabled: !ACTIVE.includes(row.state) }', 'disabled: false }']],
+    test: ['test/ui-v113.test.mjs'],
+  },
+  {
+    id: 'v113-cards-not-here-first',
+    what: "the right panel's cards are in submitting order only (the one of where you are not first)",
+    edits: [['src/renderer/screens/right-panel.js', '  list.sort((p, q) => (isHere(q) ? 1 : 0) - (isHere(p) ? 1 : 0) || ', '  list.sort((p, q) => ']],
+    test: ['test/ui-v113.test.mjs'],
   },
 ]
 

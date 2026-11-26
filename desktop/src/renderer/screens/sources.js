@@ -368,11 +368,14 @@ function ConfirmDialog({ name, title, onConfirm, onClose, confirm, cancel, close
  * 移除该库 (P21): only the registration goes (removeLibrary); not one file of the folder is touched. 1.1.1 P11a (A11): the
  * same dialog from 库架's 「更多」. onDone after it went; an error stays in the dialog.
  */
-export function RemoveLibraryDialog({ id, name, path, onDone, onClose }) {
+// 1.1.3 (plan 9.6): openChange — the library's conversation with the main agent has something open: one line more, and that
+// thing is stopped and discarded (its card taken back) before the library is removed
+export function RemoveLibraryDialog({ id, name, path, onDone, onClose, openChange = false }) {
   return html`<${ConfirmDialog} name="remove-library" title=${fmt(A.removeDialog.title, { name })} closeLabel=${A.removeDialog.close}
     confirm=${A.removeDialog.confirm} cancel=${A.removeDialog.cancel} onClose=${onClose}
-    onConfirm=${async () => { await call('removeLibrary', id); onDone() }}>
+    onConfirm=${async () => { if (openChange) await call('dropBuild', `lib:${id}`); await call('removeLibrary', id); onDone() }}>
     <p data-part="remove-text">${A.removeDialog.text}</p>
+    ${openChange ? html`<p data-part="remove-open-change">${A.removeDialog.openChange}</p>` : null}
     <p><b data-part="remove-kept">${A.removeDialog.kept}</b>${A.removeDialog.restore}</p>
     <p class="st-path" data-part="remove-path">${path}</p>
   <//>`

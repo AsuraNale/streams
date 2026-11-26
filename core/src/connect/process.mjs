@@ -1,5 +1,5 @@
-// One subprocess, collected: runProcess({ file, args, cwd, input, timeoutMs, spawnImpl })
-//   -> { status, signal, stdout, stderr, timedOut, spawnError }
+// One subprocess, collected: runProcess({ file, args, cwd, input, timeoutMs, spawnImpl, signal })
+//   -> { status, signal, stdout, stderr, timedOut, spawnError, aborted? }
 //
 // spawnImpl has child_process.spawn's signature so tests can hand in a fake.
 // Windows .cmd/.bat shims cannot be spawned directly (Node refuses since 18.x); they go through
@@ -162,8 +162,23 @@ export function runDialogue({ file, args = [], cwd, timeoutMs = DIALOGUE_TIMEOUT
   });
 }
 
+// 1.1.3 (停止处理): a child and everything it started is ended — on Windows `taskkill /pid <pid> /T /F` (a child behind a
+// cmd.exe shim, and the CLI's own helpers, are not reached by kill()), then kill() itself. spawnImpl starts taskkill too, so a
+// test's fake sees it.
+export function killTree(child, { platform = process.platform, spawnImpl = nodeSpawn } = {}) {
+  if (platform === 'win32' && child && Number.isInteger(child.pid)) {
+    try {
+      const k = spawnImpl('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+      k?.on?.('error', () => { /* taskkill missing: kill() below still runs */ });
+    } catch { /* kill() below still runs */ }
+  }
+  try { child?.kill(); } catch { /* already gone */ }
+}
+
 // 1.1.1 P10: onStdout(text) is called with each piece of the output as it arrives (the whole of it still comes at the end)
-export function runProcess({ file, args = [], cwd, input, timeoutMs = DEFAULT_PROCESS_TIMEOUT_MS, env, spawnImpl = nodeSpawn, platform = process.platform, onStdout = null }) {
+// 1.1.3 (停止处理): signal — an AbortSignal; aborted, the child's tree is ended (killTree) and the result says aborted: true,
+// with what it printed until then (the caller reads the searches and reads it made from it)
+export function runProcess({ file, args = [], cwd, input, timeoutMs = DEFAULT_PROCESS_TIMEOUT_MS, env, spawnImpl = nodeSpawn, platform = process.platform, onStdout = null, signal = null }) {
   return new Promise((resolve) => {
     const plan = spawnPlan(file, args, platform);
     let child;
@@ -171,13 +186,21 @@ export function runProcess({ file, args = [], cwd, input, timeoutMs = DEFAULT_PR
     const err = [];
     let settled = false;
     let timedOut = false;
+    let aborted = false;
     let timer = null;
+    let onAbort = null;
     const finish = (result) => {
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
-      resolve(result);
+      if (onAbort) signal?.removeEventListener?.('abort', onAbort);
+      resolve(aborted ? { ...result, aborted: true } : result);
     };
+    if (signal?.aborted) {
+      aborted = true;
+      finish({ status: null, signal: null, stdout: '', stderr: '', timedOut: false, spawnError: null });
+      return;
+    }
     try {
       child = spawnImpl(plan.file, plan.args, {
         cwd,
@@ -201,10 +224,19 @@ export function runProcess({ file, args = [], cwd, input, timeoutMs = DEFAULT_PR
     if (timeoutMs > 0) {
       timer = setTimeout(() => {
         timedOut = true;
-        try { child.kill(); } catch { /* already gone */ }
+        killTree(child, { platform, spawnImpl });
         // a child that ignores kill still resolves: do not hang the pipeline on it
         setTimeout(() => finish({ status: null, signal: 'SIGTERM', stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8'), timedOut: true, spawnError: null }), 1000).unref?.();
       }, timeoutMs);
+    }
+    if (signal) {
+      onAbort = () => {
+        if (settled) return;
+        aborted = true;
+        killTree(child, { platform, spawnImpl });
+        setTimeout(() => finish({ status: null, signal: 'SIGTERM', stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8'), timedOut: false, spawnError: null }), 1000).unref?.();
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
     }
     if (child.stdin) {
       child.stdin.on('error', () => { /* child exited before reading stdin; close event carries the result */ });

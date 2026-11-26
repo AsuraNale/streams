@@ -13,7 +13,6 @@
 import { html, useRef, useState } from '../lib/html.js'
 import { call } from '../lib/bridge.js'
 import { scheduleTag } from '../lib/schedule-words.js'
-import { RemoveLibraryDialog } from './sources.js'
 import { useApp } from '../lib/app-context.js'
 import { fmt, whenText } from '../lib/format.js'
 import { tracking } from '../lib/libraries.js'
@@ -23,7 +22,8 @@ import { RightPanel } from './right-panel.js'
 import { Act } from '../lib/action.js'
 import { OpenExistingNote, useOpenExisting } from '../lib/open-existing.js'
 import { FoundLibraries } from '../lib/found-libraries.js'
-import { AppFrame, AppSidebar, LinkButton, Main, Menu, TopBar } from '../kit/index.js'
+import { AppFrame, AppSidebar, LinkButton, Main, TopBar } from '../kit/index.js'
+import { libraryMenuItems, useLibraryMenu } from '../kit/library-menu.js'
 import { ERRORS, SEP, WHEN } from '../texts/common.js'
 import { SHELL } from '../texts/shell.js'
 import { PANEL } from '../texts/panel.js'
@@ -37,27 +37,16 @@ function problemLine(row) {
   return null
 }
 
-/** 1.1.1 P11a (A11): 「更多」 beside a card — 在资源管理器中显示 · 关掉 / 打开定时 · 移除该库 (the same dialog as 高级设置's). */
-function CardMore({ row, onChanged, onRemove }) {
+/**
+ * 1.1.1 P11a (A11): 「更多」 beside a card. 1.1.3 (菜单五, kit/library-menu.js): 与主 Agent 对话 · 立即运行 · 在资源管理器中显示 ·
+ * 关掉 / 打开定时 · 移除该库 (the same dialog as 高级设置's); a right click on the card opens it too.
+ */
+function CardMore({ row, queue, menu }) {
   const button = useRef(null)
-  const [at, setAt] = useState(null)
-  const [failed, setFailed] = useState(false)
-  const M = T.more
-  const on = row.schedule?.enabled === true
-  const items = [{ id: 'reveal', label: M.reveal }, ...(row.schedule ? [{ id: on ? 'schedule-off' : 'schedule-on', label: on ? M.scheduleOff : M.scheduleOn }] : []), { id: 'remove', label: M.remove, danger: true }]
-  const pick = async id => {
-    setFailed(false)
-    try {
-      if (id === 'reveal') await call('revealLibraryOf', row.id)
-      else if (id === 'schedule-off' || id === 'schedule-on') { await call('setLibrarySchedule', row.id, { ...row.schedule, enabled: id === 'schedule-on' }); onChanged() }
-      else if (id === 'remove') onRemove()
-    } catch { setFailed(true) }
-  }
-  const open = () => { const r = button.current?.getBoundingClientRect(); if (r) setAt({ x: Math.max(4, r.right - 200), y: r.bottom + 4 }) }
+  const items = libraryMenuItems(row, queueStateOf(queue, row.id))
+  const open = () => { const r = button.current?.getBoundingClientRect(); if (r) menu.open(row, Math.max(4, r.right - 200), r.bottom + 4, button.current) }
   return html`<span class="st-act st-shelf-more" data-action="card-more" data-items=${items.map(i => i.id).join(' ')}>
-    <button type="button" class="btn quiet" ref=${button} aria-haspopup="menu" aria-expanded=${String(at !== null)} aria-label=${M.label} onClick=${open}>${M.button}<${TIcon} name="down" /></button>
-    ${at ? html`<${Menu} label=${M.label} x=${at.x} y=${at.y} items=${items} onSelect=${id => { setAt(null); void pick(id) }} onClose=${({ restoreFocus }) => { setAt(null); if (restoreFocus) button.current?.focus() }} />` : null}
-    ${failed ? html`<span class="progress-alert" role="alert">${M.failed}</span>` : null}
+    <button type="button" class="btn quiet" ref=${button} aria-haspopup="menu" aria-label=${T.more.label} onClick=${open}>${T.more.button}<${TIcon} name="down" /></button>
   </span>`
 }
 
@@ -88,8 +77,8 @@ export function ShelfScreen() {
   const [q, setQ] = useState('')
   // 1.1 W13: 「打开已有的库」 — the toolbar's (with libraries) or the empty state's
   const existing = useOpenExisting()
-  // 1.1.1 P11a (A11): the library whose 「移除该库」 dialog is open
-  const [removing, setRemoving] = useState(null)
+  // 1.1.3 (菜单五): the card's 「更多」 and its right click
+  const menu = useLibraryMenu()
   const rows =Array.isArray(libraries?.data) ? libraries.data : null
   const state = rows ? 'ready' : libraries?.status ?? 'loading'
   const needle = q.trim().toLowerCase()
@@ -116,23 +105,22 @@ export function ShelfScreen() {
           ${rows && rows.length === 0 ? html`<div class="empty-state" data-part="shelf-empty">
             <b>${T.emptyText}</b>
             <div class="row st-empty-actions">
-              <${Act} name="empty-chat" variant="primary" onClick=${() => navigate('chat')}>${T.emptyChat}<//>
+              <${Act} name="empty-chat" variant="primary" onClick=${() => newLibrary()}>${T.emptyChat}<//>
               <${Act} name="empty-manual" onClick=${() => newLibrary()}>${T.emptyManual}<//>
               <${Act} name="open-existing" disabled=${existing.busy} onClick=${existing.open}>${SHELL.openExisting.button}<//>
             </div>
           </div>` : null}
           ${rows && rows.length ? html`<div id="projectTiles">
-            ${shown.map(r => html`<div class="st-shelf-item" key=${r.id} data-shelf-item=${r.id}><${Card} row=${r} queue=${qd} onOpen=${() => openLibrary(r.id)} /><${CardMore} row=${r} onChanged=${() => libraries.reload()} onRemove=${() => setRemoving(r)} /></div>`)}
+            ${shown.map(r => html`<div class="st-shelf-item" key=${r.id} data-shelf-item=${r.id} onContextMenu=${e => { e.preventDefault(); menu.open(r, e.clientX, e.clientY, null) }}><${Card} row=${r} queue=${qd} onOpen=${() => openLibrary(r.id)} /><${CardMore} row=${r} queue=${qd} menu=${menu} /></div>`)}
             ${needle && shown.length === 0 ? html`<p class="limit-note" data-part="search-none">${fmt(T.searchNone, { q: q.trim() })}</p>` : null}
-            <button type="button" class="document-link" data-action="new-card" onClick=${() => navigate('chat')}>
+            <button type="button" class="document-link" data-action="new-card" onClick=${() => newLibrary()}>
               <${TIcon} name="plus" /><span>${T.newCard}</span>
             </button>
           </div>` : null}
         </div>
       </div>
     <//>
-    ${removing ? html`<${RemoveLibraryDialog} id=${removing.id} name=${removing.name} path=${removing.path ?? ''} onClose=${() => setRemoving(null)}
-      onDone=${() => { setRemoving(null); libraries.reload(); appState?.reload?.() }} />` : null}
+    ${menu.host}
   <//>`
 }
 

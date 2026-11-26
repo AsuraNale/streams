@@ -165,5 +165,6 @@ export const ADVANCED = Object.freeze({
     cancel: 'Cancel',
     close: 'Close',
     failed: 'Couldn\'t remove it. Try again.',
+    openChange: 'The change in progress with the main agent will be discarded.',
   }),
 })

@@ -454,7 +454,7 @@ app.whenReady().then(() => {
     libraryRoot: () => readSettings(layout.settingsFile).libraryRoot ?? defaultLibraryRoot(),
     // a test or development run with the development connection never reaches the real command line: the script, or the
     // stand-in's one question
-    ...(DEV_BUILD || DEV_CONNECTION ? { session: (active, callsSoFar) => devBuildSession(DEV_BUILD, callsSoFar), readers: () => devBuildReaders(DEV_READS) } : {}),
+    ...(DEV_BUILD || DEV_CONNECTION ? { session: (active, callsSoFar, who) => devBuildSession(DEV_BUILD, callsSoFar, who), readers: () => devBuildReaders(DEV_READS) } : {}),
     // 1.1.1 P1 (B19): the card's addresses read by Streams itself — the update's page reader and link reader
     ...(DEV_BUILD || DEV_CONNECTION ? {} : { readers: () => ({ readPage: readPages().read, readLinks: readLinksNow().read }) }),
     ...(apiWired ? { apiSession: buildApi, apiSearch } : {}),

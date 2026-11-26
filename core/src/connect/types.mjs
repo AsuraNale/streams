@@ -21,6 +21,7 @@ export const ERROR_CODES = [
   'refused',
   'unknown',
   'not-applicable', // the operation has no meaning for this kind (an API connection has no login to open)
+  'stopped', // 1.1.3 (停止处理): the user stopped the call (a session call with a signal)
 ];
 
 export const MODEL_SLOTS = ['main', 'verify'];

@@ -711,7 +711,7 @@ const MUTANTS = [
   {
     id: 'w4-other-tool-ok',
     what: 'a build goes on when the agent used another tool',
-    edits: [['src/build/conversation.mjs', "    if ((r.otherTools ?? []).length) { s.status = 'stopped'; return { kind: 'stopped', notice: 'other-tool' }; }\n    let a = await withUrls(interpret(r));", '    let a = await withUrls(interpret(r));']],
+    edits: [['src/build/conversation.mjs', "    if ((r.otherTools ?? []).length) { s.status = 'stopped'; return { kind: 'stopped', notice: 'other-tool' }; }\n    let a = await withUrls(interpret(r), signal);", '    let a = await withUrls(interpret(r), signal);']],
     test: ['test/build-w4.test.mjs', '--test-name-pattern=^a build stops'],
   },
   {
@@ -1057,6 +1057,61 @@ const MUTANTS = [
     what: "the build SOP lets the main agent decide what a multi-choice answer left unticked again (U9)",
     edits: [["src/sop/build.md", "多选题用户没勾的选项就是他没选：问「要哪些」的，没勾的就是不要；问「不要哪些」的，没勾的就是不排除。没勾的不由你定，卡上也不标「我替你定的」。", "多选题用户没勾的，由你定，卡上标「我替你定的」。"]],
     test: ["test/v112-volume.test.mjs", "--test-name-pattern=^the build SOP"],
+  },
+  // 1.1.3 (停止处理; 维护者 11-26 「做，开工」): the stop signal, the snapshot put back, the record handed to a new session
+  {
+    id: 'v113-no-tree-kill',
+    what: 'a stop on Windows ends only the child itself, never its tree (no taskkill /T)',
+    edits: [['src/connect/process.mjs', "  if (platform === 'win32' && child && Number.isInteger(child.pid)) {", '  if (false) {']],
+    test: ['test/v113-stop.test.mjs', '--test-name-pattern=^runProcess'],
+  },
+  {
+    id: 'v113-stop-as-lost',
+    what: "Claude Code's stopped call is read as its output (a resumed one then a lost session, the thing ended)",
+    edits: [['src/connect/session.mjs', '      if (r.aborted) return after({ ...stoppedResult(model, { calls: 1 }), ...(web ? claudeWebOf(r.stdout) : {}), sessionId: id, resumed });\n', '']],
+    test: ['test/v113-stop.test.mjs', '--test-name-pattern=^Claude Code'],
+  },
+  {
+    id: 'v113-api-stop-as-timeout',
+    what: "an API key's request aborted by the user is told as a timeout",
+    edits: [['src/connect/api-tools.mjs', "        if (signal?.aborted) return { ...failure('stopped', 'stopped by the user', { model, calls: usage.calls + 1 }), stopped: true, ...out };\n", '']],
+    test: ['test/v113-stop.test.mjs', '--test-name-pattern=^API key'],
+  },
+  {
+    id: 'v113-check-not-stopped',
+    what: "Streams' check of a card's addresses reads them all although it was told to stop",
+    edits: [['src/build/check-urls.mjs', "    if (typeof stopped === 'function' && stopped()) return { card, problems: [], known: out, stopped: true };\n    const rec = await readOne(url);", '    const rec = await readOne(url);']],
+    test: ['test/v113-stop.test.mjs', '--test-name-pattern=^checkCardUrls'],
+  },
+  {
+    id: 'v113-no-restore',
+    what: 'a stop leaves the words and what the turn did in the build (the snapshot not put back)',
+    edits: [['src/build/conversation.mjs', '      restore(s, snap);\n', '']],
+    test: ['test/v113-stop.test.mjs', '--test-name-pattern=part way'],
+  },
+  {
+    id: 'v113-spent-forgotten',
+    what: 'a stop forgets the searches, reads and calls of the turn it stopped (stopping again and again gets round the budget)',
+    edits: [['src/build/conversation.mjs', '      for (const [k, v] of Object.entries(spent)) if (v !== undefined) s[k] = v;\n', '']],
+    test: ['test/v113-stop.test.mjs', '--test-name-pattern=first sentence'],
+  },
+  {
+    id: 'v113-same-session-after-stop',
+    what: 'after a stop the next words go on in the stopped session (it has the words taken back)',
+    edits: [['src/build/conversation.mjs', '      s.sessionId = null;\n      if (s.status', '      if (s.status']],
+    test: ['test/v113-stop.test.mjs', '--test-name-pattern=part way'],
+  },
+  {
+    id: 'v113-no-replay',
+    what: "the new session after a stop is told only the new words, not Streams' record of the build",
+    edits: [['src/build/conversation.mjs', '      const prompt = s.fresh ? replayPrompt(firstPrompt(), s.turns, text) : `用户：${text}`;', '      const prompt = `用户：${text}`;']],
+    test: ['test/v113-stop.test.mjs', '--test-name-pattern=part way'],
+  },
+  {
+    id: 'v113-card-after-stop',
+    what: 'a stop while Streams checks the addresses still offers the card',
+    edits: [['src/build/conversation.mjs', '    let a = await withUrls(interpret(r), signal);\n    if (stopped()) return abort();', '    let a = await withUrls(interpret(r), signal);']],
+    test: ['test/v113-stop.test.mjs', "--test-name-pattern=checks the card's addresses"],
   },
 ];
 

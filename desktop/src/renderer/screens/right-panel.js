@@ -11,9 +11,13 @@
 //             自动开始」; the rule 「需保持流息运行…」; nothing running: 「当前无运行任务」. On a library's page, last: that
 //             library's last run in one line, the same line 待看 shows when empty (screens/run-steps.js LastRun,
 //             getHome().lastRound: when it ended, how many it put into 待看).
-//   待确认    1.1 (W6b, W7b): what waits for you to confirm is the build conversation's library card (lib/build.js waitingCard):
-//             BuildWaiting below — 不建了 · 看全文 · 确认 — with the head 「全部库 · 待确认 / n 项」 (the template's panel-summary).
-//             Nothing waits: one sentence. The tab's number (st-count) is the list's length. (v2's 主 Agent 提议 and redesign
+//   待确认    1.1 (W6b, W7b): what waits for you to confirm is a library card of a conversation with the main agent:
+//             BuildWaiting below — 放弃 · 查看完整建库卡 · 确认 — with the head 「全部库 · 待确认 / n 项」 (the template's panel-summary).
+//             1.1.3 (plan 第八节): every conversation's card (listConversations().cards) — the one of the library or the
+//             conversation you are on first, marked 当前库 / 当前对话, the others the one waiting longest first; each with
+//             「{when} 提交」; a change whose library's card changed since cannot be confirmed (its line says why); 「更多」 and a
+//             right click open 菜单三 (查看完整建库卡 · 打开此库 · 放弃). Nothing waits: one sentence. The tab's number is the
+//             number of cards. (v2's 主 Agent 提议 and redesign
 //             R5a's 系统检测 are gone with v2's main agent and v1.0's scoring pipeline.)
 //   详情      follows the main area: the screen gives it (`detail`); a screen with nothing chosen: one sentence
 //   文件      the current library told as a structure (getLibraryOutline; read only). Redesign R4b (P14 · P16): 「文件 · 库的文件
@@ -29,7 +33,9 @@
 // [data-position][data-here][data-why], [data-part="running-phase"], [data-calls], [data-next-row=<id>][data-at],
 // [data-action="panel-stop"];
 // 待确认: [data-pane="decide"][data-count] with [data-part="decide-summary"] [data-part="decide-title"][data-count] [data-part="decide-lead"] (only with something in the list: precheck fix 9), [data-part="decide-none"],
-// the build's card article[data-part="build-waiting"][data-mode] (BuildWaiting);
+// the build's card article[data-part="build-waiting"][data-mode][data-conv][data-here][data-stale] (BuildWaiting) with
+// [data-part=submitted], [data-action=card-more]; 进度's rows: [data-action=row-more] (菜单四: [data-menu-item=open|run-now|
+// schedule|stop]);
 // 详情: [data-part="detail-none"]; 文件: [data-part=files-head|no-library], [data-tree=notes|inbox|requirements|records][data-open],
 // [data-tree-topic=<topic | "">], [data-tree-note=<id>] (.st-rp-tree__row), [data-action=reveal-library|reveal-records|
 // note-more], the menu's [data-menu-item=obsidian|folder].
@@ -48,7 +54,8 @@ import { LIBRARY_ROUTES, Menu } from '../kit/index.js'
 import { NEXT_WHEN, SEP, WHEN } from '../texts/common.js'
 import { PANEL as T, QUEUE } from '../texts/panel.js'
 import { BUILD } from '../texts/build.js'
-import { confirmAndOpen, waitingCard } from '../lib/build.js'
+import { confirmAndOpen } from '../lib/build.js'
+import { DropDialog, dropWords } from './conversations.js'
 
 export { phaseWords }
 
@@ -76,7 +83,7 @@ function useNames() {
 // ---- 进度 ---------------------------------------------------------------------------------------------------------------
 
 /** One library of the queue (the template's phase-row): its place, its name and its state; open shows why and since when. */
-function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
+function QueueRow({ o, i, here, name, running, r, onStop, stopping, onMenu }) {
   const P = T.progress
   const why = doingOf(o.why, QUEUE.why)
   // 1.1.1 P10 (A8): the step it is at, with its numbers (as 待看 shows them)
@@ -94,7 +101,12 @@ function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
   // .phase-label .step-dots; 单线黑白's line.css .phase-heading .step-dots). They were left in the details, where they lay
   // across the lower edge of the heading. The one waiting has its dots too, none marked, as the design's picture has.
   const dots = html`<span class="step-dots" aria-hidden="true">${UPDATE_STEPS.map((id, k) => html`<i key=${id} class=${k < at ? 'complete' : k === at ? 'wait' : ''}></i>`)}</span>`
-  return html`<details class=${`phase-row${running ? ' current' : ''}`} open=${running} data-part=${running ? 'running' : undefined}
+  const more = useRef(null)
+  // 1.1.3 (菜单四): 「更多」 outside the summary (a click on it does not open or fold the row), and a right click on the row
+  return html`<div class="st-rp-rowwrap" onContextMenu=${e => { e.preventDefault(); onMenu?.({ kind: running ? 'running' : 'queued', libraryId: o.libraryId }, e.clientX, e.clientY, more.current) }}>
+  <span class="st-act st-rp-rowmore" data-action="row-more"><button type="button" class="icon-btn" ref=${more} aria-label=${`${T.progress.menu.more} · ${name}`} aria-haspopup="menu"
+    onClick=${() => { const b = more.current?.getBoundingClientRect(); onMenu?.({ kind: running ? 'running' : 'queued', libraryId: o.libraryId }, b ? b.right - 190 : 0, b ? b.bottom + 4 : 0, more.current) }}><${TIcon} name="down" /></button></span>
+  <details class=${`phase-row${running ? ' current' : ''}`} open=${running} data-part=${running ? 'running' : undefined}
     data-library=${o.libraryId ?? ''} data-phase=${running ? r?.phase ?? '' : undefined}
     data-queue-row=${o.libraryId ?? ''} data-position=${i + 1} data-here=${String(o.libraryId === here)} data-why=${o.why ?? ''}>
     <summary class="phase-heading">
@@ -109,7 +121,7 @@ function QueueRow({ o, i, here, name, running, r, onStop, stopping }) {
         <b data-calls=${r?.calls ?? 0}>${fmt(P.callsNoCap, { calls: r?.calls ?? 0 })}</b></div></div>
         <span class="st-act" data-action="panel-stop"><button type="button" class="btn" disabled=${stopping} onClick=${onStop}><${TIcon} name="stop" /> ${stopping ? P.stopping : P.stop}</button></span>` : null}
     </div>
-  </details>`
+  </details></div>`
 }
 
 /** The current library's last run in one line (getHome().lastRound): the line 待看 shows when empty, the same data. */
@@ -123,9 +135,21 @@ function LastRunHere({ libraryId }) {
   </div>`
 }
 
+/** 菜单四 (plan 9.5): 打开此库 (every row) · 立即运行 · 修改定时 (a row of the next runs) · 停止运行 (the one running). */
+export function progressMenuItems(kind, libraryId, q) {
+  const M = T.progress.menu
+  const busy = q?.running?.libraryId === libraryId || (q?.waiting ?? []).some(w => w.libraryId === libraryId)
+  if (kind === 'running') return [{ id: 'open', label: M.open }, { id: 'stop', label: M.stop }]
+  if (kind === 'next') return [{ id: 'open', label: M.open }, { id: 'run-now', label: M.runNow, disabled: busy }, { id: 'schedule', label: M.schedule }]
+  return [{ id: 'open', label: M.open }]
+}
+
 function ProgressPane() {
-  const { queue, appState, route } = useApp()
+  const { queue, appState, route, openLibrary } = useApp()
   const { rowOf } = useNames()
+  const [menu, setMenu] = useState(null)
+  const [menuFailed, setMenuFailed] = useState(false)
+  const onMenu = (row, x, y, back) => setMenu({ row, x, y, back })
   const here = appState?.data?.library?.libraryId ?? null
   const onLibrary = LIBRARY_ROUTES.includes(route?.screen) && here !== null
   const [stopping, setStopping] = useState(null)
@@ -158,67 +182,134 @@ function ProgressPane() {
     <div class="st-rp-order" data-part="order" data-empty=${String(order.length === 0)}>
       ${withAfter.map((o, i) => html`${i === (r ? 1 : 0) && !o.running ? html`<div class="section-label" key="order-label"><span>${P.order}</span></div>` : null}
         <${QueueRow} key=${`${o.libraryId}:${i}`} o=${o} i=${i} here=${here} name=${name(o.libraryId)} running=${Boolean(o.running)} r=${r}
-          onStop=${stop} stopping=${Boolean(stopping) && stopping === (r?.roundId ?? 'x')} />`)}
+          onStop=${stop} stopping=${Boolean(stopping) && stopping === (r?.roundId ?? 'x')} onMenu=${onMenu} />`)}
       ${order.length ? null : html`<p class="limit-note">${P.orderNone}</p>`}
     </div>
     <div class="panel-section" data-part="next" data-empty=${String(next.length === 0)}>
       <div class="section-label"><span>${P.next}</span></div>
-      ${next.length ? next.map(n => html`<div key=${n.libraryId} class="activity-row" data-next-row=${n.libraryId} data-at=${n.at}>${name(n.libraryId)}<small>${nextText(n.at, NEXT_WHEN) ?? ''}</small></div>`)
+      ${next.length ? next.map(n => html`<${NextRow} key=${n.libraryId} n=${n} name=${name(n.libraryId)} onMenu=${onMenu} />`)
         : html`<p class="limit-note">${P.nextNone}</p>`}
       <p class="limit-note" data-part="keep-running">${P.keepRunning}</p>
     </div>
     ${onLibrary ? html`<${LastRunHere} libraryId=${here} />` : null}
+    ${menuFailed ? html`<p class="progress-alert" role="alert" data-part="row-menu-failed">${T.progress.menu.failed}</p>` : null}
+    ${menu ? html`<${Menu} label=${T.progress.menu.label} x=${menu.x} y=${menu.y} items=${progressMenuItems(menu.row.kind, menu.row.libraryId, q)}
+      onSelect=${async id => {
+        const { row, back } = menu
+        setMenu(null)
+        back?.focus?.()
+        setMenuFailed(false)
+        try {
+          if (id === 'open') await openLibrary(row.libraryId, { screen: 'inbox', params: {} })
+          else if (id === 'run-now') await call('runLibrary', row.libraryId)
+          else if (id === 'schedule') await openLibrary(row.libraryId, { screen: 'sources', params: { section: 'run' } })
+          else if (id === 'stop') await stop()
+        } catch { setMenuFailed(true) }
+      }}
+      onClose=${({ restoreFocus }) => { const b = menu.back; setMenu(null); if (restoreFocus) b?.focus?.() }} />` : null}
+  </div>`
+}
+
+/** A library of 下次运行 (the template's activity-row) with its 「更多」 (菜单四). */
+function NextRow({ n, name, onMenu }) {
+  const more = useRef(null)
+  const open = (x, y) => onMenu({ kind: 'next', libraryId: n.libraryId }, x, y, more.current)
+  return html`<div class="activity-row st-rp-next" data-next-row=${n.libraryId} data-at=${n.at} onContextMenu=${e => { e.preventDefault(); open(e.clientX, e.clientY) }}>
+    <span class="st-rp-next__name">${name}</span><small>${nextText(n.at, NEXT_WHEN) ?? ''}</small>
+    <span class="st-act st-rp-rowmore" data-action="row-more"><button type="button" class="icon-btn" ref=${more} aria-label=${`${T.progress.menu.more} · ${name}`} aria-haspopup="menu"
+      onClick=${() => { const b = more.current?.getBoundingClientRect(); open(b ? b.right - 190 : 0, b ? b.bottom + 4 : 0) }}><${TIcon} name="down" /></button></span>
   </div>`
 }
 
 // ---- 待确认 -------------------------------------------------------------------------------------------------------------
 
 /**
- * 1.1 W6b: the library card of the build conversation while it waits for 确认 (lib/build.js waitingCard) — 不建了, 看全文 (the
- * conversation, 新建库), 确认 (the same as the card's own in the conversation).
- * Test hooks: article[data-part="build-waiting"][data-mode] with [data-action=drop|full|confirm].
+ * A library card waiting for 确认 (1.1 W6b; 1.1.3: one of many — x: a card of listConversations: { conv, mode, library, name,
+ * urls, sources, at, stale, busy }) — 放弃 (confirmed: plan 6.3), 查看完整建库卡 (its conversation, at the card), 确认 (as the
+ * card's own in the conversation; not while its library's card changed since, nor while its conversation's agent works).
  */
-function BuildWaiting({ view, turn }) {
+function BuildWaiting({ x, here }) {
   const app = useApp()
   const [acting, setActing] = useState(false)
   const [failed, setFailed] = useState(false)
-  const edit = view.mode === 'edit'
-  const cv = view.mode === 'convert' ? BUILD.convert : null
-  const card = turn.card ?? {}
-  const sources = Array.isArray(card.sources) ? card.sources.length : 0
+  const [asking, setAsking] = useState(false)
+  const [menu, setMenu] = useState(null)
+  const more = useRef(null)
+  const edit = x.mode === 'edit'
+  const cv = x.mode === 'convert' ? BUILD.convert : null
+  const D = T.decide
   const act = async fn => {
     if (acting) return
     setActing(true)
     setFailed(false)
     try { await fn() } catch { setFailed(true) } finally { setActing(false) }
   }
-  return html`<article class="confirmation st-rp-decide" data-part="build-waiting" data-mode=${view.mode} data-size="compact">
+  const drop = async () => { await call('dropBuild', x.conv); app?.conversations?.reload?.() }
+  const full = () => app?.openConversation?.(x.conv, { card: true })
+  const items = [
+    { id: 'full', label: BUILD.full },
+    ...(x.mode === 'create' ? [] : [{ id: 'open-library', label: BUILD.menu.openLibrary }]),
+    { id: 'drop', label: dropWords(x.mode), danger: true },
+  ]
+  const pick = id => {
+    if (id === 'full') full()
+    else if (id === 'open-library' && x.library?.id) void act(() => app.openLibrary(x.library.id, { screen: 'inbox', params: {} }))
+    else if (id === 'drop') setAsking(true)
+  }
+  const atButton = () => { const r = more.current?.getBoundingClientRect(); setMenu({ x: r ? r.right - 190 : 0, y: r ? r.bottom + 4 : 0 }) }
+  return html`<article class="confirmation st-rp-decide" data-part="build-waiting" data-mode=${x.mode} data-conv=${x.conv} data-here=${here ? 'true' : undefined} data-stale=${String(x.stale === true)} data-size="compact"
+    onContextMenu=${e => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY }) }}>
     <div class="card-body">
-      <span class="eyebrow" data-part="from">${cv?.panelEyebrow ?? (edit ? BUILD.panelEditEyebrow : BUILD.panelEyebrow)}</span>
-      <h3 data-part="sentence">${fmt(cv?.cardTitle ?? (edit ? BUILD.editCardTitle : BUILD.cardTitle), { name: card.name ?? '' })}</h3>
-      <p class="muted" data-part="evidence">${fmt(BUILD.panelLine, { urls: turn.urls ?? 0, sources })}</p>
+      <div class="st-rp-decide__top"><span class="eyebrow" data-part="from">${cv?.panelEyebrow ?? (edit ? BUILD.panelEditEyebrow : BUILD.panelEyebrow)}</span>
+        ${here ? html`<span class="st-rp-decide__here" data-part="here">${x.mode === 'create' ? D.hereConv : D.here}</span>` : null}
+        <span class="st-act st-rp-decide__more" data-action="card-more"><button type="button" class="icon-btn" ref=${more} aria-label=${BUILD.menu.cardLabel} aria-haspopup="menu" onClick=${atButton}><${TIcon} name="down" /></button></span></div>
+      <h3 data-part="sentence">${fmt(cv?.cardTitle ?? (edit ? BUILD.editCardTitle : BUILD.cardTitle), { name: x.name ?? '' })}</h3>
+      <p class="muted" data-part="evidence">${fmt(BUILD.panelLine, { urls: x.urls ?? 0, sources: x.sources ?? 0 })}</p>
+      ${x.at ? html`<p class="muted st-rp-decide__at" data-part="submitted">${fmt(D.at, { when: whenText(x.at, WHEN) ?? '' })}</p>` : null}
+      ${x.stale ? html`<p class="limit-note" role="note" data-part="stale">${fmt(BUILD.notWhole, { what: BUILD.stale })}</p>` : null}
     </div>
     <div class="confirm-footer" data-busy=${String(acting)}><div class="row">
-      <span class="st-act" data-action="drop"><button type="button" class="btn quiet" disabled=${acting || view.busy} onClick=${() => act(async () => { await call('dropBuild'); app?.build?.set?.(null) })}>${cv?.drop ?? (edit ? BUILD.dropEdit : BUILD.drop)}</button></span>
-      <span class="st-act" data-action="full"><button type="button" class="btn" onClick=${() => app?.navigate?.('build')}>${BUILD.full}</button></span>
-      <span class="st-act" data-action="confirm"><button type="button" class="btn primary" disabled=${acting || view.busy} onClick=${() => act(() => confirmAndOpen(app))}><${TIcon} name="approve" fallback="check" /> ${cv?.confirm ?? (edit ? BUILD.confirmEdit : BUILD.confirm)}</button></span>
+      <span class="st-act" data-action="drop"><button type="button" class="btn quiet" disabled=${acting} onClick=${() => setAsking(true)}>${dropWords(x.mode)}</button></span>
+      <span class="st-act" data-action="full"><button type="button" class="btn" onClick=${full}>${BUILD.full}</button></span>
+      <span class="st-act" data-action="confirm"><button type="button" class="btn primary" disabled=${acting || x.busy || x.stale} onClick=${() => act(() => confirmAndOpen(app, x.conv))}><${TIcon} name="approve" fallback="check" /> ${cv?.confirm ?? (edit ? BUILD.confirmEdit : BUILD.confirm)}</button></span>
     </div></div>
     ${failed ? html`<p class="limit-note" role="alert" data-part="call-failed">${BUILD.failedCall}</p>` : null}
+    ${menu ? html`<${Menu} label=${BUILD.menu.cardLabel} x=${menu.x} y=${menu.y} items=${items}
+      onSelect=${id => { setMenu(null); more.current?.focus(); pick(id) }} onClose=${({ restoreFocus }) => { setMenu(null); if (restoreFocus) more.current?.focus() }} />` : null}
+    ${asking ? html`<${DropDialog} mode=${x.mode} name=${x.library?.name ?? x.name ?? ''} onConfirm=${drop} onClose=${() => setAsking(false)} />` : null}
   </article>`
 }
 
-/** 待确认: the build's card while it waits for 确认 (1.1 W6b) — the one thing to confirm; the head says how many (the tab's number). */
+/** The cards in their order (plan 第八节): the one of where you are first, then the one waiting longest. */
+export function cardsInOrder(cards, { libraryId = null, conv = null } = {}) {
+  const list = Array.isArray(cards) ? [...cards] : []
+  const isHere = c => (conv && c.conv === conv) || (libraryId && c.library?.id === libraryId)
+  list.sort((p, q) => (isHere(q) ? 1 : 0) - (isHere(p) ? 1 : 0) || String(p.at ?? '').localeCompare(String(q.at ?? '')))
+  return list.map(c => ({ c, here: Boolean(isHere(c)) }))
+}
+
+/** Where you are, for the order of the cards: the conversation shown on 主 Agent's page, else the library of its page. */
+function useWhere() {
+  const { route, appState } = useApp()
+  const params = route?.screen === 'build' ? route.params ?? {} : {}
+  const conv = typeof params.conv === 'string' ? params.conv : typeof params.edit === 'string' ? `lib:${params.edit}` : typeof params.from === 'string' ? `lib:${params.from}` : null
+  const libraryId = conv?.startsWith('lib:') ? conv.slice(4) : LIBRARY_ROUTES.includes(route?.screen) ? appState?.data?.library?.libraryId ?? null : null
+  return { conv, libraryId }
+}
+
+/** 待确认: every card waiting for 确认 (1.1.3); the head says how many (the tab's number). */
 function DecidePane() {
-  const { build } = useApp()
+  const { conversations } = useApp()
   const L = T.decide
-  const waiting = waitingCard(build?.data)
-  const n = waiting ? 1 : 0
+  const where = useWhere()
+  const cards = cardsInOrder(conversations?.data?.cards, where)
+  const n = cards.length
   return html`<div class="st-rp-pane" data-pane="decide" data-count=${n}>
     <${PanelSummary} part="decide-summary" eyebrow=${L.eyebrow} title=${n ? html`<span data-part="decide-title" data-count=${n}>${fmt(L.title, { n })}</span>` : html`<span data-part="decide-none">${L.none}</span>`}>
-      ${n ? html`<p data-part="decide-lead">${BUILD.panelLead}</p>` : null}
+      ${n ? html`<p data-part="decide-lead">${fmt(L.lead, { n })}</p>` : null}
     <//>
-    ${build?.status === 'error' && !n ? html`<p class="progress-alert" role="alert">${L.loadFailed}</p>` : null}
-    ${n ? html`<div class="st-stack" data-part="decide-list"><${BuildWaiting} view=${build.data} turn=${waiting} /></div>` : null}
+    ${conversations?.status === 'error' && !n ? html`<p class="progress-alert" role="alert">${L.loadFailed}</p>` : null}
+    ${n ? html`<div class="st-stack" data-part="decide-list">${cards.map(({ c, here }) => html`<${BuildWaiting} key=${c.conv} x=${c} here=${here} />`)}</div>` : null}
   </div>`
 }
 
@@ -342,12 +433,12 @@ function FilesPane() {
 
 /** The panel itself. `detail`: what the screen shows in 详情 (null: one sentence). */
 export function RightPanel({ detail = null }) {
-  const { appState, setPanel, build } = useApp()
+  const { appState, setPanel, conversations } = useApp()
   const panel = appState?.data?.panel ?? null
   const open = panel?.open !== false
   const tab = TAB_IDS.includes(panel?.tab) ? panel.tab : 'detail'
-  // redesign R5b (O5): the number is the list's length, the same list 待确认 shows (1.1: the build's waiting card)
-  const n = waitingCard(build?.data) ? 1 : 0
+  // redesign R5b (O5): the number is the list's length, the same list 待确认 shows (1.1.3: every conversation's card)
+  const n = Array.isArray(conversations?.data?.cards) ? conversations.data.cards.length : 0
   const icons = hasTabIcons()
   const badge = id => (id === 'decide' && n > 0 ? html` <small class="st-count" data-panel-badge=${id} aria-label=${fmt(T.decideBadge, { n })}>${n}</small>` : null)
   if (!open) {

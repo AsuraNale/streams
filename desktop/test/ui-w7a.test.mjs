@@ -104,23 +104,24 @@ describe('W7a: a library made by 1.0.1, opened by 1.1', () => {
     const before = tree(lib)
     await s.page.click('[data-action="recheck-sources"] button')
     await ready(s.page, 'build')
-    await until(() => document.querySelector('textarea[data-field="opener"]')?.value.includes('旧版本创建'))
-    const p = await s.page.evaluate(() => ({ mode: document.querySelector('main[data-screen="build"]').dataset.mode, h2: document.querySelector('main h2').textContent, opener: document.querySelector('textarea[data-field="opener"]').value, note: Boolean(document.querySelector('[data-part="from-old"]')) }))
+    await until(() => document.querySelector('textarea[data-field="message"]')?.value.includes('旧版本创建'))
+    const p = await s.page.evaluate(() => ({ mode: document.querySelector('main[data-screen="build"]').dataset.mode, h2: document.querySelector('#build-title').textContent, opener: document.querySelector('textarea[data-field="message"]').value, note: Boolean(document.querySelector('[data-part="from-old"]')) }))
     assert.equal(p.mode, 'convert')
     assert.ok(p.h2.includes('v101-library'), p.h2)
     assert.ok(p.opener.includes('letta-blog') && p.opener.includes('原有追踪要求'), p.opener)
     assert.equal(p.note, true)
     await shot('convert-start')
-    await s.page.click('[data-action="start"] button')
+    await s.page.click('[data-action="send"] button')
     await until(() => document.querySelector('article[data-part="build-card"] [data-action="confirm"]') !== null && document.querySelector('[data-part="thinking"]') === null)
     assert.ok((await s.page.evaluate(() => document.querySelector('[data-action="confirm"]').textContent)).includes('确认并转换')) // 1.1.2 第 2 件: 确认，换过来 → 确认并转换
     assert.deepEqual(tree(lib), before, 'not confirmed: the library byte for byte')
     await shot('convert-card')
     await s.page.click('article[data-part="build-card"] [data-action="drop"] button')
-    await until(() => document.querySelector('main[data-screen="build"][data-view="start"]') !== null)
+    await until(() => document.querySelector('main[data-screen="build"][data-conv-state="idle"]') !== null)
     assert.deepEqual(tree(lib), before, '不换了: the library byte for byte')
-    // again, and 确认
-    await s.page.click('[data-action="start"] button')
+    // again (the opener in the box again), and 确认
+    await until(() => document.querySelector('textarea[data-field="message"]')?.value.includes('旧版本创建'))
+    await s.page.click('[data-action="send"] button')
     await until(() => document.querySelector('article[data-part="build-card"] [data-action="confirm"]') !== null && document.querySelector('[data-part="thinking"]') === null)
     const id = (await s.page.evaluate(() => window.streams.getAppState())).data.library.libraryId
     await s.page.click('article[data-part="build-card"] [data-action="confirm"] button')
@@ -219,7 +220,7 @@ describe('W7a in English (E5)', () => {
     await ready(e.page, 'sources')
     await e.page.click('[data-action="recheck-sources"] button')
     await ready(e.page, 'build')
-    await e.page.waitForFunction(() => document.querySelector('textarea[data-field="opener"]')?.value.includes('earlier version'), null, POLL) // 1.1.2 第 2 件: last version → earlier version
+    await e.page.waitForFunction(() => document.querySelector('textarea[data-field="message"]')?.value.includes('earlier version'), null, POLL) // 1.1.2 第 2 件: last version → earlier version
     const page = await e.page.evaluate(() => { const m = document.querySelector('main').cloneNode(true); for (const x of m.querySelectorAll('textarea')) x.remove(); return m.textContent })
     // the library's own words (its brief, its sources' names) are the user's, not ours: only our words are checked
     const ours = page.replace(/v101-library/g, '')
