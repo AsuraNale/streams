@@ -120,7 +120,9 @@ test('interface B: what the page may send to the new methods, and what it may no
   bad('askLibrary', ['']); bad('askLibrary', ['   ']); bad('askLibrary', [long(501)]); bad('askLibrary', [null]); bad('askLibrary', ['a', 'b'])
   ok('addDemand', ['agent 记忆', '']); ok('addDemand', ['agent 记忆', 'q']); bad('addDemand', ['', 'q']); bad('addDemand', ['t', null]); bad('addDemand', ['t'])
   ok('answerFeedback', ['q', 'the second sentence is wrong']); bad('answerFeedback', ['q', '']); bad('answerFeedback', ['', 'n']); bad('answerFeedback', ['q', long(2001)])
-  for (const name of ['getSources', 'getCardView', 'getChangeLog', 'openLogsFolder', 'getDemands']) { ok(name, []); bad(name, ['x']) }
+  for (const name of ['getChangeLog', 'openLogsFolder', 'getDemands']) { ok(name, []); bad(name, ['x']) }
+  // 1.1.3: another library's (主 Agent's page brings a library of the last version over from its column): a library id, nothing else
+  for (const name of ['getSources', 'getCardView']) { ok(name, []); ok(name, ['a1b2c3d4']); bad(name, ['']); bad(name, [7]); bad(name, ['a1b2c3d4', 'x']) }
 })
 
 test('core errors become bridge codes: shape errors → bad_arguments, the rest → internal; a missing core function → internal', async () => {

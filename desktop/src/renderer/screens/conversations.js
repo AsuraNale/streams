@@ -154,7 +154,7 @@ function Row({ row, current, isNew, onOpen, onMenu }) {
       <small><${Mark} kind=${markOf(row, isNew)} /><span data-part="conv-line">${stateLine(row)}</span></small>
     </button>
     <span class="st-act st-conv__more" data-action="conv-more"><button type="button" class="icon-btn" ref=${more} aria-label=${`${T.menu.more}${row.title ? ` · ${row.title}` : ''}`} aria-haspopup="menu"
-      onClick=${atButton} onKeyDown=${e => { if (e.key === 'ContextMenu') { e.preventDefault(); atButton() } }}><${TIcon} name="down" /></button></span>
+      onClick=${atButton} onKeyDown=${e => { if (e.key === 'ContextMenu') { e.preventDefault(); atButton() } }}><span class="st-more-dots" aria-hidden="true">⋯</span></button></span>
   </div>`
 }
 

@@ -100,7 +100,8 @@ describe('P11a: 库架\'s 更多 and schedule tags, 定时 by the rhythm, the co
 
   test('A11: 「更多」 — 在资源管理器中显示 (any library, not only the current one); 关掉定时 then 打开定时', async () => {
     const items = await moreOn(L.ids[0])
-    assert.deepEqual(items, [['reveal', SHELL.shelf.more.reveal], ['schedule-off', SHELL.shelf.more.scheduleOff], ['remove', SHELL.shelf.more.remove]])
+    // 1.1.3 (菜单五): 与主 Agent 对话 and 立即运行 first
+    assert.deepEqual(items, [['talk', SHELL.shelf.more.talk], ['run-now', SHELL.shelf.more.runNow], ['reveal', SHELL.shelf.more.reveal], ['schedule-off', SHELL.shelf.more.scheduleOff], ['remove', SHELL.shelf.more.remove]])
     await shot('shelf-more')
     // a shown window is not a test run: it would really open File Explorer, so the pictures' run leaves this item alone
     if (!SHOTS) {

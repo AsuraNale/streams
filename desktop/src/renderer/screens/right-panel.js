@@ -105,7 +105,7 @@ function QueueRow({ o, i, here, name, running, r, onStop, stopping, onMenu }) {
   // 1.1.3 (菜单四): 「更多」 outside the summary (a click on it does not open or fold the row), and a right click on the row
   return html`<div class="st-rp-rowwrap" onContextMenu=${e => { e.preventDefault(); onMenu?.({ kind: running ? 'running' : 'queued', libraryId: o.libraryId }, e.clientX, e.clientY, more.current) }}>
   <span class="st-act st-rp-rowmore" data-action="row-more"><button type="button" class="icon-btn" ref=${more} aria-label=${`${T.progress.menu.more} · ${name}`} aria-haspopup="menu"
-    onClick=${() => { const b = more.current?.getBoundingClientRect(); onMenu?.({ kind: running ? 'running' : 'queued', libraryId: o.libraryId }, b ? b.right - 190 : 0, b ? b.bottom + 4 : 0, more.current) }}><${TIcon} name="down" /></button></span>
+    onClick=${() => { const b = more.current?.getBoundingClientRect(); onMenu?.({ kind: running ? 'running' : 'queued', libraryId: o.libraryId }, b ? b.right - 190 : 0, b ? b.bottom + 4 : 0, more.current) }}><span class="st-more-dots" aria-hidden="true">⋯</span></button></span>
   <details class=${`phase-row${running ? ' current' : ''}`} open=${running} data-part=${running ? 'running' : undefined}
     data-library=${o.libraryId ?? ''} data-phase=${running ? r?.phase ?? '' : undefined}
     data-queue-row=${o.libraryId ?? ''} data-position=${i + 1} data-here=${String(o.libraryId === here)} data-why=${o.why ?? ''}>
@@ -217,7 +217,7 @@ function NextRow({ n, name, onMenu }) {
   return html`<div class="activity-row st-rp-next" data-next-row=${n.libraryId} data-at=${n.at} onContextMenu=${e => { e.preventDefault(); open(e.clientX, e.clientY) }}>
     <span class="st-rp-next__name">${name}</span><small>${nextText(n.at, NEXT_WHEN) ?? ''}</small>
     <span class="st-act st-rp-rowmore" data-action="row-more"><button type="button" class="icon-btn" ref=${more} aria-label=${`${T.progress.menu.more} · ${name}`} aria-haspopup="menu"
-      onClick=${() => { const b = more.current?.getBoundingClientRect(); open(b ? b.right - 190 : 0, b ? b.bottom + 4 : 0) }}><${TIcon} name="down" /></button></span>
+      onClick=${() => { const b = more.current?.getBoundingClientRect(); open(b ? b.right - 190 : 0, b ? b.bottom + 4 : 0) }}><span class="st-more-dots" aria-hidden="true">⋯</span></button></span>
   </div>`
 }
 
@@ -262,7 +262,7 @@ function BuildWaiting({ x, here }) {
     <div class="card-body">
       <div class="st-rp-decide__top"><span class="eyebrow" data-part="from">${cv?.panelEyebrow ?? (edit ? BUILD.panelEditEyebrow : BUILD.panelEyebrow)}</span>
         ${here ? html`<span class="st-rp-decide__here" data-part="here">${x.mode === 'create' ? D.hereConv : D.here}</span>` : null}
-        <span class="st-act st-rp-decide__more" data-action="card-more"><button type="button" class="icon-btn" ref=${more} aria-label=${BUILD.menu.cardLabel} aria-haspopup="menu" onClick=${atButton}><${TIcon} name="down" /></button></span></div>
+        <span class="st-act st-rp-decide__more" data-action="card-more"><button type="button" class="icon-btn" ref=${more} aria-label=${BUILD.menu.cardLabel} aria-haspopup="menu" onClick=${atButton}><span class="st-more-dots" aria-hidden="true">⋯</span></button></span></div>
       <h3 data-part="sentence">${fmt(cv?.cardTitle ?? (edit ? BUILD.editCardTitle : BUILD.cardTitle), { name: x.name ?? '' })}</h3>
       <p class="muted" data-part="evidence">${fmt(BUILD.panelLine, { urls: x.urls ?? 0, sources: x.sources ?? 0 })}</p>
       ${x.at ? html`<p class="muted st-rp-decide__at" data-part="submitted">${fmt(D.at, { when: whenText(x.at, WHEN) ?? '' })}</p>` : null}

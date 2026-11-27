@@ -600,13 +600,13 @@ function ConversationPage({ conv, params }) {
   const S = T.list.states
   const chipText = !view.open ? null : view.state === 'card' || waiting ? (cv?.waiting ?? (edit ? T.editWaiting : T.cardWaiting))
     : view.state === 'card-blocked' ? S['card-blocked'] : view.state === 'working' ? S.working : view.state === 'waiting' ? fmt(S.waiting, { n: view.waiting ?? 1 })
-    : view.state === 'unsent' ? S.unsent : view.state === 'ended' ? S.ended : fmt(T.progress, { n: Math.max(asked, 1) })
+    : view.state === 'unsent' ? S.unsent : view.state === 'ended' ? S.ended : view.state === 'replied' ? fmt(S.replied, { when: whenOf(view.lastAt) }) : fmt(T.progress, { n: Math.max(asked, 1) })
   const menuItems = convMenuItems({ ...view, id: conv }, app)
   const openMenu = () => { const r = moreRef.current?.getBoundingClientRect(); setMenu({ x: r ? r.right - 190 : 0, y: r ? r.bottom + 4 : 0 }) }
   const head = html`<span class="st-conv-head" data-part="conv-head">
     ${chipText ? html`<span class="status-chip" data-part="progress-chip" data-state=${view.state} data-asked=${asked} data-waiting=${String(waiting)}><span class="dot"></span> ${chipText}</span>` : null}
     ${view.open ? html`<span class="st-act" data-action="drop-open"><button type="button" class="btn quiet" disabled=${acting} onClick=${() => acts.ask({ ...view, id: conv })}>${dropWords(mode)}</button></span>` : null}
-    <span class="st-act" data-action="conv-more"><button type="button" class="icon-btn" ref=${moreRef} aria-label=${T.menu.more} aria-haspopup="menu" onClick=${openMenu}><${TIcon} name="down" /></button></span>
+    <span class="st-act" data-action="conv-more"><button type="button" class="icon-btn" ref=${moreRef} aria-label=${T.menu.more} aria-haspopup="menu" onClick=${openMenu}><span class="st-more-dots" aria-hidden="true">⋯</span></button></span>
   </span>`
   const trouble = view.trouble?.code ?? null
   const troubleWords = trouble && Object.hasOwn(T.trouble, trouble) ? T.trouble[trouble] : T.trouble.failed
