@@ -36,6 +36,8 @@ export function doingOf(why, table) {
 export function useQueue(enabled) {
   const q = useLoad(() => (enabled ? call('getQueue') : null), [enabled])
   useEvent('queue-changed', () => { if (enabled) q.reload() }, [enabled])
+  // 1.1.3: a library's schedule changed (its 下次运行时间, the right panel's 进度 and 菜单四)
+  useEvent('settings-changed', () => { if (enabled) q.reload() }, [enabled])
   useEvent('round-progress', p => {
     if (!enabled || !p || typeof p !== 'object') return
     if (p.done === true) { q.reload(); return }

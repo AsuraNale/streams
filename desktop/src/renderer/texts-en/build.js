@@ -112,7 +112,7 @@ export const BUILD = Object.freeze({
   decideNone: 'Nothing for you to decide',
   folder: 'Library folder: {name}, in the Shelf folder',
   editFolder: 'Edits the “{name}” card; the new version is added to its history',
-  drop: 'Discard',
+  drop: 'Discard build',
   dropEdit: 'Discard changes',
   full: 'View full card',
   fold: 'Show less',

@@ -199,9 +199,9 @@
 /* the marks (plan 3.6): not the sidebar's — no dot on an idle row; accent: yours to answer or confirm, or new; amber: cannot go on */
 .st-conv__dot { display: inline-block; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .st-conv__dot--hollow { width: 7px; height: 7px; background: transparent; border: 1.5px solid var(--accent); }
-/* amber: the mock's own two values (the themes have no amber; only these dots use it) */
-.st-conv__dot--amber { background: #a56a16; }
-.r11[data-appearance="dark"] .st-conv__dot--amber { background: #e3ad5c; }
+/* the mock's amber: the themes have no amber and an app style file names no colour (kit.test) — a small diamond in the
+   colour of what waits (--st-wait), told apart from the round dots by its shape */
+.st-conv__dot--amber { width: 6px; height: 6px; border-radius: 1px; transform: rotate(45deg); background: var(--st-wait); }
 .st-convs__note { display: grid; gap: 6px; justify-items: start; margin: 0 0 8px; padding: 9px 10px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; font-size: 12px; line-height: 1.6; color: var(--ink); }
 .st-convs__note p { margin: 0; }
 .st-convs__none { margin: 4px 10px; font-size: 12px; color: var(--muted); }
